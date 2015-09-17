@@ -3,13 +3,658 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2015-09-15T21:42:00+0900:/</id>
-	<updated>2015-09-15T21:42:00+0900</updated>
+	<id>tag:text.Baldanders.info,2015-09-17T21:23:42+0900:/</id>
+	<updated>2015-09-17T21:23:42+0900</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.15-DEV</generator>
 
+	
+	<entry>
+		<title>素数探索アルゴリズムで遊ぶ - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/search-prime-numbers/" />
+		<id>tag:text.Baldanders.info,2015-09-17T21:23:42+0900:/golang/search-prime-numbers/</id>
+		<published>2015-09-17T21:23:42+0900</published>
+		
+		<summary>これまた，みんな大好き素数探索アルゴリズム</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;は公式のドキュメントがとても充実していて（ただしほぼ英語だけど），私のような初学者に易しい環境といえる。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://golang.org/doc/&#34;&gt;Documentation - The Go Programming Language&lt;/a&gt; : 言語仕様に関するドキュメントはこちら（&lt;a href=&#34;http://golang-jp.org/doc/&#34;&gt;一部日本語化&lt;/a&gt;されている）&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://golang.org/pkg/&#34;&gt;Packages - The Go Programming Language&lt;/a&gt; : 標準パッケージのドキュメントはこちら（&lt;a href=&#34;http://golang-jp.org/pkg/&#34;&gt;一部日本語化&lt;/a&gt;されている）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;とはいえ，コードが実際にどのように機能するかは書いてみないと分からない部分もある。
+なので，今回からは実際にコードを書きながら言語の癖のようなものを調べていくことにする。
+仕事に使うなら厳密な評価が必要だけど，今のところはそんな予定もないし，まずはテキトーで（笑）&lt;/p&gt;
+
+&lt;p&gt;早速，みんな大好き素数探索アルゴリズムで遊ぶ。&lt;/p&gt;
+
+&lt;h2 id=&#34;素数の定義:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;素数の定義&lt;/h2&gt;
+
+&lt;p&gt;一応，素数（prime number）の定義を以下に示す。&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;1 と自分自身以外に正の約数を持たない 1 より大きい自然数&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;ここで自然数（natural number）は「ペアノの公理」に従う（0 が自然数に含まれるかどうかについては色々あるみたいだが，素数の定義には影響がないので，ここでは無視する）。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E3%83%9A%E3%82%A2%E3%83%8E%E3%81%AE%E5%85%AC%E7%90%86&#34;&gt;ペアノの公理 - Wikipedia&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/taketo1024/items/2ab856d21bf9b9f30357&#34;&gt;Swiftで自然数を作ってみた（ペアノの公理） - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ちなみに結城浩さんの『数学ガール／ゲーデルの不完全性定理』にペアノの公理について分かりやすく解説した章がある。
+お勧め。&lt;/p&gt;
+
+&lt;h2 id=&#34;alg1:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;素数探索アルゴリズム（その1）&lt;/h2&gt;
+
+&lt;p&gt;素数の定義を愚直にコードで表すなら以下のようになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+func main() {
+	max := 100
+	fmt.Printf(&amp;quot;%v 以下の素数:&amp;quot;, max)
+
+	start := time.Now() //Start
+	for n := 2; n &amp;lt;= max; n++ {
+		flag := true
+		for m := 2; m &amp;lt; n; m++ {
+			if (n % m) == 0 { // n が m で割り切れる → 素数ではない
+				flag = false
+				break
+			}
+		}
+		if flag {
+			fmt.Printf(&amp;quot; %v&amp;quot;, n)
+		}
+	}
+	goal := time.Now()                     //Goal
+	fmt.Printf(&amp;quot;\n%v 経過&amp;quot;, goal.Sub(start)) //経過時間を表示
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime01.go
+100 以下の素数: 2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97
+5.0002ms 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;この値を覚えておいてね。
+検算に使うから。&lt;/p&gt;
+
+&lt;h2 id=&#34;alg2:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;素数探索アルゴリズム（その2: エラトステネスの篩の変形）&lt;/h2&gt;
+
+&lt;p&gt;もう少しだけ効率的に素数を探すアルゴリズムとして「&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E3%82%A8%E3%83%A9%E3%83%88%E3%82%B9%E3%83%86%E3%83%8D%E3%82%B9%E3%81%AE%E7%AF%A9&#34; title=&#34;エラトステネスの篩 - Wikipedia&#34;&gt;エラトステネスの篩&lt;/a&gt;」と呼ばれる方法がある。
+ただし「&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E3%82%A8%E3%83%A9%E3%83%88%E3%82%B9%E3%83%86%E3%83%8D%E3%82%B9%E3%81%AE%E7%AF%A9&#34; title=&#34;エラトステネスの篩 - Wikipedia&#34;&gt;エラトステネスの篩&lt;/a&gt;」は決まった範囲を探索するものなので少々使いづらい。
+そこで「&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E3%82%A8%E3%83%A9%E3%83%88%E3%82%B9%E3%83%86%E3%83%8D%E3%82%B9%E3%81%AE%E7%AF%A9&#34; title=&#34;エラトステネスの篩 - Wikipedia&#34;&gt;エラトステネスの篩&lt;/a&gt;」で使われている以下の素数の特徴を最初のアルゴリズムに加えてみる。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;2 以上の全ての自然数はひとつ以上の素数の積で構成される（この素数の集合を素因数（prime factor）という）。したがってある数が素数か否かの判定は，その数より小さい素数のみで調べればよい&lt;/li&gt;
+&lt;li&gt;更に，積の可換則（commutative property あるいは交換法則）により，自然数 $n$ が素数か否か判定する場合は $\sqrt{n}$ 以下の素数で調べればよい&lt;br /&gt;
+（たとえば 35 の素因数は 5 と 7 だが， $5 \times 7 = 7 \times 5 = 35$ なので，直前の素数 31 まで回さずとも 3 および 5 ($\le \sqrt{35}$) まで調べれば判定できる）&lt;/li&gt;
+&lt;li&gt;素数の定義から 2 が素数であることは自明なので（1 と 2 の間に自然数は存在しない）， 2 より大きい 2 の倍数（すなわち偶数）については判定しなくてもよく，対象となる自然数は 3 以上の奇数のみでいいことになる。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;では，この特徴を加えたコードを書いてみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+func main() {
+	primes := make([]int64, 1)     // 素数のリスト
+	primes_f := make([]float64, 1) // 素数のリスト（浮動小数点へのキャスト）
+	primes[0] = 2                  // 2 は素数
+	primes_f[0] = 2.0              // 2 は素数（浮動小数点）
+	var max int64 = 100
+
+	start := time.Now() // Start
+	var n int64 = 3
+	for n = 3; n &amp;lt; max; n += 2 { // 3 から始まる奇数のみを探索
+		flag := true
+		f := float64(n)                    // 浮動小数点に cating
+		rf := math.Sqrt(f)                 // n に対して √n をとる
+		for i := 1; i &amp;lt; len(primes); i++ { // 2 より大きい既知の素数でチェックする
+			if primes_f[i] &amp;gt; rf { // n に対して √n 以下の素数まで探索すればよい
+				break
+			} else if (n % primes[i]) == 0 { // n が既知の素数で割り切れる → 素数ではない
+				flag = false
+				break
+			}
+		}
+		if flag {
+			primes = append(primes, n)     // 素数を追加
+			primes_f = append(primes_f, f) // 素数を追加（浮動小数点）
+		}
+	}
+	goal := time.Now() // Goal
+	fmt.Printf(&amp;quot;%v 以下の素数: %v\n&amp;quot;, max, primes)
+	fmt.Printf(&amp;quot;%v 経過&amp;quot;, goal.Sub(start)) // 経過時間を表示
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime02.go
+100 以下の素数: [2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97]
+0 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;slice-と-make-と-append:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;slice と make() と append()&lt;/h3&gt;
+
+&lt;p&gt;コード中&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;primes := make([]int64, 1)     // 素数のリスト
+primes_f := make([]float64, 1) // 素数のリスト（浮動小数点へのキャスト）
+primes[0] = 2                  // 2 は素数
+primes_f[0] = 2.0              // 2 は素数（浮動小数点）
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;の変数 &lt;code&gt;primes&lt;/code&gt; および &lt;code&gt;primes_f&lt;/code&gt; は &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; と呼ばれる可変長の配列型である。
+更に組み込み関数 &lt;code&gt;make()&lt;/code&gt; は &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Map_types&#34;&gt;map&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; のみ使用可能なメモリ割り当て関数である。
+ちなみに &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Map_types&#34;&gt;map&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; 以外は &lt;code&gt;new()&lt;/code&gt; を使う。
+&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Map_types&#34;&gt;map&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; のみ特別なのは，これらの型は初期値と内部状態を持つためである。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; に要素を追加する場合は &lt;code&gt;append()&lt;/code&gt; 関数を使えばいいのだが，これが結構クセがある。
+&lt;code&gt;append()&lt;/code&gt; 関数では &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; の容量（capacity）がいっぱいになると新たにメモリを確保してオリジナルの内容をコピーする。
+つまりポインタが変わってしまうのだ。（メモリの割り当て方のパターンにも注目）&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	a := make([]int, 0)                                         // 空の配列を用意
+	fmt.Printf(&amp;quot;Slice(%02d) : %p : %v (%v)\n&amp;quot;, 0, a, a, cap(a)) // 配列の表示（初期状態）
+	for num := 1; num &amp;lt;= 17; num++ {
+		a = append(a, num)                                            //配列要素の追加
+		fmt.Printf(&amp;quot;Slice(%02d) : %p : %v (%v)\n&amp;quot;, num, a, a, cap(a)) //配列の表示
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run slice.go
+Slice(00) : 0x5cebb8 : [] (0)
+Slice(01) : 0xc082002340 : [1] (1)
+Slice(02) : 0xc082002380 : [1 2] (2)
+Slice(03) : 0xc082006740 : [1 2 3] (4)
+Slice(04) : 0xc082006740 : [1 2 3 4] (4)
+Slice(05) : 0xc0820083c0 : [1 2 3 4 5] (8)
+Slice(06) : 0xc0820083c0 : [1 2 3 4 5 6] (8)
+Slice(07) : 0xc0820083c0 : [1 2 3 4 5 6 7] (8)
+Slice(08) : 0xc0820083c0 : [1 2 3 4 5 6 7 8] (8)
+Slice(09) : 0xc082050000 : [1 2 3 4 5 6 7 8 9] (16)
+Slice(10) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10] (16)
+Slice(11) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11] (16)
+Slice(12) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12] (16)
+Slice(13) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13] (16)
+Slice(14) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14] (16)
+Slice(15) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15] (16)
+Slice(16) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16] (16)
+Slice(17) : 0xc082056000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17] (32)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;容量が変化するごとにポインタ値も変化していることがお分かりだろうか。&lt;/p&gt;
+
+&lt;p&gt;ちなみに Go コンパイラは，返値を無視するコーディングに対してエラーを吐く。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;a = append(a, num)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;の部分を&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;append(a, num)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とすると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime02.go
+# command-line-arguments
+.\slice.go:9: append(a, num) evaluated but not used
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とエラーになる。&lt;/p&gt;
+
+&lt;p&gt;また，容量はあらかじめ指定できる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;a := make([]int, 0)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;の部分を&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;a := make([]int, 0, 32)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とすると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run slice.go
+Slice(00) : 0xc082050000 : [] (32)
+Slice(01) : 0xc082050000 : [1] (32)
+Slice(02) : 0xc082050000 : [1 2] (32)
+Slice(03) : 0xc082050000 : [1 2 3] (32)
+Slice(04) : 0xc082050000 : [1 2 3 4] (32)
+Slice(05) : 0xc082050000 : [1 2 3 4 5] (32)
+Slice(06) : 0xc082050000 : [1 2 3 4 5 6] (32)
+Slice(07) : 0xc082050000 : [1 2 3 4 5 6 7] (32)
+Slice(08) : 0xc082050000 : [1 2 3 4 5 6 7 8] (32)
+Slice(09) : 0xc082050000 : [1 2 3 4 5 6 7 8 9] (32)
+Slice(10) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10] (32)
+Slice(11) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11] (32)
+Slice(12) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12] (32)
+Slice(13) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13] (32)
+Slice(14) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14] (32)
+Slice(15) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15] (32)
+Slice(16) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16] (32)
+Slice(17) : 0xc082050000 : [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17] (32)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となる。
+メモリ割り当ては意外に高コストの操作なので， &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; を扱う場合はこの辺がチューニング・ポイントになるだろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;100万個目の素数:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;100万個目の素数&lt;/h2&gt;
+
+&lt;p&gt;上のコードを少し修正して $x$ 個目の素数を調べることにしよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+func main() {
+	//コマンドライン引数の解析
+	algno := flag.Int(&amp;quot;alg&amp;quot;, 0, &amp;quot;0: Basic algorithm , 1: Sieve of Eratosthenes&amp;quot;)
+	flag.Parse()
+	args := flag.Args()
+	if *algno &amp;lt; 0 || *algno &amp;gt; 1 {
+		fmt.Fprintln(os.Stderr, os.ErrInvalid)
+		return
+	}
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, os.ErrInvalid)
+		return
+	}
+	max, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	if max &amp;lt;= 0 {
+		max = 1
+	}
+
+	//素数探索
+	prime := int64(0)
+	start := time.Now() // Start
+	switch *algno {
+	case 1:
+		prime = LastPrimeE(max)
+	default:
+		prime = LastPrimeB(max)
+	}
+	goal := time.Now()                       // Goal
+	fmt.Printf(&amp;quot;%v 個目の素数: %v\n&amp;quot;, max, prime) // max 個目の素数
+	fmt.Printf(&amp;quot;%v 経過\n&amp;quot;, goal.Sub(start))   // 経過時間を表示
+}
+
+func LastPrimeB(max int64) int64 {
+	count := int64(0)
+
+	for n := int64(2); ; n++ {
+		flag := true
+		for m := int64(2); m &amp;lt; n; m++ {
+			if (n % m) == 0 { // n が m で割り切れる → 素数ではない
+				flag = false
+				break
+			}
+		}
+		if flag {
+			count++
+			if count &amp;gt;= max {
+				return n
+			}
+		}
+	}
+}
+
+func LastPrimeE(max int64) int64 {
+	if max &amp;lt;= 1 {
+		return 2
+	}
+	primes := make([]int64, 1, max)     // 素数のリスト
+	primes_f := make([]float64, 1, max) // 素数のリスト（浮動小数点へのキャスト）
+	primes[0] = 2                       // 2 は素数
+	primes_f[0] = 2.0                   // 2 は素数（浮動小数点）
+
+	count := int64(1)
+	for n := int64(3); ; n += 2 { // 3 から始まる奇数のみを探索
+		flag := true
+		f := float64(n)                    // 浮動小数点に cating
+		rf := math.Sqrt(f)                 // n に対して √n をとる
+		for i := 1; i &amp;lt; len(primes); i++ { // 2 より大きい既知の素数でチェックする
+			if primes_f[i] &amp;gt; rf { // n に対して √n 以下の素数まで探索すればよい
+				break
+			} else if (n % primes[i]) == 0 { // n が既知の素数で割り切れる → 素数ではない
+				flag = false
+				break
+			}
+		}
+		if flag {
+			count++
+			if count &amp;gt;= max {
+				return n
+			}
+			primes = append(primes, n)     // 素数を追加
+			primes_f = append(primes_f, f) // 素数を追加（浮動小数点）
+		}
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;今後のためにコマンドライン解析の部分と実際の素数探索アルゴリズムを分けている。
+まず検算。
+25個目の素数が 97 なら OK。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime03.go -alg=0 25
+25 個目の素数: 97
+0 経過
+
+C:&amp;gt;go run prime03.go -alg=1 25
+25 個目の素数: 97
+0 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;では実際に動かしてみよう。
+まずは「&lt;a href=&#34;#alg1:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;その1&lt;/a&gt;」のアルゴリズムから。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime03.go -alg=0 100
+100 個目の素数: 541
+0 経過
+
+C:&amp;gt;go run prime03.go -alg=0 10000
+10000 個目の素数: 104729
+4.4072521s 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;100万個目の素数は有意の時間で見つかりませんでした orz&lt;/p&gt;
+
+&lt;p&gt;次に「&lt;a href=&#34;#alg2:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;その2&lt;/a&gt;」のアルゴリズムで。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime03.go --alg=1 100
+100 個目の素数: 541
+0 経過
+
+C:&amp;gt;go run prime03.go --alg=1 10000
+10000 個目の素数: 104729
+7.0004ms 経過
+
+C:&amp;gt;go run prime03.go --alg=1 1000000
+
+1000000 個目の素数: 15485863
+4.9042805s 経過
+
+C:&amp;gt;go run prime03.go --alg=1 10000000
+10000000 個目の素数: 179424673
+2m13.8686568s 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;というわけで，100万個目の素数探索に5秒弱，1000万個目の素数探索に2分ちょっとかかってしまった。
+まぁ，でも，こんなもんか。&lt;/p&gt;
+
+&lt;h2 id=&#34;alg3:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;素数探索アルゴリズム（その3: エラトステネスの篩を並行処理で）&lt;/h2&gt;
+
+&lt;p&gt;これまでのアルゴリズムは基本的に2重のループで値を順番に付き合わせているだけだったが，この部分を並行処理で行えば速いんじゃね？ と思うよね。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で並行処理を行うには &lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt;（「ゴルーチン」と読むらしい）を使う。
+また &lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt; の worker 間ではメモリ共有ができないため， &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; を使い message-passing 方式で通信を行う。&lt;/p&gt;
+
+&lt;p&gt;（message-passing 方式は Erlang などで一躍有名になったやつ。
+ただし Erlang ではプロセス間通信の手段として Actor を使う。
+&lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt; は「並行処理」であり「並列処理」ではない。また，いわゆる thread とも異なる。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で並列処理を行うなら「&lt;a href=&#34;http://deeeet.com/writing/2014/07/30/golang-parallel-by-cpu/&#34;&gt;Go言語でCPU数に応じて並列処理数を制限する&lt;/a&gt;」あたりが参考になる）&lt;/p&gt;
+
+&lt;p&gt;で，実際に &lt;a href=&#34;http://golang.jp/go_tutorial#index12&#34;&gt;チュートリアルには並行処理を使った素数探索アルゴリズムが紹介&lt;/a&gt;されている（ただし現在の&lt;a href=&#34;https://golang.org/doc/&#34;&gt;公式ドキュメント&lt;/a&gt;には存在しない）。
+いくつかサイトを巡ったが，このやり方がもっとも素直なようだ（後述するが速いわけではない）。
+そこで，このコードを流用させてもらうことにした。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func LastPrimeE2(max int64) int64 {
+	if max &amp;lt;= 1 {
+		return 2 // 最初の素数は2
+	}
+
+	count := int64(1)
+	primes := sieve()
+	for {
+		prime := &amp;lt;-primes
+		count++
+		if count &amp;gt;= max {
+			return prime
+		}
+	}
+}
+
+// 素数候補の数を生成する
+func generate() chan int64 {
+	ch := make(chan int64)
+	go func() {
+		var n int64
+		for n = 3; ; n += 2 { // 3 以降の奇数を送信（2 以外の偶数は素数ではない）
+			ch &amp;lt;- n
+		}
+	}()
+	return ch
+}
+
+// 素数 &#39;prime&#39; に対するフィルタ
+// &#39;prime&#39; で割り切れない値のみ通過可能
+func filter(in chan int64, prime int64) chan int64 {
+	out := make(chan int64)
+	go func() {
+		for {
+			n := &amp;lt;-in
+			if (n % prime) != 0 {
+				out &amp;lt;- n
+			}
+		}
+	}()
+	return out
+}
+
+// エラトステネスの篩
+func sieve() chan int64 {
+	out := make(chan int64)
+	go func() {
+		ch := generate()
+		for {
+			prime := &amp;lt;-ch
+			out &amp;lt;- prime
+			ch = filter(ch, prime)
+		}
+	}()
+	return out
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;main&lt;/code&gt; 関数も少しいじって &lt;code&gt;-alg=2&lt;/code&gt; でこのアルゴリズムを起動するようにする。
+まずは検算ね。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime04.go -alg=2 25
+25 個目の素数: 97
+0 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;じゃあ，早速うごかしてみよっか。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime04.go -alg=2 100
+100 個目の素数: 541
+2.0002ms 経過
+
+C:&amp;gt;go run prime04.go -alg=2 10000
+10000 個目の素数: 104729
+4.2002402s 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;100万個目の素数は有意の時間で見つかりませんでした orz&lt;/p&gt;
+
+&lt;p&gt;まぁアルゴリズム的には「篩」っぽくはあるんだけどね。&lt;/p&gt;
+
+&lt;p&gt;ある値が素数であると判定されるためには，その値より小さい全ての素数フィルタを通過しなければならない（つまり「&lt;a href=&#34;#alg2:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;その2&lt;/a&gt;」で紹介した特徴の2番目を全く生かせていない）。
+これが致命的。
+しかもこのフィルタ処理 &lt;code&gt;filter()&lt;/code&gt; は素数フィルタの生成も兼ねていて，前の素数フィルタの出力を次の素数フィルタの入力として連結しているのでスキップできない。&lt;/p&gt;
+
+&lt;p&gt;かなりインチキではあるけど，捜索範囲を「100万個目」までと限定し，「100万個目」の素数が 15,485,863 であると分かっているならもう少し速くできるかもしれない。
+つまり以下のように改良する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func LastPrimeE2(max int64) int64 {
+	if max &amp;lt;= 1 {
+		return 2 // 最初の素数は2
+	}
+
+	count := int64(1)
+	primes := sieve()
+	for prime := range primes {
+		count++
+		if count &amp;gt;= max {
+			return prime
+		}
+	}
+	return count
+}
+
+// 素数候補の数を生成する
+// ただし上限を 15485863 とする
+func generate() chan int64 {
+	ch := make(chan int64)
+	go func() {
+		var n int64
+		for n = 3; n &amp;lt;= 15485863; n += 2 { // 3 以降の奇数を送信（2 以外の偶数は素数ではない）
+			ch &amp;lt;- n
+		}
+		close(ch)
+	}()
+	return ch
+}
+
+// 素数 &#39;prime&#39; に対するフィルタ
+func filter(in chan int64, prime int64) chan int64 {
+	out := make(chan int64)
+	go func() {
+		for n := range in {
+			if (n % prime) != 0 {
+				out &amp;lt;- n
+			}
+		}
+		close(out)
+	}()
+	return out
+}
+
+// エラトステネスの篩
+func sieve() chan int64 {
+	out := make(chan int64)
+	go func() {
+		ch := generate()
+		fflag := true
+		for {
+			prime, ok := &amp;lt;-ch
+			if !ok {
+				break
+			}
+			out &amp;lt;- prime
+			if fflag &amp;amp;&amp;amp; prime*prime &amp;lt;= 15485863 {
+				ch = filter(ch, prime)
+			} else { // 素数が最大値の平方根（√15485863）より大きい場合はフィルタを作らず無条件に通す
+				fflag = false
+			}
+		}
+		close(out)
+	}()
+	return out
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これで実行してみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go run prime05.go -alg=2 100
+100 個目の素数: 541
+2.0001ms 経過
+
+C:&amp;gt;go run prime05.go -alg=2 10000
+10000 個目の素数: 104729
+378.0216ms 経過
+
+C:&amp;gt;go run prime05.go -alg=2 1000000
+1000000 個目の素数: 15485863
+39.4492564s 経過
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;おお。
+ようやく有意の時間で探索できた。
+それでも「&lt;a href=&#34;#alg2:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;その2&lt;/a&gt;」の10倍以上かかるけど。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; への送信データが有限個の場合は最後に &lt;code&gt;close(ch)&lt;/code&gt; でクローズする。
+一方 &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; からの受信側は for range 構文を使うことで安全に扱うことができる。
+ただし上述の &lt;code&gt;sieve()&lt;/code&gt; 関数では 変数 &lt;code&gt;ch&lt;/code&gt; が新しい素数フィルタの出力に上書きされていくので for range 構文は使えない。
+その代わり以下の記述で &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; を安全に扱うことができる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;prime, ok := &amp;lt;-ch
+if !ok {
+    break // channel が閉じられた
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;今回はここまで。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:ba5a2fe9dba0ce0dbb53ecd3120fd65e&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://jxck.hatenablog.com/entry/20130414/1365960707&#34;&gt;Go の並行処理 - Block Rockin’ Codes&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/sudix/items/f95ef0e5bbd0cd3d4378&#34;&gt;(翻訳)Goでのパイプラインとキャンセル - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/suin/items/eca21ed935115e5da2e8&#34;&gt;Go: 計算なしのFizzBuzz - Qiita&lt;/a&gt; : &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; の説明するのにいいかも&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/yuki2006/items/3f90e53ce74c6cff1608&#34;&gt;Goのchannelの送受信用の型について - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/hondata/items/64776c79063e93bea9ed&#34;&gt;Go言語のChannelは送信時にもブロックする - Qiita&lt;/a&gt; : 意外と見落とす channel 送信時のブロック&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/Jxck_/items/da3ca2db58734a966cac&#34;&gt;Go - select loop の小ネタ - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/sudix/items/67d4cad08fe88dcb9a6d&#34;&gt;Goのforとgoroutineでやりがちなミスとたった一つの冴えたgo vetと - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/tutuming/items/c0ffdd28001ee0e9320d&#34;&gt;golang - x/net/context の実装パターン - Qiita&lt;/a&gt; : &lt;a href=&#34;https://godoc.org/golang.org/x/net/context&#34;&gt;golang.org/x/net/context&lt;/a&gt; を使って並行処理を細かく制御&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2014/07/30/golang-parallel-by-cpu/&#34;&gt;Go言語でCPU数に応じて並列処理数を制限する | SOTA&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ymko/items/554e3630fefdc29393a8&#34;&gt;やはり俺のgolangがCPUを一つしか使わないのはまちがっている。 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>『「情報社会」が「社会」になった時代』 - remark</title>
@@ -88,7 +733,7 @@
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2015/atom-editor/" />
 		<id>tag:text.Baldanders.info,2015-09-15T21:00:13+0900:/remark/2015/atom-editor/</id>
 		<published>2015-09-15T21:00:13+0900</published>
-		
+		<updated>2015-09-17T11:34:00+0900</updated>
 		<summary>ATOM Editor に関するメモ。 Windows 環境が前提になっているのであしからず。</summary>
 		
 			<author>
@@ -220,6 +865,8 @@ Installing symbols-tree-view to C:\Users\username\.atom\packages done
 
 &lt;p&gt;（&lt;a href=&#34;https://atom.io/&#34; title=&#34;Atom&#34;&gt;ATOM&lt;/a&gt; の star が &lt;a href=&#34;https://github.com/&#34; title=&#34;GitHub&#34;&gt;GitHub&lt;/a&gt; の star のように &lt;a href=&#34;https://flattr.com/&#34;&gt;Flattr&lt;/a&gt; と連動すれば面白いんだけどねぇ。とりあえず flattr ボタンを貼り付ける手もあるけど）&lt;/p&gt;
 
+&lt;p&gt;「&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/115fea37ad2e515f6641&#34;&gt;ATOM の Theme / Package の感想文（2015-06-10） - Qiita&lt;/a&gt;」にテーマ・パッケージの感想を書いている。個人的な印象なんであんまり参考にならないかもだけど，よろしかったらどうぞ。&lt;/p&gt;
+
 &lt;h2 id=&#34;atom-の設定:9f5cc37d12d96caee7deea463dce6873&#34;&gt;ATOM の設定&lt;/h2&gt;
 
 &lt;h3 id=&#34;proxy-設定:9f5cc37d12d96caee7deea463dce6873&#34;&gt;Proxy 設定&lt;/h3&gt;
@@ -280,10 +927,6 @@ indent_size = 4
 trim_trailing_whitespace = false
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://atom.io/packages/editorconfig&#34;&gt;editorconfig&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
 &lt;p&gt;&lt;a href=&#34;http://editorconfig.org/&#34; title=&#34;EditorConfig&#34;&gt;EditorConfig&lt;/a&gt; はフォルダを遡って &lt;code&gt;.editorconfig&lt;/code&gt; ファイルを探し，フォルダの上から順番に評価していく。
 &lt;code&gt;root = true&lt;/code&gt; の記述がないとどこまでも上の階層に遡っていくので，プロジェクトのトップ・フォルダの &lt;code&gt;.editorconfig&lt;/code&gt; には必ずこれを記述すること。&lt;/p&gt;
 
@@ -297,6 +940,10 @@ trim_trailing_whitespace = false
 &lt;/ul&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://editorconfig.org/&#34; title=&#34;EditorConfig&#34;&gt;EditorConfig&lt;/a&gt; は多くのテキスト・エディタや統合開発環境に対応していて，もちろん &lt;a href=&#34;https://atom.io/&#34; title=&#34;Atom&#34;&gt;ATOM&lt;/a&gt; にも対応パッケージがある。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://atom.io/packages/editorconfig&#34;&gt;editorconfig&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
 
 &lt;h4 id=&#34;文字エンコーディングについて残念なお知らせ:9f5cc37d12d96caee7deea463dce6873&#34;&gt;文字エンコーディングについて残念なお知らせ&lt;/h4&gt;
 
@@ -1142,6 +1789,11 @@ Hello World!
 ジャンルごちゃ混ぜで最新のレビューから順に載せています。
 &lt;/p&gt;
 
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1D6/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/415MuioBMJL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1D6/baldandersinf-22/&#34;&gt;数学ガール／ゲーデルの不完全性定理&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ株式会社 2014-02-14&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1FO/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1FO.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／乱択アルゴリズム&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1CM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1CM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／フェルマーの最終定理&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00L0PDMK4.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／ガロア理論&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;結城浩さんの本はよく整備された遊歩道を散歩するような気楽さと安心感がある。だから「フェルマーの最終定理」とか「ゲーデルの不完全性定理」とかいった難解そうなテーマでも，迷うことなく，しかも一歩ずつ歩みを進めてゴールまで辿り着けるのかもしれない。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-16&#34;&gt;2015-09-16&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+
 &lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798115002/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/41bC8pdM2iL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798115002/baldandersinf-22/&#34;&gt;CODE VERSION 2.0&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;ローレンス・レッシグ Lawrence Lessig &lt;/dd&gt;&lt;dd&gt;翔泳社 2007-12-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;4&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798102040/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798102040.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;コモンズ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798119806/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798119806.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;REMIX ハイブリッド経済で栄える文化と商業のあり方&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798106801/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798106801.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Free Culture&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4480431837/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4480431837.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;アーキテクチャの生態系: 情報環境はいかに設計されてきたか (ちくま文庫)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4757102453/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4757102453.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;アーキテクチャの生態系――情報環境はいかに設計されてきたか&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
 &lt;p class=&#34;description&#34;&gt;前著『CODE』改訂版。&lt;/p&gt;
 &lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-15&#34;&gt;2015-09-15&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
@@ -1832,7 +2484,7 @@ min_version = 0.14
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/bookmark/" />
 		<id>tag:text.Baldanders.info,2015-09-11T17:58:42+0900:/golang/bookmark/</id>
 		<published>2015-09-11T17:58:42+0900</published>
-		<updated>2015-09-12T10:20:00+0900</updated>
+		<updated>2015-09-17T12:54:00+0900</updated>
 		<summary>本業が忙しくて Go 言語をかまってあげる暇がないのだが，ブックマークばっかり溜まっていくので，定期的に吐き出しておく。</summary>
 		
 			<author>
@@ -1847,11 +2499,14 @@ min_version = 0.14
 		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
 		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
 
-&lt;p&gt;（初出： &lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/98d49ac456485b007a15&#34;&gt;Go 言語に関するブックマーク - Qiita&lt;/a&gt;）&lt;/p&gt;
+&lt;p&gt;本業が忙しくて Go 言語をかまってあげる暇がないのだが，ブックマークばっかり溜まっていくので，定期的に吐き出しておく。なお，この記事は以下の2箇所にマルチポストでメンテしている。内容はほぼ同じなのでお好きな方でどうぞ。&lt;/p&gt;
 
-&lt;p&gt;本業が忙しくて Go 言語をかまってあげる暇がないのだが，ブックマークばっかり溜まっていくので，定期的に吐き出しておく。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/98d49ac456485b007a15&#34;&gt;Go 言語に関するブックマーク - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク - プログラミング言語 Go | text.Baldanders.info&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
 
-&lt;h2 id=&#34;official:9bacfa348e5fe42acc9342a16675997d&#34;&gt;公式サイト&lt;/h2&gt;
+&lt;h2 id=&#34;公式サイト:9bacfa348e5fe42acc9342a16675997d&#34;&gt;公式サイト&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://golang.org/&#34;&gt;The Go Programming Language&lt;/a&gt; : 2015年9月8日時点での最新は 1.5.1
@@ -1875,7 +2530,7 @@ min_version = 0.14
 &lt;/ul&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&#34;spec:9bacfa348e5fe42acc9342a16675997d&#34;&gt;言語仕様に関すること&lt;/h2&gt;
+&lt;h2 id=&#34;言語仕様に関すること:9bacfa348e5fe42acc9342a16675997d&#34;&gt;言語仕様に関すること&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/kazusa-qooq/items/40f9ea3e72406d845b10&#34;&gt;Golangの基本文法をおさえてみる - Qiita&lt;/a&gt;&lt;/li&gt;
@@ -1887,7 +2542,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/taji-taji/items/5a4f17bcf5b819954cc1&#34;&gt;import 書き方まとめ - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;string:9bacfa348e5fe42acc9342a16675997d&#34;&gt;文字列操作または変換&lt;/h3&gt;
+&lt;h3 id=&#34;文字列操作または変換:9bacfa348e5fe42acc9342a16675997d&#34;&gt;文字列操作または変換&lt;/h3&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt;, &lt;a href=&#34;http://blog.golang.org/strings&#34;&gt;rune&lt;/a&gt;&lt;/p&gt;
 
@@ -1906,7 +2561,7 @@ min_version = 0.14
 
 &lt;p&gt;文字列型と他の型との相互変換を覚えておけば，案外どうにかなるものである。（文字列操作が処理のメインならスクリプト言語のほうが有利だけどね）&lt;/p&gt;
 
-&lt;h3 id=&#34;slice:9bacfa348e5fe42acc9342a16675997d&#34;&gt;配列&lt;/h3&gt;
+&lt;h3 id=&#34;配列:9bacfa348e5fe42acc9342a16675997d&#34;&gt;配列&lt;/h3&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Map_types&#34;&gt;map&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Making_slices_maps_and_channels&#34;&gt;make&lt;/a&gt;&lt;/p&gt;
 
@@ -1916,7 +2571,7 @@ min_version = 0.14
 
 &lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Map_types&#34;&gt;map&lt;/a&gt;, および後述の &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; は組み込みの型だが内部構造と状態を持つため， &lt;a href=&#34;http://golang.org/ref/spec#Allocation&#34;&gt;new&lt;/a&gt; ではなく &lt;a href=&#34;http://golang.org/ref/spec#Making_slices_maps_and_channels&#34;&gt;make&lt;/a&gt; を使う。&lt;/p&gt;
 
-&lt;h3 id=&#34;goroutine:9bacfa348e5fe42acc9342a16675997d&#34;&gt;並行処理と並列処理&lt;/h3&gt;
+&lt;h3 id=&#34;並行処理と並列処理:9bacfa348e5fe42acc9342a16675997d&#34;&gt;並行処理と並列処理&lt;/h3&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt;&lt;/p&gt;
 
@@ -1925,6 +2580,8 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/suin/items/eca21ed935115e5da2e8&#34;&gt;Go: 計算なしのFizzBuzz - Qiita&lt;/a&gt; : channel の説明するのにいいかも&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/yuki2006/items/3f90e53ce74c6cff1608&#34;&gt;Goのchannelの送受信用の型について - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/hondata/items/64776c79063e93bea9ed&#34;&gt;Go言語のChannelは送信時にもブロックする - Qiita&lt;/a&gt; : 意外と見落とす channel 送信時のブロック&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/Jxck_/items/da3ca2db58734a966cac&#34;&gt;Go - select loop の小ネタ - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/sudix/items/67d4cad08fe88dcb9a6d&#34;&gt;Goのforとgoroutineでやりがちなミスとたった一つの冴えたgo vetと - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/tutuming/items/c0ffdd28001ee0e9320d&#34;&gt;golang - x/net/context の実装パターン - Qiita&lt;/a&gt; : &lt;a href=&#34;https://godoc.org/golang.org/x/net/context&#34;&gt;golang.org/x/net/context&lt;/a&gt; を使って並行処理を細かく制御。 Domain-Driven あるいは Context-Driven な設計でも使えそう。&lt;/li&gt;
 &lt;/ul&gt;
 
@@ -1938,13 +2595,13 @@ min_version = 0.14
 &lt;/ul&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h4 id=&#34;proc:9bacfa348e5fe42acc9342a16675997d&#34;&gt;プロセス間同期&lt;/h4&gt;
+&lt;h4 id=&#34;プロセス間同期:9bacfa348e5fe42acc9342a16675997d&#34;&gt;プロセス間同期&lt;/h4&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/shanxia1218/items/7fb15f50ec645f114bc7&#34;&gt;Go言語でプロセス間同期処理 - Qiita&lt;/a&gt; : Windows の Mutex を使ってプロセス間通信を行う&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&#34;sample-code:9bacfa348e5fe42acc9342a16675997d&#34;&gt;パッケージやサンプルコード&lt;/h2&gt;
+&lt;h2 id=&#34;パッケージやサンプルコード:9bacfa348e5fe42acc9342a16675997d&#34;&gt;パッケージやサンプルコード&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/sago35/items/cc9ed3dc38d0b2f19bf9&#34;&gt;Go用のGoogle製のGUIツールキットgxuiのインストール(Windows版) - Qiita&lt;/a&gt;&lt;/li&gt;
@@ -1975,7 +2632,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/8845musign/items/5c4b32f82c2df08acd93&#34;&gt;golang - cmd.Envを設定してexecしたらコケた - Qiita&lt;/a&gt; : &lt;a href=&#34;https://golang.org/pkg/os/exec/&#34;&gt;&lt;code&gt;exec&lt;/code&gt;&lt;/a&gt; パッケージを使う際には環境変数に注意&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;cli:9bacfa348e5fe42acc9342a16675997d&#34;&gt;コマンドライン・ツール&lt;/h3&gt;
+&lt;h3 id=&#34;コマンドライン-ツール:9bacfa348e5fe42acc9342a16675997d&#34;&gt;コマンドライン・ツール&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://yuuki.hatenablog.com/entry/go-cli-unix&#34;&gt;Go言語によるCLIツール開発とUNIX哲学について - ゆううきブログ&lt;/a&gt;&lt;/li&gt;
@@ -1993,7 +2650,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2015/04/17/panicwrap/&#34;&gt;Go言語のCLIツールのpanicをラップしてクラッシュレポートをつくる | SOTA&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;io:9bacfa348e5fe42acc9342a16675997d&#34;&gt;入出力処理&lt;/h3&gt;
+&lt;h3 id=&#34;入出力処理:9bacfa348e5fe42acc9342a16675997d&#34;&gt;入出力処理&lt;/h3&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://golang.org/pkg/io/&#34;&gt;io&lt;/a&gt;, &lt;a href=&#34;http://golang.org/pkg/bufio/&#34;&gt;bufio&lt;/a&gt;&lt;/p&gt;
 
@@ -2023,7 +2680,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/sbjib/items/2cef51e572eef0795bc2&#34;&gt;Go言語でdebugログの実現方法 - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;framework:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Web Microframework for Golang&lt;/h3&gt;
+&lt;h3 id=&#34;web-microframework-for-golang:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Web Microframework for Golang&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://goji.io/&#34;&gt;Goji&lt;/a&gt;&lt;/li&gt;
@@ -2042,7 +2699,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/n0bisuke/items/65c4a473a1fdbbf931f0&#34;&gt;Go言語(Go-Json-Rest)のCORSでのハマり。Safariだけでハマった話。 - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&#34;embed:9bacfa348e5fe42acc9342a16675997d&#34;&gt;ビルド時に情報を各種埋め込みたい&lt;/h2&gt;
+&lt;h2 id=&#34;ビルド時に情報を各種埋め込みたい:9bacfa348e5fe42acc9342a16675997d&#34;&gt;ビルド時に情報を各種埋め込みたい&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/suin/items/d643a0ccb6270e8e3734&#34;&gt;Go言語: ビルド時にバージョン情報を埋め込みたい - Qiita&lt;/a&gt;&lt;/li&gt;
@@ -2051,7 +2708,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/reiki4040/items/6b32370532c3eafe1f0e&#34;&gt;golang - Goでビルドバージョン情報を参照できるようにする(Go1.5) - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&#34;testing:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Go 言語のテスト・フレームワーク&lt;/h2&gt;
+&lt;h2 id=&#34;go-言語のテスト-フレームワーク:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Go 言語のテスト・フレームワーク&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/Jxck_/items/8717a5982547cfa54ebc&#34;&gt;Go の Test に対する考え方 - Qiita&lt;/a&gt;&lt;/li&gt;
@@ -2063,7 +2720,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/Mulyu/items/ed585f2777496f29a725&#34;&gt;go言語でベンチマーク - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;ci:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Continuous Integration&lt;/h3&gt;
+&lt;h3 id=&#34;continuous-integration:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Continuous Integration&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/dmnlk/items/3fb4e0abb98e39fee275&#34;&gt;Go + Travis CI + Coveralls でCI環境を作る - Qiita&lt;/a&gt;&lt;/li&gt;
@@ -2073,7 +2730,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/atotto/items/b796c31c1755dbec13db&#34;&gt;Go言語のビルド生活を drone.ioで幸せに暮らす #golang - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&#34;godoc:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Go 言語のドキュメント・フレームワーク&lt;/h2&gt;
+&lt;h2 id=&#34;go-言語のドキュメント-フレームワーク:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Go 言語のドキュメント・フレームワーク&lt;/h2&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://godoc.org/golang.org/x/tools/cmd/godoc&#34; title=&#34;godoc - GoDoc&#34;&gt;godoc&lt;/a&gt;&lt;/p&gt;
 
@@ -2094,7 +2751,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://mattn.kaoriya.net/software/lang/go/20150113141338.htm&#34;&gt;Big Sky :: golang のリファクタリングには gofmt ではなく、gorename を使おう。&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&#34;environment:9bacfa348e5fe42acc9342a16675997d&#34;&gt;開発環境など&lt;/h2&gt;
+&lt;h2 id=&#34;開発環境など:9bacfa348e5fe42acc9342a16675997d&#34;&gt;開発環境など&lt;/h2&gt;
 
 &lt;h3 id=&#34;integrated-development-environment:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Integrated Development Environment&lt;/h3&gt;
 
@@ -2108,26 +2765,26 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/makoto2468/items/3ced77de947ea997e72f&#34;&gt;Go入門@環境構築編(IntelliJ IDEA 14.1.4) - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;debug:9bacfa348e5fe42acc9342a16675997d&#34;&gt;デバッガ&lt;/h3&gt;
+&lt;h3 id=&#34;デバッガ:9bacfa348e5fe42acc9342a16675997d&#34;&gt;デバッガ&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://tetsuok.hatenablog.com/entry/2012/07/01/062325&#34;&gt;golang でビルド時に最適化をオフにする - tetsuok の旅 blog&lt;/a&gt; : gdb でデバッグする際は最適化を off にするといいという話&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;atom:9bacfa348e5fe42acc9342a16675997d&#34;&gt;ATOM で Go&lt;/h3&gt;
+&lt;h3 id=&#34;atom-で-go:9bacfa348e5fe42acc9342a16675997d&#34;&gt;ATOM で Go&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://notchained.hatenablog.com/entry/2014/09/20/104829&#34;&gt;AtomでGoを書く環境を整える（Windows） - Technically, technophobic.&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;vscode:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Visual Studio Code で Go&lt;/h3&gt;
+&lt;h3 id=&#34;visual-studio-code-で-go:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Visual Studio Code で Go&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/evalphobia/items/f68396d573c7caf2065b&#34;&gt;VisualStudioCode - Visual Studio CodeでGo言語の設定 - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://gist.github.com/llaughlin/16305f0b91356e93a1c4&#34;&gt;VSCode+Golang&lt;/a&gt; : task.json の設定&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;gb:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Build Tool for Golang&lt;/h3&gt;
+&lt;h3 id=&#34;build-tool-for-golang:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Build Tool for Golang&lt;/h3&gt;
 
 &lt;p&gt;&lt;a href=&#34;https://github.com/constabulary/gb&#34;&gt;constabulary/gb&lt;/a&gt; を使ってプロジェクトベースの環境構築&lt;/p&gt;
 
@@ -2137,7 +2794,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2015/06/26/golang-dependency-vendoring/&#34;&gt;Go言語のDependency/Vendoringの問題と今後．gbあるいはGo1.5 | SOTA&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;cross:9bacfa348e5fe42acc9342a16675997d&#34;&gt;クロス環境&lt;/h3&gt;
+&lt;h3 id=&#34;クロス環境:9bacfa348e5fe42acc9342a16675997d&#34;&gt;クロス環境&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://unknownplace.org/archives/golang-cross-compiling.html&#34;&gt;Goはクロスコンパイルが簡単 - unknownplace.org&lt;/a&gt;&lt;/li&gt;
@@ -2150,7 +2807,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/zetamatta/items/e44961a8bcbb2578cfe7&#34;&gt;Goで64bitと32bitの実行ファイルを同一Windows機で作成するために講じたこと - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h2 id=&#34;remark:9bacfa348e5fe42acc9342a16675997d&#34;&gt;その他 四方山話&lt;/h2&gt;
+&lt;h2 id=&#34;その他-四方山話:9bacfa348e5fe42acc9342a16675997d&#34;&gt;その他 四方山話&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/suin/items/22662f43b6a6e8728798&#34;&gt;動的言語だけやってた僕が、38日間Go言語を書いて学んだこと - Qiita&lt;/a&gt;&lt;/li&gt;
@@ -2180,7 +2837,7 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;https://developer.ibm.com/open/i18n4go/&#34;&gt;i18n4go - developerWorks Open&lt;/a&gt; : IBM の &lt;a href=&#34;https://developer.ibm.com/open/&#34;&gt;developerWorks Open&lt;/a&gt; プロジェクトのひとつ。「&lt;a href=&#34;http://www.atmarkit.co.jp/ait/articles/1507/23/news058.html&#34;&gt;プログラムを国際化するための汎用ツール&lt;/a&gt;」らしい。&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h3 id=&#34;go15:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Go 1.5 に関する話題&lt;/h3&gt;
+&lt;h3 id=&#34;go-1-5-に関する話題:9bacfa348e5fe42acc9342a16675997d&#34;&gt;Go 1.5 に関する話題&lt;/h3&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/msaito3/items/3aef86e9864990b16b4c&#34;&gt;GVM で go1.5rc1 のインストール - Qiita&lt;/a&gt;&lt;/li&gt;
@@ -2192,674 +2849,33 @@ min_version = 0.14
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/qt-luigi/items/d0f52b3b0906b35e6027&#34;&gt;「golang 1.5 の internal パッケージの使い方。」を試してみた - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;&lt;/li&gt;
 &lt;/ul&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>Categories, Tags そして Section - hugo</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/hugo/section/" />
-		<id>tag:text.Baldanders.info,2015-09-11T17:58:32+0900:/hugo/section/</id>
-		<published>2015-09-11T17:58:32+0900</published>
-		<updated>2015-09-12T12:25:00+0900</updated>
-		<summary>前回の続き。今回は Categories, Tags そして Section について書いてみる。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
 
-
-		
-		<category term="hugo" label="hugo" scheme="http://text.baldanders.info/hugo" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;（初出： &lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/4c5859f7cac877068742&#34;&gt;ゼロから始める Hugo — Categories, Tags そして Section - Qiita&lt;/a&gt;）&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/hugo/hello/&#34; title=&#34;インストールから Hello World まで&#34;&gt;前回&lt;/a&gt;の続き。
-今回は Categories, Tags そして Section について書いてみる。&lt;/p&gt;
-
-&lt;h2 id=&#34;categories-tags:3a1cfba8bd8f5909f311805a9f67ed1e&#34;&gt;Categories と Tags&lt;/h2&gt;
-
-&lt;p&gt;まずは Categories と Tags について。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; では記事に Categories および Tags を設定することができる。
-以下のように記述すれば良い。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-markdown:content\hello.md&#34;&gt;+++
-date = &amp;quot;2015-09-05T16:40:41+09:00&amp;quot;
-draft = false
-title = &amp;quot;Hello!&amp;quot;
-categories = [ &amp;quot;hugo&amp;quot; ]
-tags = [ &amp;quot;hello&amp;quot;, &amp;quot;world&amp;quot; ]
-+++
-
-ようこそ， [Hugo](http://gohugo.io/) の世界へ！
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;このように Categories および Tags のキーワードを配列で列挙する（キーワードがひとつでも配列に入れること）。
-これをビルドすると以下のようになる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\hugo-env\www&amp;gt;hugo
-0 draft content
-0 future content
-1 pages created
-0 paginator pages created
-2 tags created
-1 categories created
-in 20 ms
-
-C:\hugo-env\www&amp;gt;tree /f .
-C:\HUGO-ENV\WWW
-│  config.toml
-│
-├─archetypes
-├─content
-│      hello.md
-│
-├─data
-├─layouts
-│  │  404.html
-│  │  index.html
-│  │
-│  └─_default
-│          single.html
-│
-├─public
-│  │  404.html
-│  │  index.html
-│  │  index.xml
-│  │  sitemap.xml
-│  │
-│  ├─categories
-│  │  └─hugo
-│  │          index.html
-│  │          index.xml
-│  │
-│  ├─hello
-│  │      index.html
-│  │
-│  └─tags
-│      ├─hello
-│      │      index.html
-│      │      index.xml
-│      │
-│      └─world
-│              index.html
-│              index.xml
-│
-└─static
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;出力先に &lt;code&gt;categories&lt;/code&gt; および &lt;code&gt;tags&lt;/code&gt; フォルダが作成され，更にその下にキーワードのフォルダが作成されているのがおわかりだろうか。
-キーワードのフォルダの &lt;code&gt;index.xml&lt;/code&gt; は feed である。
-つまり &lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; ではカテゴリ・タグ毎に自動で feed が作成される。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;index.html&lt;/code&gt; は（テンプレートがないため）この時点では空である。テンプレートは &lt;code&gt;layouts/_default&lt;/code&gt; フォルダに &lt;code&gt;list.html&lt;/code&gt; ファイルを配置する。
-名前からして Categories/Tags 毎に記事を列挙することを期待しているわけやね（笑） とりあえず中身はこんな感じでどうだろう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:layouts/_default/list.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-{{ with .Site.LanguageCode }}&amp;lt;html lang=&amp;quot;{{ . }}&amp;quot;&amp;gt;{{ else }}&amp;lt;html&amp;gt;{{ end }}
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;List of {{ .Title }} -- {{ .Site.Title }}&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;List of {{ .Title }}&amp;lt;/h1&amp;gt;
-
-&amp;lt;ul style=&amp;quot;list-style:none;&amp;quot;&amp;gt;
-{{ range .Data.Pages }}
-	&amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;{{ .Permalink }}&amp;quot;&amp;gt;{{ .Title }}&amp;lt;/a&amp;gt; (&amp;lt;time&amp;gt;{{ .Date.Format &amp;quot;2006-01-02&amp;quot; }}&amp;lt;/time&amp;gt;){{ if .Draft }} #Draft{{ end }}&amp;lt;/li&amp;gt;
-{{ end }}
-&amp;lt;/ul&amp;gt;
-
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ビルド結果はこんな感じ。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/categories/hugo/index.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-&amp;lt;html lang=&amp;quot;jp&amp;quot;&amp;gt;
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;List of Hugo -- Hello World!&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;List of Hugo&amp;lt;/h1&amp;gt;
-
-&amp;lt;ul style=&amp;quot;list-style:none;&amp;quot;&amp;gt;
-
-	&amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;http://hello.example.com/hello/&amp;quot;&amp;gt;Hello!&amp;lt;/a&amp;gt; (&amp;lt;time&amp;gt;2015-09-05&amp;lt;/time&amp;gt;)&amp;lt;/li&amp;gt;
-
-&amp;lt;/ul&amp;gt;
-
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;おおう。キーワードの頭文字が勝手に大文字に変換されてるぜ。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/hugo/hello/&#34; title=&#34;インストールから Hello World まで&#34;&gt;前回&lt;/a&gt;を読んでいる人はトップページのテンプレート &lt;code&gt;layouts/index.html&lt;/code&gt; とほぼ同じ構成であることに気づくと思う。
-違うのは &lt;code&gt;{{ .Title }}&lt;/code&gt; には Categories/Tags のキーワードが入ることと &lt;code&gt;{{ range }}&lt;/code&gt; 構文の対象変数が &lt;code&gt;.Site.Pages&lt;/code&gt; ではなく &lt;code&gt;.Data.Pages&lt;/code&gt; であることだ。&lt;/p&gt;
-
-&lt;p&gt;ついでに記事ページで Categories/Tags を表示できるようにしてみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:layouts/_default/single.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-{{ with .Site.LanguageCode }}&amp;lt;html lang=&amp;quot;{{ . }}&amp;quot;&amp;gt;{{ else }}&amp;lt;html&amp;gt;{{ end }}
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;{{ .Title }} -- {{ .Site.Title }}&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;{{ .Title }}&amp;lt;/h1&amp;gt;
-&amp;lt;nav&amp;gt;
-	{{ with .Params.categories }}&amp;lt;div&amp;gt;Categories:{{ range . }} &amp;lt;a href=&amp;quot;/categories/{{ . | urlize }}/&amp;quot;&amp;gt;{{ . }}&amp;lt;/a&amp;gt;{{ end }}&amp;lt;/div&amp;gt;{{ end }}
-	{{ with .Params.tags }}&amp;lt;div&amp;gt;Tags:{{ range . }} &amp;lt;a href=&amp;quot;/tags/{{ . | urlize }}/&amp;quot;&amp;gt;#{{ . }}&amp;lt;/a&amp;gt;{{ end }}&amp;lt;/div&amp;gt;{{ end }}
-&amp;lt;/nav&amp;gt;
-
-&amp;lt;div&amp;gt;{{ .Content }}&amp;lt;/div&amp;gt;
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;以下がビルド結果。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/hello/index.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-&amp;lt;html lang=&amp;quot;jp&amp;quot;&amp;gt;
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;Hello! -- Hello World!&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;Hello!&amp;lt;/h1&amp;gt;
-&amp;lt;nav&amp;gt;
-	&amp;lt;div&amp;gt;Categories: &amp;lt;a href=&amp;quot;/categories/hugo/&amp;quot;&amp;gt;hugo&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-	&amp;lt;div&amp;gt;Tags: &amp;lt;a href=&amp;quot;/tags/hello/&amp;quot;&amp;gt;#hello&amp;lt;/a&amp;gt; &amp;lt;a href=&amp;quot;/tags/world/&amp;quot;&amp;gt;#world&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-&amp;lt;/nav&amp;gt;
-
-&amp;lt;div&amp;gt;&amp;lt;p&amp;gt;ようこそ， &amp;lt;a href=&amp;quot;http://gohugo.io/&amp;quot;&amp;gt;Hugo&amp;lt;/a&amp;gt; の世界へ！&amp;lt;/p&amp;gt;
-&amp;lt;/div&amp;gt;
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;{{ with }}&lt;/code&gt; 構文の中に &lt;code&gt;{{ range }}&lt;/code&gt; 構文が入ってて分かりにくいが，変数のスコープに注意すれば，それほど難しくはないはず。
-注意しないといけないのは， Categories/Tags の変数名が &lt;code&gt;.Categories&lt;/code&gt;, &lt;code&gt;.Tags&lt;/code&gt; ではなく &lt;code&gt;.Params.categories&lt;/code&gt;, &lt;code&gt;.Params.tags&lt;/code&gt; になっている点である。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;{{ . | urlize }}&lt;/code&gt; というのはパイプ機能の一種で， &lt;code&gt;urlize&lt;/code&gt; であれば左側の値（文字列）を URL として安全な文字列に変換してくれる。&lt;/p&gt;
-
-&lt;p&gt;Categories と Tags との間に機能上の違いはない。
-名前が違うだけである。
-おそらく他のブログサービスとの互換性の為にあるのだろうが，「ゼロから始める」のであれば Categories と Tags を併記することに意味はない。
-それなら後述する Section と組み合わせるほうが合理的である。&lt;/p&gt;
-
-&lt;h3 id=&#34;params:3a1cfba8bd8f5909f311805a9f67ed1e&#34;&gt;.Params のルール&lt;/h3&gt;
-
-&lt;p&gt;Front matter で指定する変数は，「&lt;a href=&#34;http://gohugo.io/templates/variables/&#34;&gt;テンプレート変数&lt;/a&gt;」にある既定のもの以外は &lt;code&gt;.Params&lt;/code&gt; 以下に自動的に組み換えられる。
-なおかつ &lt;code&gt;.Params&lt;/code&gt; 以下の変数名は小文字になる決まりである。
-Categories/Tags は標準機能なのだが，どういうわけかこれだけ &lt;code&gt;.Params&lt;/code&gt; 以下に組み替えられる。
-なんだかなぁ。「歴史的経緯」ってやつだろうか。&lt;/p&gt;
-
-&lt;p&gt;ちなみに &lt;code&gt;config.toml&lt;/code&gt; によるサイト設定では &lt;code&gt;.Site.Params&lt;/code&gt; への暗黙的な組み換えは行われないため，明示的に記述する必要がある。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-toml:config.toml&#34;&gt;[params]
-author = &amp;quot;Spiegel&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;この非対称性も分かりにくいんだよなぁ。&lt;/p&gt;
-
-&lt;h3 id=&#34;taxonomy:3a1cfba8bd8f5909f311805a9f67ed1e&#34;&gt;Taxonomy&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; には Taxonomy と呼ばれる機能があって，（今のところ） Categories/Tags のリストを取り出すことができる。たとえば，こんな感じに書く。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:layouts/index.html&#34;&gt;&amp;lt;h2&amp;gt;Taxonomy Terms&amp;lt;/h2&amp;gt;
-&amp;lt;ul&amp;gt;{{ range $taxonomyname, $taxonomy := .Site.Taxonomies }}
-    &amp;lt;li&amp;gt;{{ $taxonomyname }}
-        &amp;lt;ul&amp;gt;{{ range $key, $value := $taxonomy }}
-            &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;/{{ $taxonomyname | urlize }}/{{ $key | urlize }}&amp;quot;&amp;gt;{{ $key }}&amp;lt;/a&amp;gt; ({{ $value.Count }})
-                &amp;lt;ul&amp;gt;{{ range $value.Pages }}
-                    &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;{{ .Permalink }}&amp;quot;&amp;gt;{{ .LinkTitle }}&amp;lt;/a&amp;gt; &amp;lt;/li&amp;gt;
-                {{ end }}&amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;
-        {{ end }}&amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;
-{{ end }}&amp;lt;/ul&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これをビルドするとこんな感じに展開される。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/index.html&#34;&gt;&amp;lt;h2&amp;gt;Taxonomy Terms&amp;lt;/h2&amp;gt;
-&amp;lt;ul&amp;gt;
-    &amp;lt;li&amp;gt;categories
-        &amp;lt;ul&amp;gt;
-            &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;/categories/hugo&amp;quot;&amp;gt;hugo&amp;lt;/a&amp;gt; (1)
-                &amp;lt;ul&amp;gt;
-                    &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;http://hello.example.com/hello/&amp;quot;&amp;gt;Hello!&amp;lt;/a&amp;gt; &amp;lt;/li&amp;gt;
-                &amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;
-        &amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;
-
-    &amp;lt;li&amp;gt;tags
-        &amp;lt;ul&amp;gt;
-            &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;/tags/hello&amp;quot;&amp;gt;hello&amp;lt;/a&amp;gt; (1)
-                &amp;lt;ul&amp;gt;
-                    &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;http://hello.example.com/hello/&amp;quot;&amp;gt;Hello!&amp;lt;/a&amp;gt; &amp;lt;/li&amp;gt;
-                &amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;
-
-            &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;/tags/world&amp;quot;&amp;gt;world&amp;lt;/a&amp;gt; (1)
-                &amp;lt;ul&amp;gt;
-                    &amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;http://hello.example.com/hello/&amp;quot;&amp;gt;Hello!&amp;lt;/a&amp;gt; &amp;lt;/li&amp;gt;
-                &amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;
-        &amp;lt;/ul&amp;gt;&amp;lt;/li&amp;gt;
-&amp;lt;/ul&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Tags の一覧のみを取得したいのであれば，もっと簡単に&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:layouts/index.html&#34;&gt;&amp;lt;h2&amp;gt;Tags&amp;lt;/h2&amp;gt;
-&amp;lt;ul&amp;gt;{{ range $key, $value := .Site.Taxonomies.tags.ByCount }}
-	&amp;lt;li&amp;gt;#&amp;lt;a href=&amp;quot;/tags/{{ $key | urlize }}&amp;quot;&amp;gt;{{ $key }}&amp;lt;/a&amp;gt; ({{ $value.Count }})&amp;lt;/li&amp;gt;
-{{ end }}&amp;lt;/ul&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;でもよい。
-ちなみに &lt;code&gt;.Site.Taxonomies.tags.ByCount&lt;/code&gt; は Tags の一覧をタグされている記事数の順で sort したものである。
-アルファベット順にするには &lt;code&gt;.Site.Taxonomies.tags.Alphabetical&lt;/code&gt; とする。&lt;/p&gt;
-
-&lt;h2 id=&#34;section:3a1cfba8bd8f5909f311805a9f67ed1e&#34;&gt;Section&lt;/h2&gt;
-
-&lt;p&gt;&lt;code&gt;content&lt;/code&gt; フォルダの下に &lt;code&gt;practice&lt;/code&gt; というフォルダを作り，ここに &lt;code&gt;hello.md&lt;/code&gt; を移動させてみよう。
-新たに作る場合は path 付きで作成すればよい。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\hugo-env\www&amp;gt;hugo new practice/hello.md
-C:\hugo-env\www\content\practice\hello.md created
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これでビルドしてみる（ファイルを移動した際は出力フォルダの中をいったんクリーンにしてからビルドするとゴミが残らない）。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\hugo-env\www&amp;gt;hugo
-0 draft content
-0 future content
-1 pages created
-0 paginator pages created
-2 tags created
-1 categories created
-in 19 ms
-
-C:\hugo-env\www&amp;gt;tree /f .
-C:\HUGO-ENV\WWW
-│  config.toml
-│
-├─archetypes
-├─content
-│  └─practice
-│          hello.md
-│
-├─data
-├─layouts
-│  │  404.html
-│  │  index.html
-│  │
-│  └─_default
-│          list.html
-│          single.html
-│
-├─public
-│  │  404.html
-│  │  index.html
-│  │  index.xml
-│  │  sitemap.xml
-│  │
-│  ├─categories
-│  │  └─hugo
-│  │          index.html
-│  │          index.xml
-│  │
-│  ├─practice
-│  │  │  index.html
-│  │  │  index.xml
-│  │  │
-│  │  └─hello
-│  │          index.html
-│  │
-│  └─tags
-│      ├─hello
-│      │      index.html
-│      │      index.xml
-│      │
-│      └─world
-│              index.html
-│              index.xml
-│
-└─static
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;hello/index.html&lt;/code&gt; が &lt;code&gt;practice/hello/index.html&lt;/code&gt; に配置されるのは予想通りだと思うが， &lt;code&gt;practice&lt;/code&gt; に &lt;code&gt;index.html&lt;/code&gt; と &lt;code&gt;index.xml&lt;/code&gt; が生成されているのがおわかりだろうか。
-&lt;code&gt;practice/index.html&lt;/code&gt; の中身はこんな感じ。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/practice/index.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-&amp;lt;html lang=&amp;quot;jp&amp;quot;&amp;gt;
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;List of Practices -- Hello World!&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;List of Practices&amp;lt;/h1&amp;gt;
-
-&amp;lt;ul style=&amp;quot;list-style:none;&amp;quot;&amp;gt;
-
-	&amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;http://hello.example.com/practice/hello/&amp;quot;&amp;gt;Hello!&amp;lt;/a&amp;gt; (&amp;lt;time&amp;gt;2015-09-05&amp;lt;/time&amp;gt;)&amp;lt;/li&amp;gt;
-
-&amp;lt;/ul&amp;gt;
-
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これは &lt;code&gt;layouts/_default/list.html&lt;/code&gt; テンプレートで生成されたページだ。
-&lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; ではフォルダ付きの記事を作成すると，そのフォルダが Section として機能する。&lt;/p&gt;
-
-&lt;p&gt;当然だが，ひとつの記事はひとつの Section にしか帰属できない。
-これは先の Categories/Tags との大きな違いである。
-Section と Categories/Tags を組み合わせれば縦串と横串で記事を指示できるようになる。&lt;/p&gt;
-
-&lt;p&gt;ついでに記事ページで Section を表示できるようにしてみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:layouts/_default/single.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-{{ with .Site.LanguageCode }}&amp;lt;html lang=&amp;quot;{{ . }}&amp;quot;&amp;gt;{{ else }}&amp;lt;html&amp;gt;{{ end }}
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;{{ .Title }}{{ with .Section }} -- {{ . }}{{ end }} -- {{ .Site.Title }}&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;{{ .Title }}{{ with .Section }} [&amp;lt;a href=&amp;quot;/{{ . | urlize }}/&amp;quot;&amp;gt;{{ . }}&amp;lt;/a&amp;gt;]{{ end }}&amp;lt;/h1&amp;gt;
-&amp;lt;nav&amp;gt;
-	{{ with .Params.categories }}&amp;lt;div&amp;gt;Categories:{{ range . }} &amp;lt;a href=&amp;quot;/categories/{{ . | urlize }}/&amp;quot;&amp;gt;{{ . }}&amp;lt;/a&amp;gt;{{ end }}&amp;lt;/div&amp;gt;{{ end }}
-	{{ with .Params.tags }}&amp;lt;div&amp;gt;Tags:{{ range . }} &amp;lt;a href=&amp;quot;/tags/{{ . | urlize }}/&amp;quot;&amp;gt;#{{ . }}&amp;lt;/a&amp;gt;{{ end }}&amp;lt;/div&amp;gt;{{ end }}
-&amp;lt;/nav&amp;gt;
-
-&amp;lt;div&amp;gt;{{ .Content }}&amp;lt;/div&amp;gt;
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;以下がビルド結果。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/practice/hello/index.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-&amp;lt;html lang=&amp;quot;jp&amp;quot;&amp;gt;
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;Hello! -- practice -- Hello World!&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;Hello! [&amp;lt;a href=&amp;quot;/practice/&amp;quot;&amp;gt;practice&amp;lt;/a&amp;gt;]&amp;lt;/h1&amp;gt;
-&amp;lt;nav&amp;gt;
-	&amp;lt;div&amp;gt;Categories: &amp;lt;a href=&amp;quot;/categories/hugo/&amp;quot;&amp;gt;hugo&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-	&amp;lt;div&amp;gt;Tags: &amp;lt;a href=&amp;quot;/tags/hello/&amp;quot;&amp;gt;#hello&amp;lt;/a&amp;gt; &amp;lt;a href=&amp;quot;/tags/world/&amp;quot;&amp;gt;#world&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-&amp;lt;/nav&amp;gt;
-
-&amp;lt;div&amp;gt;&amp;lt;p&amp;gt;ようこそ， &amp;lt;a href=&amp;quot;http://gohugo.io/&amp;quot;&amp;gt;Hugo&amp;lt;/a&amp;gt; の世界へ！&amp;lt;/p&amp;gt;
-&amp;lt;/div&amp;gt;
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;記事のフォルダ階層はいくらでも深くできるが， Section として認識されるのは直下のフォルダのみのようである。
-たとえば &lt;code&gt;content/practice/hello.md&lt;/code&gt; を &lt;code&gt;content/practice/firstcode/hello.md&lt;/code&gt; に移動してビルドすると（出力フォルダはクリーンアップしてね）&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\hugo-env\www&amp;gt;tree /f .
-C:\HUGO-ENV\WWW
-│  config.toml
-│
-├─archetypes
-├─content
-│  └─practice
-│      └─firstcode
-│              hello.md
-│
-├─data
-├─layouts
-│  │  404.html
-│  │  index.html
-│  │
-│  └─_default
-│          list.html
-│          single.html
-│
-├─public
-│  │  404.html
-│  │  index.html
-│  │  index.xml
-│  │  sitemap.xml
-│  │
-│  ├─categories
-│  │  └─hugo
-│  │          index.html
-│  │          index.xml
-│  │
-│  ├─practice
-│  │  │  index.html
-│  │  │  index.xml
-│  │  │
-│  │  └─firstcode
-│  │      └─hello
-│  │              index.html
-│  │
-│  └─tags
-│      ├─hello
-│      │      index.html
-│      │      index.xml
-│      │
-│      └─world
-│              index.html
-│              index.xml
-│
-└─static
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/practice/firstcode/hello/index.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-&amp;lt;html lang=&amp;quot;jp&amp;quot;&amp;gt;
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;Hello! -- practice -- Hello World!&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;Hello! [practice]&amp;lt;/h1&amp;gt;
-&amp;lt;nav&amp;gt;
-	&amp;lt;div&amp;gt;Categories: &amp;lt;a href=&amp;quot;/categories/hugo/&amp;quot;&amp;gt;hugo&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-	&amp;lt;div&amp;gt;Tags: &amp;lt;a href=&amp;quot;/tags/hello/&amp;quot;&amp;gt;#hello&amp;lt;/a&amp;gt; &amp;lt;a href=&amp;quot;/tags/world/&amp;quot;&amp;gt;#world&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-&amp;lt;/nav&amp;gt;
-
-&amp;lt;div&amp;gt;&amp;lt;p&amp;gt;ようこそ， &amp;lt;a href=&amp;quot;http://gohugo.io/&amp;quot;&amp;gt;Hugo&amp;lt;/a&amp;gt; の世界へ！&amp;lt;/p&amp;gt;
-&amp;lt;/div&amp;gt;
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;というわけで，あくまでも &lt;code&gt;practice&lt;/code&gt; フォルダが Section になっているのがわかると思う。&lt;/p&gt;
-
-&lt;h3 id=&#34;section-custom:3a1cfba8bd8f5909f311805a9f67ed1e&#34;&gt;Section ごとのカスタマイズ&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; では Section ごとにカスタマイズすることができる。
-&lt;code&gt;layouts&lt;/code&gt; フォルダに &lt;code&gt;section&lt;/code&gt; フォルダを作成し，その中に &lt;code&gt;&amp;lt;section name&amp;gt;.html&lt;/code&gt; ファイルを作成すると，そのテンプレートで Section のトップページ（&lt;code&gt;&amp;lt;section name&amp;gt;/index.html&lt;/code&gt;）を作成する。
-今回は &lt;code&gt;practice.html&lt;/code&gt; を作成してみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:layouts/section/practice.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-{{ with .Site.LanguageCode }}&amp;lt;html lang=&amp;quot;{{ . }}&amp;quot;&amp;gt;{{ else }}&amp;lt;html&amp;gt;{{ end }}
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;Hugo の練習 -- {{ .Site.Title }}&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;Hugo の練習&amp;lt;/h1&amp;gt;
-
-&amp;lt;ul style=&amp;quot;list-style:none;&amp;quot;&amp;gt;
-{{ range .Data.Pages }}
-	&amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;{{ .Permalink }}&amp;quot;&amp;gt;{{ .Title }}&amp;lt;/a&amp;gt; (&amp;lt;time&amp;gt;{{ .Date.Format &amp;quot;2006-01-02&amp;quot; }}&amp;lt;/time&amp;gt;){{ if .Draft }} #Draft{{ end }}&amp;lt;/li&amp;gt;
-{{ end }}
-&amp;lt;/ul&amp;gt;
-
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ビルド結果。変わり映えしなくてすみません。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/practice/index.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-&amp;lt;html lang=&amp;quot;jp&amp;quot;&amp;gt;
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;Hugo の練習 -- Hello World!&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;Hugo の練習&amp;lt;/h1&amp;gt;
-
-&amp;lt;ul style=&amp;quot;list-style:none;&amp;quot;&amp;gt;
-
-	&amp;lt;li&amp;gt;&amp;lt;a href=&amp;quot;http://hello.example.com/practice/hello/&amp;quot;&amp;gt;Hello!&amp;lt;/a&amp;gt; (&amp;lt;time&amp;gt;2015-09-05&amp;lt;/time&amp;gt;)&amp;lt;/li&amp;gt;
-
-&amp;lt;/ul&amp;gt;
-
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;更に Section 内の記事ページもカスタマイズできる。
-これは &lt;code&gt;layouts&lt;/code&gt; フォルダに Section 名のフォルダを作成し，その中に &lt;code&gt;single.html&lt;/code&gt; を配置する。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:layouts/practice/single.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-{{ with .Site.LanguageCode }}&amp;lt;html lang=&amp;quot;{{ . }}&amp;quot;&amp;gt;{{ else }}&amp;lt;html&amp;gt;{{ end }}
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;{{ .Title }} -- Hugo の練習 | {{ .Site.Title }}&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;{{ .Title }} -- Hugo の練習&amp;lt;/h1&amp;gt;
-&amp;lt;nav&amp;gt;
-	{{ with .Params.categories }}&amp;lt;div&amp;gt;Categories:{{ range . }} &amp;lt;a href=&amp;quot;/categories/{{ . | urlize }}/&amp;quot;&amp;gt;{{ . }}&amp;lt;/a&amp;gt;{{ end }}&amp;lt;/div&amp;gt;{{ end }}
-	{{ with .Params.tags }}&amp;lt;div&amp;gt;Tags:{{ range . }} &amp;lt;a href=&amp;quot;/tags/{{ . | urlize }}/&amp;quot;&amp;gt;#{{ . }}&amp;lt;/a&amp;gt;{{ end }}&amp;lt;/div&amp;gt;{{ end }}
-&amp;lt;/nav&amp;gt;
-
-&amp;lt;div&amp;gt;{{ .Content }}&amp;lt;/div&amp;gt;
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-html:public/practice/hello/index.html&#34;&gt;&amp;lt;!DOCTYPE html&amp;gt;
-&amp;lt;html lang=&amp;quot;jp&amp;quot;&amp;gt;
-&amp;lt;head&amp;gt;
-&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
-&amp;lt;title&amp;gt;Hello! -- Hugo の練習 | Hello World!&amp;lt;/title&amp;gt;
-&amp;lt;/head&amp;gt;
-&amp;lt;body&amp;gt;
-&amp;lt;h1&amp;gt;Hello! -- Hugo の練習&amp;lt;/h1&amp;gt;
-&amp;lt;nav&amp;gt;
-	&amp;lt;div&amp;gt;Categories: &amp;lt;a href=&amp;quot;/categories/hugo/&amp;quot;&amp;gt;hugo&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-	&amp;lt;div&amp;gt;Tags: &amp;lt;a href=&amp;quot;/tags/hello/&amp;quot;&amp;gt;#hello&amp;lt;/a&amp;gt; &amp;lt;a href=&amp;quot;/tags/world/&amp;quot;&amp;gt;#world&amp;lt;/a&amp;gt;&amp;lt;/div&amp;gt;
-&amp;lt;/nav&amp;gt;
-
-&amp;lt;div&amp;gt;&amp;lt;p&amp;gt;ようこそ， &amp;lt;a href=&amp;quot;http://gohugo.io/&amp;quot;&amp;gt;Hugo&amp;lt;/a&amp;gt; の世界へ！&amp;lt;/p&amp;gt;
-&amp;lt;/div&amp;gt;
-&amp;lt;/body&amp;gt;
-&amp;lt;html&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これも変わり映えしなくてすみません。&lt;/p&gt;
-
-&lt;p&gt;しかし，なんでこんなテンプレートの構成なんだろう。
-これだと &lt;code&gt;section&lt;/code&gt; や &lt;code&gt;_default&lt;/code&gt; という名前のセクションはカスタマイズ出来ないことになる（まだ説明してないが &lt;code&gt;layouts&lt;/code&gt; フォルダには他にも &lt;code&gt;partials&lt;/code&gt; や &lt;code&gt;shortcodes&lt;/code&gt; といったフォルダもある）。
-そうではなくて，  &lt;code&gt;layouts/section&lt;/code&gt; フォルダの下にセクション名のフォルダを掘ってその中に &lt;code&gt;list.html&lt;/code&gt; や &lt;code&gt;single.html&lt;/code&gt; を配置すればスッキリするのに。&lt;/p&gt;
-
-&lt;p&gt;さきほどの &lt;code&gt;.Params&lt;/code&gt; の話といい，どうも &lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; は名前管理がいきあたりばったりな気がする。&lt;/p&gt;
-
-&lt;h3 id=&#34;conflict:3a1cfba8bd8f5909f311805a9f67ed1e&#34;&gt;categories/hugo という名前の記事はどうなるの？&lt;/h3&gt;
-
-&lt;p&gt;これも名前に関する話。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;categories/hugo.md&lt;/code&gt; という名前の記事は &lt;code&gt;categories/hugo/index.html&lt;/code&gt; に展開される。
-これって Categories の機能と丸かぶりである。
-実は &lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; では名前が衝突した際の挙動は明文化されていない（筈）。
-強いて言うなら実装依存で状況依存である。またビルド時にエラーになることもない。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\hugo-env\www&amp;gt;hugo new categories/hugo.md
-C:\hugo-env\www\content\categories\hugo.md created
-
-C:\hugo-env\www&amp;gt;hugo undraft content/categories/hugo.md
-
-C:\hugo-env\www&amp;gt;hugo
-0 draft content
-0 future content
-2 pages created
-0 paginator pages created
-2 tags created
-1 categories created
-in 24 ms
-
-C:\hugo-env\www&amp;gt;tree /f .
-C:\HUGO-ENV\WWW
-│  config.toml
-│
-├─archetypes
-├─content
-│  ├─categories
-│  │      hugo.md
-│  │
-│  └─practice
-│          hello.md
-│
-├─data
-├─layouts
-│  │  404.html
-│  │  index.html
-│  │
-│  └─_default
-│          list.html
-│          single.html
-│
-├─public
-│  │  404.html
-│  │  index.html
-│  │  index.xml
-│  │  sitemap.xml
-│  │
-│  ├─categories
-│  │  │  index.html
-│  │  │  index.xml
-│  │  │
-│  │  └─hugo
-│  │          index.html
-│  │          index.xml
-│  │
-│  ├─practice
-│  │  │  index.html
-│  │  │  index.xml
-│  │  │
-│  │  └─hello
-│  │          index.html
-│  │
-│  └─tags
-│      ├─hello
-│      │      index.html
-│      │      index.xml
-│      │
-│      └─world
-│              index.html
-│              index.xml
-│
-└─static
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;上の場合は &lt;code&gt;categories/hugo/index.html&lt;/code&gt; が記事ページになった。
-他にも，このフォルダ構成なら &lt;code&gt;practice.md&lt;/code&gt; も名前が衝突する。
-このような衝突を避けるにはユーザ側で名前を管理するしかない。
-小規模なサイトなら人間が気をつければいいが，中規模以上で複数人が関わるようになると結構危ないかもしれない。&lt;/p&gt;
-
-&lt;h2 id=&#34;bookmark:3a1cfba8bd8f5909f311805a9f67ed1e&#34;&gt;ブックマーク&lt;/h2&gt;
+&lt;h3 id=&#34;はじめての-go-言語-on-windows:9bacfa348e5fe42acc9342a16675997d&#34;&gt;はじめての Go 言語 (on Windows)&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://qiita.com/&#34;&gt;Qiita&lt;/a&gt; で書いてる拙文の目次。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/dca0df389df1470bdbfa&#34;&gt;はじめての Go 言語 (on Windows)&lt;/a&gt; : インストールと動作確認（“Hello World” まで）&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/047a9bd6436e6391ddd4&#34;&gt;はじめての Go 言語 (on Windows) その2&lt;/a&gt; : 素数探索アルゴリズムで遊ぶ（slice, make, goroutine, channel）&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/a52a47942fd3946bb583&#34;&gt;はじめての Go 言語 (on Windows) その3&lt;/a&gt; : get コマンドを使う&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/556166b6631c0369754f&#34;&gt;はじめての Go 言語 (on Windows) その4&lt;/a&gt; : string と rune&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/e743d63ef5165d750eff&#34;&gt;はじめての Go 言語 (on Windows) その5&lt;/a&gt; : 暦で遊ぶ（math, time）&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/404871d2bafd22bdbb90&#34;&gt;はじめての Go 言語 (on Windows) その6&lt;/a&gt; : パッケージ化について&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/64224f22ef17d916dc2d&#34;&gt;はじめての Go 言語 (on Windows) その7&lt;/a&gt; : テストを書く&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/5f9e96f226f46089388f&#34;&gt;はじめての Go 言語 (on Windows) その8&lt;/a&gt; : パッケージ化したのならドキュメントを書きましょう&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/ef15a48542e043b32c99&#34;&gt;はじめての Go 言語 (on Windows) その9&lt;/a&gt; : プロジェクト・ベースのビルド・ツールを使ってみる&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/5d2878596360af8dd753&#34;&gt;はじめての Go 言語 (on Windows) その10&lt;/a&gt; : 最終回。コマンドライン・ツールを作ってみる。エラーハンドリングについてもちょっとだけ&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;ちなみに「はじめての&amp;hellip;」以降の Go 言語に関する拙文は以下の通り。&lt;/p&gt;
 
 &lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://wdkk.co.jp/lab/hugo/&#34;&gt;Hugoサイト構築 | Watanabe-DENKI Inc. 渡辺電気株式会社&lt;/a&gt; : お勧め！&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/69d1166225d88b1faf66&#34;&gt;tcnksm/gcli を使った golang によるコマンドライン・ツール開発について&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/73ebc684b5807277b7e2&#34;&gt;そろそろ真面目に Golang 開発環境について考える — GOPATH 汚染問題&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/2e475b48226330aa5570&#34;&gt;Golang による文字エンコーディング変換&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/16ab7dabbd0749281227&#34;&gt;Golang の文字列連結はどちらが速い？&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/baa3671c7e1b8a6594a9&#34;&gt;そろそろ真面目に Golang 開発環境について考える — Internal Packages と Vendoring&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/hugo/bookmark/&#34;&gt;Hugo に関するブックマークはこちら&lt;/a&gt;。&lt;/p&gt;
 </content>
 	</entry>
 	
