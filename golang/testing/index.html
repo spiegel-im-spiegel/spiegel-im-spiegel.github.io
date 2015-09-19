@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15-DEV" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Serif:400,400italic,700,700italic|Open+Sans:400,400italic,700,700italic|Inconsolata:400,700&subset=latin,latin-ext">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+
+<link rel="alternate" href="/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+
+<title>Go 言語のテスト・フレームワーク - プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="パッケージ化したのならテストをしましょう。">
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div id='container'>
+<header role="banner">
+<h1><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></h1>
+<p>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</p>
+</header>
+
+
+<main role="main">
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<section>
+<h1 itemprop='name'>Go 言語のテスト・フレームワーク - <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags"><div>Tags: <a href="/tags/golang">#golang</a> <a href="/tags/testing">#testing</a></div></nav>
+
+
+<p>（初出： <a href="http://qiita.com/spiegel-im-spiegel/items/64224f22ef17d916dc2d">はじめての Go 言語 (on Windows) その7 - Qiita</a>）</p>
+
+<p><a href="http://text.baldanders.info/golang/packaging/" title="機能のパッケージ化">前回</a>の続き。</p>
+
+<h2 id="テストコードを書く:3047d71ccf1370a2898eb92c70273f56">テストコードを書く</h2>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>では最初からテスト・フレームワークが同梱されています。
+いまどきの言語はみんなそうですよね。
+テストコードを書くには対象のソースファイルと同じフォルダに <code>*_test.go</code> という名前のファイルを用意します。
+まぁ，説明するより書いた方が早いですね。</p>
+
+<pre><code class="language-go">package modjulian
+
+import (
+	&quot;os&quot;
+	&quot;testing&quot;
+	&quot;time&quot;
+)
+
+type mjdnTest struct { //test case for DayNumber
+	in time.Time //input data
+	out int64 //expected result
+}
+
+var mjdnTests []mjdnTest  //test cases for DayNumber
+
+func TestMain(m *testing.M) {
+	//initialization
+ 	mjdnTests = []mjdnTest {  //test cases for DayNumber
+		{time.Date(1969, 12, 31, 0, 0, 0, 0, time.UTC), int64(40586)},
+		{time.Date(1970,  1,  1, 0, 0, 0, 0, time.UTC), int64(40587)},
+		{time.Date(2015,  1,  1, 0, 0, 0, 0, time.UTC), int64(57023)},
+	}
+
+	//start test
+    code := m.Run()
+
+	//termination
+    os.Exit(code)
+}
+
+func TestModifiedJulianDayNumber(t *testing.T) {
+	for _, testCase := range mjdnTests {
+		result := DayNumber(testCase.in)
+		if result != testCase.out {
+			t.Errorf(&quot;DayNumber of \&quot;%v\&quot; = %d, want %d.&quot;, testCase.in, result, testCase.out)
+		}
+	}
+}
+</code></pre>
+
+<ol>
+<li><code>package</code> にはテスト対象のパッケージを指定します。</li>
+<li><code>import</code> には <a href="http://golang.org/pkg/testing/"><code>testing</code></a> パッケージを含めます。</li>
+<li><code>Test...</code> で始まる関数名がテスト実行用の関数です。引数には <code>t *testing.T</code> を指定します。</li>
+<li><code>TestMain()</code> は特別な関数です。テストの最初に呼び出され， <code>Run()</code> で他のテスト関数群をキックします。引数には <code>m *testing.M</code> を指定します。 <code>TestMain()</code> 内で初期化や条件を変えたテストの繰り返しや後始末処理などを行うことができます。</li>
+</ol>
+
+<p><a href="http://golang.org/pkg/testing/"><code>testing</code></a> パッケージには，他の言語のテスト・フレームワークによくある <a href="http://golang.jp/go_faq#assertions">assertion 関数がありません</a><sup class="footnote-ref" id="fnref:3047d71ccf1370a2898eb92c70273f56:1"><a rel="footnote" href="#fn:3047d71ccf1370a2898eb92c70273f56:1">1</a></sup>。 <a href="http://golang.jp/go_faq#testing_framework">FAQ</a><sup class="footnote-ref" id="fnref:3047d71ccf1370a2898eb92c70273f56:2"><a rel="footnote" href="#fn:3047d71ccf1370a2898eb92c70273f56:2">2</a></sup> によると</p>
+
+<blockquote>
+<p>一般的なテストフレームワークにおいて条件・制御・出力機構を持つ専用のミニ言語が用意される傾向がありますが、Go言語にはすでにこれらが備わっています。これらを再び作成するより、我々はGo言語のテストを進めたかったのです。このようにしたことで余計な言語を覚える必要がなくなり、テストを直接的かつ理解しやすくしています。</p>
+</blockquote>
+
+<p>とあります。
+テスト駆動型開発の場合，テストコードはそれ自体が設計書として機能しますので，この割り切りは妥当と言えます<sup class="footnote-ref" id="fnref:3047d71ccf1370a2898eb92c70273f56:3"><a rel="footnote" href="#fn:3047d71ccf1370a2898eb92c70273f56:3">3</a></sup>。
+その代わりテストコードを（ドキュメントとして）きちんと書くのは骨が折れますが（笑）</p>
+
+<p>テストコードが書けたので早速動かしてみましょう。
+環境は<a href="http://text.baldanders.info/golang/packaging/" title="機能のパッケージ化">前回</a>の最後の状態をそのまま引き継ぎます。</p>
+
+<p>テストを行うには <code>go test</code> コマンドを使います。
+以下の例ではパッケージを指定していますが， <code>./...</code> と指定すれば全てのパッケージのテストが対象になります。</p>
+
+<pre><code class="language-shell">C:\workspace\jd&gt;go test -v github.com/spiegel-im-spiegel/astrocalc/modjulian
+=== RUN   TestDayNumber
+--- PASS: TestDayNumber (0.00s)
+PASS
+ok      github.com/spiegel-im-spiegel/astrocalc/modjulian       0.229s
+</code></pre>
+
+<p>これは成功例。じゃあ，<a href="https://github.com/spiegel-im-spiegel/astrocalc/blob/master/modjulian/modjulian.go">元のコード</a>を少しいじってわざと失敗させてみましょうか（なんだかなぁ）。</p>
+
+<pre><code class="language-shell">C:\workspace\jd&gt;go test -v github.com/spiegel-im-spiegel/astrocalc/modjulian
+=== RUN   TestDayNumber
+--- FAIL: TestDayNumber (0.00s)
+        modjulian_test.go:35: DayNumber of &quot;1969-12-31 00:00:00 +0000 UTC&quot; = 40587, want 40586.
+FAIL
+exit status 1
+FAIL    github.com/spiegel-im-spiegel/astrocalc/modjulian       1.566s
+</code></pre>
+
+<p>エラーレポートを吐く <code>Errorf()</code> は内部で <code>Fail()</code> を呼び出し，テスト自体は続行します。
+一方 <code>Errorf()</code> の代わりに <code>Fatalf()</code> を使うと，内部で <code>FailNow()</code> を呼び出しテストを中断します。</p>
+
+<p>Go 言語のテスト・フレームワークでは benchmark や coverage もサポートしてますが，今回は割愛します。</p>
+
+<h2 id="テストの自動化-continuous-integration:3047d71ccf1370a2898eb92c70273f56">テストの自動化（Continuous Integration）</h2>
+
+<p>今回のコードは自動化するほどの規模でもないですが，話のついでに <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> で自動化しちゃいましょう。
+えっと，今回は <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> の説明は割愛します。
+興味のある方は「<a href="http://text.baldanders.info/golang/packaging/">ブックマーク</a>」の項を参考にして下さい。</p>
+
+<p><a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> でビルド・テストを行うためには <code>.travis.yml</code> を書く必要がありますが，テストを行うだけなら <code>.travis.yml</code> の記述は簡単です。</p>
+
+<pre><code class="language-yaml">language: go
+
+go:
+  - 1.4
+  - 1.5
+
+script:
+ - go test -v ./...
+</code></pre>
+
+<p>実行結果は<a href="https://travis-ci.org/spiegel-im-spiegel/astrocalc">ここ</a>を参照して下さい。</p>
+
+<p><a href="http://text.baldanders.info/golang/document/" title="Go 言語のドキュメント・フレームワーク">次回</a>はドキュメントの話。</p>
+
+<h2 id="bookmark:3047d71ccf1370a2898eb92c70273f56">ブックマーク</h2>
+
+<ul>
+<li><a href="http://qiita.com/Jxck_/items/8717a5982547cfa54ebc">Go の Test に対する考え方 - Qiita</a></li>
+<li><a href="http://straitwalk.hatenablog.com/entry/2014/09/18/232810">Goでテストを書く - 成らぬは人の為さぬなりけり</a></li>
+<li><a href="http://qiita.com/umisama/items/0d589cca7e89b89c29a8">golang 1.4で追加されたtestingの便利機能(テストの初期化とお片づけ) - Qiita</a></li>
+<li><a href="http://qiita.com/dmnlk/items/3fb4e0abb98e39fee275">Go + Travis CI + Coveralls でCI環境を作る - Qiita</a></li>
+<li><a href="http://sue445.hatenablog.com/entry/2013/06/01/170607">GithubにあるリポジトリをTravis CI連携する手順 #junitbook - くりにっき</a></li>
+<li><a href="http://deeeet.com/writing/2014/10/16/golang-in-ci-as-a-service/">CI-as-a-ServiceでGo言語プロジェクトの最新ビルドを継続的に提供する | SOTA</a></li>
+<li><a href="http://uchimanajet7.hatenablog.com/entry/2015/03/20/211352">golangでTravis CIを使ってクロスコンパイルするときにハマったところ #golang #travisci - uchimanajet7のメモ</a></li>
+<li><a href="http://qiita.com/atotto/items/b796c31c1755dbec13db">Go言語のビルド生活を drone.ioで幸せに暮らす #golang - Qiita</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:3047d71ccf1370a2898eb92c70273f56:1">オリジナルは <a href="http://golang-jp.org/doc/faq#assertions">http://golang-jp.org/doc/faq#assertions</a>
+ <a class="footnote-return" href="#fnref:3047d71ccf1370a2898eb92c70273f56:1"><sup>[return]</sup></a></li>
+<li id="fn:3047d71ccf1370a2898eb92c70273f56:2">オリジナルは <a href="http://golang-jp.org/doc/faq#testing_framework">http://golang-jp.org/doc/faq#testing_framework</a>
+ <a class="footnote-return" href="#fnref:3047d71ccf1370a2898eb92c70273f56:2"><sup>[return]</sup></a></li>
+<li id="fn:3047d71ccf1370a2898eb92c70273f56:3">私は組み込みエンジニアなので，プログラミングで assert を多用するのは，エンジニアの怠慢だと思ってしまいます。まぁ，ベクタ・テーブルからゴリゴリ書くってのなら別ですが。
+ <a class="footnote-return" href="#fnref:3047d71ccf1370a2898eb92c70273f56:3"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+</article>
+</main>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/testing\/';
+    var disqus_title = 'Go 言語のテスト・フレームワーク';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/testing\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-19</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		<li><a href="https://medium.com/@@spiegel" target="_blank"><i class="fa fa-medium"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/testing/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="Go 言語のテスト・フレームワーク - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2ftesting%2f&amp;title=go-%25E8%25A8%2580%25E8%25AA%259E%25E3%2581%25AE%25E3%2583%2586%25E3%2582%25B9%25E3%2583%2588%25E3%2583%2595%25E3%2583%25AC%25E3%2583%25BC%25E3%2583%25A0%25E3%2583%25AF%25E3%2583%25BC%25E3%2582%25AF" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav role="navigation">
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/github-pages-env'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15-DEV</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+

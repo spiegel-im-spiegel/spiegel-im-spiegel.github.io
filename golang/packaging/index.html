@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15-DEV" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Serif:400,400italic,700,700italic|Open+Sans:400,400italic,700,700italic|Inconsolata:400,700&subset=latin,latin-ext">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+
+<link rel="alternate" href="/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+
+<title>機能のパッケージ化 - プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="description">
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div id='container'>
+<header role="banner">
+<h1><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></h1>
+<p>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</p>
+</header>
+
+
+<main role="main">
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<section>
+<h1 itemprop='name'>機能のパッケージ化 - <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags"><div>Tags: <a href="/tags/golang">#golang</a> <a href="/tags/package">#package</a> <a href="/tags/github">#github</a></div></nav>
+
+
+<p>（初出： <a href="http://qiita.com/spiegel-im-spiegel/items/404871d2bafd22bdbb90">はじめての Go 言語 (on Windows) その6 - Qiita</a>）</p>
+
+<p><a href="http://text.baldanders.info/golang/julian-day-number/" title="「ユリウス日」で遊ぶ">前回</a>の続き。
+なんだけど，今回はパッケージのお話。
+ユリウス日の計算なんて簡単なので今まで <code>main()</code> 関数の中にゴリゴリ書いてましたが，今後のことを考えて，これを使ってパッケージ化の作業を行うことにします。</p>
+
+<h2 id="ユリウス日計算のパッケージ化:bf561d8ea0bbb40075d9094acab07703">ユリウス日計算のパッケージ化</h2>
+
+<p>まずは，<a href="http://text.baldanders.info/golang/julian-day-number/" title="「ユリウス日」で遊ぶ">前回</a>のコードから計算処理部分をきちんと分離します。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;flag&quot;
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;time&quot;
+)
+
+func ModifiedJulianDayNumber(t time.Time) int64 {
+	if t.Sub(time.Unix(0, 0)) &gt;= 0 {
+		return mjdnUnix(t)
+	} else {
+		return mjdnGregorian(t)
+	}
+}
+
+func mjdnGregorian(t time.Time) int64 {
+	y := int64(t.Year())
+	m := int64(t.Month())
+	if m &lt; 3 {
+		y -= 1
+		m += 9
+	} else {
+		m -= 3
+	}
+	d := int64(t.Day()) - 1
+	return (1461*y)/4 + y/400 - y/100 + (153*m+2)/5 + d - 678881
+}
+
+func mjdnUnix(t time.Time) int64 {
+	const (
+		onday   = int64(86400) //seconds
+		baseDay = int64(40587) //Modified Julian Date at January 1, 1970
+	)
+	return (t.Unix())/onday + baseDay
+}
+
+func main() {
+	//引数のチェック
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &lt; 3 {
+		fmt.Fprintln(os.Stderr, &quot;年月日を指定してください&quot;)
+		return
+	}
+	args := make([]int, 3)
+	for i := 0; i &lt; 3; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else {
+			args[i] = num
+		}
+	}
+	tm := time.Date(args[0], time.Month(args[1]), args[2], 0, 0, 0, 0, time.UTC)
+	fmt.Printf(&quot;%v\n&quot;, tm)
+	fmt.Printf(&quot;MJD = %d日\n&quot;, ModifiedJulianDayNumber(tm))
+}
+</code></pre>
+
+<pre><code class="language-shell">C:&gt;go run julian-day-4.go 1969 12 31
+1969-12-31 00:00:00 +0000 UTC
+MJD = 40586日
+
+C:&gt;go run julian-day-4.go 1970 1 1
+1970-01-01 00:00:00 +0000 UTC
+MJD = 40587日
+
+C:&gt;go run julian-day-4.go 2015 1 1
+2015-01-01 00:00:00 +0000 UTC
+MJD = 57023日
+</code></pre>
+
+<p>ユリウス日の端数が鬱陶しいので修正ユリウス日の整数部分のみ計算しています。
+あと1970年1月1日を境界として計算方法を変えています。
+本当はユリウス暦の場合の計算も含めるべきなんでしょうけど，今回は割愛します。</p>
+
+<p>さて，上のコードのうち修正ユリウス日計算関数を別ファイルにしてパッケージ化します。</p>
+
+<pre><code class="language-go">package modjulian
+
+import &quot;time&quot;
+
+func DayNumber(t time.Time) int64 {
+	if t.Sub(time.Unix(0, 0)) &gt;= 0 {
+		return dnUnix(t)
+	} else {
+		return dnGregorian(t)
+	}
+}
+
+func dnGregorian(t time.Time) int64 {
+	y := int64(t.Year())
+	m := int64(t.Month())
+	if m &lt; 3 {
+		y -= 1
+		m += 9
+	} else {
+		m -= 3
+	}
+	d := int64(t.Day()) - 1
+	return (1461*y)/4 + y/400 - y/100 + (153*m+2)/5 + d - 678881
+}
+
+func dnUnix(t time.Time) int64 {
+	const (
+		onday   = int64(86400) //seconds
+		baseDay = int64(40587) //Modified Julian Date at January 1, 1970
+	)
+	return (t.Unix())/onday + baseDay
+}
+</code></pre>
+
+<p>パッケージ名は <code>modjulian</code> としました。
+ちなみにパッケージ内の関数等は名前の先頭が大文字のものだけが外部から参照可能です。</p>
+
+<h3 id="go-言語における名前の問題:bf561d8ea0bbb40075d9094acab07703">Go 言語における名前の問題</h3>
+
+<p>Go 言語およびそのコミュニティは名前にうるさいようです。
+たとえば「<a href="http://golang.jp/effective_go">実践Go言語</a><sup class="footnote-ref" id="fnref:bf561d8ea0bbb40075d9094acab07703:1"><a rel="footnote" href="#fn:bf561d8ea0bbb40075d9094acab07703:1">1</a></sup>」によると</p>
+
+<blockquote>
+<p>慣例では，パッケージ名は小文字でひとつの単語です。アンダースコアや大文字が混ざって(mixedCaps)はいけません。パッケージ使用者がその名前をタイプすることを考慮して，簡潔すぎるぐらいにしてください。</p>
+</blockquote>
+
+<p>なんだそうで，本当はパッケージ名を <code>julianDate</code> としたかったんだけど，それでは筋が悪いらしい。</p>
+
+<p>もうひとつ。</p>
+
+<p>もう一つの慣例は，パッケージ名がそのソースディレクトリのベース名であるということです。たとえば<code>src/pkg/encoding/base64</code>に置かれているパッケージは，“<code>encoding/base64</code>”としてインポートし，名前は<code>base64</code>となります。<code>encoding_base64</code>や<code>encodingBase64</code>とはなりません。</p>
+
+<p>なのでパッケージの指定はハンガリアン記法とかではなく単語をディレクトリで区切って階層化することで整理できそうです。
+これって Java とかに慣れてる人には比較的とっつきやすい仕組みかもしれません。</p>
+
+<blockquote>
+<p>長い名前は，慣れたとしても読みやすくなることはありません。複雑もしくは微妙なニュアンスを持つものに名前をつけるときは，すべての情報を名前で表現しようとするより，通常は役立つドキュメントコメントを書いたほうがよいでしょう。</p>
+</blockquote>
+
+<h2 id="パッケージの配置と呼び出し:bf561d8ea0bbb40075d9094acab07703">パッケージの配置と呼び出し</h2>
+
+<p>パッケージを呼び出すのには（標準のパッケージと同じく） <code>import</code> を使えばいいのですが，記述によってパッケージをどこに配置するかが変わります。</p>
+
+<p>たとえば</p>
+
+<pre><code class="language-go">import &quot;./modjulian&quot;
+</code></pre>
+
+<p>と相対パスで記述した場合は，呼び出し元のファイルの場所にある <code>modjulian</code> フォルダを探します。
+以下はパッケージが見つからなくてエラーになってる例です。</p>
+
+<pre><code>C:\workspace\jd\src\julian-day-4b&gt;go build julian-day-4b.go
+julian-day-4b.go:10:2: open C:\workspace\jd\src\julian-day-4b\modjulian: The system cannot find the file specified.
+</code></pre>
+
+<p>一方</p>
+
+<pre><code class="language-go">import &quot;modjulian&quot;
+</code></pre>
+
+<p>と記述した場合には，環境変数 <code>GOROOT</code> および <code>GOPATH</code> で指定されるフォルダ以下を探すようです。
+以下もパッケージが見つからなくてエラーになってる例です。</p>
+
+<pre><code class="language-shell">C:\workspace\jd\src\julian-day-4b&gt;go build julian-day-4b.go
+julian-day-4b.go:10:2: cannot find package &quot;modjulian&quot; in any of:
+        C:\Go\src\modjulian (from $GOROOT)
+        C:\Gopath\src\modjulian (from $GOPATH)
+</code></pre>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>ではパッケージを相対パスで指定するのは（デバッグ時などを除いて）良くないと言われています。
+これは <code>go get</code> コマンドでパッケージをビルドする際，相対パスを解釈しないようにしているからのようです<sup class="footnote-ref" id="fnref:bf561d8ea0bbb40075d9094acab07703:2"><a rel="footnote" href="#fn:bf561d8ea0bbb40075d9094acab07703:2">2</a></sup>。</p>
+
+<h3 id="パッケージを-github-上に配置する:bf561d8ea0bbb40075d9094acab07703">パッケージを GitHub 上に配置する</h3>
+
+<p>「<a href="http://text.baldanders.info/golang/go-get-package/">go get コマンドでパッケージを管理する</a>」でも紹介しましたが，インターネット上の repository にあるパッケージを</p>
+
+<pre><code class="language-go">import &quot;github.com/username/package&quot;
+</code></pre>
+
+<p>のように指定することで，任意に取り込むことが可能です。
+そこで今回のパッケージを <a href="https://github.com/">GitHub</a> 上に公開しました。</p>
+
+<ul>
+<li><a href="https://github.com/spiegel-im-spiegel/astrocalc"><code>github.com/spiegel-im-spiegel/astrocalc</code></a><code>/modjulian</code></li>
+</ul>
+
+<p>このパッケージを使って書いてみます。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;flag&quot;
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;time&quot;
+
+	&quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&quot;
+)
+
+func main() {
+	//引数のチェック
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &lt; 3 {
+		fmt.Fprintf(os.Stderr, &quot;年月日を指定してください&quot;)
+		return
+	}
+	args := make([]int, 3)
+	for i := 0; i &lt; 3; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err)
+			return
+		} else {
+			args[i] = num
+		}
+	}
+	tm := time.Date(args[0], time.Month(args[1]), args[2], 0, 0, 0, 0, time.UTC)
+	fmt.Printf(&quot;%v\n&quot;, tm)
+	fmt.Printf(&quot;MJD = %d日\n&quot;, modjulian.DayNumber(tm))
+}
+</code></pre>
+
+<p>このソースファイル <code>julian-day-4b.go</code> と <code>modjulian</code> パッケージを以下のように配置してビルドします。</p>
+
+<pre><code>C:&gt;SET GOPATH=C:\workspace\jd
+
+C:&gt;cd C:\workspace\jd
+
+C:\workspace\jd&gt;tree /f .
+C:\WORKSPACE\JD
+│
+└─src
+    └─julian-day-4b
+            julian-day-4b.go
+
+C:\workspace\jd&gt;go get -v github.com/spiegel-im-spiegel/astrocalc/modjulian
+github.com/spiegel-im-spiegel/astrocalc (download)
+github.com/spiegel-im-spiegel/astrocalc/modjulian
+
+C:\workspace\jd&gt;go install ./...
+
+C:\workspace\jd&gt;tree /f .
+C:\WORKSPACE\JD
+│
+├─bin
+│      julian-day-4b.exe
+│
+├─pkg
+│  └─windows_amd64
+│      └─github.com
+│          └─spiegel-im-spiegel
+│              └─astrocalc
+│                      modjulian.a
+│
+└─src
+    ├─github.com
+    │  └─spiegel-im-spiegel
+    │      └─astrocalc
+    │          │  .editorconfig
+    │          │  .gitignore
+    │          │  .travis.yml
+    │          │  LICENSE
+    │          │  README.md
+    │          │
+    │          └─modjulian
+    │                  example_test.go
+    │                  LICENSE
+    │                  modjulian.go
+    │                  modjulian_test.go
+    │
+    └─julian-day-4b
+            julian-day-4b.go
+
+C:\workspace\jd&gt;bin\julian-day-4b.exe 1969 12 31
+1969-12-31 00:00:00 +0000 UTC
+MJD = 40586日
+
+C:\workspace\jd&gt;bin\julian-day-4b.exe 1970 1 1
+1970-01-01 00:00:00 +0000 UTC
+MJD = 40587日
+
+C:\workspace\jd&gt;bin\julian-day-4b.exe 2015 1 1
+2015-01-01 00:00:00 +0000 UTC
+MJD = 57023日
+</code></pre>
+
+<p>まだまだ続くよ。
+<a href="http://text.baldanders.info/golang/testing/" title="Go 言語のテスト・フレームワーク">次回</a>はテストについて。</p>
+
+<h2 id="ブックマーク:bf561d8ea0bbb40075d9094acab07703">ブックマーク</h2>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:bf561d8ea0bbb40075d9094acab07703:1">オリジナルは “<a href="https://golang.org/doc/effective_go.html">Effective Go</a>”
+ <a class="footnote-return" href="#fnref:bf561d8ea0bbb40075d9094acab07703:1"><sup>[return]</sup></a></li>
+<li id="fn:bf561d8ea0bbb40075d9094acab07703:2">これについてはいろいろな意見があるようですが，妥当な割り切りだと思います。特にコードを CI (Continuous Integration) によって管理している場合は重要なポイントです。
+ <a class="footnote-return" href="#fnref:bf561d8ea0bbb40075d9094acab07703:2"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+</article>
+</main>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/packaging\/';
+    var disqus_title = '機能のパッケージ化';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/packaging\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-19</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		<li><a href="https://medium.com/@@spiegel" target="_blank"><i class="fa fa-medium"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/packaging/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="機能のパッケージ化 - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fpackaging%2f&amp;title=%25E6%25A9%259F%25E8%2583%25BD%25E3%2581%25AE%25E3%2583%2591%25E3%2583%2583%25E3%2582%25B1%25E3%2583%25BC%25E3%2582%25B8%25E5%258C%2596" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav role="navigation">
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/github-pages-env'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15-DEV</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+

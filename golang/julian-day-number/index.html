@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15-DEV" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Serif:400,400italic,700,700italic|Open+Sans:400,400italic,700,700italic|Inconsolata:400,700&subset=latin,latin-ext">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+
+<link rel="alternate" href="/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+
+<title>「ユリウス日」で遊ぶ - プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="今回は暦で遊びます。とりあえず，簡単なところで「ユリウス日」をいってみるか。">
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div id='container'>
+<header role="banner">
+<h1><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></h1>
+<p>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</p>
+</header>
+
+
+<main role="main">
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<section>
+<h1 itemprop='name'>「ユリウス日」で遊ぶ - <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags"><div>Tags: <a href="/tags/golang">#golang</a> <a href="/tags/julian-day-number">#julian-day-number</a> <a href="/tags/math">#math</a> <a href="/tags/time">#time</a> <a href="/tags/astronomy">#astronomy</a></div></nav>
+
+
+<p>（初出： <a href="http://qiita.com/spiegel-im-spiegel/items/e743d63ef5165d750eff">はじめての Go 言語 (on Windows) その5 - Qiita</a>）</p>
+
+<p>今回は暦で遊びます。
+とりあえず，簡単なところで「ユリウス日（Julian Date または Julian Day Number<sup class="footnote-ref" id="fnref:dce87c312b9004de93da86b8c547be13:1"><a rel="footnote" href="#fn:dce87c312b9004de93da86b8c547be13:1">1</a></sup>）」をいってみるか。</p>
+
+<h2 id="ユリウス日の定義:dce87c312b9004de93da86b8c547be13">ユリウス日の定義</h2>
+
+<p>ユリウス日とは紀元前4713年1月1日正午<sup class="footnote-ref" id="fnref:dce87c312b9004de93da86b8c547be13:2"><a rel="footnote" href="#fn:dce87c312b9004de93da86b8c547be13:2">2</a></sup> を起点とした通日のことです。
+たとえば2015年1月1日零時はユリウス日では2,457,023.5日になります。</p>
+
+<ul>
+<li><a href="http://eco.mtk.nao.ac.jp/cgi-bin/koyomi/cande/date2jd.cgi">ユリウス日</a> （<a href="http://eco.mtk.nao.ac.jp/koyomi/">国立天文台暦計算室</a>）</li>
+<li><a href="http://homepage1.nifty.com/manome/astrology/julian.html">ユリウス日(Julian Day)</a> : 暦にまつわるエピソードを含めて参考になります</li>
+<li><a href="http://www.tondering.dk/claus/cal/julperiod.php">The Julian Period</a></li>
+</ul>
+
+<p>この際，いくつか気を付ける点があります。</p>
+
+<ul>
+<li>紀元前（BC）1年の翌年は紀元後（AD）1年。つまり AD1年を $1$ とするなら BC1年は $0$，BC2年は $-1$ となります。紀元前4713年は $-4712$ です。</li>
+<li>ユリウス暦は紀元前45年から開始されたと言われています。つまりそれ以前は異なる暦だったわけです。しかしユリウス日では紀元前45年より前の日付もユリウス暦と見なして取り扱います。</li>
+<li>欧州では西暦（紀元後）1582年に当時のローマ法王グレゴリオ13世によって（現在言われるところの）グレゴリオ暦が布告されましたが，この際に1582年10月4日の翌日を10月15日としたためギャップが生じました。</li>
+</ul>
+
+<h2 id="年月日から-修正-ユリウス日を求める:dce87c312b9004de93da86b8c547be13">年月日から（修正）ユリウス日を求める</h2>
+
+<p>というわけで大昔のユリウス日を求めるのは西暦を使う場合でもちょっと面倒くさいのですが，範囲をグレゴリオ暦に限るなら便利な式があります。</p>
+
+<p>グレゴリオ暦のある日を「$Y$ 年 $M$ 月 $D$ 日」で表せるとすると</p>
+
+<blockquote>
+\begin{aligned}
+    y   & = Y + \left\lfloor \frac{M - 3}{12} \right\rfloor \\
+    m   & = \left( 12 + \left( M - 3 \right) \right) \bmod 12 \\
+    d   & = D - 1 \\
+    MJD & = \left\lfloor 365.25y \right\rfloor + \left\lfloor \frac{y}{400} \right\rfloor - \left\lfloor \frac{y}{100} \right\rfloor + \left\lfloor 30.60m + 0.5 \right\rfloor + d - 678881 \\
+    JD  & = MJD + 2400000.5
+\end{aligned}
+</blockquote>
+
+<p>でユリウス日 $JD $ を求めることができます<sup class="footnote-ref" id="fnref:dce87c312b9004de93da86b8c547be13:3"><a rel="footnote" href="#fn:dce87c312b9004de93da86b8c547be13:3">3</a></sup> <sup class="footnote-ref" id="fnref:dce87c312b9004de93da86b8c547be13:4"><a rel="footnote" href="#fn:dce87c312b9004de93da86b8c547be13:4">4</a></sup> <sup class="footnote-ref" id="fnref:dce87c312b9004de93da86b8c547be13:5"><a rel="footnote" href="#fn:dce87c312b9004de93da86b8c547be13:5">5</a></sup>。</p>
+
+<p>ちなみに $MJD$ は修正ユリウス日（Modified Julian Date）と呼ばれるものです。
+定義は上の式の通りで，ユリウス日から240万日分をカットして日付の起点を正午から（私たちになじみのある）正子<sup class="footnote-ref" id="fnref:dce87c312b9004de93da86b8c547be13:6"><a rel="footnote" href="#fn:dce87c312b9004de93da86b8c547be13:6">6</a></sup> にずらしています。</p>
+
+<p>$ \left\lfloor x \right\rfloor $ は床関数と呼ばれるもので「実数 $x$ に対して $x$ 以下の最大の整数」と定義されます。
+例えば</p>
+
+<blockquote>
+\begin{aligned}
+    \left\lfloor 1.0 \right\rfloor & = 1 \\
+    \left\lfloor 0.7 \right\rfloor & = 0 \\
+    \left\lfloor -0.5 \right\rfloor & = -1 \\
+    \left\lfloor -2.0 \right\rfloor & = -2 \\
+\end{aligned}
+</blockquote>
+
+<p>となります。
+単に小数点を取るだけではないです。
+<a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の <a href="http://golang.org/pkg/math/"><code>math</code></a> パッケージには，そのものずばりの <code>math.Floor()</code> 関数があります。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math&quot;
+)
+
+func main() {
+	fmt.Printf(&quot;[1.0] = %v\n&quot;, math.Floor(1.0))
+	fmt.Printf(&quot;[0.7] = %v\n&quot;, math.Floor(0.7))
+	fmt.Printf(&quot;[-0.5] = %v\n&quot;, math.Floor(-0.5))
+	fmt.Printf(&quot;[-2.0] = %v\n&quot;, math.Floor(-2.0))
+}
+</code></pre>
+
+<pre><code>C:&gt;go run floor.go
+[1.0] = 1
+[0.7] = 0
+[-0.5] = -1
+[-2.0] = -2
+</code></pre>
+
+<p>では換算式を <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で実装してみましょう。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math&quot;
+)
+
+func main() {
+	year := 2015
+	month := 1
+	day := 1
+	fmt.Printf(&quot;%v年%v月%v日\n\n&quot;, year, month, day)
+
+	mm := float64(month - 3)
+	y := float64(year) + math.Floor(mm/12.0)
+	m := math.Mod(12.0+mm, 12.0)
+	d := float64(day - 1)
+	fmt.Printf(&quot;y = %f\n&quot;, y)
+	fmt.Printf(&quot;m = %f\n&quot;, m)
+	fmt.Printf(&quot;d = %f\n\n&quot;, d)
+
+	mjd := math.Floor(365.25*y) + math.Floor(y/400.0) - math.Floor(y/100.0) + math.Floor(30.60*m+0.5) + d - 678881.0
+	fmt.Printf(&quot;MJD = %f日\n&quot;, mjd)
+	fmt.Printf(&quot;JD = %f日\n&quot;, mjd+2400000.5)
+}
+</code></pre>
+
+<pre><code>C:&gt;go run julian-day-1.go
+2015年1月1日
+
+y = 2014.000000
+m = 10.000000
+d = 0.000000
+
+MJD = 57023.000000日
+JD = 2457023.500000日
+</code></pre>
+
+<p>と，これではあまりにひどいので，少し変形。</p>
+
+<p>床関数は正の値に対しては小数点以下の切り捨てと同じ。
+Go 言語では int 型の乗除算には int 型の結果が返り小数点以下が切り捨てられることを利用して</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+func main() {
+	year := 2015
+	month := 1
+	day := 1
+	fmt.Printf(&quot;%v年%v月%v日\n\n&quot;, year, month, day)
+
+	y := 1
+	m := 1
+	if month &lt; 3 {
+		y = year - 1
+		m = month + 9
+	} else {
+		y = year
+		m = month - 3
+	}
+	d := day - 1
+	fmt.Printf(&quot;y = %d\n&quot;, y)
+	fmt.Printf(&quot;m = %d\n&quot;, m)
+	fmt.Printf(&quot;d = %d\n\n&quot;, d)
+
+	mjd := (1461*y)/4 + y/400 - y/100 + (153*m+2)/5 + d - 678881
+	fmt.Printf(&quot;MJD = %d日\n&quot;, mjd)
+	fmt.Printf(&quot;JD = %f日\n&quot;, float64(mjd)+2400000.5)
+}
+</code></pre>
+
+<pre><code>C:&gt;go run julian-day-2.go
+2015年1月1日
+
+y = 2014
+m = 10
+d = 0
+
+MJD = 57023日
+JD = 2457023.500000日
+</code></pre>
+
+<p>これなら <a href="http://golang.org/pkg/math/"><code>math</code></a> パッケージ自体不要になります。グレゴリオ暦は1582年より前では適用できないのでこれで必要十分です。
+以降で使いやすくするために，ここから更に変形して年月日を引数から取得するようにします（引数の Validation は省いています。ゴメンペコン）。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;flag&quot;
+	&quot;fmt&quot;
+    &quot;os&quot;
+	&quot;strconv&quot;
+)
+
+func main() {
+	//引数のチェック
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &lt; 3 {
+		fmt.Fprintln(os.Stderr, &quot;年月日を指定してください&quot;)
+		return
+	}
+	args := make([]int64, 3)
+	for i := 0; i &lt; 3; i++ {
+		num, err := strconv.ParseInt(argsStr[i], 10, 64)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else {
+			args[i] = num
+		}
+	}
+	fmt.Printf(&quot;%v年%v月%v日\n\n&quot;, args[0], args[1], args[2])
+
+	y := args[0]
+	m := args[1]
+	if m &lt; 3 {
+		y -= 1
+		m += 9
+	} else {
+		m -= 3
+	}
+	d := args[2] - 1
+	fmt.Printf(&quot;y = %d\n&quot;, y)
+	fmt.Printf(&quot;m = %d\n&quot;, m)
+	fmt.Printf(&quot;d = %d\n\n&quot;, d)
+
+	mjd := (1461*y)/4 + y/400 - y/100 + (153*m+2)/5 + d - 678881
+	fmt.Printf(&quot;MJD = %d日\n&quot;, mjd)
+	fmt.Printf(&quot;JD = %f日\n&quot;, float64(mjd)+2400000.5)
+}
+</code></pre>
+
+<pre><code class="language-shell">C:&gt;go run julian-day-2b.go 2015 1 1
+2015年1月1日
+
+y = 2014
+m = 10
+d = 0
+
+MJD = 57023日
+JD = 2457023.500000日
+</code></pre>
+
+<h2 id="unix-time-からユリウス日を求める:dce87c312b9004de93da86b8c547be13">UNIX Time からユリウス日を求める</h2>
+
+<p>さて，これでグレゴリオ暦の任意の日付からユリウス日を求めることができるようになりました。
+これを踏まえて，もう少し簡単にユリウス日を得る方法を考えてみます。</p>
+
+<p>Go 言語で時刻情報を取得・操作するために <a href="http://golang.org/pkg/time/"><code>time</code></a> パッケージが用意されています。
+<a href="http://golang.org/pkg/time/"><code>time</code></a> パッケージをつらつら眺めてみると <code>Unix()</code> 関数を使って UNIX Time を得ることができるようです。</p>
+
+<blockquote>
+<p>Unix returns t as a Unix time, the number of seconds elapsed since January 1, 1970 UTC.</p>
+</blockquote>
+
+<p>ということは，1970年1月1日零時 UTC のユリウス日が分かれば，そこを起点に UNIX Time を加算すればいいことになります。
+簡単！</p>
+
+<pre><code>C:&gt;go run julian-day-2b.go 1970 1 1
+1970年1月1日
+
+y = 1969
+m = 10
+d = 0
+
+MJD = 40587日
+JD = 2440587.500000日
+</code></pre>
+
+<p>なので，こうなります。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	const onday = int64(86400)   //seconds
+	const baseDay = int64(40587) //Modified Julian Date at January 1, 1970
+
+	year := 2015
+	month := 1
+	day := 1
+	fmt.Printf(&quot;%v年%v月%v日\n\n&quot;, year, month, day)
+
+	tm := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	fmt.Printf(&quot;%v\n&quot;, tm)
+	ut := tm.Unix()
+	fmt.Printf(&quot;UNIX Time = %v seconds = %v days and %v seconds\n\n&quot;, ut, ut/onday, ut%onday)
+
+	mjd := ut/onday + baseDay
+	fmt.Printf(&quot;MJD = %d日\n&quot;, mjd)
+	fmt.Printf(&quot;JD = %f日\n&quot;, float64(mjd)+2400000.5)
+}
+</code></pre>
+
+<pre><code>C:&gt;go run julian-day-3.go
+2015年1月1日
+
+2015-01-01 00:00:00 +0000 UTC
+UNIX Time = 1420070400 seconds = 16436 days and 0 seconds
+
+MJD = 57023日
+JD = 2457023.500000日
+</code></pre>
+
+<p>えーっと。
+コードを見ればお分かりと思いますが，これだと1970年1月1日より前の日付では正しく動きません。
+任意の日付<sup class="footnote-ref" id="fnref:dce87c312b9004de93da86b8c547be13:7"><a rel="footnote" href="#fn:dce87c312b9004de93da86b8c547be13:7">7</a></sup> で正しく動かすには床関数を使います。</p>
+
+<p><a href="http://text.baldanders.info/golang/packaging/">次回</a>は，これをパッケージ化してみましょう。</p>
+
+<h2 id="ブックマーク:dce87c312b9004de93da86b8c547be13">ブックマーク</h2>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:dce87c312b9004de93da86b8c547be13:1">ちなみに1日未満の端数を含む場合を「ユリウス日（Julian Date）」，端数を含まない場合を「ユリウス通日（Julian Day Number）」と呼び分けているようです。
+ <a class="footnote-return" href="#fnref:dce87c312b9004de93da86b8c547be13:1"><sup>[return]</sup></a></li>
+<li id="fn:dce87c312b9004de93da86b8c547be13:2">もともと太陽暦は「子午線から太陽までの時角」が時刻のベースになってるため，ユリウス日を考えた人は正午を起点にすべきと考えたのでしょう。日常生活で昼に日付が変わったら色々面倒そうですが。あぁでも， B な企業に勤めている人には日付の起点とか関係ないかな（笑）
+ <a class="footnote-return" href="#fnref:dce87c312b9004de93da86b8c547be13:2"><sup>[return]</sup></a></li>
+<li id="fn:dce87c312b9004de93da86b8c547be13:3">上の式は「Fliegel の公式」などと呼ばれることがありますが，厳密には Fliegel の公式を電卓向けに分かりやすく展開したもので，初等天文学の教科書などでよく登場する式です。
+ <a class="footnote-return" href="#fnref:dce87c312b9004de93da86b8c547be13:3"><sup>[return]</sup></a></li>
+<li id="fn:dce87c312b9004de93da86b8c547be13:4">余談ですが365.25日を「ユリウス年」と呼びます。天文学では1年の長さが年によって変わるのは困るので，一様な長さの「ユリウス年」を考えたわけです。つまり上の式はユリウス年にうるう年の補正をかけてるわけですね。ちなみに「ユリウス世紀」は36525日です。
+ <a class="footnote-return" href="#fnref:dce87c312b9004de93da86b8c547be13:4"><sup>[return]</sup></a></li>
+<li id="fn:dce87c312b9004de93da86b8c547be13:5">月の値から2を引くのは暦計算の基本的なテクニックだったります（式では0基点にするために3を引いてますが）。現在の1月（Ianuarius または January）を年初としたのはユリウス暦以降からで，それまでは現在の3月（Martius または March）が年初でした。だから2月だけちょっと特殊なんですねぇ。
+ <a class="footnote-return" href="#fnref:dce87c312b9004de93da86b8c547be13:5"><sup>[return]</sup></a></li>
+<li id="fn:dce87c312b9004de93da86b8c547be13:6">耳慣れないかもしれないですが，夜中の12時のことです。
+ <a class="footnote-return" href="#fnref:dce87c312b9004de93da86b8c547be13:6"><sup>[return]</sup></a></li>
+<li id="fn:dce87c312b9004de93da86b8c547be13:7">とはいえ UNIX Time の取りうる値の範囲内での話ですが。
+ <a class="footnote-return" href="#fnref:dce87c312b9004de93da86b8c547be13:7"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+</article>
+</main>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/julian-day-number\/';
+    var disqus_title = '「ユリウス日」で遊ぶ';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/julian-day-number\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-19</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		<li><a href="https://medium.com/@@spiegel" target="_blank"><i class="fa fa-medium"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/julian-day-number/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="「ユリウス日」で遊ぶ - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fjulian-day-number%2f&amp;title=%25E3%2583%25A6%25E3%2583%25AA%25E3%2582%25A6%25E3%2582%25B9%25E6%2597%25A5%25E3%2581%25A7%25E9%2581%258A%25E3%2581%25B6" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav role="navigation">
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/github-pages-env'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15-DEV</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+
