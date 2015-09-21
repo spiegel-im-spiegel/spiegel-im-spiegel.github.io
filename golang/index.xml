@@ -3,13 +3,333 @@
 	<title>プログラミング言語 Go - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/golang/index.xml" />
-	<id>tag:text.Baldanders.info,2015-09-19T23:45:56+0900:/hugo</id>
-	<updated>2015-09-19T23:45:56+0900</updated>
+	<id>tag:text.Baldanders.info,2015-09-21T23:08:07+0900:/hugo</id>
+	<updated>2015-09-21T23:08:07+0900</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.15-DEV</generator>
 
+	
+	<entry>
+		<title>Golang の文字列連結はどちらが速い？ - プログラミング言語 Go</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/join-strings/" />
+		<id>tag:text.Baldanders.info,2015-09-21T23:08:07+0900:/golang/join-strings/</id>
+		<published>2015-09-21T23:08:07+0900</published>
+		
+		<summary>Go 言語で文字列の連結を行う際にどうやるのが一番速いか，という話。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;（初出： &lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/16ab7dabbd0749281227&#34;&gt;Golang の文字列連結はどちらが速い？ - Qiita&lt;/a&gt;）&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/string-and-rune/&#34; title=&#34;String と Rune&#34;&gt;前回&lt;/a&gt;につづき &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; の話題。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で文字列の連結を行う際にどうやるのが一番速いか，という話。&lt;/p&gt;
+
+&lt;h2 id=&#34;文字列連結を行う4つの方法:53cbada6770de764fdec60b0362267fb&#34;&gt;文字列連結を行う4つの方法&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で文字列の連結を行う際には概ね以下の4つの方法がある。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;“&lt;code&gt;+&lt;/code&gt;” 演算子で連結する&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://golang.org/pkg/strings/&#34;&gt;&lt;code&gt;strings&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Join&lt;/code&gt; で連結する&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; は「不変（immutable）」なので，最初の2つが高コストになるだろうことはすぐに想像がつく。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ruiu/items/2bb83b29baeae2433a79&#34;&gt;Goでは文字列連結はコストの高い操作 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://atotto.hatenadiary.jp/entry/2013/04/26/202701&#34;&gt;Go言語で効率良く文字列を連結する話 #golang - memoメモ&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;では残りの2つはどうなのかというと&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ono_matope/items/d5e70d8a9ff2b54d5c37&#34;&gt;Goの文字列結合のパフォーマンス - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;によると最後のが一番速いらしい。ほんじゃまぁ，確かめてみるか。&lt;/p&gt;
+
+&lt;h2 id=&#34;サンプルコードを用意:53cbada6770de764fdec60b0362267fb&#34;&gt;サンプルコードを用意&lt;/h2&gt;
+
+&lt;p&gt;以下のコード &lt;code&gt;join.go&lt;/code&gt; を使って評価してみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;bufio&amp;quot;
+	&amp;quot;bytes&amp;quot;
+	&amp;quot;io&amp;quot;
+)
+
+//Read content (text data) from buffer
+func ContentText(inStream io.Reader) ([]string, error) {
+	scanner := bufio.NewScanner(inStream)
+	list := make([]string, 0)
+	for scanner.Scan() {
+		list = append(list, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0)
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1Cap128(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0, 128) //128 bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1Cap1K(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0, 1024) //1K bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0))
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2Cap128(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0, 128)) //128 bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2Cap1K(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0, 1024)) //1K bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;テストコード &lt;code&gt;join_test.go&lt;/code&gt; はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;os&amp;quot;
+	&amp;quot;testing&amp;quot;
+)
+
+func readFile() []string {
+	file, err := os.Open(&amp;quot;CollisionsForHashFunctions.txt&amp;quot;) //maybe file path
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	list, err := ContentText(file)
+	if err != nil {
+		panic(err)
+	}
+	return list
+}
+
+func BenchmarkWriteBuffer1(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer1(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer1Cap128(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer1Cap128(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer1Cap1K(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer1Cap1K(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer2(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2Cap128(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer2Cap128(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2Cap1K(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer2Cap1K(list)
+		_ = content
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のテストについては&lt;a href=&#34;http://text.baldanders.info/golang/testing/&#34;&gt;以前紹介した&lt;/a&gt;が，同じ要領で &lt;code&gt;Benchmark&lt;/code&gt; から始まる名前の関数を作るとベンチマーク用のコードとして認識される。
+引数には &lt;code&gt;b *testing.B&lt;/code&gt; を指定する。&lt;/p&gt;
+
+&lt;p&gt;ベンチマークの内訳は以下のとおり。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&#34;left&#34;&gt;ベンチマーク名&lt;/th&gt;
+&lt;th align=&#34;left&#34;&gt;処理内容&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer1&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer1Cap128&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する（ capacity 128B）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer1Cap1K&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する（ capacity 1KB）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer2&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer2Cap128&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する（ capacity 128B）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer2Cap1K&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する（ capacity 1KB）&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;入力テキストだが，小さいファイルではテストにならない気がしたので，大昔に書いたテキスト &lt;a href=&#34;http://www.baldanders.info/spiegel/archive/CollisionsForHashFunctions.txt&#34;&gt;&lt;code&gt;CollisionsForHashFunctions.txt&lt;/code&gt;&lt;/a&gt; を使うことにした。
+サイズは70行，7KB ほど。&lt;/p&gt;
+
+&lt;h2 id=&#34;テスト結果:53cbada6770de764fdec60b0362267fb&#34;&gt;テスト結果&lt;/h2&gt;
+
+&lt;p&gt;結果は以下のとおり。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go test -bench WriteBuffer -benchmem
+testing: warning: no tests to run
+PASS
+BenchmarkWriteBuffer1-4           100000             14140 ns/op           28864 B/op         11 allocs/op
+BenchmarkWriteBuffer1Cap128-4     100000             13440 ns/op           28800 B/op         10 allocs/op
+BenchmarkWriteBuffer1Cap1K-4      100000             13020 ns/op           27904 B/op          7 allocs/op
+BenchmarkWriteBuffer2-4           100000             13890 ns/op           25568 B/op          9 allocs/op
+BenchmarkWriteBuffer2Cap128-4     100000             18131 ns/op           26800 B/op          8 allocs/op
+BenchmarkWriteBuffer2Cap1K-4      200000             11785 ns/op           17520 B/op          5 allocs/op
+ok      join    13.016s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ありゃりゃ。 &lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; を使ったほうが速いみたい（capacity を大きくとれば）。&lt;/p&gt;
+
+&lt;p&gt;それなら，入力テキストを切り詰めて10行，300B にしてやってみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go test -bench WriteBuffer -benchmem
+testing: warning: no tests to run
+PASS
+BenchmarkWriteBuffer1-4          2000000               742 ns/op             960 B/op          4 allocs/op
+BenchmarkWriteBuffer1Cap128-4    2000000               719 ns/op             896 B/op          3 allocs/op
+BenchmarkWriteBuffer1Cap1K-4     2000000               591 ns/op            1024 B/op          1 allocs/op
+BenchmarkWriteBuffer2-4          1000000              1579 ns/op            1248 B/op          5 allocs/op
+BenchmarkWriteBuffer2Cap128-4    1000000              1402 ns/op            1328 B/op          4 allocs/op
+BenchmarkWriteBuffer2Cap1K-4     2000000               863 ns/op            1136 B/op          2 allocs/op
+ok      join    12.061s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;今度は &lt;code&gt;[]byte&lt;/code&gt; の方が速くなった。&lt;/p&gt;
+
+&lt;p&gt;まぁでも予想通りかな。
+データのサイズが大きくなればバッファ操作のほうが有利になるのは分かりやすいっちゃあ分かりやすい。
+注目すべきは &lt;code&gt;BenchmarkWriteBuffer1Cap128&lt;/code&gt; と &lt;code&gt;BenchmarkWriteBuffer1Cap1K&lt;/code&gt; で， capacity を 1KB 取ったほうが若干遅くなっている。
+この辺のチューニングをどうするか，というところなのだろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:53cbada6770de764fdec60b0362267fb&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>String と Rune - プログラミング言語 Go</title>
@@ -156,6 +476,8 @@ nippon = 日本
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/hokaccha/items/3d3f45b5927b4584dbac&#34;&gt;golang - Goでマルチバイトが混在した文字列をtruncateする - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/uchiko/items/1810ddacd23fd4d3c934&#34;&gt;golang - Go言語で文字コード変換 - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
 &lt;div class=&#34;footnotes&#34;&gt;
 
 &lt;hr /&gt;

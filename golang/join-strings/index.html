@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15-DEV" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Serif:400,400italic,700,700italic|Open+Sans:400,400italic,700,700italic|Inconsolata:400,700&subset=latin,latin-ext">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+
+<link rel="alternate" href="/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+
+<title>Golang の文字列連結はどちらが速い？ - プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="Go 言語で文字列の連結を行う際にどうやるのが一番速いか，という話。">
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div id='container'>
+<header role="banner">
+<h1><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></h1>
+<p>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</p>
+</header>
+
+
+<main role="main">
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<section>
+<h1 itemprop='name'>Golang の文字列連結はどちらが速い？ - <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags"><div>Tags: <a href="/tags/golang">#golang</a> <a href="/tags/string">#string</a> <a href="/tags/join">#join</a></div></nav>
+
+
+<p>（初出： <a href="http://qiita.com/spiegel-im-spiegel/items/16ab7dabbd0749281227">Golang の文字列連結はどちらが速い？ - Qiita</a>）</p>
+
+<p><a href="http://text.baldanders.info/golang/string-and-rune/" title="String と Rune">前回</a>につづき <a href="http://golang.org/ref/spec#String_types">string</a> の話題。
+<a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で文字列の連結を行う際にどうやるのが一番速いか，という話。</p>
+
+<h2 id="文字列連結を行う4つの方法:53cbada6770de764fdec60b0362267fb">文字列連結を行う4つの方法</h2>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で文字列の連結を行う際には概ね以下の4つの方法がある。</p>
+
+<ol>
+<li>“<code>+</code>” 演算子で連結する</li>
+<li><a href="http://golang.org/pkg/strings/"><code>strings</code></a><code>.Join</code> で連結する</li>
+<li><a href="http://golang.org/pkg/bytes/"><code>bytes</code></a><code>.Buffer</code> で追記する</li>
+<li><code>[]byte</code> に <code>append</code> する</li>
+</ol>
+
+<p><a href="http://golang.org/ref/spec#String_types">string</a> は「不変（immutable）」なので，最初の2つが高コストになるだろうことはすぐに想像がつく。</p>
+
+<ul>
+<li><a href="http://qiita.com/ruiu/items/2bb83b29baeae2433a79">Goでは文字列連結はコストの高い操作 - Qiita</a></li>
+<li><a href="http://atotto.hatenadiary.jp/entry/2013/04/26/202701">Go言語で効率良く文字列を連結する話 #golang - memoメモ</a></li>
+</ul>
+
+<p>では残りの2つはどうなのかというと</p>
+
+<ul>
+<li><a href="http://qiita.com/ono_matope/items/d5e70d8a9ff2b54d5c37">Goの文字列結合のパフォーマンス - Qiita</a></li>
+</ul>
+
+<p>によると最後のが一番速いらしい。ほんじゃまぁ，確かめてみるか。</p>
+
+<h2 id="サンプルコードを用意:53cbada6770de764fdec60b0362267fb">サンプルコードを用意</h2>
+
+<p>以下のコード <code>join.go</code> を使って評価してみる。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;bufio&quot;
+	&quot;bytes&quot;
+	&quot;io&quot;
+)
+
+//Read content (text data) from buffer
+func ContentText(inStream io.Reader) ([]string, error) {
+	scanner := bufio.NewScanner(inStream)
+	list := make([]string, 0)
+	for scanner.Scan() {
+		list = append(list, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0)
+	recode := &quot;\r\n&quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1Cap128(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0, 128) //128 bytes capacity
+	recode := &quot;\r\n&quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1Cap1K(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0, 1024) //1K bytes capacity
+	recode := &quot;\r\n&quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0))
+	recode := &quot;\r\n&quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2Cap128(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0, 128)) //128 bytes capacity
+	recode := &quot;\r\n&quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2Cap1K(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0, 1024)) //1K bytes capacity
+	recode := &quot;\r\n&quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+</code></pre>
+
+<p>テストコード <code>join_test.go</code> はこんな感じ。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;os&quot;
+	&quot;testing&quot;
+)
+
+func readFile() []string {
+	file, err := os.Open(&quot;CollisionsForHashFunctions.txt&quot;) //maybe file path
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	list, err := ContentText(file)
+	if err != nil {
+		panic(err)
+	}
+	return list
+}
+
+func BenchmarkWriteBuffer1(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &lt; b.N; i++ {
+		content := WriteBuffer1(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer1Cap128(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &lt; b.N; i++ {
+		content := WriteBuffer1Cap128(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer1Cap1K(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &lt; b.N; i++ {
+		content := WriteBuffer1Cap1K(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &lt; b.N; i++ {
+		content := WriteBuffer2(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2Cap128(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &lt; b.N; i++ {
+		content := WriteBuffer2Cap128(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2Cap1K(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &lt; b.N; i++ {
+		content := WriteBuffer2Cap1K(list)
+		_ = content
+	}
+}
+</code></pre>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>のテストについては<a href="http://text.baldanders.info/golang/testing/">以前紹介した</a>が，同じ要領で <code>Benchmark</code> から始まる名前の関数を作るとベンチマーク用のコードとして認識される。
+引数には <code>b *testing.B</code> を指定する。</p>
+
+<p>ベンチマークの内訳は以下のとおり。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">ベンチマーク名</th>
+<th align="left">処理内容</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><code>BenchmarkWriteBuffer1</code></td>
+<td align="left"><a href="http://golang.org/pkg/bytes/"><code>bytes</code></a><code>.Buffer</code> で追記する</td>
+</tr>
+
+<tr>
+<td align="left"><code>BenchmarkWriteBuffer1Cap128</code></td>
+<td align="left"><a href="http://golang.org/pkg/bytes/"><code>bytes</code></a><code>.Buffer</code> で追記する（ capacity 128B）</td>
+</tr>
+
+<tr>
+<td align="left"><code>BenchmarkWriteBuffer1Cap1K</code></td>
+<td align="left"><a href="http://golang.org/pkg/bytes/"><code>bytes</code></a><code>.Buffer</code> で追記する（ capacity 1KB）</td>
+</tr>
+
+<tr>
+<td align="left"><code>BenchmarkWriteBuffer2</code></td>
+<td align="left"><code>[]byte</code> に <code>append</code> する</td>
+</tr>
+
+<tr>
+<td align="left"><code>BenchmarkWriteBuffer2Cap128</code></td>
+<td align="left"><code>[]byte</code> に <code>append</code> する（ capacity 128B）</td>
+</tr>
+
+<tr>
+<td align="left"><code>BenchmarkWriteBuffer2Cap1K</code></td>
+<td align="left"><code>[]byte</code> に <code>append</code> する（ capacity 1KB）</td>
+</tr>
+</tbody>
+</table>
+
+<p>入力テキストだが，小さいファイルではテストにならない気がしたので，大昔に書いたテキスト <a href="http://www.baldanders.info/spiegel/archive/CollisionsForHashFunctions.txt"><code>CollisionsForHashFunctions.txt</code></a> を使うことにした。
+サイズは70行，7KB ほど。</p>
+
+<h2 id="テスト結果:53cbada6770de764fdec60b0362267fb">テスト結果</h2>
+
+<p>結果は以下のとおり。</p>
+
+<pre><code>C:&gt;go test -bench WriteBuffer -benchmem
+testing: warning: no tests to run
+PASS
+BenchmarkWriteBuffer1-4           100000             14140 ns/op           28864 B/op         11 allocs/op
+BenchmarkWriteBuffer1Cap128-4     100000             13440 ns/op           28800 B/op         10 allocs/op
+BenchmarkWriteBuffer1Cap1K-4      100000             13020 ns/op           27904 B/op          7 allocs/op
+BenchmarkWriteBuffer2-4           100000             13890 ns/op           25568 B/op          9 allocs/op
+BenchmarkWriteBuffer2Cap128-4     100000             18131 ns/op           26800 B/op          8 allocs/op
+BenchmarkWriteBuffer2Cap1K-4      200000             11785 ns/op           17520 B/op          5 allocs/op
+ok      join    13.016s
+</code></pre>
+
+<p>ありゃりゃ。 <a href="http://golang.org/pkg/bytes/"><code>bytes</code></a><code>.Buffer</code> を使ったほうが速いみたい（capacity を大きくとれば）。</p>
+
+<p>それなら，入力テキストを切り詰めて10行，300B にしてやってみる。</p>
+
+<pre><code>C:&gt;go test -bench WriteBuffer -benchmem
+testing: warning: no tests to run
+PASS
+BenchmarkWriteBuffer1-4          2000000               742 ns/op             960 B/op          4 allocs/op
+BenchmarkWriteBuffer1Cap128-4    2000000               719 ns/op             896 B/op          3 allocs/op
+BenchmarkWriteBuffer1Cap1K-4     2000000               591 ns/op            1024 B/op          1 allocs/op
+BenchmarkWriteBuffer2-4          1000000              1579 ns/op            1248 B/op          5 allocs/op
+BenchmarkWriteBuffer2Cap128-4    1000000              1402 ns/op            1328 B/op          4 allocs/op
+BenchmarkWriteBuffer2Cap1K-4     2000000               863 ns/op            1136 B/op          2 allocs/op
+ok      join    12.061s
+</code></pre>
+
+<p>今度は <code>[]byte</code> の方が速くなった。</p>
+
+<p>まぁでも予想通りかな。
+データのサイズが大きくなればバッファ操作のほうが有利になるのは分かりやすいっちゃあ分かりやすい。
+注目すべきは <code>BenchmarkWriteBuffer1Cap128</code> と <code>BenchmarkWriteBuffer1Cap1K</code> で， capacity を 1KB 取ったほうが若干遅くなっている。
+この辺のチューニングをどうするか，というところなのだろう。</p>
+
+<h2 id="ブックマーク:53cbada6770de764fdec60b0362267fb">ブックマーク</h2>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+
+</section>
+</article>
+</main>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/join-strings\/';
+    var disqus_title = 'Golang の文字列連結はどちらが速い？';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/join-strings\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-21</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		<li><a href="https://medium.com/@@spiegel" target="_blank"><i class="fa fa-medium"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/join-strings/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="Golang の文字列連結はどちらが速い？ - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fjoin-strings%2f&amp;title=golang-%25E3%2581%25AE%25E6%2596%2587%25E5%25AD%2597%25E5%2588%2597%25E9%2580%25A3%25E7%25B5%2590%25E3%2581%25AF%25E3%2581%25A9%25E3%2581%25A1%25E3%2582%2589%25E3%2581%258C%25E9%2580%259F%25E3%2581%2584" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav role="navigation">
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/github-pages-env'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15-DEV</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+

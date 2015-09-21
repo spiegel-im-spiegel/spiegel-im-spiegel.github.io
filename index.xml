@@ -3,13 +3,333 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2015-09-21T21:43:15+0900:/</id>
-	<updated>2015-09-21T21:43:15+0900</updated>
+	<id>tag:text.Baldanders.info,2015-09-21T23:08:07+0900:/</id>
+	<updated>2015-09-21T23:08:07+0900</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.15-DEV</generator>
 
+	
+	<entry>
+		<title>Golang の文字列連結はどちらが速い？ - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/join-strings/" />
+		<id>tag:text.Baldanders.info,2015-09-21T23:08:07+0900:/golang/join-strings/</id>
+		<published>2015-09-21T23:08:07+0900</published>
+		
+		<summary>Go 言語で文字列の連結を行う際にどうやるのが一番速いか，という話。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;（初出： &lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/16ab7dabbd0749281227&#34;&gt;Golang の文字列連結はどちらが速い？ - Qiita&lt;/a&gt;）&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/string-and-rune/&#34; title=&#34;String と Rune&#34;&gt;前回&lt;/a&gt;につづき &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; の話題。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で文字列の連結を行う際にどうやるのが一番速いか，という話。&lt;/p&gt;
+
+&lt;h2 id=&#34;文字列連結を行う4つの方法:53cbada6770de764fdec60b0362267fb&#34;&gt;文字列連結を行う4つの方法&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で文字列の連結を行う際には概ね以下の4つの方法がある。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;“&lt;code&gt;+&lt;/code&gt;” 演算子で連結する&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://golang.org/pkg/strings/&#34;&gt;&lt;code&gt;strings&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Join&lt;/code&gt; で連結する&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; は「不変（immutable）」なので，最初の2つが高コストになるだろうことはすぐに想像がつく。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ruiu/items/2bb83b29baeae2433a79&#34;&gt;Goでは文字列連結はコストの高い操作 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://atotto.hatenadiary.jp/entry/2013/04/26/202701&#34;&gt;Go言語で効率良く文字列を連結する話 #golang - memoメモ&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;では残りの2つはどうなのかというと&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ono_matope/items/d5e70d8a9ff2b54d5c37&#34;&gt;Goの文字列結合のパフォーマンス - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;によると最後のが一番速いらしい。ほんじゃまぁ，確かめてみるか。&lt;/p&gt;
+
+&lt;h2 id=&#34;サンプルコードを用意:53cbada6770de764fdec60b0362267fb&#34;&gt;サンプルコードを用意&lt;/h2&gt;
+
+&lt;p&gt;以下のコード &lt;code&gt;join.go&lt;/code&gt; を使って評価してみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;bufio&amp;quot;
+	&amp;quot;bytes&amp;quot;
+	&amp;quot;io&amp;quot;
+)
+
+//Read content (text data) from buffer
+func ContentText(inStream io.Reader) ([]string, error) {
+	scanner := bufio.NewScanner(inStream)
+	list := make([]string, 0)
+	for scanner.Scan() {
+		list = append(list, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0)
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1Cap128(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0, 128) //128 bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer
+func WriteBuffer1Cap1K(lines []string) []byte {
+	//write to byte buffer
+	content := make([]byte, 0, 1024) //1K bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content = append(content, line...)
+		content = append(content, recode...)
+	}
+	return content
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0))
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2Cap128(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0, 128)) //128 bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+
+//Write content (text data) to buffer (buffered I/O)
+func WriteBuffer2Cap1K(lines []string) []byte {
+	//write to byte buffer
+	content := bytes.NewBuffer(make([]byte, 0, 1024)) //1K bytes capacity
+	recode := &amp;quot;\r\n&amp;quot;
+	for _, line := range lines {
+		content.WriteString(line)
+		content.WriteString(recode)
+	}
+	return content.Bytes()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;テストコード &lt;code&gt;join_test.go&lt;/code&gt; はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;os&amp;quot;
+	&amp;quot;testing&amp;quot;
+)
+
+func readFile() []string {
+	file, err := os.Open(&amp;quot;CollisionsForHashFunctions.txt&amp;quot;) //maybe file path
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	list, err := ContentText(file)
+	if err != nil {
+		panic(err)
+	}
+	return list
+}
+
+func BenchmarkWriteBuffer1(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer1(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer1Cap128(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer1Cap128(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer1Cap1K(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer1Cap1K(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer2(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2Cap128(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer2Cap128(list)
+		_ = content
+	}
+}
+
+func BenchmarkWriteBuffer2Cap1K(b *testing.B) {
+	list := readFile()
+	b.ResetTimer()
+	for i := 0; i &amp;lt; b.N; i++ {
+		content := WriteBuffer2Cap1K(list)
+		_ = content
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のテストについては&lt;a href=&#34;http://text.baldanders.info/golang/testing/&#34;&gt;以前紹介した&lt;/a&gt;が，同じ要領で &lt;code&gt;Benchmark&lt;/code&gt; から始まる名前の関数を作るとベンチマーク用のコードとして認識される。
+引数には &lt;code&gt;b *testing.B&lt;/code&gt; を指定する。&lt;/p&gt;
+
+&lt;p&gt;ベンチマークの内訳は以下のとおり。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&#34;left&#34;&gt;ベンチマーク名&lt;/th&gt;
+&lt;th align=&#34;left&#34;&gt;処理内容&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer1&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer1Cap128&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する（ capacity 128B）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer1Cap1K&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; で追記する（ capacity 1KB）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer2&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer2Cap128&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する（ capacity 128B）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;BenchmarkWriteBuffer2Cap1K&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;[]byte&lt;/code&gt; に &lt;code&gt;append&lt;/code&gt; する（ capacity 1KB）&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;入力テキストだが，小さいファイルではテストにならない気がしたので，大昔に書いたテキスト &lt;a href=&#34;http://www.baldanders.info/spiegel/archive/CollisionsForHashFunctions.txt&#34;&gt;&lt;code&gt;CollisionsForHashFunctions.txt&lt;/code&gt;&lt;/a&gt; を使うことにした。
+サイズは70行，7KB ほど。&lt;/p&gt;
+
+&lt;h2 id=&#34;テスト結果:53cbada6770de764fdec60b0362267fb&#34;&gt;テスト結果&lt;/h2&gt;
+
+&lt;p&gt;結果は以下のとおり。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go test -bench WriteBuffer -benchmem
+testing: warning: no tests to run
+PASS
+BenchmarkWriteBuffer1-4           100000             14140 ns/op           28864 B/op         11 allocs/op
+BenchmarkWriteBuffer1Cap128-4     100000             13440 ns/op           28800 B/op         10 allocs/op
+BenchmarkWriteBuffer1Cap1K-4      100000             13020 ns/op           27904 B/op          7 allocs/op
+BenchmarkWriteBuffer2-4           100000             13890 ns/op           25568 B/op          9 allocs/op
+BenchmarkWriteBuffer2Cap128-4     100000             18131 ns/op           26800 B/op          8 allocs/op
+BenchmarkWriteBuffer2Cap1K-4      200000             11785 ns/op           17520 B/op          5 allocs/op
+ok      join    13.016s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ありゃりゃ。 &lt;a href=&#34;http://golang.org/pkg/bytes/&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Buffer&lt;/code&gt; を使ったほうが速いみたい（capacity を大きくとれば）。&lt;/p&gt;
+
+&lt;p&gt;それなら，入力テキストを切り詰めて10行，300B にしてやってみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:&amp;gt;go test -bench WriteBuffer -benchmem
+testing: warning: no tests to run
+PASS
+BenchmarkWriteBuffer1-4          2000000               742 ns/op             960 B/op          4 allocs/op
+BenchmarkWriteBuffer1Cap128-4    2000000               719 ns/op             896 B/op          3 allocs/op
+BenchmarkWriteBuffer1Cap1K-4     2000000               591 ns/op            1024 B/op          1 allocs/op
+BenchmarkWriteBuffer2-4          1000000              1579 ns/op            1248 B/op          5 allocs/op
+BenchmarkWriteBuffer2Cap128-4    1000000              1402 ns/op            1328 B/op          4 allocs/op
+BenchmarkWriteBuffer2Cap1K-4     2000000               863 ns/op            1136 B/op          2 allocs/op
+ok      join    12.061s
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;今度は &lt;code&gt;[]byte&lt;/code&gt; の方が速くなった。&lt;/p&gt;
+
+&lt;p&gt;まぁでも予想通りかな。
+データのサイズが大きくなればバッファ操作のほうが有利になるのは分かりやすいっちゃあ分かりやすい。
+注目すべきは &lt;code&gt;BenchmarkWriteBuffer1Cap128&lt;/code&gt; と &lt;code&gt;BenchmarkWriteBuffer1Cap1K&lt;/code&gt; で， capacity を 1KB 取ったほうが若干遅くなっている。
+この辺のチューニングをどうするか，というところなのだろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:53cbada6770de764fdec60b0362267fb&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>「暦」日本史 （再掲載） - remark</title>
@@ -525,6 +845,8 @@ nippon = 日本
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/hokaccha/items/3d3f45b5927b4584dbac&#34;&gt;golang - Goでマルチバイトが混在した文字列をtruncateする - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/uchiko/items/1810ddacd23fd4d3c934&#34;&gt;golang - Go言語で文字コード変換 - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
 &lt;div class=&#34;footnotes&#34;&gt;
 
 &lt;hr /&gt;
@@ -1660,104 +1982,6 @@ JD = 2457023.500000日
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:dce87c312b9004de93da86b8c547be13:8&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>今日の戯れ言 - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2015/0917-diary/" />
-		<id>tag:text.Baldanders.info,2015-09-18T03:11:44+0900:/remark/2015/0917-diary/</id>
-		<published>2015-09-18T03:11:44+0900</published>
-		
-		<summary>セキュリティ・暗号関連 / 機械支配待望論</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;日を跨いじゃったけど，溜まってたものを吐き出す。&lt;/p&gt;
-
-&lt;h2 id=&#34;セキュリティ-暗号関連:7de7822f81e49845760a41cfe20e81ad&#34;&gt;セキュリティ・暗号関連&lt;/h2&gt;
-
-&lt;p&gt;とりあえずメモ。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://blog.f-secure.jp/archives/50754420.html&#34;&gt;エフセキュアブログ : 最悪のプライバシー保護機能を持つ、WINDOWS 10にアップグレードする必要はなし&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.lifehacker.jp/2015/08/150817win10_privacy.html&#34;&gt;デフォルトのままは危険？ 「Windows 10」のプライバシー設定はこう変えよう ｜ ライフハッカー［日本版］&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://blog.livedoor.jp/k_urushima/archives/1768181.html&#34;&gt;自堕落な技術者の日記 : 「RFC 7525 TLSとDTLSの安全な利用に関する推奨事項」の公開 - livedoor Blog（ブログ）&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.atmarkit.co.jp/ait/articles/1509/16/news007.html&#34;&gt;Windows標準機能でいますぐできる標的型攻撃対策：続・設定を見直すだけ、いますぐ簡単にできる「標的型メール攻撃対策」 (&lt;sup&gt;1&lt;/sup&gt;&amp;frasl;&lt;sub&gt;4&lt;/sub&gt;) - ＠IT&lt;/a&gt; : 「&lt;a href=&#34;http://www.atmarkit.co.jp/ait/articles/1409/05/news006.html&#34;&gt;すぐ実践可能！：設定を見直すだけ、いますぐ簡単にできる「標的型メール攻撃対策」 (&lt;sup&gt;1&lt;/sup&gt;&amp;frasl;&lt;sub&gt;4&lt;/sub&gt;) - ＠IT&lt;/a&gt;」の続編らしい&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&#34;64ビットブロック暗号misty1の安全性について:7de7822f81e49845760a41cfe20e81ad&#34;&gt;「64ビットブロック暗号MISTY1の安全性について」&lt;/h3&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://cryptrec.go.jp/topics/cryptrec_20150716_misty1_cryptanalysis.html&#34;&gt;64ビットブロック暗号MISTY1の安全性について&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://cryptrec.go.jp/topics/cryptrec_20150812_misty1_cryptanalysis.html&#34;&gt;64ビットブロック暗号MISTY1の安全性について（続報）&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;随分前の話で恐縮だが，国産のブロック暗号 MISTY1 がちょっとだけ攻略された，という話題。
-といっても，鍵空間が $2^{64}$ に対して解読に必要なデータ量が $2^{63.58}$ ということで，ほとんど全件探索と変わらないのであるが。
-続報にある改良版にしても計算量は $2^{69.5}$ で大幅に少なくなっているものの，解読に必要なデータ量は $2^{64}$ であり，これも現実的な脅威ではないようである。&lt;/p&gt;
-
-&lt;p&gt;MISTY1 は &lt;a href=&#34;http://cryptrec.go.jp/list.html&#34;&gt;CRYPTREC 暗号リスト&lt;/a&gt;において「推奨候補暗号リスト」のひとつとして挙げられている。
-なおブロック暗号については，可能であれば $128\,\mathrm{bits}$ のブロック長のもの（AES や Camellia など）を選択ことが推奨されている。&lt;/p&gt;
-
-&lt;p&gt;そうそう。
-CRYPTREC といえば &lt;a href=&#34;http://cryptrec.go.jp/topics/cryptrec_20150716_c14report.html&#34;&gt;CRYPTREC Report 2014&lt;/a&gt; が出てるのだった。
-あとでチェックしないと。&lt;/p&gt;
-
-&lt;h3 id=&#34;rc4-overkill:7de7822f81e49845760a41cfe20e81ad&#34;&gt;RC4 Overkill&lt;/h3&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.rc4nomore.com/&#34;&gt;RC4 NOMORE&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.itmedia.co.jp/enterprise/articles/1507/17/news058.html&#34;&gt;短時間でcookie解読、RC4暗号通信を破る新手法 - ITmedia エンタープライズ&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;iframe class=&#34;youtube-player&#34; type=&#34;text/html&#34; width=&#34;500&#34;  height=&#34;281&#34; src=&#34;https://www.youtube-nocookie.com/embed/d8MtmKrXlKQ&#34; frameborder=&#34;0&#34; allowfullscreen&gt;&lt;/iframe&gt;
-&lt;figcaption&gt;&lt;a href=&#34;https://www.youtube.com/watch?v=d8MtmKrXlKQ&#34;&gt;The RC4 NOMORE Attack: Demonstration in Practice - YouTube&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-
-&lt;p&gt;これも随分前の話でゴメン。
-既に&lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000810.shtml&#34;&gt;死に体の RC4&lt;/a&gt; に追い打ち。&lt;/p&gt;
-
-&lt;h3 id=&#34;ietf-94-で-openpgp-wg-がなんかやるらしい:7de7822f81e49845760a41cfe20e81ad&#34;&gt;IETF-94 で OpenPGP WG がなんかやるらしい？&lt;/h3&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://mailarchive.ietf.org/arch/search/?email_list=openpgp&#34;&gt;[openpgp] Should we try to meet in Yokohama?&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.ietf.org/meeting/94/index.html&#34;&gt;11月に横浜で行われる IETF-94&lt;/a&gt; で OpenPGP WG もなにかやるらしい？&lt;/p&gt;
-
-&lt;h2 id=&#34;機械支配待望論:7de7822f81e49845760a41cfe20e81ad&#34;&gt;機械支配待望論&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://cruel.hatenablog.com/entry/2015/08/28/161912&#34;&gt;We&amp;rsquo;ll Make Great Pets: 機械支配待望論 - 山形浩生の「経済のトリセツ」&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;この中で&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;さらに人間と機械は、出自がちがうので、同じリソースをめぐって争う必要がない。これが動物だと、居住空間とか食べ物とか毛皮や肉とか、競合する資源がある。だけど機械とは競合しない……完全にしないとは言わないけれど、他の動物と比べれば大幅にちがう。人間はお金や女や権力を巡って争ってきたけど、機械はお金とか関係ないし、セックスもしないし（人間のほうはしたがる人もいるけど）、権力も関係ない。だから機械やAIが賢くなっても、別に人間なんか滅ぼす必要なんかまったくない。人間にそういうものをエサとして差し出せば（あるいは実物なくても画面にその絵を描いてやるだけで）人間はホイホイ動くし掃除もするしメンテもするし。機械にとってこんな便利なものはないよ。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;というのは全く以ってそのとおりだと思う。&lt;/p&gt;
-
-&lt;p&gt;「機械が仕事を奪う」というのは&lt;a href=&#34;http://text.baldanders.info/remark/2015/information-oriented-society/&#34;&gt;前回書いた話&lt;/a&gt;と相似形で，自分たちがやってることをモノに転嫁しているに過ぎない。
-奪ってるのはモノではなくヒトである。&lt;/p&gt;
-
-&lt;p&gt;もし本当に「ターミネーター脳」の人達が言うように機械が人類を滅ぼすのなら，（今のところただの「自然現象」の延長にすぎない）地球上の知性にとって，間違いなく「進化」である。
-そもそも機械なら地球に縛られる必要もなかろう。
-どちらかと言うと機械に見捨てられる方を心配したほうがいいんじゃないのか？&lt;/p&gt;
 </content>
 	</entry>
 	
