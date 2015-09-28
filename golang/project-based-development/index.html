@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15-DEV" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Serif:400,400italic,700,700italic|Open+Sans:400,400italic,700,700italic|Inconsolata:400,700&subset=latin,latin-ext">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+
+<link rel="alternate" href="/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+
+<title>プロジェクト・ベースの開発環境をつくる - プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="今回は gb を使ってプロジェクト・ベースで Golang のコードを管理してみる。">
+</head>
+<body>
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+
+
+<div id='container'>
+<header role="banner">
+<h1><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></h1>
+<p>帰ってきた「しっぽのさきっちょ」 （プレ・オープン中）</p>
+</header>
+
+
+<main role="main">
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<section>
+<h1 itemprop='name'>プロジェクト・ベースの開発環境をつくる - <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags"><div>Tags: <a href="/tags/golang">#golang</a> <a href="/tags/engineering">#engineering</a></div></nav>
+
+
+<p>（初出： <a href="http://qiita.com/spiegel-im-spiegel/items/ef15a48542e043b32c99">はじめての Go 言語 (on Windows) その9 - Qiita</a>）</p>
+
+<p>今回は <a href="http://getgb.io/" title="gb - A project based build tool for Go">gb</a> を使ってプロジェクト・ベースで Golang のコードを管理してみる。</p>
+
+<ul>
+<li><a href="http://getgb.io/">gb - A project based build tool for Go</a></li>
+</ul>
+
+<h2 id="gb-の導入:6e131725c8916e09bb821f8d42f65641">gb の導入</h2>
+
+<p><a href="http://getgb.io/" title="gb - A project based build tool for Go">gb</a> の導入は <code>go get</code> でできる<sup class="footnote-ref" id="fnref:6e131725c8916e09bb821f8d42f65641:b"><a rel="footnote" href="#fn:6e131725c8916e09bb821f8d42f65641:b">1</a></sup>。</p>
+
+<pre><code>C:&gt;go get -v github.com/constabulary/gb/...
+github.com/constabulary/gb (download)
+github.com/constabulary/gb/log
+github.com/constabulary/gb
+github.com/constabulary/gb/vendor
+github.com/constabulary/gb/cmd
+github.com/constabulary/gb/cmd/gb
+github.com/constabulary/gb/cmd/gb-vendor
+</code></pre>
+
+<p>Windows の場合，環境変数 <code>GOPATH</code> で指定するフォルダ配下の <code>bin</code> フォルダに <code>gb.exe</code> および <code>gb-vendor.exe</code> が生成される。
+このフォルダにパスを通しておく（またはパスの通っているフォルダに実行ファイルをコピーする）。</p>
+
+<h2 id="プロジェクトの構築とビルド:6e131725c8916e09bb821f8d42f65641">プロジェクトの構築とビルド</h2>
+
+<p>「<a href="/golang/packaging/">機能のパッケージ化</a>」で最後に作ったコードを使って実際に <a href="http://getgb.io/" title="gb - A project based build tool for Go">gb</a> でプロジェクトを作成しビルドを行ってみる。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;flag&quot;
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;strconv&quot;
+	&quot;time&quot;
+
+	&quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&quot;
+)
+
+func main() {
+	//引数のチェック
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &lt; 3 {
+		fmt.Fprintln(os.Stderr, &quot;年月日を指定してください&quot;)
+		return
+	}
+	args := make([]int, 3)
+	for i := 0; i &lt; 3; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else {
+			args[i] = num
+		}
+	}
+	tm := time.Date(args[0], time.Month(args[1]), args[2], 0, 0, 0, 0, time.UTC)
+	fmt.Printf(&quot;%v\n&quot;, tm)
+	fmt.Printf(&quot;MJD = %d日\n&quot;, modjulian.DayNumber(tm))
+}
+</code></pre>
+
+<h3 id="ソース-ファイルの配置:6e131725c8916e09bb821f8d42f65641">ソース・ファイルの配置</h3>
+
+<p>プロジェクト・フォルダを <code>C:\workspace\gbdemo</code> とし，ソース・ファイル用のフォルダ <code>src\julian-day</code> を作成する。
+このフォルダに上述のコードを記述したソース・ファイルを配置する。
+フォルダ構成は以下の通り。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;tree /f .
+C:\WORKSPACE\GBDEMO
+└─src
+    └─julian-day
+            julian-day.go
+</code></pre>
+
+<p>ビルドするには <code>gb build</code> コマンドを実行すればいいのだが，このままでは <code>modjulian</code> パッケージがないため失敗する。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb build
+FATAL command &quot;build&quot; failed: failed to resolve import path &quot;julian-day&quot;: cannot find package &quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&quot; in any of:
+        C:\Go\src\github.com\spiegel-im-spiegel\astrocalc\modjulian (from $GOROOT)
+        C:\workspace\gbdemo\src\github.com\spiegel-im-spiegel\astrocalc\modjulian (from $GOPATH)
+        C:\workspace\gbdemo\vendor\src\github.com\spiegel-im-spiegel\astrocalc\modjulian
+</code></pre>
+
+<p>プロジェクト・フォルダ以下を <code>GOPATH</code> として <code>modjulian</code> パッケージを探しているのがお分かりだろうか。
+<a href="http://getgb.io/" title="gb - A project based build tool for Go">gb</a> では，実行時に既存の <code>GOPATH</code> を上書きするようである。
+またプロジェクト・フォルダ配下の <code>vendor</code> フォルダを探しているのにも注目してほしい。</p>
+
+<h3 id="外部パッケージの導入:6e131725c8916e09bb821f8d42f65641">外部パッケージの導入</h3>
+
+<p><a href="http://getgb.io/" title="gb - A project based build tool for Go">gb</a> では外部パッケージを <code>gb vendor</code> コマンドで管理できる。
+外部パッケージの導入には <code>gb vendor fetch</code> コマンドを使う。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb vendor fetch github.com/spiegel-im-spiegel/astrocalc/modjulian
+
+C:\workspace\gbdemo&gt;tree /f .
+C:\WORKSPACE\GBDEMO
+├─src
+│  └─julian-day
+│          julian-day.go
+│
+└─vendor
+    │  manifest
+    │
+    └─src
+        └─github.com
+            └─spiegel-im-spiegel
+                └─astrocalc
+                    └─modjulian
+                            example_test.go
+                            LICENSE
+                            modjulian.go
+                            modjulian_test.go
+
+</code></pre>
+
+<p>プロジェクト・フォルダ以下に <code>vendor</code> フォルダが作成され，パッケージのソースファイルが展開されている。</p>
+
+<p>今回 <code>gb vendor fetch</code> で取得したパッケージは <a href="https://github.com/" title="GitHub">GitHub</a> のリポジトリから取ってきたものだが， <code>git clone</code> ではなく，フォルダ・ファイル構成ごとコピーしてきたもののようである。</p>
+
+<p><code>gb vendor fetch</code> コマンドでは <code>-branch</code> や <code>-tag</code> や <code>-revision</code> オプションでリポジトリのブランチやタグまたはリビジョンを指定できる。
+このとき，導入したパッケージのリポジトリ情報は <code>vender\manifest</code> ファイルに格納されている（中身は JSON 形式）。</p>
+
+<pre><code class="language-json">{
+	&quot;version&quot;: 0,
+	&quot;dependencies&quot;: [
+		{
+			&quot;importpath&quot;: &quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&quot;,
+			&quot;repository&quot;: &quot;https://github.com/spiegel-im-spiegel/astrocalc&quot;,
+			&quot;revision&quot;: &quot;c9f5fb495e67b868a2b3f0e16c38282095fe5033&quot;,
+			&quot;branch&quot;: &quot;master&quot;,
+			&quot;path&quot;: &quot;/modjulian&quot;
+		}
+	]
+}
+</code></pre>
+
+<p>ちなみに外部パッケージをアップデートする場合は <code>gb vendor update</code> コマンドを使う。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb vendor update github.com/spiegel-im-spiegel/astrocalc/modjulian
+</code></pre>
+
+<p>または</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb vendor update -all
+</code></pre>
+
+<h3 id="プロジェクトのビルド:6e131725c8916e09bb821f8d42f65641">プロジェクトのビルド</h3>
+
+<p>では，この状態でもう一回ビルドしてみる。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb build
+julian-day
+
+C:\workspace\gbdemo&gt;tree /f .
+C:\WORKSPACE\GBDEMO
+├─bin
+│      julian-day.exe
+│
+├─pkg
+│  └─windows-amd64
+│      │  julian-day.a
+│      │
+│      └─github.com
+│          └─spiegel-im-spiegel
+│              └─astrocalc
+│                      modjulian.a
+│
+├─src
+│  └─julian-day
+│          julian-day.go
+│
+└─vendor
+    │  manifest
+    │
+    └─src
+        └─github.com
+            └─spiegel-im-spiegel
+                └─astrocalc
+                    └─modjulian
+                            example_test.go
+                            LICENSE
+                            modjulian.go
+                            modjulian_test.go
+
+C:\workspace\gbdemo&gt;bin\julian-day.exe 2015 1 1
+2015-01-01 00:00:00 +0000 UTC
+MJD = 57023日
+</code></pre>
+
+<p>今度は上手くいったようだ。
+<code>gb build</code> コマンドのオプションは以下の通り。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb help build
+usage: gb build [build flags] [packages]
+
+Build compiles the packages named by the import paths, along with their
+dependencies.
+
+Flags:
+
+        -f
+                ignore cached packages if present, new packages built will overwrite
+                any cached packages. This effectively disables incremental
+                compilation.
+        -F
+                do not cache packages, cached packages will still be used for
+                incremental compilation. -f -F is advised to disable the package
+
+                caching system.
+        -q
+                decreases verbosity, effectively raising the output level to ERROR.
+                In a successful build, no output will be displayed.
+        -P
+                The number of build jobs to run in parallel, including test execution.
+                By default this is the number of CPUs visible to gb.
+        -R
+                sets the base of the project root search path from the current working
+                directory to the value supplied. Effectively gb changes working
+                directory to this path before searching for the project root.
+        -v
+                increases verbosity, effectively lowering the output level from INFO
+                to DEBUG.
+        -dotfile
+                if provided, gb will output a dot formatted file of the build steps to
+                be performed.
+        -ldflags 'flag list'
+                arguments to pass on each linker invocation.
+        -gcflags 'arg list'
+                arguments to pass on each compile invocation.
+        -tags 'tag list'
+                additional build tags.
+
+The list flags accept a space-separated list of strings. To embed spaces in an
+element in the list, surround it with either single or double quotes.
+
+For more about specifying packages, see 'gb help packages'. For more about
+where packages and binaries are installed, run 'gb help project'.
+</code></pre>
+
+<p><code>-ldflags</code> や <code>-gcflags</code> オプションが使えるのはありがたいかな。</p>
+
+<h2 id="複数パッケージを含めたプロジェクト管理:6e131725c8916e09bb821f8d42f65641">複数パッケージを含めたプロジェクト管理</h2>
+
+<p>複数のパッケージをまとめて管理したい場合もある。
+例えば以下のような構成を考えてみる。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;tree /f .
+C:\WORKSPACE\GBDEMO
+└─src
+    └─julian-day
+            julian-day.go
+
+C:\workspace\gbdemo&gt;pushd src
+
+C:\workspace\gbdemo\src&gt;git clone https://github.com/spiegel-im-spiegel/astrocalc.git github.com/spiegel-im-spiegel/astrocalc
+Cloning into 'github.com/spiegel-im-spiegel/astrocalc'...
+remote: Counting objects: 43, done.
+remote: Total 43 (delta 0), reused 0 (delta 0), pack-reused 43
+Unpacking objects: 100% (43/43), done.
+Checking connectivity... done.
+
+C:\workspace\gbdemo\src&gt;popd
+
+C:\workspace\gbdemo&gt;tree /f .
+C:\WORKSPACE\GBDEMO
+└─src
+    ├─github.com
+    │  └─spiegel-im-spiegel
+    │      └─astrocalc
+    │          │  .editorconfig
+    │          │  .gitignore
+    │          │  .travis.yml
+    │          │  LICENSE
+    │          │  README.md
+    │          │
+    │          └─modjulian
+    │                  example_test.go
+    │                  LICENSE
+    │                  modjulian.go
+    │                  modjulian_test.go
+    │
+    └─julian-day
+            julian-day.go
+</code></pre>
+
+<p>この状態でビルドを実行してみる。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb build
+github.com/spiegel-im-spiegel/astrocalc/modjulian
+julian-day
+
+C:\workspace\gbdemo&gt;tree /f .
+C:\WORKSPACE\GBDEMO
+├─bin
+│      julian-day.exe
+│
+├─pkg
+│  └─windows-amd64
+│      │  julian-day.a
+│      │
+│      └─github.com
+│          └─spiegel-im-spiegel
+│              └─astrocalc
+│                      modjulian.a
+│
+└─src
+    ├─github.com
+    │  └─spiegel-im-spiegel
+    │      └─astrocalc
+    │          │  .editorconfig
+    │          │  .gitignore
+    │          │  .travis.yml
+    │          │  LICENSE
+    │          │  README.md
+    │          │
+    │          └─modjulian
+    │                  example_test.go
+    │                  LICENSE
+    │                  modjulian.go
+    │                  modjulian_test.go
+    │
+    └─julian-day
+            julian-day.go
+
+C:\workspace\gbdemo&gt;bin\julian-day.exe 2015 1 1
+2015-01-01 00:00:00 +0000 UTC
+MJD = 57023日
+</code></pre>
+
+<p><a href="http://getgb.io/" title="gb - A project based build tool for Go">gb</a> ではプロジェクト・フォルダ以下にあるパッケージを自動で検索してビルドしてくれる。
+もちろんパッケージを指定してビルドすることも可能。</p>
+
+<pre><code>C:\workspace\gbdemo&gt;gb build github.com/spiegel-im-spiegel/astrocalc/modjulian
+github.com/spiegel-im-spiegel/astrocalc/modjulian
+
+C:\workspace\gbdemo&gt;gb build julian-day
+julian-day
+</code></pre>
+
+<p>さらにテストもできる<sup class="footnote-ref" id="fnref:6e131725c8916e09bb821f8d42f65641:a"><a rel="footnote" href="#fn:6e131725c8916e09bb821f8d42f65641:a">2</a></sup>。</p>
+
+<pre><code class="language-shell">C:\workspace\gbdemo&gt;gb test -v github.com/spiegel-im-spiegel/astrocalc/modjulian
+=== RUN   TestDayNumber
+--- PASS: TestDayNumber (0.00s)
+=== RUN   ExampleDayNumber
+--- PASS: ExampleDayNumber (0.00s)                  
+PASS
+</code></pre>
+
+<p>パッケージによっては <code>go test</code> の結果と <code>gb test</code> の結果が異なる場合があるので注意が必要。</p>
+
+<h2 id="ブックマーク:6e131725c8916e09bb821f8d42f65641">ブックマーク</h2>
+
+<ul>
+<li><a href="http://qiita.com/shinofara/items/ac0591fef95c2c6e936e">golang - gbを知ったのでgojiを使ったWEBアプリケーションプロジェクトを管理してみた - Qiita</a></li>
+<li><a href="http://deeeet.com/writing/2015/06/26/golang-dependency-vendoring/">Go言語のDependency/Vendoringの問題と今後．gbあるいはGo1.5 | SOTA</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:6e131725c8916e09bb821f8d42f65641:b"><code>go get</code> の使い方については「<a href="/golang/go-get-package/">go get コマンドでパッケージを管理する</a>」を参照のこと。
+ <a class="footnote-return" href="#fnref:6e131725c8916e09bb821f8d42f65641:b"><sup>[return]</sup></a></li>
+<li id="fn:6e131725c8916e09bb821f8d42f65641:a">テストについては「<a href="/golang/testing/">Go 言語のテスト・フレームワーク</a>」を参照のこと。
+ <a class="footnote-return" href="#fnref:6e131725c8916e09bb821f8d42f65641:a"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+</article>
+</main>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/project-based-development\/';
+    var disqus_title = 'プロジェクト・ベースの開発環境をつくる';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/project-based-development\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-28</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		<li><a href="https://medium.com/@spiegel" target="_blank"><i class="fa fa-medium"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/project-based-development/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="プロジェクト・ベースの開発環境をつくる - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fproject-based-development%2f&amp;title=%e3%83%97%e3%83%ad%e3%82%b8%e3%82%a7%e3%82%af%e3%83%88%e3%83%bb%e3%83%99%e3%83%bc%e3%82%b9%e3%81%ae%e9%96%8b%e7%99%ba%e7%92%b0%e5%a2%83%e3%82%92%e3%81%a4%e3%81%8f%e3%82%8b" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav role="navigation">
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/github-pages-env'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15-DEV</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+
