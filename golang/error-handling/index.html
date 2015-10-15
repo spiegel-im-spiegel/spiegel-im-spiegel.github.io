@@ -36,8 +36,8 @@
 
 <link rel="alternate" href="/index.xml" type="application/rss+xml" title="text.Baldanders.info">
 
-<title>エラー・ハンドリングについて - プログラミング言語 Go | text.Baldanders.info</title>
-<meta name="description" content="C&#43;&#43; や Java のような言語圏から来た（私のような）人間にとって Go 言語の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。この最たるものが error 型である。">
+<title>エラー・ハンドリングについて（追記あり） - プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="C&#43;&#43; や Java のような言語圏から来た（私のような）人間にとって Go 言語の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。この最たるものが error 型である。（追記あり）">
 </head>
 <body>
 
@@ -63,7 +63,7 @@
 <main role="main">
 <article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
 <section>
-<h1 itemprop='name'>エラー・ハンドリングについて - <a href="/golang">プログラミング言語 Go</a></h1>
+<h1 itemprop='name'>エラー・ハンドリングについて（追記あり） - <a href="/golang">プログラミング言語 Go</a></h1>
 <nav class="tags"><div><a href="/tags">Tags</a>: <a href="/tags/golang">#golang</a> <a href="/tags/error">#error</a> <a href="/tags/exception">#exception</a></div></nav>
 
 
@@ -262,12 +262,142 @@ func (e *PathError) Error() string { return e.Op + &quot; &quot; + e.Path + &quo
 <p>もうひとつ考慮すべき点としてエラー・メッセージの設計が挙げられるだろう。
 <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> に対するメッセージをどのように設計するかは（大規模アプリケーションでは特に）重要である。</p>
 
+<h2 id="追記-panic-と-recover:94adf3c4c1b9841365d464e984a9ce2f">【追記】 Panic と Recover</h2>
+
+<p>たとえばゼロ除算を行った場合や配列などで領域を参照・設定しようとした場合，あるいは allocation に失敗した場合など，致命的なエラーが発生する場合がある。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+func main() {
+	f()
+}
+
+func f() {
+	numbers := []int{0, 1, 2}
+
+	fmt.Println(numbers[3])
+}
+</code></pre>
+
+<p>これを実行すると</p>
+
+<pre><code class="language-bash">C:\workspace\go-practice\src\panic01&gt;go run panic01.go
+panic: runtime error: index out of range
+
+goroutine 1 [running]:
+main.f()
+        C:/workspace/go-practice/src/panic01/panic01.go:12 +0x14a
+main.main()
+        C:/workspace/go-practice/src/panic01/panic01.go:6 +0x1b
+exit status 2
+</code></pre>
+
+<p>となり，大域脱出させてアプリケーションを強制終了させているのが分かる。
+この仕組みを <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> と呼ぶ。</p>
+
+<p><a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> は意図的に発生させることもできる。</p>
+
+<pre><code class="language-go">package main
+
+func main() {
+	f()
+}
+
+func f() {
+	panic(&quot;Panic!&quot;)
+}
+</code></pre>
+
+<p>これを実行すると</p>
+
+<pre><code class="language-bash">C:\workspace\go-practice\src\panic02&gt;go run panic02.go
+panic: Panic!
+
+goroutine 1 [running]:
+main.f()
+        C:/workspace/go-practice/src/panic02/panic02.go:8 +0x6c
+main.main()
+        C:/workspace/go-practice/src/panic02/panic02.go:4 +0x1b
+exit status 2
+</code></pre>
+
+<p>となる。</p>
+
+<p>一方で， <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> を <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> することもできる<sup class="footnote-ref" id="fnref:94adf3c4c1b9841365d464e984a9ce2f:e"><a rel="footnote" href="#fn:94adf3c4c1b9841365d464e984a9ce2f:e">8</a></sup>。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+func main() {
+	err := r()
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(&quot;Normal End.&quot;)
+	}
+}
+
+func r() (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf(&quot;Recovered from: %v&quot;, rec)
+		}
+	}()
+
+	f()
+	err = nil
+	return
+}
+
+func f() {
+	panic(&quot;Panic!&quot;)
+}
+</code></pre>
+
+<p>これを実行すると</p>
+
+<pre><code class="language-bash">C:\workspace\go-practice\src\panic03&gt;go run panic03.go
+Recovered from: Panic!
+</code></pre>
+
+<p>となる。
+<a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> を <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> で捕まえて通常の <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> として返しているのがお分かりだろうか。</p>
+
+<p>一般的に <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> はアプリケーション内で続行不可能な致命的エラーが発生した場合に投げられる。
+例えばゼロ除算や領域外アクセスのようなエラーは <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> が発生する前に回避するコードにすべきだ。
+Allocation エラーのような回避不能かつアプリケーション続行不可能なエラーの場合は <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> が投げられるのもやむを得ないが， <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> することにほとんど意味はない。</p>
+
+<p>例外的な使い方として <a href="https://golang.org/pkg/bytes/" title="bytes - The Go Programming Language"><code>bytes</code></a>.<code>Buffer</code> では，メモリ確保で panic が発生した際に <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> で捕まえ， <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> インスタンスを入れ替えて <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> を投げ直している。
+このような用途で <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> を使うことはあり得る。</p>
+
+<pre><code class="language-go">// makeSlice allocates a slice of size n. If the allocation fails, it panics
+// with ErrTooLarge.
+func makeSlice(n int) []byte {
+	// If the make fails, give a known error.
+	defer func() {
+		if recover() != nil {
+			panic(ErrTooLarge)
+		}
+	}()
+	return make([]byte, n)
+}
+</code></pre>
+
+<p>また再帰処理中に続行不能なエラーが発生した場合に <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> を投げてトップレベルの関数に一気に復帰するような使い方をする場合もある。
+この場合は，トップレベルの関数は通常の <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> を返すことになる<sup class="footnote-ref" id="fnref:94adf3c4c1b9841365d464e984a9ce2f:f"><a rel="footnote" href="#fn:94adf3c4c1b9841365d464e984a9ce2f:f">9</a></sup>。</p>
+
+<p>いずれにしろ，いわゆる「例外処理」的なハンドリングを <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a>/<a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> で行うべきではない。</p>
+
 <h2 id="ブックマーク:94adf3c4c1b9841365d464e984a9ce2f">ブックマーク</h2>
 
 <ul>
 <li><a href="http://www.kaoriya.net/blog/2014/04/17/">または私は如何にして例外するのを止めて golang を愛するようになったか — KaoriYa</a></li>
 <li><a href="http://mattn.kaoriya.net/software/lang/go/20140416212413.htm">Big Sky :: golang で複数のエラーをハンドリングする方法</a></li>
 <li><a href="http://dsas.blog.klab.org/archives/go-errors.html">DSAS開発者の部屋:Go ではエラーを文字列比較する？という話について</a></li>
+<li><a href="http://qiita.com/ruiu/items/ff98ded599d97cf6646e">panicはともかくrecoverに使いどころはほとんどない - Qiita</a></li>
 </ul>
 
 <p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
@@ -290,6 +420,10 @@ func (e *PathError) Error() string { return e.Op + &quot; &quot; + e.Path + &quo
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:bb"><sup>[return]</sup></a></li>
 <li id="fn:94adf3c4c1b9841365d464e984a9ce2f:d"><a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> は組み込み型なので，実際にこのような定義が標準パッケージにあるわけではない。
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:d"><sup>[return]</sup></a></li>
+<li id="fn:94adf3c4c1b9841365d464e984a9ce2f:e"><a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> は <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Defer</a> 構文とともに使用することが多い。
+ <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:e"><sup>[return]</sup></a></li>
+<li id="fn:94adf3c4c1b9841365d464e984a9ce2f:f">これ以外にサーバ用途などでプロセスを落とせない場合に <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> で回避することもあるが，既に続行不可能な状態で無理やりプロセスを続行するのが正しい動きなのかどうかは疑問が残る。
+ <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:f"><sup>[return]</sup></a></li>
 </ol>
 </div>
 
@@ -325,7 +459,7 @@ func (e *PathError) Error() string { return e.Op + &quot; &quot; + e.Path + &quo
 <script type="text/javascript">
     var disqus_shortname = 'textbaldandersinfo';
     var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/error-handling\/';
-    var disqus_title = 'エラー・ハンドリングについて';
+    var disqus_title = 'エラー・ハンドリングについて（追記あり）';
     var disqus_url = 'http:\/\/text.baldanders.info\/golang\/error-handling\/';
 
     (function() {
@@ -348,7 +482,7 @@ func (e *PathError) Error() string { return e.Op + &quot; &quot; + e.Path + &quo
 		</div>
 		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
 			
-				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-30</time> (revised in <time property='dc:modified'>2015-10-13</time>).
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-30</time> (revised in <time property='dc:modified'>2015-10-15</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
 
@@ -366,8 +500,8 @@ func (e *PathError) Error() string { return e.Op + &quot; &quot; + e.Path + &quo
 	</ul>
 	<div>
 		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/error-handling/" data-layout="button"></div>
-		<a href="https://twitter.com/share" class="twitter-share-button" data-text="エラー・ハンドリングについて - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
-		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2ferror-handling%2f&amp;title=%e3%82%a8%e3%83%a9%e3%83%bc%e3%83%bb%e3%83%8f%e3%83%b3%e3%83%89%e3%83%aa%e3%83%b3%e3%82%b0%e3%81%ab%e3%81%a4%e3%81%84%e3%81%a6" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="エラー・ハンドリングについて（追記あり） - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2ferror-handling%2f&amp;title=%e3%82%a8%e3%83%a9%e3%83%bc%e3%83%bb%e3%83%8f%e3%83%b3%e3%83%89%e3%83%aa%e3%83%b3%e3%82%b0%e3%81%ab%e3%81%a4%e3%81%84%e3%81%a6%ef%bc%88%e8%bf%bd%e8%a8%98%e3%81%82%e3%82%8a%ef%bc%89" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
 	</div>
 
 

@@ -79,12 +79,12 @@ Go 言語の &lt;code&gt;return&lt;/code&gt; をどう記述するか（ある�
 	</entry>
 	
 	<entry>
-		<title>エラー・ハンドリングについて - golang</title>
+		<title>エラー・ハンドリングについて（追記あり） - golang</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/error-handling/" />
 		<id>tag:text.Baldanders.info,2015-09-30T00:27:48+0900:/golang/error-handling/</id>
 		<published>2015-09-30T00:27:48+0900</published>
-		<updated>2015-10-13T17:12:00+0900</updated>
-		<summary>C&#43;&#43; や Java のような言語圏から来た（私のような）人間にとって Go 言語の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。この最たるものが error 型である。</summary>
+		<updated>2015-10-15T22:43:00+0900</updated>
+		<summary>C&#43;&#43; や Java のような言語圏から来た（私のような）人間にとって Go 言語の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。この最たるものが error 型である。（追記あり）</summary>
 		
 			<author>
 				<name>Spiegel</name>
@@ -293,12 +293,142 @@ func (e *PathError) Error() string { return e.Op + &amp;quot; &amp;quot; + e.Pat
 &lt;p&gt;もうひとつ考慮すべき点としてエラー・メッセージの設計が挙げられるだろう。
 &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; に対するメッセージをどのように設計するかは（大規模アプリケーションでは特に）重要である。&lt;/p&gt;
 
+&lt;h2 id=&#34;追記-panic-と-recover:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;【追記】 Panic と Recover&lt;/h2&gt;
+
+&lt;p&gt;たとえばゼロ除算を行った場合や配列などで領域を参照・設定しようとした場合，あるいは allocation に失敗した場合など，致命的なエラーが発生する場合がある。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	f()
+}
+
+func f() {
+	numbers := []int{0, 1, 2}
+
+	fmt.Println(numbers[3])
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic01&amp;gt;go run panic01.go
+panic: runtime error: index out of range
+
+goroutine 1 [running]:
+main.f()
+        C:/workspace/go-practice/src/panic01/panic01.go:12 +0x14a
+main.main()
+        C:/workspace/go-practice/src/panic01/panic01.go:6 +0x1b
+exit status 2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となり，大域脱出させてアプリケーションを強制終了させているのが分かる。
+この仕組みを &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; と呼ぶ。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; は意図的に発生させることもできる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+func main() {
+	f()
+}
+
+func f() {
+	panic(&amp;quot;Panic!&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic02&amp;gt;go run panic02.go
+panic: Panic!
+
+goroutine 1 [running]:
+main.f()
+        C:/workspace/go-practice/src/panic02/panic02.go:8 +0x6c
+main.main()
+        C:/workspace/go-practice/src/panic02/panic02.go:4 +0x1b
+exit status 2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となる。&lt;/p&gt;
+
+&lt;p&gt;一方で， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; することもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	err := r()
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(&amp;quot;Normal End.&amp;quot;)
+	}
+}
+
+func r() (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf(&amp;quot;Recovered from: %v&amp;quot;, rec)
+		}
+	}()
+
+	f()
+	err = nil
+	return
+}
+
+func f() {
+	panic(&amp;quot;Panic!&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic03&amp;gt;go run panic03.go
+Recovered from: Panic!
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となる。
+&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で捕まえて通常の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; として返しているのがお分かりだろうか。&lt;/p&gt;
+
+&lt;p&gt;一般的に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; はアプリケーション内で続行不可能な致命的エラーが発生した場合に投げられる。
+例えばゼロ除算や領域外アクセスのようなエラーは &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; が発生する前に回避するコードにすべきだ。
+Allocation エラーのような回避不能かつアプリケーション続行不可能なエラーの場合は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; が投げられるのもやむを得ないが， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; することにほとんど意味はない。&lt;/p&gt;
+
+&lt;p&gt;例外的な使い方として &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer&lt;/code&gt; では，メモリ確保で panic が発生した際に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で捕まえ， &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスを入れ替えて &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げ直している。
+このような用途で &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; を使うことはあり得る。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// makeSlice allocates a slice of size n. If the allocation fails, it panics
+// with ErrTooLarge.
+func makeSlice(n int) []byte {
+	// If the make fails, give a known error.
+	defer func() {
+		if recover() != nil {
+			panic(ErrTooLarge)
+		}
+	}()
+	return make([]byte, n)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;また再帰処理中に続行不能なエラーが発生した場合に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げてトップレベルの関数に一気に復帰するような使い方をする場合もある。
+この場合は，トップレベルの関数は通常の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を返すことになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;9&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;いずれにしろ，いわゆる「例外処理」的なハンドリングを &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt;/&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で行うべきではない。&lt;/p&gt;
+
 &lt;h2 id=&#34;ブックマーク:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;ブックマーク&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://www.kaoriya.net/blog/2014/04/17/&#34;&gt;または私は如何にして例外するのを止めて golang を愛するようになったか — KaoriYa&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://mattn.kaoriya.net/software/lang/go/20140416212413.htm&#34;&gt;Big Sky :: golang で複数のエラーをハンドリングする方法&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://dsas.blog.klab.org/archives/go-errors.html&#34;&gt;DSAS開発者の部屋:Go ではエラーを文字列比較する？という話について&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ruiu/items/ff98ded599d97cf6646e&#34;&gt;panicはともかくrecoverに使いどころはほとんどない - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
@@ -321,6 +451,10 @@ func (e *PathError) Error() string { return e.Op + &amp;quot; &amp;quot; + e.Pat
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は組み込み型なので，実際にこのような定義が標準パッケージにあるわけではない。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文とともに使用することが多い。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;これ以外にサーバ用途などでプロセスを落とせない場合に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で回避することもあるが，既に続行不可能な状態で無理やりプロセスを続行するのが正しい動きなのかどうかは疑問が残る。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
