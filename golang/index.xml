@@ -3,8 +3,8 @@
 	<title>プログラミング言語 Go — text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/golang/index.xml" />
-	<id>tag:text.Baldanders.info,2015-10-15:/hugo</id>
-	<updated>2015-10-15T20:32:32+09:00</updated>
+	<id>tag:text.Baldanders.info,2015-11-07:/hugo</id>
+	<updated>2015-11-07T10:38:20+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
@@ -12,11 +12,83 @@
 
 	
 	<entry>
+		<title>パッケージ外部からの呼び出しを禁止する Internal Packages — プログラミング言語 Go</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/internal-packages/" />
+		<id>tag:text.Baldanders.info,2015-11-07:/golang/internal-packages/</id>
+		<published>2015-11-07T10:38:20+09:00</published>
+		<updated>2015-11-07T10:38:20+09:00</updated>
+		<summary>Internal Packages の仕組みは 1.4 から存在したが，1.4 では標準パッケージのみの適用だった。 1.5 からは `GOPATH` 配下のパッケージまで拡張されることになった。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;（初出： &lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/baa3671c7e1b8a6594a9&#34;&gt;そろそろ真面目に Golang 開発環境について考える — Internal Packages と Vendoring - Qiita&lt;/a&gt;）&lt;/p&gt;
+
+&lt;p&gt;「&lt;a href=&#34;http://text.baldanders.info/golang/gopath-pollution/&#34;&gt;GOPATH 汚染問題&lt;/a&gt;」で言及しそこねたので，今回は軽く。&lt;/p&gt;
+
+&lt;p&gt;Internal Packages の仕組みは 1.4 から存在したが，1.4 では標準パッケージのみの適用だった。
+1.5 からは &lt;code&gt;GOPATH&lt;/code&gt; 配下のパッケージまで拡張されることになった。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://docs.google.com/document/d/1e8kOo3r51b2BWtTs_1uADIA5djfXhPT36s6eHVRIvaU/edit&#34;&gt;Go 1.4 &amp;ldquo;Internal&amp;rdquo; Packages&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;要するに &lt;code&gt;internal&lt;/code&gt; フォルダ以下のパッケージは外部から参照できない。
+例として &lt;a href=&#34;https://golang.org/pkg/net/&#34; title=&#34;net - The Go Programming Language&#34;&gt;&lt;code&gt;net&lt;/code&gt;&lt;/a&gt; パッケージを挙げてみる。
+&lt;a href=&#34;https://golang.org/pkg/net/&#34; title=&#34;net - The Go Programming Language&#34;&gt;&lt;code&gt;net&lt;/code&gt;&lt;/a&gt; パッケージのソースコードの構成は以下のようになっている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:\Go\src\net&amp;gt; tree .
+C:\GO\SRC\NET
+├─http
+│  ├─cgi
+│  │  └─testdata
+│  ├─cookiejar
+│  ├─fcgi
+│  ├─httptest
+│  ├─httputil
+│  ├─internal
+│  ├─pprof
+│  └─testdata
+├─internal
+│  └─socktest
+├─mail
+├─rpc
+│  └─jsonrpc
+├─smtp
+├─testdata
+├─textproto
+└─url
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/pkg/net/http/internal/&#34;&gt;&lt;code&gt;net/http/internal&lt;/code&gt;&lt;/a&gt; パッケージには &lt;code&gt;chunked.go&lt;/code&gt; ファイルが含まれる。
+&lt;code&gt;chunked.go&lt;/code&gt; は &lt;a href=&#34;https://en.wikipedia.org/wiki/Chunked_transfer_encoding&#34;&gt;chunked transfer encoding&lt;/a&gt; の仕組みを実装したもののようだが， &lt;a href=&#34;https://golang.org/pkg/net/http/&#34; title=&#34;http - The Go Programming Language&#34;&gt;&lt;code&gt;net/http&lt;/code&gt;&lt;/a&gt; およびその配下のパッケージ以外では使えない。
+また &lt;code&gt;net/internal&lt;/code&gt; フォルダ以下には socket テスト用の &lt;a href=&#34;https://golang.org/pkg/net/internal/socktest/&#34; title=&#34;socktest - The Go Programming Language&#34;&gt;&lt;code&gt;net/internal/socktest&lt;/code&gt;&lt;/a&gt; パッケージがあるが，これも外部から再利用できない。&lt;/p&gt;
+
+&lt;p&gt;これは再利用の難しいパッケージを配置する場合にはよい仕掛けである。
+ビジネスロジックには再利用が難しいものが多いので，そういったものを &lt;code&gt;internal&lt;/code&gt; フォルダ以下に置けば，うっかり他所で使われるといったこともなく安全である。
+なお， Internal Packages の制約から外すには &lt;code&gt;internal&lt;/code&gt; フォルダの外側にパッケージを再配置すればよい。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:8a2f576149aff665b4e8707fdb13643d&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>パッケージの依存状況の視覚化 — プログラミング言語 Go</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/package-visualization-tool/" />
 		<id>tag:text.Baldanders.info,2015-10-15:/golang/package-visualization-tool/</id>
 		<published>2015-10-15T20:32:32+09:00</published>
-		<updated>2015-10-15T20:32:32+09:00</updated>
+		<updated>2015-11-07T10:38:20+09:00</updated>
 		<summary>今回はちょっと横道にそれて，パッケージの依存状況を視覚化するツールをご紹介。</summary>
 		
 			<author>
@@ -810,7 +882,7 @@ C:&amp;gt;go install ./...
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/project-based-development/" />
 		<id>tag:text.Baldanders.info,2015-09-28:/golang/project-based-development/</id>
 		<published>2015-09-28T20:38:45+09:00</published>
-		<updated>2015-10-15T20:32:32+09:00</updated>
+		<updated>2015-11-07T10:38:20+09:00</updated>
 		<summary>今回は gb を使ってプロジェクト・ベースで Golang のコードを管理してみる。</summary>
 		
 			<author>
@@ -2250,346 +2322,6 @@ script:
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3047d71ccf1370a2898eb92c70273f56:2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:3047d71ccf1370a2898eb92c70273f56:3&#34;&gt;私は組み込みエンジニアなので，プログラミングで assert を多用するのは，エンジニアの怠慢だと思ってしまいます。まぁ，ベクタ・テーブルからゴリゴリ書くってのなら別ですが。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3047d71ccf1370a2898eb92c70273f56:3&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>機能のパッケージ化 — プログラミング言語 Go</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/packaging/" />
-		<id>tag:text.Baldanders.info,2015-09-19:/golang/packaging/</id>
-		<published>2015-09-19T22:41:30+09:00</published>
-		<updated>2015-09-21T10:43:00+09:00</updated>
-		<summary>今後のことを考えてパッケージ化の作業を行うことにします。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;（初出： &lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/404871d2bafd22bdbb90&#34;&gt;はじめての Go 言語 (on Windows) その6 - Qiita&lt;/a&gt;）&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/julian-day-number/&#34; title=&#34;「ユリウス日」で遊ぶ&#34;&gt;前回&lt;/a&gt;の続き。
-なんだけど，今回はパッケージのお話。
-ユリウス日の計算なんて簡単なので今まで &lt;code&gt;main()&lt;/code&gt; 関数の中にゴリゴリ書いてましたが，今後のことを考えて，これを使ってパッケージ化の作業を行うことにします。&lt;/p&gt;
-
-&lt;h2 id=&#34;ユリウス日計算のパッケージ化:bf561d8ea0bbb40075d9094acab07703&#34;&gt;ユリウス日計算のパッケージ化&lt;/h2&gt;
-
-&lt;p&gt;まずは，&lt;a href=&#34;http://text.baldanders.info/golang/julian-day-number/&#34; title=&#34;「ユリウス日」で遊ぶ&#34;&gt;前回&lt;/a&gt;のコードから計算処理部分をきちんと分離します。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;flag&amp;quot;
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-	&amp;quot;strconv&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-func ModifiedJulianDayNumber(t time.Time) int64 {
-	if t.Sub(time.Unix(0, 0)) &amp;gt;= 0 {
-		return mjdnUnix(t)
-	} else {
-		return mjdnGregorian(t)
-	}
-}
-
-func mjdnGregorian(t time.Time) int64 {
-	y := int64(t.Year())
-	m := int64(t.Month())
-	if m &amp;lt; 3 {
-		y -= 1
-		m += 9
-	} else {
-		m -= 3
-	}
-	d := int64(t.Day()) - 1
-	return (1461*y)/4 + y/400 - y/100 + (153*m+2)/5 + d - 678881
-}
-
-func mjdnUnix(t time.Time) int64 {
-	const (
-		onday   = int64(86400) //seconds
-		baseDay = int64(40587) //Modified Julian Date at January 1, 1970
-	)
-	return (t.Unix())/onday + baseDay
-}
-
-func main() {
-	//引数のチェック
-	flag.Parse()
-	argsStr := flag.Args()
-	if len(argsStr) &amp;lt; 3 {
-		fmt.Fprintln(os.Stderr, &amp;quot;年月日を指定してください&amp;quot;)
-		return
-	}
-	args := make([]int, 3)
-	for i := 0; i &amp;lt; 3; i++ {
-		num, err := strconv.Atoi(argsStr[i])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		} else {
-			args[i] = num
-		}
-	}
-	tm := time.Date(args[0], time.Month(args[1]), args[2], 0, 0, 0, 0, time.UTC)
-	fmt.Printf(&amp;quot;%v\n&amp;quot;, tm)
-	fmt.Printf(&amp;quot;MJD = %d日\n&amp;quot;, ModifiedJulianDayNumber(tm))
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-shell&#34;&gt;C:&amp;gt;go run julian-day-4.go 1969 12 31
-1969-12-31 00:00:00 +0000 UTC
-MJD = 40586日
-
-C:&amp;gt;go run julian-day-4.go 1970 1 1
-1970-01-01 00:00:00 +0000 UTC
-MJD = 40587日
-
-C:&amp;gt;go run julian-day-4.go 2015 1 1
-2015-01-01 00:00:00 +0000 UTC
-MJD = 57023日
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ユリウス日の端数が鬱陶しいので修正ユリウス日の整数部分のみ計算しています。
-あと1970年1月1日を境界として計算方法を変えています。
-本当はユリウス暦の場合の計算も含めるべきなんでしょうけど，今回は割愛します。&lt;/p&gt;
-
-&lt;p&gt;さて，上のコードのうち修正ユリウス日計算関数を別ファイルにしてパッケージ化します。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package modjulian
-
-import &amp;quot;time&amp;quot;
-
-func DayNumber(t time.Time) int64 {
-	if t.Sub(time.Unix(0, 0)) &amp;gt;= 0 {
-		return dnUnix(t)
-	} else {
-		return dnGregorian(t)
-	}
-}
-
-func dnGregorian(t time.Time) int64 {
-	y := int64(t.Year())
-	m := int64(t.Month())
-	if m &amp;lt; 3 {
-		y -= 1
-		m += 9
-	} else {
-		m -= 3
-	}
-	d := int64(t.Day()) - 1
-	return (1461*y)/4 + y/400 - y/100 + (153*m+2)/5 + d - 678881
-}
-
-func dnUnix(t time.Time) int64 {
-	const (
-		onday   = int64(86400) //seconds
-		baseDay = int64(40587) //Modified Julian Date at January 1, 1970
-	)
-	return (t.Unix())/onday + baseDay
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;パッケージ名は &lt;code&gt;modjulian&lt;/code&gt; としました。
-ちなみにパッケージ内の関数等は名前の先頭が大文字のものだけが外部から参照可能です。&lt;/p&gt;
-
-&lt;h3 id=&#34;go-言語における名前の問題:bf561d8ea0bbb40075d9094acab07703&#34;&gt;Go 言語における名前の問題&lt;/h3&gt;
-
-&lt;p&gt;Go 言語およびそのコミュニティは名前にうるさいようです。
-たとえば「&lt;a href=&#34;http://golang.jp/effective_go&#34;&gt;実践Go言語&lt;/a&gt;&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:bf561d8ea0bbb40075d9094acab07703:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:bf561d8ea0bbb40075d9094acab07703:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;」によると&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;慣例では，パッケージ名は小文字でひとつの単語です。アンダースコアや大文字が混ざって(mixedCaps)はいけません。パッケージ使用者がその名前をタイプすることを考慮して，簡潔すぎるぐらいにしてください。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;なんだそうで，本当はパッケージ名を &lt;code&gt;julianDate&lt;/code&gt; としたかったんだけど，それでは筋が悪いらしい。&lt;/p&gt;
-
-&lt;p&gt;もうひとつ。&lt;/p&gt;
-
-&lt;p&gt;もう一つの慣例は，パッケージ名がそのソースディレクトリのベース名であるということです。たとえば&lt;code&gt;src/pkg/encoding/base64&lt;/code&gt;に置かれているパッケージは，“&lt;code&gt;encoding/base64&lt;/code&gt;”としてインポートし，名前は&lt;code&gt;base64&lt;/code&gt;となります。&lt;code&gt;encoding_base64&lt;/code&gt;や&lt;code&gt;encodingBase64&lt;/code&gt;とはなりません。&lt;/p&gt;
-
-&lt;p&gt;なのでパッケージの指定はハンガリアン記法とかではなく単語をディレクトリで区切って階層化することで整理できそうです。
-これって Java とかに慣れてる人には比較的とっつきやすい仕組みかもしれません。&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;長い名前は，慣れたとしても読みやすくなることはありません。複雑もしくは微妙なニュアンスを持つものに名前をつけるときは，すべての情報を名前で表現しようとするより，通常は役立つドキュメントコメントを書いたほうがよいでしょう。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h2 id=&#34;パッケージの配置と呼び出し:bf561d8ea0bbb40075d9094acab07703&#34;&gt;パッケージの配置と呼び出し&lt;/h2&gt;
-
-&lt;p&gt;パッケージを呼び出すのには（標準のパッケージと同じく） &lt;code&gt;import&lt;/code&gt; を使えばいいのですが，記述によってパッケージをどこに配置するかが変わります。&lt;/p&gt;
-
-&lt;p&gt;たとえば&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;import &amp;quot;./modjulian&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;と相対パスで記述した場合は，呼び出し元のファイルの場所にある &lt;code&gt;modjulian&lt;/code&gt; フォルダを探します。
-以下はパッケージが見つからなくてエラーになってる例です。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\jd\src\julian-day-4b&amp;gt;go build julian-day-4b.go
-julian-day-4b.go:10:2: open C:\workspace\jd\src\julian-day-4b\modjulian: The system cannot find the file specified.
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;一方&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;import &amp;quot;modjulian&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;と記述した場合には，環境変数 &lt;code&gt;GOROOT&lt;/code&gt; および &lt;code&gt;GOPATH&lt;/code&gt; で指定されるフォルダ以下を探すようです。
-以下もパッケージが見つからなくてエラーになってる例です。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-shell&#34;&gt;C:\workspace\jd\src\julian-day-4b&amp;gt;go build julian-day-4b.go
-julian-day-4b.go:10:2: cannot find package &amp;quot;modjulian&amp;quot; in any of:
-        C:\Go\src\modjulian (from $GOROOT)
-        C:\Gopath\src\modjulian (from $GOPATH)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;ではパッケージを相対パスで指定するのは（デバッグ時などを除いて）良くないと言われています。
-これは &lt;code&gt;go get&lt;/code&gt; コマンドでパッケージをビルドする際，相対パスを解釈しないようにしているからのようです&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:bf561d8ea0bbb40075d9094acab07703:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:bf561d8ea0bbb40075d9094acab07703:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;h3 id=&#34;パッケージを-github-上に配置する:bf561d8ea0bbb40075d9094acab07703&#34;&gt;パッケージを GitHub 上に配置する&lt;/h3&gt;
-
-&lt;p&gt;「&lt;a href=&#34;http://text.baldanders.info/golang/go-get-package/&#34;&gt;go get コマンドでパッケージを管理する&lt;/a&gt;」でも紹介しましたが，インターネット上の repository にあるパッケージを&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;import &amp;quot;github.com/username/package&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;のように指定することで，任意に取り込むことが可能です。
-そこで今回のパッケージを &lt;a href=&#34;https://github.com/&#34;&gt;GitHub&lt;/a&gt; 上に公開しました。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/astrocalc&#34;&gt;&lt;code&gt;github.com/spiegel-im-spiegel/astrocalc&lt;/code&gt;&lt;/a&gt;&lt;code&gt;/modjulian&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;このパッケージを使って書いてみます。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;flag&amp;quot;
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-	&amp;quot;strconv&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&amp;quot;
-)
-
-func main() {
-	//引数のチェック
-	flag.Parse()
-	argsStr := flag.Args()
-	if len(argsStr) &amp;lt; 3 {
-		fmt.Fprintln(os.Stderr, &amp;quot;年月日を指定してください&amp;quot;)
-		return
-	}
-	args := make([]int, 3)
-	for i := 0; i &amp;lt; 3; i++ {
-		num, err := strconv.Atoi(argsStr[i])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		} else {
-			args[i] = num
-		}
-	}
-	tm := time.Date(args[0], time.Month(args[1]), args[2], 0, 0, 0, 0, time.UTC)
-	fmt.Printf(&amp;quot;%v\n&amp;quot;, tm)
-	fmt.Printf(&amp;quot;MJD = %d日\n&amp;quot;, modjulian.DayNumber(tm))
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;このソースファイル &lt;code&gt;julian-day-4b.go&lt;/code&gt; と &lt;code&gt;modjulian&lt;/code&gt; パッケージを以下のように配置してビルドします。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:&amp;gt;SET GOPATH=C:\workspace\jd
-
-C:&amp;gt;cd C:\workspace\jd
-
-C:\workspace\jd&amp;gt;tree /f .
-C:\WORKSPACE\JD
-│
-└─src
-    └─julian-day-4b
-            julian-day-4b.go
-
-C:\workspace\jd&amp;gt;go get -v github.com/spiegel-im-spiegel/astrocalc/modjulian
-github.com/spiegel-im-spiegel/astrocalc (download)
-github.com/spiegel-im-spiegel/astrocalc/modjulian
-
-C:\workspace\jd&amp;gt;go install ./...
-
-C:\workspace\jd&amp;gt;tree /f .
-C:\WORKSPACE\JD
-│
-├─bin
-│      julian-day-4b.exe
-│
-├─pkg
-│  └─windows_amd64
-│      └─github.com
-│          └─spiegel-im-spiegel
-│              └─astrocalc
-│                      modjulian.a
-│
-└─src
-    ├─github.com
-    │  └─spiegel-im-spiegel
-    │      └─astrocalc
-    │          │  .editorconfig
-    │          │  .gitignore
-    │          │  .travis.yml
-    │          │  LICENSE
-    │          │  README.md
-    │          │
-    │          └─modjulian
-    │                  example_test.go
-    │                  LICENSE
-    │                  modjulian.go
-    │                  modjulian_test.go
-    │
-    └─julian-day-4b
-            julian-day-4b.go
-
-C:\workspace\jd&amp;gt;bin\julian-day-4b.exe 1969 12 31
-1969-12-31 00:00:00 +0000 UTC
-MJD = 40586日
-
-C:\workspace\jd&amp;gt;bin\julian-day-4b.exe 1970 1 1
-1970-01-01 00:00:00 +0000 UTC
-MJD = 40587日
-
-C:\workspace\jd&amp;gt;bin\julian-day-4b.exe 2015 1 1
-2015-01-01 00:00:00 +0000 UTC
-MJD = 57023日
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;まだまだ続くよ。
-&lt;a href=&#34;http://text.baldanders.info/golang/testing/&#34; title=&#34;Go 言語のテスト・フレームワーク&#34;&gt;次回&lt;/a&gt;はテストについて。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク:bf561d8ea0bbb40075d9094acab07703&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:bf561d8ea0bbb40075d9094acab07703:1&#34;&gt;オリジナルは “&lt;a href=&#34;https://golang.org/doc/effective_go.html&#34;&gt;Effective Go&lt;/a&gt;”
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:bf561d8ea0bbb40075d9094acab07703:1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:bf561d8ea0bbb40075d9094acab07703:2&#34;&gt;これについてはいろいろな意見があるようですが，妥当な割り切りだと思います。特にコードを CI (Continuous Integration) によって管理している場合は重要なポイントです。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:bf561d8ea0bbb40075d9094acab07703:2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
