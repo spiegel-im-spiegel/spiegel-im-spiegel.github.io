@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' rel='stylesheet' type='text/css'>
+<link href='//fonts.googleapis.com/earlyaccess/notosansjapanese.css' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<link rel="alternate" href="/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+
+<title>ATOM Editor で Amazon Associate ID を含んだ商品 URL をアソシエイトIDを生成する — しっぽのさきっちょ | text.Baldanders.info</title>
+<meta name="description" content="昔，結城浩さんが Amazon の商品 URL を変換する秀丸マクロを公開されていて， ATOM Editor では使えないためどうしたものかと思っていたのだが，先日 init.coffee に簡単なコマンドを書く方法を習ったので移植してみた。">
+<meta name="author" content="Spiegel">
+<link rel='prev' href='http://text.baldanders.info/remark/2015/security-advisory-gpg4win/' title='Security Advisory Gpg4win' />
+
+</head>
+<body>
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<div><strong><a href="/remark">しっぽのさきっちょ</a>: 2015-11-27 付</strong></div>
+<h1 itemprop='name'>ATOM Editor で Amazon Associate ID を含んだ商品 URL をアソシエイトIDを生成する</h1>
+<nav class="tags"><div><a href="/tags">Tags</a>: #<a href="/tags/atom">atom</a> #<a href="/tags/editor">editor</a> #<a href="/tags/tools">tools</a> #<a href="/tags/amazon">amazon</a></div></nav>
+
+<section><div>
+<div style="float:right;margin:0.5em;padding:0.5em;">
+<a href="http://www.baldanders.info/spiegel/log2/000820.shtml" title="Stop Fast Track TPP — Baldanders.info"><img src="http://www.baldanders.info/images/noextension.png" alt="no extension" width="165" height="50" /></a>
+</div>
+
+
+<p>昔，結城浩さんが Amazon の商品 URL を変換する秀丸マクロを公開されていて</p>
+
+<ul>
+<li><a href="http://d.hatena.ne.jp/hyuki/20120413/amazon">アマゾン・アソシエイトID（アフィリエイト用のID）を含んだ商品URLを生成する秀丸マクロ - 結城浩のはてな日記</a></li>
+</ul>
+
+<p>これがとても便利で重宝していたのだが， <a href="https://atom.io/" title="Atom">ATOM</a> Editor では使えないためどうしたものかと思っていた。
+で，先日 <a href="/remark/2015/insert-datetime-in-atom-editor/"><code>init.coffee</code> に簡単なコマンドを書く方法を習った</a>ので，上の秀丸マクロを <a href="https://atom.io/" title="Atom">ATOM</a> Editor に移植してみた。</p>
+
+<p>以下が <code>init.coffee</code> に追記する内容。</p>
+
+<pre><code class="language-coffee"># Amazon Associate ID を含んだ商品 URL を生成する
+#  クリップボードの内容を読み込み，変換してセットする
+#  http(s)://www.amazon.co.jp/... から始まる文字列を想定
+#  /dp/XXXXXXXXXX または /ASIN/XXXXXXXXXX のパタンを探す
+#  変換できない場合はクリップボードの内容をそのままセットする
+# refs http://d.hatena.ne.jp/hyuki/20120413/amazon
+amazonUrl = (id) -&gt;
+  url = atom.clipboard.read()
+  re = /^htt(?:p|ps):\/\/www.amazon.co.jp\//
+  if !re.test(url)
+    return url
+  result = url.match(/\/(?:dp|ASIN)\/(.{10})/)
+  if result == null
+    return url
+  else if result.length &lt; 2
+    return url
+  asin = result[1]
+  if id == &quot;&quot;
+    &quot;http://www.amazon.co.jp/exec/obidos/ASIN/#{asin}/&quot;
+  else
+    &quot;http://www.amazon.co.jp/exec/obidos/ASIN/#{asin}/#{id}/&quot;
+
+insertText = (str) -&gt;
+  return unless editor = atom.workspace.getActiveTextEditor()
+  selection = editor.getLastSelection()
+  selection.insertText(str)
+
+atom.commands.add 'atom-text-editor', 'my-tools:amazon', -&gt;
+  id = '' # Amazon Associate ID
+  insertText(amazonUrl(id))
+</code></pre>
+
+<p>コードがやっつけでダサいのはご勘弁ということで<sup class="footnote-ref" id="fnref:028833c50231051bae73e587c9bed4d5:a"><a rel="footnote" href="#fn:028833c50231051bae73e587c9bed4d5:a">1</a></sup>。</p>
+
+<p>これで <code>id</code> に Associate ID （たとえば私の <code>baldandersinf-22</code>）をセットして</p>
+
+<pre><code>http://www.amazon.co.jp/%E6%95%B0%E5%AD%A6%E3%82%AC%E3%83%BC%E3%83%AB-%E7%B5%90%E5%9F%8E-%E6%B5%A9/dp/4797341378
+</code></pre>
+
+<p>をクリップボードにコピーした状態でコマンドパレットから「My Tools: Amazon」を起動すると</p>
+
+<pre><code>http://www.amazon.co.jp/exec/obidos/ASIN/4797341378/baldandersinf-22/
+</code></pre>
+
+<p>と出力される。
+変換できない場合はクリップボードの内容をそのまま出力する。</p>
+
+<p>よーし，うむうむ，よーし。</p>
+
+<h2 id="参考:028833c50231051bae73e587c9bed4d5">参考</h2>
+
+<ul>
+<li><a href="https://atom.io/docs/api/">Atom API</a></li>
+<li><a href="https://developer.mozilla.org/ja/docs/Web/JavaScript/Guide/Regular_Expressions">正規表現 - JavaScript | MDN</a></li>
+<li><a href="https://www.softel.co.jp/labs/tools/regex/">正規表現チェッカー（JavaScript版） | Softel labs</a></li>
+</ul>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:028833c50231051bae73e587c9bed4d5:a"><a href="http://coffeescript.org/">CoffeeScript</a> は慣れん。
+ <a class="footnote-return" href="#fnref:028833c50231051bae73e587c9bed4d5:a"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2015/security-advisory-gpg4win/">Security Advisory Gpg4win</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/remark\/2015\/insert-amazon-url-with-associate-id-in-atom-editor\/';
+    var disqus_title = 'ATOM Editor で Amazon Associate ID を含んだ商品 URL をアソシエイトIDを生成する';
+    var disqus_url = 'http:\/\/text.baldanders.info\/remark\/2015\/insert-amazon-url-with-associate-id-in-atom-editor\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-11-27</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/remark/2015/insert-amazon-url-with-associate-id-in-atom-editor/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="ATOM Editor で Amazon Associate ID を含んだ商品 URL をアソシエイトIDを生成する - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fremark%2f2015%2finsert-amazon-url-with-associate-id-in-atom-editor%2f&amp;title=ATOM%20Editor%20%e3%81%a7%20Amazon%20Associate%20ID%20%e3%82%92%e5%90%ab%e3%82%93%e3%81%a0%e5%95%86%e5%93%81%20URL%20%e3%82%92%e3%82%a2%e3%82%bd%e3%82%b7%e3%82%a8%e3%82%a4%e3%83%88ID%e3%82%92%e7%94%9f%e6%88%90%e3%81%99%e3%82%8b" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/github-pages-env'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fremark%2f2015%2finsert-amazon-url-with-associate-id-in-atom-editor%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+<script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>
+
+</body>
+</html>
+
