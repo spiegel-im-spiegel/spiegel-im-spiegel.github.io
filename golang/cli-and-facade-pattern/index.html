@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjapanese.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>コマンドライン・インタフェースとファサード・パターン — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="ファサード・パターンは DDD (Domain-Driven Design) と相性がよい。普通は Web アプリケーションのような多様なサブシステムを持つシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンで設計するべきである。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,cli,facade">
+<link rel='prev' href='http://text.baldanders.info/golang/object-oriented-programming/' title='Go 言語における「オブジェクト」' />
+
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>コマンドライン・インタフェースとファサード・パターン — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/cli">cli</a> #<a href="/tags/facade">facade</a> #<a href="/tags/golang">golang</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/cli-and-facade-pattern/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コンパイラには <a href="https://golang.org/pkg/flag/" title="flag - The Go Programming Language"><code>flag</code></a> パッケージが標準で提供されており，いわゆるコマンドライン・インタフェース（Command line interface; CLI）の操作はこれでまかなうことができる。
+ただし <a href="https://golang.org/pkg/flag/" title="flag - The Go Programming Language"><code>flag</code></a> パッケージではサブコマンドをサポートしていないためサブコマンドを構成したい場合は少し工夫が必要となる。
+ちなみにサブコマンドとは，以下のようなコマンドラインの構成になっているアプリケーションである。</p>
+
+<pre><code>$ command [golabal options] &lt;sub-command&gt; [sub-options] [arguments]
+</code></pre>
+
+<p>たとえば <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コンパイラの <code>go run</code> もサブコマンドだし， <a href="https://git-scm.com/" title="Git">git</a> の <code>git commit</code> とかもサブコマンドである。</p>
+
+<h2 id="コマンドライン-インタフェースと-unix-philosophy:d4a750c9c3ada9f8f4bd4f3022a7bb81">コマンドライン・インタフェースと UNIX Philosophy</h2>
+
+<p>ところで CLI でよく引き合いに出されるのが “<a href="http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html" title="Tenets of the UNIX Philosophy">UNIX Philosophy</a>” と呼ばれるアプリケーションを作る際の哲学というか指針のようなものである。
+曰く</p>
+
+<ol>
+<li>Small is beautiful. （小さいものは美しい）</li>
+<li>Make each program do one thing well. （各プログラムが一つのことをうまくやるようにせよ）</li>
+<li>Build a prototype as soon as possible. （できる限り早くプロトタイプを作れ）</li>
+<li>Choose portability over efficiency. （効率よりも移植しやすさを選べ）</li>
+<li>Store data in flat text files. （単純なテキストファイルにデータを格納せよ）</li>
+<li>Use software leverage to your advantage. （ソフトウェアの効率を優位さとして利用せよ）</li>
+<li>Use shell scripts to increase leverage and portability. （効率と移植性を高めるためにシェルスクリプトを利用せよ）</li>
+<li>Avoid captive user interfaces. （拘束的なユーザーインターフェースは作るな）</li>
+<li>Make every program a Filter. （全てのプログラムはフィルタとして振る舞うようにせよ）</li>
+</ol>
+
+<p>の9項目<sup class="footnote-ref" id="fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up"><a rel="footnote" href="#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up">1</a></sup>。
+昨今は UNIX 互換環境でも GUI が普通になってきたので対話型のインタフェースも増えてきたが，それでも従来の CUI shell 上で動作するアプリケーションの需要が減ったわけではなく，サーバサイドではむしろ需要は大きくなっていると言ってもいい。</p>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で CLI アプリケーションを作る際に気をつける点としては</p>
+
+<ul>
+<li>他のツールと shell を介して連携できるよう標準入出力を使ったフィルタプログラムとする</li>
+<li>外部データの入出力は JSON, YAML, TOML といったテキストを用い UTF-8 文字エンコーディングに統一する</li>
+<li>コードの可搬性（または移植性）を考慮し，プラットフォーム依存を避けるようにする</li>
+</ul>
+
+<p>といったところだろうか。
+もともと <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>はクロスプラットフォーム開発に強いため，それほど難しい要件ではないはずである。</p>
+
+<h2 id="サブコマンドとファサード-パターン:d4a750c9c3ada9f8f4bd4f3022a7bb81">サブコマンドとファサード・パターン</h2>
+
+<p>サブコマンド方式は一見 “<a href="http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html" title="Tenets of the UNIX Philosophy">UNIX Philosophy</a>” に反しているように見えるが， <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の場合は全てのパッケージをひとつの実行モジュールに結合してしまうため，関連する機能をサブコマンドとして組み込むのは悪くないやりかたである。</p>
+
+<p>サブコマンドを構成する場合は「ファサード・パターン（facade pattern）」で考えるとよい。
+「ファサード」は「建物の正面」という意味だそうで，システム内の各機能（サブシステム）の窓口のように機能する。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/facade-pattern.svg"><img src="/images/facade-pattern.svg" alt="Facade Pattern"></a>
+<figcaption><a href="/images/facade-pattern.svg">Facade Pattern</a></figcaption>
+</figure>
+
+<p>この図のようにファサード・パターンは DDD (Domain-Driven Design) と相性がよい。
+普通は Web アプリケーションのような多様なサブシステムを含むシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンがよいだろう。</p>
+
+<h2 id="mitchellh-cli-パッケージ:d4a750c9c3ada9f8f4bd4f3022a7bb81">mitchellh/cli パッケージ</h2>
+
+<p>CLI をサポートするパッケージはいくつか公開されているのだが，この中で今回は <a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> を紹介する。
+<a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。</p>
+
+<h3 id="command-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81">Command インタフェース</h3>
+
+<p>まずは <code>Command</code> インタフェース。</p>
+
+<pre><code class="language-go">// A command is a runnable sub-command of a CLI.
+type Command interface {
+	// Help should return long-form help text that includes the command-line
+	// usage, a brief few sentences explaining the function of the command,
+	// and the complete list of flags the command accepts.
+	Help() string
+
+	// Run should run the actual command with the given CLI instance and
+	// command-line arguments. It should return the exit status when it is
+	// finished.
+	Run(args []string) int
+
+	// Synopsis should return a one-line, short synopsis of the command.
+	// This should be less than 50 characters ideally.
+	Synopsis() string
+}
+</code></pre>
+
+<p><code>Command</code> インタフェースはサブコマンドの context を構成するのに使う。
+<a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> は <code>Command</code> インタフェースに適合する型（<a href="https://golang.org/ref/spec#Properties_of_types_and_values" title="Properties of types and values">type</a>）のインスタンスを受け取ってサブコマンドの制御を行う<sup class="footnote-ref" id="fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t"><a rel="footnote" href="#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t">2</a></sup>。
+さらに以下の関数値（function value）を示す型 <code>CommandFactory</code> も用意されている。</p>
+
+<pre><code class="language-go">// CommandFactory is a type of function that is a factory for commands.
+// We need a factory because we may need to setup some state on the
+// struct that implements the command itself.
+type CommandFactory func() (Command, error)
+</code></pre>
+
+<p>このように <code>Command</code> 型のインスタンスを返す関数を型として定義し，この型のリストを作成するのである。</p>
+
+<h3 id="cli-構造体:d4a750c9c3ada9f8f4bd4f3022a7bb81">CLI 構造体</h3>
+
+<p><a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> に渡す context は <code>CLI</code> 構造体にまとめられている。</p>
+
+<pre><code class="language-go">// CLI contains the state necessary to run subcommands and parse the
+// command line arguments.
+type CLI struct {
+	// Args is the list of command-line arguments received excluding
+	// the name of the app. For example, if the command &quot;./cli foo bar&quot;
+	// was invoked, then Args should be []string{&quot;foo&quot;, &quot;bar&quot;}.
+	Args []string
+
+	// Commands is a mapping of subcommand names to a factory function
+	// for creating that Command implementation. If there is a command
+	// with a blank string &quot;&quot;, then it will be used as the default command
+	// if no subcommand is specified.
+	Commands map[string]CommandFactory
+
+	// Name defines the name of the CLI.
+	Name string
+
+	// Version of the CLI.
+	Version string
+
+	// HelpFunc and HelpWriter are used to output help information, if
+	// requested.
+	//
+	// HelpFunc is the function called to generate the generic help
+	// text that is shown if help must be shown for the CLI that doesn't
+	// pertain to a specific command.
+	//
+	// HelpWriter is the Writer where the help text is outputted to. If
+	// not specified, it will default to Stderr.
+	HelpFunc   HelpFunc
+	HelpWriter io.Writer
+
+	once           sync.Once
+	isHelp         bool
+	subcommand     string
+	subcommandArgs []string
+	topFlags       []string
+
+	isVersion bool
+}
+</code></pre>
+
+<p>構造体の中に <code>CommandFactory</code> のリストが含まれていることがお分かりだろうか。</p>
+
+<pre><code class="language-go">Commands map[string]CommandFactory
+</code></pre>
+
+<p>これによってサブコマンド名と対応する処理を関連付けている。</p>
+
+<h3 id="ui-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81">Ui インタフェース</h3>
+
+<p>入出力関数群を持つ <code>Ui</code> インタフェースは以下のように定義されている。</p>
+
+<pre><code class="language-go">// Ui is an interface for interacting with the terminal, or &quot;interface&quot;
+// of a CLI. This abstraction doesn't have to be used, but helps provide
+// a simple, layerable way to manage user interactions.
+type Ui interface {
+	// Ask asks the user for input using the given query. The response is
+	// returned as the given string, or an error.
+	Ask(string) (string, error)
+
+	// AskSecret asks the user for input using the given query, but does not echo
+	// the keystrokes to the terminal.
+	AskSecret(string) (string, error)
+
+	// Output is called for normal standard output.
+	Output(string)
+
+	// Info is called for information related to the previous output.
+	// In general this may be the exact same as Output, but this gives
+	// Ui implementors some flexibility with output formats.
+	Info(string)
+
+	// Error is used for any error messages that might appear on standard
+	// error.
+	Error(string)
+
+	// Warn is used for any warning messages that might appear on standard
+	// error.
+	Warn(string)
+}
+</code></pre>
+
+<p>更に <code>Ui</code> の特化クラスとして <code>BasicUi</code> や <code>PrefixedUi</code> や <code>ColoredUi</code> が定義されている。
+<code>ColoredUi</code> は出力をカラーにできるが，残念ながら Windows のコマンドプロンプトには対応していないようだ。</p>
+
+<p><code>Ui</code> インタフェースは <code>Command</code> インタフェースと組み合わせてサブコマンド側の context を構成するのに使う。</p>
+
+<h3 id="mitchellh-cli-パッケージのメリット:d4a750c9c3ada9f8f4bd4f3022a7bb81">mitchellh/cli パッケージのメリット</h3>
+
+<p>上述したように <a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。
+なおかつ <a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> ではファサード・パターンを入れ子にすることができる。
+たとえばサブコマンドのサブコマンドを構成することもできるのだ。</p>
+
+<h2 id="mitchellh-cli-を使ってファサード-パターンを組んでみる:d4a750c9c3ada9f8f4bd4f3022a7bb81">mitchellh/cli を使ってファサード・パターンを組んでみる</h2>
+
+<p><a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> をファサード・パターンとして組みやすくするためのラッパーとして <a href="https://github.com/spiegel-im-spiegel/gofacade" title="spiegel-im-spiegel/gofacade">spiegel-im-spiegel/gofacade</a> パッケージを作ってみた<sup class="footnote-ref" id="fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li"><a rel="footnote" href="#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li">3</a></sup>。</p>
+
+<p>まず，入出力の Context を定義するためのクラスとして <code>Context</code> 構造体を作った。
+中身は <a href="https://github.com/mitchellh/cli" title="mitchellh/cli"><code>cli</code></a>.<code>BasicUi</code> 構造体を埋め込んでいるだけである<sup class="footnote-ref" id="fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1"><a rel="footnote" href="#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1">4</a></sup>。</p>
+
+<pre><code class="language-go">//Context inheritance cli.BasicUi
+type Context struct {
+	//Embedded BasicUi
+	*cli.BasicUi
+}
+</code></pre>
+
+<p>更に <code>Context</code> 構造体を包含する <code>Facade</code> 構造体を定義する。</p>
+
+<pre><code class="language-go">// Facade is context of facade
+type Facade struct {
+	//UI defines user interface of the Cli
+	Cxt *Context
+	// commands is a mapping of subcommand names to a factory function
+	commands map[string]cli.CommandFactory
+}
+</code></pre>
+
+<p><code>Facade</code> 構造体には <a href="https://github.com/mitchellh/cli" title="mitchellh/cli"><code>cli</code></a>.<code>CommandFactory</code> のリストを含んでいる。
+このリストに <a href="https://github.com/mitchellh/cli" title="mitchellh/cli"><code>cli</code></a>.<code>Command</code> インタフェースに適合するインスタンスを追加するための関数がこれ<sup class="footnote-ref" id="fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl"><a rel="footnote" href="#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl">5</a></sup>。</p>
+
+<pre><code class="language-go">// AddCommand add command
+func (f *Facade) AddCommand(name string, command cli.Command) {
+	f.commands[name] = func() (cli.Command, error) {
+		return command, nil
+	}
+}
+</code></pre>
+
+<p>実際にファサードを実行するには以下の関数を起動する。</p>
+
+<pre><code class="language-go">// Run facade
+func (f *Facade) Run(appName, version string, args []string) (int, error) {
+	c := cli.NewCLI(appName, version)
+	c.Args = args
+	c.Commands = f.commands
+	c.HelpWriter = f.Cxt.Writer
+	return c.Run()
+}
+</code></pre>
+
+<p>他に細かい道具はあるが，まぁこんなもんだろう。</p>
+
+<h3 id="spiegel-im-spiegel-gofacade-の実装例:d4a750c9c3ada9f8f4bd4f3022a7bb81">spiegel-im-spiegel/gofacade の実装例</h3>
+
+<p><a href="https://github.com/spiegel-im-spiegel/gofacade" title="spiegel-im-spiegel/gofacade">spiegel-im-spiegel/gofacade</a> パッケージの実装例として <a href="https://github.com/spiegel-im-spiegel/astrocalc" title="spiegel-im-spiegel/astrocalc">spiegel-im-spiegel/astrocalc</a> パッケージに CLI ツールを追加してみた。
+こんな感じのコマンドラインを構成してみる。</p>
+
+<pre><code>$ astrocalc [-v | -h] mjdn &lt;year&gt; &lt;month&gt; &lt;day&gt;
+</code></pre>
+
+<p>まず <code>astrocalc mjdn</code> サブコマンドを以下のように定義する。</p>
+
+<pre><code class="language-go">package mjdnCmd
+
+import (
+	&quot;flag&quot;
+	&quot;fmt&quot;
+	&quot;strconv&quot;
+	&quot;strings&quot;
+	&quot;time&quot;
+
+	&quot;github.com/spiegel-im-spiegel/astrocalc/mjdn&quot;
+	&quot;github.com/spiegel-im-spiegel/gofacade&quot;
+)
+
+// Name は mjdn コマンド名を定義する
+const Name string = &quot;mjdn&quot;
+
+// Context は mjdn コマンドのコンテキストを定義する
+type Context struct {
+	//Embedded gofacade.Context
+	*gofacade.Context
+	//AppName にはアプリケーション名を格納する
+	AppName string
+}
+
+// Command は Context のインスタンスを返す
+func Command(cxt *gofacade.Context, appName string) *Context {
+	return &amp;Context{Context: cxt, AppName: appName}
+}
+
+// Synopsis は mjdn コマンドの概要を返す
+func (c Context) Synopsis() string {
+	return &quot;Calculation of Modified Julian Day&quot;
+}
+
+// Help は mjdn コマンドのヘルプを返す
+func (c Context) Help() string {
+	helpText := `
+Usage: astrocalc mjdn &lt;year&gt; &lt;month&gt; &lt;day&gt;
+`
+	return fmt.Sprintln(strings.TrimSpace(helpText))
+}
+
+// Run は mjdn コマンドを実行する
+func (c Context) Run(args []string) int {
+	flags := flag.NewFlagSet(Name, flag.ContinueOnError)
+	flags.Usage = func() {
+		c.Error(c.Help())
+	}
+	// Parse commandline flag
+	if err := flags.Parse(args); err != nil {
+		return gofacade.ExitCodeError
+	}
+	if flags.NArg() != 3 {
+		c.Error(fmt.Sprintf(&quot;年月日を指定してください\n\n%s&quot;, c.Help()))
+		return gofacade.ExitCodeError
+	}
+	argsStr := flags.Args()
+	var ymd = make([]int, 3)
+	for i, arg := range argsStr {
+		num, err := strconv.Atoi(arg)
+		if err != nil {
+			c.Error(fmt.Sprintln(err))
+			return gofacade.ExitCodeError
+		}
+		ymd[i] = num
+	}
+	tm := time.Date(ymd[0], time.Month(ymd[1]), ymd[2], 0, 0, 0, 0, time.UTC)
+	c.Output(fmt.Sprint(mjdn.DayNumber(tm)))
+	return gofacade.ExitCodeOK
+}
+</code></pre>
+
+<p>ポイントは <code>astrocalc mjdn</code> サブコマンド用の context として <code>Context</code> 構造体を定義しているところ。</p>
+
+<pre><code class="language-go">// Context は mjdn コマンドのコンテキストを定義する
+type Context struct {
+	//Embedded gofacade.Context
+	*gofacade.Context
+	//AppName にはアプリケーション名を格納する
+	AppName string
+}
+</code></pre>
+
+<p><a href="https://github.com/spiegel-im-spiegel/gofacade" title="spiegel-im-spiegel/gofacade"><code>gofacade</code></a>.<code>Context</code> 構造体を埋め込みフィールドで定義しているのがお分かりだろうか。
+<a href="https://github.com/spiegel-im-spiegel/gofacade" title="spiegel-im-spiegel/gofacade"><code>gofacade</code></a>.<code>Context</code> はさらに <a href="https://github.com/mitchellh/cli" title="mitchellh/cli"><code>cli</code></a>.<code>BasicUi</code> 構造体を埋め込んでいる。
+また <code>Context</code> 構造体は <a href="https://github.com/mitchellh/cli" title="mitchellh/cli"><code>cli</code></a>.<code>Command</code> インタフェースの特化クラスとして実装している。</p>
+
+<p>では，この <code>Context</code> 構造体を使ってアプリケーションの起動部分を書いてみよう。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+
+	&quot;github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd&quot;
+	&quot;github.com/spiegel-im-spiegel/gofacade&quot;
+)
+
+const (
+	// Name はアプリケーション名を定義する
+	Name string = &quot;astrocalc&quot;
+	// Version はアプリケーションのバージョン番号を定義する
+	Version string = &quot;0.1.0&quot;
+)
+
+func setupFacade(cxt *gofacade.Context) *gofacade.Facade {
+	fcd := gofacade.NewFacade(cxt)
+	fcd.AddCommand(mjdnCmd.Name, mjdnCmd.Command(cxt, Name))
+	return fcd
+}
+
+func main() {
+	cxt := gofacade.NewContext(os.Stdin, os.Stdout, os.Stderr)
+	fcd := setupFacade(cxt)
+	rtn, err := fcd.Run(Name, Version, os.Args[1:])
+	if err != nil {
+		cxt.Error(fmt.Sprintln(err))
+	}
+	os.Exit(rtn)
+}
+</code></pre>
+
+<p><code>setupFacade()</code> 関数でファサードを作成し， <code>main()</code> 関数で実行しているのが分かると思う。
+では実際に compile &amp; run してみよう。</p>
+
+<pre><code>C:\workspace\astrocalc&gt; pushd C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc
+
+C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&gt; glide up
+[INFO] Fetching updates for github.com/spiegel-im-spiegel/gofacade.
+[INFO] Found glide.yaml in C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc\vendor/github.com/spiegel-im-spiegel/gofacade/glide.yaml
+[INFO] Scanning github.com/mitchellh/cli for dependencies.
+[INFO] Scanning github.com/bgentry/speakeasy for dependencies.
+[INFO] Scanning github.com/mattn/go-isatty for dependencies.
+[INFO] Project relies on 4 dependencies.
+[INFO] Writing glide.lock file
+
+C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&gt; popd
+
+C:\workspace\astrocalc&gt; go install -v ./...
+github.com/spiegel-im-spiegel/astrocalc/mjdn
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/bgentry/speakeasy
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mattn/go-isatty
+github.com/spiegel-im-spiegel/astrocalc/era
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mitchellh/cli
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/bgentry/speakeasy/example
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/spiegel-im-spiegel/gofacade
+github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd
+github.com/spiegel-im-spiegel/astrocalc
+
+C:\workspace\astrocalc&gt; bin\astrocalc.exe -h
+usage: astrocalc [--version] [--help] &lt;command&gt; [&lt;args&gt;]
+
+Available commands are:
+    mjdn    Calculation of Modified Julian Day
+
+C:\workspace\astrocalc&gt; bin\astrocalc.exe -h mjdn
+Usage: astrocalc mjdn &lt;year&gt; &lt;month&gt; &lt;day&gt;
+
+C:\workspace\astrocalc&gt; bin\astrocalc.exe mjdn 2015 1 1
+57023 (2015-01-01)
+</code></pre>
+
+<p>よしよし。
+うまくいった。
+なお <a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> については「<a href="/golang/vendoring-with-glide/">Glide で Vendoring</a>」を参考にどうぞ。</p>
+
+<h2 id="ブックマーク:d4a750c9c3ada9f8f4bd4f3022a7bb81">ブックマーク</h2>
+
+<ul>
+<li><a href="http://yuuki.hatenablog.com/entry/go-cli-unix">Go言語によるCLIツール開発とUNIX哲学について - ゆううきブログ</a></li>
+<li><a href="http://tellme.tokyo/post/2015/06/23/unix_cli_tool_go/">開発者から見た UNIX 哲学とコマンドラインツールと Go言語 - TELLME.TOKYO</a></li>
+<li><a href="http://ryochack.hatenablog.com/entry/2013/04/17/232753">Go言語のflagパッケージを使う - uragami note</a></li>
+<li><a href="http://deeeet.com/writing/2015/04/17/panicwrap/">Go言語のCLIツールのpanicをラップしてクラッシュレポートをつくる | SOTA</a></li>
+<li><a href="http://qiita.com/kumatch/items/258d7984c0270f6dd73a">flag 並にシンプルでより強力な CLI パーサ kingpin の紹介 - Qiita</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up">翻訳は <a href="https://ja.wikipedia.org/wiki/UNIX%E5%93%B2%E5%AD%A6">Wikipedia の記事</a>から拝借させてもらった。ちなみに <a href="https://ja.wikipedia.org/wiki/Wikipedia:Text_of_Creative_Commons_Attribution-ShareAlike_3.0_Unported_License">Wikipedia のコンテンツは基本的には by-sa ライセンスで公開</a>されている。
+ <a class="footnote-return" href="#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up"><sup>[return]</sup></a></li>
+<li id="fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t">型（<a href="https://golang.org/ref/spec#Properties_of_types_and_values" title="Properties of types and values">type</a>）については「<a href="/golang/object-oriented-programming/">Go 言語における「オブジェクト」</a>」を参照のこと。
+ <a class="footnote-return" href="#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t"><sup>[return]</sup></a></li>
+<li id="fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li"><a href="https://github.com/spiegel-im-spiegel/gofacade" title="spiegel-im-spiegel/gofacade">spiegel-im-spiegel/gofacade</a> は <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a> で公開している。個人的には実証コードの扱いなので，（著作権情報の書き換えも含めて）自由に利用して 構わない。
+ <a class="footnote-return" href="#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li"><sup>[return]</sup></a></li>
+<li id="fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1">なんでこんな回りくどいことをしているかというと， <a href="https://github.com/mitchellh/cli" title="mitchellh/cli">mitchellh/cli</a> パッケージをカプセル化したかったから。
+ <a class="footnote-return" href="#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1"><sup>[return]</sup></a></li>
+<li id="fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl"><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>では関数は全て関数閉包（closure）として機能する。
+ <a class="footnote-return" href="#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/object-oriented-programming/">Go 言語における「オブジェクト」</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/cli-and-facade-pattern\/';
+    var disqus_title = 'コマンドライン・インタフェースとファサード・パターン';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/cli-and-facade-pattern\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-01-05</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/cli-and-facade-pattern/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="コマンドライン・インタフェースとファサード・パターン - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcli-and-facade-pattern%2f&amp;title=%e3%82%b3%e3%83%9e%e3%83%b3%e3%83%89%e3%83%a9%e3%82%a4%e3%83%b3%e3%83%bb%e3%82%a4%e3%83%b3%e3%82%bf%e3%83%95%e3%82%a7%e3%83%bc%e3%82%b9%e3%81%a8%e3%83%95%e3%82%a1%e3%82%b5%e3%83%bc%e3%83%89%e3%83%bb%e3%83%91%e3%82%bf%e3%83%bc%e3%83%b3" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcli-and-facade-pattern%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+<script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>
+
+</body>
+</html>
+

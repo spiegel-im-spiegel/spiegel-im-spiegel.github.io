@@ -3,13 +3,483 @@
 	<title>Golang - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/golang/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/golang/index.xml" />
-	<id>tag:text.Baldanders.info,2015-12-15:/</id>
-	<updated>2015-12-15T21:19:58+09:00</updated>
+	<id>tag:text.Baldanders.info,2016-01-05:/</id>
+	<updated>2016-01-05T22:06:41+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.15</generator>
 
+	
+	<entry>
+		<title>コマンドライン・インタフェースとファサード・パターン - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/cli-and-facade-pattern/" />
+		<id>tag:text.Baldanders.info,2016-01-05:/golang/cli-and-facade-pattern/</id>
+		<published>2016-01-05T22:06:41+09:00</published>
+		<updated>2016-01-05T22:06:41+09:00</updated>
+		<summary>ファサード・パターンは DDD (Domain-Driven Design) と相性がよい。普通は Web アプリケーションのような多様なサブシステムを持つシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンで設計するべきである。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラには &lt;a href=&#34;https://golang.org/pkg/flag/&#34; title=&#34;flag - The Go Programming Language&#34;&gt;&lt;code&gt;flag&lt;/code&gt;&lt;/a&gt; パッケージが標準で提供されており，いわゆるコマンドライン・インタフェース（Command line interface; CLI）の操作はこれでまかなうことができる。
+ただし &lt;a href=&#34;https://golang.org/pkg/flag/&#34; title=&#34;flag - The Go Programming Language&#34;&gt;&lt;code&gt;flag&lt;/code&gt;&lt;/a&gt; パッケージではサブコマンドをサポートしていないためサブコマンドを構成したい場合は少し工夫が必要となる。
+ちなみにサブコマンドとは，以下のようなコマンドラインの構成になっているアプリケーションである。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ command [golabal options] &amp;lt;sub-command&amp;gt; [sub-options] [arguments]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;たとえば &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラの &lt;code&gt;go run&lt;/code&gt; もサブコマンドだし， &lt;a href=&#34;https://git-scm.com/&#34; title=&#34;Git&#34;&gt;git&lt;/a&gt; の &lt;code&gt;git commit&lt;/code&gt; とかもサブコマンドである。&lt;/p&gt;
+
+&lt;h2 id=&#34;コマンドライン-インタフェースと-unix-philosophy:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;コマンドライン・インタフェースと UNIX Philosophy&lt;/h2&gt;
+
+&lt;p&gt;ところで CLI でよく引き合いに出されるのが “&lt;a href=&#34;http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html&#34; title=&#34;Tenets of the UNIX Philosophy&#34;&gt;UNIX Philosophy&lt;/a&gt;” と呼ばれるアプリケーションを作る際の哲学というか指針のようなものである。
+曰く&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Small is beautiful. （小さいものは美しい）&lt;/li&gt;
+&lt;li&gt;Make each program do one thing well. （各プログラムが一つのことをうまくやるようにせよ）&lt;/li&gt;
+&lt;li&gt;Build a prototype as soon as possible. （できる限り早くプロトタイプを作れ）&lt;/li&gt;
+&lt;li&gt;Choose portability over efficiency. （効率よりも移植しやすさを選べ）&lt;/li&gt;
+&lt;li&gt;Store data in flat text files. （単純なテキストファイルにデータを格納せよ）&lt;/li&gt;
+&lt;li&gt;Use software leverage to your advantage. （ソフトウェアの効率を優位さとして利用せよ）&lt;/li&gt;
+&lt;li&gt;Use shell scripts to increase leverage and portability. （効率と移植性を高めるためにシェルスクリプトを利用せよ）&lt;/li&gt;
+&lt;li&gt;Avoid captive user interfaces. （拘束的なユーザーインターフェースは作るな）&lt;/li&gt;
+&lt;li&gt;Make every program a Filter. （全てのプログラムはフィルタとして振る舞うようにせよ）&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;の9項目&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+昨今は UNIX 互換環境でも GUI が普通になってきたので対話型のインタフェースも増えてきたが，それでも従来の CUI shell 上で動作するアプリケーションの需要が減ったわけではなく，サーバサイドではむしろ需要は大きくなっていると言ってもいい。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で CLI アプリケーションを作る際に気をつける点としては&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;他のツールと shell を介して連携できるよう標準入出力を使ったフィルタプログラムとする&lt;/li&gt;
+&lt;li&gt;外部データの入出力は JSON, YAML, TOML といったテキストを用い UTF-8 文字エンコーディングに統一する&lt;/li&gt;
+&lt;li&gt;コードの可搬性（または移植性）を考慮し，プラットフォーム依存を避けるようにする&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;といったところだろうか。
+もともと &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;はクロスプラットフォーム開発に強いため，それほど難しい要件ではないはずである。&lt;/p&gt;
+
+&lt;h2 id=&#34;サブコマンドとファサード-パターン:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;サブコマンドとファサード・パターン&lt;/h2&gt;
+
+&lt;p&gt;サブコマンド方式は一見 “&lt;a href=&#34;http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html&#34; title=&#34;Tenets of the UNIX Philosophy&#34;&gt;UNIX Philosophy&lt;/a&gt;” に反しているように見えるが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の場合は全てのパッケージをひとつの実行モジュールに結合してしまうため，関連する機能をサブコマンドとして組み込むのは悪くないやりかたである。&lt;/p&gt;
+
+&lt;p&gt;サブコマンドを構成する場合は「ファサード・パターン（facade pattern）」で考えるとよい。
+「ファサード」は「建物の正面」という意味だそうで，システム内の各機能（サブシステム）の窓口のように機能する。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34;&gt;&lt;img src=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34; alt=&#34;Facade Pattern&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34;&gt;Facade Pattern&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;この図のようにファサード・パターンは DDD (Domain-Driven Design) と相性がよい。
+普通は Web アプリケーションのような多様なサブシステムを含むシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンがよいだろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;mitchellh-cli-パッケージ:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli パッケージ&lt;/h2&gt;
+
+&lt;p&gt;CLI をサポートするパッケージはいくつか公開されているのだが，この中で今回は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; を紹介する。
+&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。&lt;/p&gt;
+
+&lt;h3 id=&#34;command-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;Command インタフェース&lt;/h3&gt;
+
+&lt;p&gt;まずは &lt;code&gt;Command&lt;/code&gt; インタフェース。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// A command is a runnable sub-command of a CLI.
+type Command interface {
+	// Help should return long-form help text that includes the command-line
+	// usage, a brief few sentences explaining the function of the command,
+	// and the complete list of flags the command accepts.
+	Help() string
+
+	// Run should run the actual command with the given CLI instance and
+	// command-line arguments. It should return the exit status when it is
+	// finished.
+	Run(args []string) int
+
+	// Synopsis should return a one-line, short synopsis of the command.
+	// This should be less than 50 characters ideally.
+	Synopsis() string
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;Command&lt;/code&gt; インタフェースはサブコマンドの context を構成するのに使う。
+&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; は &lt;code&gt;Command&lt;/code&gt; インタフェースに適合する型（&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt;）のインスタンスを受け取ってサブコマンドの制御を行う&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+さらに以下の関数値（function value）を示す型 &lt;code&gt;CommandFactory&lt;/code&gt; も用意されている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// CommandFactory is a type of function that is a factory for commands.
+// We need a factory because we may need to setup some state on the
+// struct that implements the command itself.
+type CommandFactory func() (Command, error)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このように &lt;code&gt;Command&lt;/code&gt; 型のインスタンスを返す関数を型として定義し，この型のリストを作成するのである。&lt;/p&gt;
+
+&lt;h3 id=&#34;cli-構造体:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;CLI 構造体&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; に渡す context は &lt;code&gt;CLI&lt;/code&gt; 構造体にまとめられている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// CLI contains the state necessary to run subcommands and parse the
+// command line arguments.
+type CLI struct {
+	// Args is the list of command-line arguments received excluding
+	// the name of the app. For example, if the command &amp;quot;./cli foo bar&amp;quot;
+	// was invoked, then Args should be []string{&amp;quot;foo&amp;quot;, &amp;quot;bar&amp;quot;}.
+	Args []string
+
+	// Commands is a mapping of subcommand names to a factory function
+	// for creating that Command implementation. If there is a command
+	// with a blank string &amp;quot;&amp;quot;, then it will be used as the default command
+	// if no subcommand is specified.
+	Commands map[string]CommandFactory
+
+	// Name defines the name of the CLI.
+	Name string
+
+	// Version of the CLI.
+	Version string
+
+	// HelpFunc and HelpWriter are used to output help information, if
+	// requested.
+	//
+	// HelpFunc is the function called to generate the generic help
+	// text that is shown if help must be shown for the CLI that doesn&#39;t
+	// pertain to a specific command.
+	//
+	// HelpWriter is the Writer where the help text is outputted to. If
+	// not specified, it will default to Stderr.
+	HelpFunc   HelpFunc
+	HelpWriter io.Writer
+
+	once           sync.Once
+	isHelp         bool
+	subcommand     string
+	subcommandArgs []string
+	topFlags       []string
+
+	isVersion bool
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;構造体の中に &lt;code&gt;CommandFactory&lt;/code&gt; のリストが含まれていることがお分かりだろうか。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;Commands map[string]CommandFactory
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これによってサブコマンド名と対応する処理を関連付けている。&lt;/p&gt;
+
+&lt;h3 id=&#34;ui-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;Ui インタフェース&lt;/h3&gt;
+
+&lt;p&gt;入出力関数群を持つ &lt;code&gt;Ui&lt;/code&gt; インタフェースは以下のように定義されている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Ui is an interface for interacting with the terminal, or &amp;quot;interface&amp;quot;
+// of a CLI. This abstraction doesn&#39;t have to be used, but helps provide
+// a simple, layerable way to manage user interactions.
+type Ui interface {
+	// Ask asks the user for input using the given query. The response is
+	// returned as the given string, or an error.
+	Ask(string) (string, error)
+
+	// AskSecret asks the user for input using the given query, but does not echo
+	// the keystrokes to the terminal.
+	AskSecret(string) (string, error)
+
+	// Output is called for normal standard output.
+	Output(string)
+
+	// Info is called for information related to the previous output.
+	// In general this may be the exact same as Output, but this gives
+	// Ui implementors some flexibility with output formats.
+	Info(string)
+
+	// Error is used for any error messages that might appear on standard
+	// error.
+	Error(string)
+
+	// Warn is used for any warning messages that might appear on standard
+	// error.
+	Warn(string)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;更に &lt;code&gt;Ui&lt;/code&gt; の特化クラスとして &lt;code&gt;BasicUi&lt;/code&gt; や &lt;code&gt;PrefixedUi&lt;/code&gt; や &lt;code&gt;ColoredUi&lt;/code&gt; が定義されている。
+&lt;code&gt;ColoredUi&lt;/code&gt; は出力をカラーにできるが，残念ながら Windows のコマンドプロンプトには対応していないようだ。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;Ui&lt;/code&gt; インタフェースは &lt;code&gt;Command&lt;/code&gt; インタフェースと組み合わせてサブコマンド側の context を構成するのに使う。&lt;/p&gt;
+
+&lt;h3 id=&#34;mitchellh-cli-パッケージのメリット:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli パッケージのメリット&lt;/h3&gt;
+
+&lt;p&gt;上述したように &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。
+なおかつ &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; ではファサード・パターンを入れ子にすることができる。
+たとえばサブコマンドのサブコマンドを構成することもできるのだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;mitchellh-cli-を使ってファサード-パターンを組んでみる:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli を使ってファサード・パターンを組んでみる&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; をファサード・パターンとして組みやすくするためのラッパーとして &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; パッケージを作ってみた&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;まず，入出力の Context を定義するためのクラスとして &lt;code&gt;Context&lt;/code&gt; 構造体を作った。
+中身は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;BasicUi&lt;/code&gt; 構造体を埋め込んでいるだけである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Context inheritance cli.BasicUi
+type Context struct {
+	//Embedded BasicUi
+	*cli.BasicUi
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;更に &lt;code&gt;Context&lt;/code&gt; 構造体を包含する &lt;code&gt;Facade&lt;/code&gt; 構造体を定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Facade is context of facade
+type Facade struct {
+	//UI defines user interface of the Cli
+	Cxt *Context
+	// commands is a mapping of subcommand names to a factory function
+	commands map[string]cli.CommandFactory
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;Facade&lt;/code&gt; 構造体には &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;CommandFactory&lt;/code&gt; のリストを含んでいる。
+このリストに &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Command&lt;/code&gt; インタフェースに適合するインスタンスを追加するための関数がこれ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// AddCommand add command
+func (f *Facade) AddCommand(name string, command cli.Command) {
+	f.commands[name] = func() (cli.Command, error) {
+		return command, nil
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実際にファサードを実行するには以下の関数を起動する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Run facade
+func (f *Facade) Run(appName, version string, args []string) (int, error) {
+	c := cli.NewCLI(appName, version)
+	c.Args = args
+	c.Commands = f.commands
+	c.HelpWriter = f.Cxt.Writer
+	return c.Run()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;他に細かい道具はあるが，まぁこんなもんだろう。&lt;/p&gt;
+
+&lt;h3 id=&#34;spiegel-im-spiegel-gofacade-の実装例:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;spiegel-im-spiegel/gofacade の実装例&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; パッケージの実装例として &lt;a href=&#34;https://github.com/spiegel-im-spiegel/astrocalc&#34; title=&#34;spiegel-im-spiegel/astrocalc&#34;&gt;spiegel-im-spiegel/astrocalc&lt;/a&gt; パッケージに CLI ツールを追加してみた。
+こんな感じのコマンドラインを構成してみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ astrocalc [-v | -h] mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まず &lt;code&gt;astrocalc mjdn&lt;/code&gt; サブコマンドを以下のように定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package mjdnCmd
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;strings&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/mjdn&amp;quot;
+	&amp;quot;github.com/spiegel-im-spiegel/gofacade&amp;quot;
+)
+
+// Name は mjdn コマンド名を定義する
+const Name string = &amp;quot;mjdn&amp;quot;
+
+// Context は mjdn コマンドのコンテキストを定義する
+type Context struct {
+	//Embedded gofacade.Context
+	*gofacade.Context
+	//AppName にはアプリケーション名を格納する
+	AppName string
+}
+
+// Command は Context のインスタンスを返す
+func Command(cxt *gofacade.Context, appName string) *Context {
+	return &amp;amp;Context{Context: cxt, AppName: appName}
+}
+
+// Synopsis は mjdn コマンドの概要を返す
+func (c Context) Synopsis() string {
+	return &amp;quot;Calculation of Modified Julian Day&amp;quot;
+}
+
+// Help は mjdn コマンドのヘルプを返す
+func (c Context) Help() string {
+	helpText := `
+Usage: astrocalc mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
+`
+	return fmt.Sprintln(strings.TrimSpace(helpText))
+}
+
+// Run は mjdn コマンドを実行する
+func (c Context) Run(args []string) int {
+	flags := flag.NewFlagSet(Name, flag.ContinueOnError)
+	flags.Usage = func() {
+		c.Error(c.Help())
+	}
+	// Parse commandline flag
+	if err := flags.Parse(args); err != nil {
+		return gofacade.ExitCodeError
+	}
+	if flags.NArg() != 3 {
+		c.Error(fmt.Sprintf(&amp;quot;年月日を指定してください\n\n%s&amp;quot;, c.Help()))
+		return gofacade.ExitCodeError
+	}
+	argsStr := flags.Args()
+	var ymd = make([]int, 3)
+	for i, arg := range argsStr {
+		num, err := strconv.Atoi(arg)
+		if err != nil {
+			c.Error(fmt.Sprintln(err))
+			return gofacade.ExitCodeError
+		}
+		ymd[i] = num
+	}
+	tm := time.Date(ymd[0], time.Month(ymd[1]), ymd[2], 0, 0, 0, 0, time.UTC)
+	c.Output(fmt.Sprint(mjdn.DayNumber(tm)))
+	return gofacade.ExitCodeOK
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ポイントは &lt;code&gt;astrocalc mjdn&lt;/code&gt; サブコマンド用の context として &lt;code&gt;Context&lt;/code&gt; 構造体を定義しているところ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Context は mjdn コマンドのコンテキストを定義する
+type Context struct {
+	//Embedded gofacade.Context
+	*gofacade.Context
+	//AppName にはアプリケーション名を格納する
+	AppName string
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;&lt;code&gt;gofacade&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Context&lt;/code&gt; 構造体を埋め込みフィールドで定義しているのがお分かりだろうか。
+&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;&lt;code&gt;gofacade&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Context&lt;/code&gt; はさらに &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;BasicUi&lt;/code&gt; 構造体を埋め込んでいる。
+また &lt;code&gt;Context&lt;/code&gt; 構造体は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Command&lt;/code&gt; インタフェースの特化クラスとして実装している。&lt;/p&gt;
+
+&lt;p&gt;では，この &lt;code&gt;Context&lt;/code&gt; 構造体を使ってアプリケーションの起動部分を書いてみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd&amp;quot;
+	&amp;quot;github.com/spiegel-im-spiegel/gofacade&amp;quot;
+)
+
+const (
+	// Name はアプリケーション名を定義する
+	Name string = &amp;quot;astrocalc&amp;quot;
+	// Version はアプリケーションのバージョン番号を定義する
+	Version string = &amp;quot;0.1.0&amp;quot;
+)
+
+func setupFacade(cxt *gofacade.Context) *gofacade.Facade {
+	fcd := gofacade.NewFacade(cxt)
+	fcd.AddCommand(mjdnCmd.Name, mjdnCmd.Command(cxt, Name))
+	return fcd
+}
+
+func main() {
+	cxt := gofacade.NewContext(os.Stdin, os.Stdout, os.Stderr)
+	fcd := setupFacade(cxt)
+	rtn, err := fcd.Run(Name, Version, os.Args[1:])
+	if err != nil {
+		cxt.Error(fmt.Sprintln(err))
+	}
+	os.Exit(rtn)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;setupFacade()&lt;/code&gt; 関数でファサードを作成し， &lt;code&gt;main()&lt;/code&gt; 関数で実行しているのが分かると思う。
+では実際に compile &amp;amp; run してみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:\workspace\astrocalc&amp;gt; pushd C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc
+
+C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&amp;gt; glide up
+[INFO] Fetching updates for github.com/spiegel-im-spiegel/gofacade.
+[INFO] Found glide.yaml in C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc\vendor/github.com/spiegel-im-spiegel/gofacade/glide.yaml
+[INFO] Scanning github.com/mitchellh/cli for dependencies.
+[INFO] Scanning github.com/bgentry/speakeasy for dependencies.
+[INFO] Scanning github.com/mattn/go-isatty for dependencies.
+[INFO] Project relies on 4 dependencies.
+[INFO] Writing glide.lock file
+
+C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&amp;gt; popd
+
+C:\workspace\astrocalc&amp;gt; go install -v ./...
+github.com/spiegel-im-spiegel/astrocalc/mjdn
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/bgentry/speakeasy
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mattn/go-isatty
+github.com/spiegel-im-spiegel/astrocalc/era
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mitchellh/cli
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/bgentry/speakeasy/example
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/spiegel-im-spiegel/gofacade
+github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd
+github.com/spiegel-im-spiegel/astrocalc
+
+C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe -h
+usage: astrocalc [--version] [--help] &amp;lt;command&amp;gt; [&amp;lt;args&amp;gt;]
+
+Available commands are:
+    mjdn    Calculation of Modified Julian Day
+
+C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe -h mjdn
+Usage: astrocalc mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
+
+C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe mjdn 2015 1 1
+57023 (2015-01-01)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;よしよし。
+うまくいった。
+なお &lt;a href=&#34;https://github.com/Masterminds/glide&#34; title=&#34;Masterminds/glide&#34;&gt;glide&lt;/a&gt; については「&lt;a href=&#34;http://text.baldanders.info/golang/vendoring-with-glide/&#34;&gt;Glide で Vendoring&lt;/a&gt;」を参考にどうぞ。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://yuuki.hatenablog.com/entry/go-cli-unix&#34;&gt;Go言語によるCLIツール開発とUNIX哲学について - ゆううきブログ&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://tellme.tokyo/post/2015/06/23/unix_cli_tool_go/&#34;&gt;開発者から見た UNIX 哲学とコマンドラインツールと Go言語 - TELLME.TOKYO&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://ryochack.hatenablog.com/entry/2013/04/17/232753&#34;&gt;Go言語のflagパッケージを使う - uragami note&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2015/04/17/panicwrap/&#34;&gt;Go言語のCLIツールのpanicをラップしてクラッシュレポートをつくる | SOTA&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/kumatch/items/258d7984c0270f6dd73a&#34;&gt;flag 並にシンプルでより強力な CLI パーサ kingpin の紹介 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;翻訳は &lt;a href=&#34;https://ja.wikipedia.org/wiki/UNIX%E5%93%B2%E5%AD%A6&#34;&gt;Wikipedia の記事&lt;/a&gt;から拝借させてもらった。ちなみに &lt;a href=&#34;https://ja.wikipedia.org/wiki/Wikipedia:Text_of_Creative_Commons_Attribution-ShareAlike_3.0_Unported_License&#34;&gt;Wikipedia のコンテンツは基本的には by-sa ライセンスで公開&lt;/a&gt;されている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;型（&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt;）については「&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;」を参照のこと。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; は &lt;a href=&#34;https://creativecommons.org/publicdomain/zero/1.0/&#34;&gt;CC0&lt;/a&gt; で公開している。個人的には実証コードの扱いなので，（著作権情報の書き換えも含めて）自由に利用して 構わない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;なんでこんな回りくどいことをしているかというと， &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; パッケージをカプセル化したかったから。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では関数は全て関数閉包（closure）として機能する。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>Go 言語における「オブジェクト」 - golang</title>
@@ -2332,403 +2802,6 @@ C:&amp;gt;go install ./...
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:46532c9bb82a65b77db26390e54aa6a3:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:46532c9bb82a65b77db26390e54aa6a3:e&#34;&gt;パッケージのパスが変わるとテストが通らなくなる場合があるので注意。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:46532c9bb82a65b77db26390e54aa6a3:e&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>gb でプロジェクト・ベースの開発環境をつくる - golang</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/project-based-development/" />
-		<id>tag:text.Baldanders.info,2015-09-28:/golang/project-based-development/</id>
-		<published>2015-09-28T20:38:45+09:00</published>
-		<updated>2015-12-08T15:44:37+09:00</updated>
-		<summary>今回は gb を使ってプロジェクト・ベースで Golang のコードを管理してみる。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;（初出： &lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/ef15a48542e043b32c99&#34;&gt;はじめての Go 言語 (on Windows) その9 - Qiita&lt;/a&gt;）&lt;/p&gt;
-
-&lt;p&gt;今回は &lt;a href=&#34;http://getgb.io/&#34; title=&#34;gb - A project based build tool for Go&#34;&gt;gb&lt;/a&gt; を使ってプロジェクト・ベースで Golang のコードを管理してみる。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://getgb.io/&#34;&gt;gb - A project based build tool for Go&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;gb-の導入:6e131725c8916e09bb821f8d42f65641&#34;&gt;gb の導入&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://getgb.io/&#34; title=&#34;gb - A project based build tool for Go&#34;&gt;gb&lt;/a&gt; の導入は &lt;code&gt;go get&lt;/code&gt; でできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:6e131725c8916e09bb821f8d42f65641:b&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:6e131725c8916e09bb821f8d42f65641:b&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:&amp;gt;go get -v github.com/constabulary/gb/...
-github.com/constabulary/gb (download)
-github.com/constabulary/gb/log
-github.com/constabulary/gb
-github.com/constabulary/gb/vendor
-github.com/constabulary/gb/cmd
-github.com/constabulary/gb/cmd/gb
-github.com/constabulary/gb/cmd/gb-vendor
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Windows の場合，環境変数 &lt;code&gt;GOPATH&lt;/code&gt; で指定するフォルダ配下の &lt;code&gt;bin&lt;/code&gt; フォルダに &lt;code&gt;gb.exe&lt;/code&gt; および &lt;code&gt;gb-vendor.exe&lt;/code&gt; が生成される。
-このフォルダにパスを通しておく（またはパスの通っているフォルダに実行ファイルをコピーする）。&lt;/p&gt;
-
-&lt;h2 id=&#34;プロジェクトの構築とビルド:6e131725c8916e09bb821f8d42f65641&#34;&gt;プロジェクトの構築とビルド&lt;/h2&gt;
-
-&lt;p&gt;「&lt;a href=&#34;http://text.baldanders.info/golang/packaging/&#34;&gt;機能のパッケージ化&lt;/a&gt;」で最後に作ったコードを使って実際に &lt;a href=&#34;http://getgb.io/&#34; title=&#34;gb - A project based build tool for Go&#34;&gt;gb&lt;/a&gt; でプロジェクトを作成しビルドを行ってみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;flag&amp;quot;
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-	&amp;quot;strconv&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&amp;quot;
-)
-
-func main() {
-	//引数のチェック
-	flag.Parse()
-	argsStr := flag.Args()
-	if len(argsStr) &amp;lt; 3 {
-		fmt.Fprintln(os.Stderr, &amp;quot;年月日を指定してください&amp;quot;)
-		return
-	}
-	args := make([]int, 3)
-	for i := 0; i &amp;lt; 3; i++ {
-		num, err := strconv.Atoi(argsStr[i])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		} else {
-			args[i] = num
-		}
-	}
-	tm := time.Date(args[0], time.Month(args[1]), args[2], 0, 0, 0, 0, time.UTC)
-	fmt.Printf(&amp;quot;%v\n&amp;quot;, tm)
-	fmt.Printf(&amp;quot;MJD = %d日\n&amp;quot;, modjulian.DayNumber(tm))
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h3 id=&#34;ソース-ファイルの配置:6e131725c8916e09bb821f8d42f65641&#34;&gt;ソース・ファイルの配置&lt;/h3&gt;
-
-&lt;p&gt;プロジェクト・フォルダを &lt;code&gt;C:\workspace\gbdemo&lt;/code&gt; とし，ソース・ファイル用のフォルダ &lt;code&gt;src\julian-day&lt;/code&gt; を作成する。
-このフォルダに上述のコードを記述したソース・ファイルを配置する。
-フォルダ構成は以下の通り。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;tree /f .
-C:\WORKSPACE\GBDEMO
-└─src
-    └─julian-day
-            julian-day.go
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ビルドするには &lt;code&gt;gb build&lt;/code&gt; コマンドを実行すればいいのだが，このままでは &lt;code&gt;modjulian&lt;/code&gt; パッケージがないため失敗する。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb build
-FATAL command &amp;quot;build&amp;quot; failed: failed to resolve import path &amp;quot;julian-day&amp;quot;: cannot find package &amp;quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&amp;quot; in any of:
-        C:\Go\src\github.com\spiegel-im-spiegel\astrocalc\modjulian (from $GOROOT)
-        C:\workspace\gbdemo\src\github.com\spiegel-im-spiegel\astrocalc\modjulian (from $GOPATH)
-        C:\workspace\gbdemo\vendor\src\github.com\spiegel-im-spiegel\astrocalc\modjulian
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;プロジェクト・フォルダ以下を &lt;code&gt;GOPATH&lt;/code&gt; として &lt;code&gt;modjulian&lt;/code&gt; パッケージを探しているのがお分かりだろうか。
-&lt;a href=&#34;http://getgb.io/&#34; title=&#34;gb - A project based build tool for Go&#34;&gt;gb&lt;/a&gt; では，実行時に既存の &lt;code&gt;GOPATH&lt;/code&gt; を上書きするようである。
-またプロジェクト・フォルダ配下の &lt;code&gt;vendor&lt;/code&gt; フォルダを探しているのにも注目してほしい。&lt;/p&gt;
-
-&lt;h3 id=&#34;外部パッケージの導入:6e131725c8916e09bb821f8d42f65641&#34;&gt;外部パッケージの導入&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://getgb.io/&#34; title=&#34;gb - A project based build tool for Go&#34;&gt;gb&lt;/a&gt; では外部パッケージを &lt;code&gt;gb vendor&lt;/code&gt; コマンドで管理できる。
-外部パッケージの導入には &lt;code&gt;gb vendor fetch&lt;/code&gt; コマンドを使う。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb vendor fetch github.com/spiegel-im-spiegel/astrocalc/modjulian
-
-C:\workspace\gbdemo&amp;gt;tree /f .
-C:\WORKSPACE\GBDEMO
-├─src
-│  └─julian-day
-│          julian-day.go
-│
-└─vendor
-    │  manifest
-    │
-    └─src
-        └─github.com
-            └─spiegel-im-spiegel
-                └─astrocalc
-                    └─modjulian
-                            example_test.go
-                            LICENSE
-                            modjulian.go
-                            modjulian_test.go
-
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;プロジェクト・フォルダ以下に &lt;code&gt;vendor&lt;/code&gt; フォルダが作成され，パッケージのソースファイルが展開されている。&lt;/p&gt;
-
-&lt;p&gt;今回 &lt;code&gt;gb vendor fetch&lt;/code&gt; で取得したパッケージは &lt;a href=&#34;https://github.com/&#34; title=&#34;GitHub&#34;&gt;GitHub&lt;/a&gt; のリポジトリから取ってきたものだが， &lt;code&gt;git clone&lt;/code&gt; ではなく，フォルダ・ファイル構成ごとコピーしてきたもののようである。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;gb vendor fetch&lt;/code&gt; コマンドでは &lt;code&gt;-branch&lt;/code&gt; や &lt;code&gt;-tag&lt;/code&gt; や &lt;code&gt;-revision&lt;/code&gt; オプションでリポジトリのブランチやタグまたはリビジョンを指定できる。
-このとき，導入したパッケージのリポジトリ情報は &lt;code&gt;vender\manifest&lt;/code&gt; ファイルに格納されている（中身は JSON 形式）。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-json&#34;&gt;{
-	&amp;quot;version&amp;quot;: 0,
-	&amp;quot;dependencies&amp;quot;: [
-		{
-			&amp;quot;importpath&amp;quot;: &amp;quot;github.com/spiegel-im-spiegel/astrocalc/modjulian&amp;quot;,
-			&amp;quot;repository&amp;quot;: &amp;quot;https://github.com/spiegel-im-spiegel/astrocalc&amp;quot;,
-			&amp;quot;revision&amp;quot;: &amp;quot;c9f5fb495e67b868a2b3f0e16c38282095fe5033&amp;quot;,
-			&amp;quot;branch&amp;quot;: &amp;quot;master&amp;quot;,
-			&amp;quot;path&amp;quot;: &amp;quot;/modjulian&amp;quot;
-		}
-	]
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ちなみに外部パッケージをアップデートする場合は &lt;code&gt;gb vendor update&lt;/code&gt; コマンドを使う。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb vendor update github.com/spiegel-im-spiegel/astrocalc/modjulian
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;または&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb vendor update -all
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h3 id=&#34;プロジェクトのビルド:6e131725c8916e09bb821f8d42f65641&#34;&gt;プロジェクトのビルド&lt;/h3&gt;
-
-&lt;p&gt;では，この状態でもう一回ビルドしてみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb build
-julian-day
-
-C:\workspace\gbdemo&amp;gt;tree /f .
-C:\WORKSPACE\GBDEMO
-├─bin
-│      julian-day.exe
-│
-├─pkg
-│  └─windows-amd64
-│      │  julian-day.a
-│      │
-│      └─github.com
-│          └─spiegel-im-spiegel
-│              └─astrocalc
-│                      modjulian.a
-│
-├─src
-│  └─julian-day
-│          julian-day.go
-│
-└─vendor
-    │  manifest
-    │
-    └─src
-        └─github.com
-            └─spiegel-im-spiegel
-                └─astrocalc
-                    └─modjulian
-                            example_test.go
-                            LICENSE
-                            modjulian.go
-                            modjulian_test.go
-
-C:\workspace\gbdemo&amp;gt;bin\julian-day.exe 2015 1 1
-2015-01-01 00:00:00 +0000 UTC
-MJD = 57023日
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;今度は上手くいったようだ。
-&lt;code&gt;gb build&lt;/code&gt; コマンドのオプションは以下の通り。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb help build
-usage: gb build [build flags] [packages]
-
-Build compiles the packages named by the import paths, along with their
-dependencies.
-
-Flags:
-
-        -f
-                ignore cached packages if present, new packages built will overwrite
-                any cached packages. This effectively disables incremental
-                compilation.
-        -F
-                do not cache packages, cached packages will still be used for
-                incremental compilation. -f -F is advised to disable the package
-
-                caching system.
-        -q
-                decreases verbosity, effectively raising the output level to ERROR.
-                In a successful build, no output will be displayed.
-        -P
-                The number of build jobs to run in parallel, including test execution.
-                By default this is the number of CPUs visible to gb.
-        -R
-                sets the base of the project root search path from the current working
-                directory to the value supplied. Effectively gb changes working
-                directory to this path before searching for the project root.
-        -v
-                increases verbosity, effectively lowering the output level from INFO
-                to DEBUG.
-        -dotfile
-                if provided, gb will output a dot formatted file of the build steps to
-                be performed.
-        -ldflags &#39;flag list&#39;
-                arguments to pass on each linker invocation.
-        -gcflags &#39;arg list&#39;
-                arguments to pass on each compile invocation.
-        -tags &#39;tag list&#39;
-                additional build tags.
-
-The list flags accept a space-separated list of strings. To embed spaces in an
-element in the list, surround it with either single or double quotes.
-
-For more about specifying packages, see &#39;gb help packages&#39;. For more about
-where packages and binaries are installed, run &#39;gb help project&#39;.
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;-ldflags&lt;/code&gt; や &lt;code&gt;-gcflags&lt;/code&gt; オプションが使えるのはありがたいかな。&lt;/p&gt;
-
-&lt;h2 id=&#34;複数パッケージを含めたプロジェクト管理:6e131725c8916e09bb821f8d42f65641&#34;&gt;複数パッケージを含めたプロジェクト管理&lt;/h2&gt;
-
-&lt;p&gt;複数のパッケージをまとめて管理したい場合もある。
-例えば以下のような構成を考えてみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;tree /f .
-C:\WORKSPACE\GBDEMO
-└─src
-    └─julian-day
-            julian-day.go
-
-C:\workspace\gbdemo&amp;gt;pushd src
-
-C:\workspace\gbdemo\src&amp;gt;git clone https://github.com/spiegel-im-spiegel/astrocalc.git github.com/spiegel-im-spiegel/astrocalc
-Cloning into &#39;github.com/spiegel-im-spiegel/astrocalc&#39;...
-remote: Counting objects: 43, done.
-remote: Total 43 (delta 0), reused 0 (delta 0), pack-reused 43
-Unpacking objects: 100% (43/43), done.
-Checking connectivity... done.
-
-C:\workspace\gbdemo\src&amp;gt;popd
-
-C:\workspace\gbdemo&amp;gt;tree /f .
-C:\WORKSPACE\GBDEMO
-└─src
-    ├─github.com
-    │  └─spiegel-im-spiegel
-    │      └─astrocalc
-    │          │  .editorconfig
-    │          │  .gitignore
-    │          │  .travis.yml
-    │          │  LICENSE
-    │          │  README.md
-    │          │
-    │          └─modjulian
-    │                  example_test.go
-    │                  LICENSE
-    │                  modjulian.go
-    │                  modjulian_test.go
-    │
-    └─julian-day
-            julian-day.go
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;この状態でビルドを実行してみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb build
-github.com/spiegel-im-spiegel/astrocalc/modjulian
-julian-day
-
-C:\workspace\gbdemo&amp;gt;tree /f .
-C:\WORKSPACE\GBDEMO
-├─bin
-│      julian-day.exe
-│
-├─pkg
-│  └─windows-amd64
-│      │  julian-day.a
-│      │
-│      └─github.com
-│          └─spiegel-im-spiegel
-│              └─astrocalc
-│                      modjulian.a
-│
-└─src
-    ├─github.com
-    │  └─spiegel-im-spiegel
-    │      └─astrocalc
-    │          │  .editorconfig
-    │          │  .gitignore
-    │          │  .travis.yml
-    │          │  LICENSE
-    │          │  README.md
-    │          │
-    │          └─modjulian
-    │                  example_test.go
-    │                  LICENSE
-    │                  modjulian.go
-    │                  modjulian_test.go
-    │
-    └─julian-day
-            julian-day.go
-
-C:\workspace\gbdemo&amp;gt;bin\julian-day.exe 2015 1 1
-2015-01-01 00:00:00 +0000 UTC
-MJD = 57023日
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://getgb.io/&#34; title=&#34;gb - A project based build tool for Go&#34;&gt;gb&lt;/a&gt; ではプロジェクト・フォルダ以下にあるパッケージを自動で検索してビルドしてくれる。
-もちろんパッケージを指定してビルドすることも可能。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\gbdemo&amp;gt;gb build github.com/spiegel-im-spiegel/astrocalc/modjulian
-github.com/spiegel-im-spiegel/astrocalc/modjulian
-
-C:\workspace\gbdemo&amp;gt;gb build julian-day
-julian-day
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;さらにテストもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:6e131725c8916e09bb821f8d42f65641:a&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:6e131725c8916e09bb821f8d42f65641:a&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-shell&#34;&gt;C:\workspace\gbdemo&amp;gt;gb test -v github.com/spiegel-im-spiegel/astrocalc/modjulian
-=== RUN   TestDayNumber
---- PASS: TestDayNumber (0.00s)
-=== RUN   ExampleDayNumber
---- PASS: ExampleDayNumber (0.00s)                  
-PASS
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;パッケージによっては &lt;code&gt;go test&lt;/code&gt; の結果と &lt;code&gt;gb test&lt;/code&gt; の結果が異なる場合があるので注意が必要。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク:6e131725c8916e09bb821f8d42f65641&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/shinofara/items/ac0591fef95c2c6e936e&#34;&gt;golang - gbを知ったのでgojiを使ったWEBアプリケーションプロジェクトを管理してみた - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2015/06/26/golang-dependency-vendoring/&#34;&gt;Go言語のDependency/Vendoringの問題と今後．gbあるいはGo1.5 | SOTA&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:6e131725c8916e09bb821f8d42f65641:b&#34;&gt;&lt;code&gt;go get&lt;/code&gt; の使い方については「&lt;a href=&#34;http://text.baldanders.info/golang/go-get-package/&#34;&gt;go get コマンドでパッケージを管理する&lt;/a&gt;」を参照のこと。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:6e131725c8916e09bb821f8d42f65641:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:6e131725c8916e09bb821f8d42f65641:a&#34;&gt;テストについては「&lt;a href=&#34;http://text.baldanders.info/golang/testing/&#34;&gt;Go 言語のテスト・フレームワーク&lt;/a&gt;」を参照のこと。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:6e131725c8916e09bb821f8d42f65641:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>

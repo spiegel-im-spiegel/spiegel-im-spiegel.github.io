@@ -4,12 +4,482 @@
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/index.xml" />
 	<id>tag:text.Baldanders.info,2016-01-05:/</id>
-	<updated>2016-01-05T01:22:33+09:00</updated>
+	<updated>2016-01-05T22:06:41+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.15</generator>
 
+	
+	<entry>
+		<title>コマンドライン・インタフェースとファサード・パターン - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/cli-and-facade-pattern/" />
+		<id>tag:text.Baldanders.info,2016-01-05:/golang/cli-and-facade-pattern/</id>
+		<published>2016-01-05T22:06:41+09:00</published>
+		<updated>2016-01-05T22:06:41+09:00</updated>
+		<summary>ファサード・パターンは DDD (Domain-Driven Design) と相性がよい。普通は Web アプリケーションのような多様なサブシステムを持つシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンで設計するべきである。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラには &lt;a href=&#34;https://golang.org/pkg/flag/&#34; title=&#34;flag - The Go Programming Language&#34;&gt;&lt;code&gt;flag&lt;/code&gt;&lt;/a&gt; パッケージが標準で提供されており，いわゆるコマンドライン・インタフェース（Command line interface; CLI）の操作はこれでまかなうことができる。
+ただし &lt;a href=&#34;https://golang.org/pkg/flag/&#34; title=&#34;flag - The Go Programming Language&#34;&gt;&lt;code&gt;flag&lt;/code&gt;&lt;/a&gt; パッケージではサブコマンドをサポートしていないためサブコマンドを構成したい場合は少し工夫が必要となる。
+ちなみにサブコマンドとは，以下のようなコマンドラインの構成になっているアプリケーションである。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ command [golabal options] &amp;lt;sub-command&amp;gt; [sub-options] [arguments]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;たとえば &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラの &lt;code&gt;go run&lt;/code&gt; もサブコマンドだし， &lt;a href=&#34;https://git-scm.com/&#34; title=&#34;Git&#34;&gt;git&lt;/a&gt; の &lt;code&gt;git commit&lt;/code&gt; とかもサブコマンドである。&lt;/p&gt;
+
+&lt;h2 id=&#34;コマンドライン-インタフェースと-unix-philosophy:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;コマンドライン・インタフェースと UNIX Philosophy&lt;/h2&gt;
+
+&lt;p&gt;ところで CLI でよく引き合いに出されるのが “&lt;a href=&#34;http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html&#34; title=&#34;Tenets of the UNIX Philosophy&#34;&gt;UNIX Philosophy&lt;/a&gt;” と呼ばれるアプリケーションを作る際の哲学というか指針のようなものである。
+曰く&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Small is beautiful. （小さいものは美しい）&lt;/li&gt;
+&lt;li&gt;Make each program do one thing well. （各プログラムが一つのことをうまくやるようにせよ）&lt;/li&gt;
+&lt;li&gt;Build a prototype as soon as possible. （できる限り早くプロトタイプを作れ）&lt;/li&gt;
+&lt;li&gt;Choose portability over efficiency. （効率よりも移植しやすさを選べ）&lt;/li&gt;
+&lt;li&gt;Store data in flat text files. （単純なテキストファイルにデータを格納せよ）&lt;/li&gt;
+&lt;li&gt;Use software leverage to your advantage. （ソフトウェアの効率を優位さとして利用せよ）&lt;/li&gt;
+&lt;li&gt;Use shell scripts to increase leverage and portability. （効率と移植性を高めるためにシェルスクリプトを利用せよ）&lt;/li&gt;
+&lt;li&gt;Avoid captive user interfaces. （拘束的なユーザーインターフェースは作るな）&lt;/li&gt;
+&lt;li&gt;Make every program a Filter. （全てのプログラムはフィルタとして振る舞うようにせよ）&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;の9項目&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+昨今は UNIX 互換環境でも GUI が普通になってきたので対話型のインタフェースも増えてきたが，それでも従来の CUI shell 上で動作するアプリケーションの需要が減ったわけではなく，サーバサイドではむしろ需要は大きくなっていると言ってもいい。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で CLI アプリケーションを作る際に気をつける点としては&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;他のツールと shell を介して連携できるよう標準入出力を使ったフィルタプログラムとする&lt;/li&gt;
+&lt;li&gt;外部データの入出力は JSON, YAML, TOML といったテキストを用い UTF-8 文字エンコーディングに統一する&lt;/li&gt;
+&lt;li&gt;コードの可搬性（または移植性）を考慮し，プラットフォーム依存を避けるようにする&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;といったところだろうか。
+もともと &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;はクロスプラットフォーム開発に強いため，それほど難しい要件ではないはずである。&lt;/p&gt;
+
+&lt;h2 id=&#34;サブコマンドとファサード-パターン:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;サブコマンドとファサード・パターン&lt;/h2&gt;
+
+&lt;p&gt;サブコマンド方式は一見 “&lt;a href=&#34;http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html&#34; title=&#34;Tenets of the UNIX Philosophy&#34;&gt;UNIX Philosophy&lt;/a&gt;” に反しているように見えるが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の場合は全てのパッケージをひとつの実行モジュールに結合してしまうため，関連する機能をサブコマンドとして組み込むのは悪くないやりかたである。&lt;/p&gt;
+
+&lt;p&gt;サブコマンドを構成する場合は「ファサード・パターン（facade pattern）」で考えるとよい。
+「ファサード」は「建物の正面」という意味だそうで，システム内の各機能（サブシステム）の窓口のように機能する。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34;&gt;&lt;img src=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34; alt=&#34;Facade Pattern&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34;&gt;Facade Pattern&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;この図のようにファサード・パターンは DDD (Domain-Driven Design) と相性がよい。
+普通は Web アプリケーションのような多様なサブシステムを含むシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンがよいだろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;mitchellh-cli-パッケージ:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli パッケージ&lt;/h2&gt;
+
+&lt;p&gt;CLI をサポートするパッケージはいくつか公開されているのだが，この中で今回は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; を紹介する。
+&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。&lt;/p&gt;
+
+&lt;h3 id=&#34;command-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;Command インタフェース&lt;/h3&gt;
+
+&lt;p&gt;まずは &lt;code&gt;Command&lt;/code&gt; インタフェース。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// A command is a runnable sub-command of a CLI.
+type Command interface {
+	// Help should return long-form help text that includes the command-line
+	// usage, a brief few sentences explaining the function of the command,
+	// and the complete list of flags the command accepts.
+	Help() string
+
+	// Run should run the actual command with the given CLI instance and
+	// command-line arguments. It should return the exit status when it is
+	// finished.
+	Run(args []string) int
+
+	// Synopsis should return a one-line, short synopsis of the command.
+	// This should be less than 50 characters ideally.
+	Synopsis() string
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;Command&lt;/code&gt; インタフェースはサブコマンドの context を構成するのに使う。
+&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; は &lt;code&gt;Command&lt;/code&gt; インタフェースに適合する型（&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt;）のインスタンスを受け取ってサブコマンドの制御を行う&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+さらに以下の関数値（function value）を示す型 &lt;code&gt;CommandFactory&lt;/code&gt; も用意されている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// CommandFactory is a type of function that is a factory for commands.
+// We need a factory because we may need to setup some state on the
+// struct that implements the command itself.
+type CommandFactory func() (Command, error)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このように &lt;code&gt;Command&lt;/code&gt; 型のインスタンスを返す関数を型として定義し，この型のリストを作成するのである。&lt;/p&gt;
+
+&lt;h3 id=&#34;cli-構造体:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;CLI 構造体&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; に渡す context は &lt;code&gt;CLI&lt;/code&gt; 構造体にまとめられている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// CLI contains the state necessary to run subcommands and parse the
+// command line arguments.
+type CLI struct {
+	// Args is the list of command-line arguments received excluding
+	// the name of the app. For example, if the command &amp;quot;./cli foo bar&amp;quot;
+	// was invoked, then Args should be []string{&amp;quot;foo&amp;quot;, &amp;quot;bar&amp;quot;}.
+	Args []string
+
+	// Commands is a mapping of subcommand names to a factory function
+	// for creating that Command implementation. If there is a command
+	// with a blank string &amp;quot;&amp;quot;, then it will be used as the default command
+	// if no subcommand is specified.
+	Commands map[string]CommandFactory
+
+	// Name defines the name of the CLI.
+	Name string
+
+	// Version of the CLI.
+	Version string
+
+	// HelpFunc and HelpWriter are used to output help information, if
+	// requested.
+	//
+	// HelpFunc is the function called to generate the generic help
+	// text that is shown if help must be shown for the CLI that doesn&#39;t
+	// pertain to a specific command.
+	//
+	// HelpWriter is the Writer where the help text is outputted to. If
+	// not specified, it will default to Stderr.
+	HelpFunc   HelpFunc
+	HelpWriter io.Writer
+
+	once           sync.Once
+	isHelp         bool
+	subcommand     string
+	subcommandArgs []string
+	topFlags       []string
+
+	isVersion bool
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;構造体の中に &lt;code&gt;CommandFactory&lt;/code&gt; のリストが含まれていることがお分かりだろうか。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;Commands map[string]CommandFactory
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これによってサブコマンド名と対応する処理を関連付けている。&lt;/p&gt;
+
+&lt;h3 id=&#34;ui-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;Ui インタフェース&lt;/h3&gt;
+
+&lt;p&gt;入出力関数群を持つ &lt;code&gt;Ui&lt;/code&gt; インタフェースは以下のように定義されている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Ui is an interface for interacting with the terminal, or &amp;quot;interface&amp;quot;
+// of a CLI. This abstraction doesn&#39;t have to be used, but helps provide
+// a simple, layerable way to manage user interactions.
+type Ui interface {
+	// Ask asks the user for input using the given query. The response is
+	// returned as the given string, or an error.
+	Ask(string) (string, error)
+
+	// AskSecret asks the user for input using the given query, but does not echo
+	// the keystrokes to the terminal.
+	AskSecret(string) (string, error)
+
+	// Output is called for normal standard output.
+	Output(string)
+
+	// Info is called for information related to the previous output.
+	// In general this may be the exact same as Output, but this gives
+	// Ui implementors some flexibility with output formats.
+	Info(string)
+
+	// Error is used for any error messages that might appear on standard
+	// error.
+	Error(string)
+
+	// Warn is used for any warning messages that might appear on standard
+	// error.
+	Warn(string)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;更に &lt;code&gt;Ui&lt;/code&gt; の特化クラスとして &lt;code&gt;BasicUi&lt;/code&gt; や &lt;code&gt;PrefixedUi&lt;/code&gt; や &lt;code&gt;ColoredUi&lt;/code&gt; が定義されている。
+&lt;code&gt;ColoredUi&lt;/code&gt; は出力をカラーにできるが，残念ながら Windows のコマンドプロンプトには対応していないようだ。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;Ui&lt;/code&gt; インタフェースは &lt;code&gt;Command&lt;/code&gt; インタフェースと組み合わせてサブコマンド側の context を構成するのに使う。&lt;/p&gt;
+
+&lt;h3 id=&#34;mitchellh-cli-パッケージのメリット:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli パッケージのメリット&lt;/h3&gt;
+
+&lt;p&gt;上述したように &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。
+なおかつ &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; ではファサード・パターンを入れ子にすることができる。
+たとえばサブコマンドのサブコマンドを構成することもできるのだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;mitchellh-cli-を使ってファサード-パターンを組んでみる:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli を使ってファサード・パターンを組んでみる&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; をファサード・パターンとして組みやすくするためのラッパーとして &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; パッケージを作ってみた&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;まず，入出力の Context を定義するためのクラスとして &lt;code&gt;Context&lt;/code&gt; 構造体を作った。
+中身は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;BasicUi&lt;/code&gt; 構造体を埋め込んでいるだけである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Context inheritance cli.BasicUi
+type Context struct {
+	//Embedded BasicUi
+	*cli.BasicUi
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;更に &lt;code&gt;Context&lt;/code&gt; 構造体を包含する &lt;code&gt;Facade&lt;/code&gt; 構造体を定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Facade is context of facade
+type Facade struct {
+	//UI defines user interface of the Cli
+	Cxt *Context
+	// commands is a mapping of subcommand names to a factory function
+	commands map[string]cli.CommandFactory
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;Facade&lt;/code&gt; 構造体には &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;CommandFactory&lt;/code&gt; のリストを含んでいる。
+このリストに &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Command&lt;/code&gt; インタフェースに適合するインスタンスを追加するための関数がこれ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// AddCommand add command
+func (f *Facade) AddCommand(name string, command cli.Command) {
+	f.commands[name] = func() (cli.Command, error) {
+		return command, nil
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実際にファサードを実行するには以下の関数を起動する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Run facade
+func (f *Facade) Run(appName, version string, args []string) (int, error) {
+	c := cli.NewCLI(appName, version)
+	c.Args = args
+	c.Commands = f.commands
+	c.HelpWriter = f.Cxt.Writer
+	return c.Run()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;他に細かい道具はあるが，まぁこんなもんだろう。&lt;/p&gt;
+
+&lt;h3 id=&#34;spiegel-im-spiegel-gofacade-の実装例:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;spiegel-im-spiegel/gofacade の実装例&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; パッケージの実装例として &lt;a href=&#34;https://github.com/spiegel-im-spiegel/astrocalc&#34; title=&#34;spiegel-im-spiegel/astrocalc&#34;&gt;spiegel-im-spiegel/astrocalc&lt;/a&gt; パッケージに CLI ツールを追加してみた。
+こんな感じのコマンドラインを構成してみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ astrocalc [-v | -h] mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まず &lt;code&gt;astrocalc mjdn&lt;/code&gt; サブコマンドを以下のように定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package mjdnCmd
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;strings&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/mjdn&amp;quot;
+	&amp;quot;github.com/spiegel-im-spiegel/gofacade&amp;quot;
+)
+
+// Name は mjdn コマンド名を定義する
+const Name string = &amp;quot;mjdn&amp;quot;
+
+// Context は mjdn コマンドのコンテキストを定義する
+type Context struct {
+	//Embedded gofacade.Context
+	*gofacade.Context
+	//AppName にはアプリケーション名を格納する
+	AppName string
+}
+
+// Command は Context のインスタンスを返す
+func Command(cxt *gofacade.Context, appName string) *Context {
+	return &amp;amp;Context{Context: cxt, AppName: appName}
+}
+
+// Synopsis は mjdn コマンドの概要を返す
+func (c Context) Synopsis() string {
+	return &amp;quot;Calculation of Modified Julian Day&amp;quot;
+}
+
+// Help は mjdn コマンドのヘルプを返す
+func (c Context) Help() string {
+	helpText := `
+Usage: astrocalc mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
+`
+	return fmt.Sprintln(strings.TrimSpace(helpText))
+}
+
+// Run は mjdn コマンドを実行する
+func (c Context) Run(args []string) int {
+	flags := flag.NewFlagSet(Name, flag.ContinueOnError)
+	flags.Usage = func() {
+		c.Error(c.Help())
+	}
+	// Parse commandline flag
+	if err := flags.Parse(args); err != nil {
+		return gofacade.ExitCodeError
+	}
+	if flags.NArg() != 3 {
+		c.Error(fmt.Sprintf(&amp;quot;年月日を指定してください\n\n%s&amp;quot;, c.Help()))
+		return gofacade.ExitCodeError
+	}
+	argsStr := flags.Args()
+	var ymd = make([]int, 3)
+	for i, arg := range argsStr {
+		num, err := strconv.Atoi(arg)
+		if err != nil {
+			c.Error(fmt.Sprintln(err))
+			return gofacade.ExitCodeError
+		}
+		ymd[i] = num
+	}
+	tm := time.Date(ymd[0], time.Month(ymd[1]), ymd[2], 0, 0, 0, 0, time.UTC)
+	c.Output(fmt.Sprint(mjdn.DayNumber(tm)))
+	return gofacade.ExitCodeOK
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ポイントは &lt;code&gt;astrocalc mjdn&lt;/code&gt; サブコマンド用の context として &lt;code&gt;Context&lt;/code&gt; 構造体を定義しているところ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Context は mjdn コマンドのコンテキストを定義する
+type Context struct {
+	//Embedded gofacade.Context
+	*gofacade.Context
+	//AppName にはアプリケーション名を格納する
+	AppName string
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;&lt;code&gt;gofacade&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Context&lt;/code&gt; 構造体を埋め込みフィールドで定義しているのがお分かりだろうか。
+&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;&lt;code&gt;gofacade&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Context&lt;/code&gt; はさらに &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;BasicUi&lt;/code&gt; 構造体を埋め込んでいる。
+また &lt;code&gt;Context&lt;/code&gt; 構造体は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Command&lt;/code&gt; インタフェースの特化クラスとして実装している。&lt;/p&gt;
+
+&lt;p&gt;では，この &lt;code&gt;Context&lt;/code&gt; 構造体を使ってアプリケーションの起動部分を書いてみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd&amp;quot;
+	&amp;quot;github.com/spiegel-im-spiegel/gofacade&amp;quot;
+)
+
+const (
+	// Name はアプリケーション名を定義する
+	Name string = &amp;quot;astrocalc&amp;quot;
+	// Version はアプリケーションのバージョン番号を定義する
+	Version string = &amp;quot;0.1.0&amp;quot;
+)
+
+func setupFacade(cxt *gofacade.Context) *gofacade.Facade {
+	fcd := gofacade.NewFacade(cxt)
+	fcd.AddCommand(mjdnCmd.Name, mjdnCmd.Command(cxt, Name))
+	return fcd
+}
+
+func main() {
+	cxt := gofacade.NewContext(os.Stdin, os.Stdout, os.Stderr)
+	fcd := setupFacade(cxt)
+	rtn, err := fcd.Run(Name, Version, os.Args[1:])
+	if err != nil {
+		cxt.Error(fmt.Sprintln(err))
+	}
+	os.Exit(rtn)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;setupFacade()&lt;/code&gt; 関数でファサードを作成し， &lt;code&gt;main()&lt;/code&gt; 関数で実行しているのが分かると思う。
+では実際に compile &amp;amp; run してみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;C:\workspace\astrocalc&amp;gt; pushd C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc
+
+C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&amp;gt; glide up
+[INFO] Fetching updates for github.com/spiegel-im-spiegel/gofacade.
+[INFO] Found glide.yaml in C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc\vendor/github.com/spiegel-im-spiegel/gofacade/glide.yaml
+[INFO] Scanning github.com/mitchellh/cli for dependencies.
+[INFO] Scanning github.com/bgentry/speakeasy for dependencies.
+[INFO] Scanning github.com/mattn/go-isatty for dependencies.
+[INFO] Project relies on 4 dependencies.
+[INFO] Writing glide.lock file
+
+C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&amp;gt; popd
+
+C:\workspace\astrocalc&amp;gt; go install -v ./...
+github.com/spiegel-im-spiegel/astrocalc/mjdn
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/bgentry/speakeasy
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mattn/go-isatty
+github.com/spiegel-im-spiegel/astrocalc/era
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mitchellh/cli
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/bgentry/speakeasy/example
+github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/spiegel-im-spiegel/gofacade
+github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd
+github.com/spiegel-im-spiegel/astrocalc
+
+C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe -h
+usage: astrocalc [--version] [--help] &amp;lt;command&amp;gt; [&amp;lt;args&amp;gt;]
+
+Available commands are:
+    mjdn    Calculation of Modified Julian Day
+
+C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe -h mjdn
+Usage: astrocalc mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
+
+C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe mjdn 2015 1 1
+57023 (2015-01-01)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;よしよし。
+うまくいった。
+なお &lt;a href=&#34;https://github.com/Masterminds/glide&#34; title=&#34;Masterminds/glide&#34;&gt;glide&lt;/a&gt; については「&lt;a href=&#34;http://text.baldanders.info/golang/vendoring-with-glide/&#34;&gt;Glide で Vendoring&lt;/a&gt;」を参考にどうぞ。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://yuuki.hatenablog.com/entry/go-cli-unix&#34;&gt;Go言語によるCLIツール開発とUNIX哲学について - ゆううきブログ&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://tellme.tokyo/post/2015/06/23/unix_cli_tool_go/&#34;&gt;開発者から見た UNIX 哲学とコマンドラインツールと Go言語 - TELLME.TOKYO&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://ryochack.hatenablog.com/entry/2013/04/17/232753&#34;&gt;Go言語のflagパッケージを使う - uragami note&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2015/04/17/panicwrap/&#34;&gt;Go言語のCLIツールのpanicをラップしてクラッシュレポートをつくる | SOTA&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/kumatch/items/258d7984c0270f6dd73a&#34;&gt;flag 並にシンプルでより強力な CLI パーサ kingpin の紹介 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;翻訳は &lt;a href=&#34;https://ja.wikipedia.org/wiki/UNIX%E5%93%B2%E5%AD%A6&#34;&gt;Wikipedia の記事&lt;/a&gt;から拝借させてもらった。ちなみに &lt;a href=&#34;https://ja.wikipedia.org/wiki/Wikipedia:Text_of_Creative_Commons_Attribution-ShareAlike_3.0_Unported_License&#34;&gt;Wikipedia のコンテンツは基本的には by-sa ライセンスで公開&lt;/a&gt;されている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;型（&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt;）については「&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;」を参照のこと。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; は &lt;a href=&#34;https://creativecommons.org/publicdomain/zero/1.0/&#34;&gt;CC0&lt;/a&gt; で公開している。個人的には実証コードの扱いなので，（著作権情報の書き換えも含めて）自由に利用して 構わない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;なんでこんな回りくどいことをしているかというと， &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; パッケージをカプセル化したかったから。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では関数は全て関数閉包（closure）として機能する。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>年始スペシャル：2016年から公有になった作品の著作者 - remark</title>
@@ -1354,157 +1824,6 @@ func main() {
 &lt;ol&gt;
 &lt;li id=&#34;fn:a041a5d41c83ed2e24b78f5dcc5fe355:ambl&#34;&gt;本や漫画を書いてる方が ameblo なんかで記事を書くのはブランドの毀損じゃないかと思ってしまうのだが，まぁいいか。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:a041a5d41c83ed2e24b78f5dcc5fe355:ambl&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>強すぎる結界は更なる魔を引き寄せる - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2015/cipher-risk/" />
-		<id>tag:text.Baldanders.info,2015-12-12:/remark/2015/cipher-risk/</id>
-		<published>2015-12-12T21:16:03+09:00</published>
-		<updated>2015-12-12T21:16:03+09:00</updated>
-		<summary>強すぎる光は影を濃くするのみだ。あるいは強すぎる結界は更なる魔を引き寄せる。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://wirelesswire.jp/2015/12/48567/&#34; title=&#34;我匿す、ゆえに我あり - WirelessWire News（ワイヤレスワイヤーニュース）&#34;&gt;我匿す、ゆえに我あり - WirelessWire News&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;今回はこれをネタにつらつらと世迷いごとを書いてみる。
-いつも以上に戯れ言なので，あんまり真面目に読まないように。&lt;/p&gt;
-
-&lt;h2 id=&#34;本当に秘密なことは誰とも共有してはならない:dce2488275596f7e80d074ad1b292c1e&#34;&gt;本当に秘密なことは誰とも共有してはならない&lt;/h2&gt;
-
-&lt;p&gt;優れたアルゴリズムを使えば暗号システムそのものは必ずしも隠す必要はないが，鍵はどうしても秘匿しなくてはならない。
-しかし秘密を共有すれば必ず漏えいリスクが発生する。
-公開鍵暗号方式が「発明」されるまで，暗号技術が軍事または大企業の技術として専有されていたのは「秘密の共有」に莫大なコストがかかるからだ。&lt;/p&gt;
-
-&lt;p&gt;本当に秘密なことは誰とも共有してはならない。&lt;/p&gt;
-
-&lt;h2 id=&#34;秘密なんてないさ:dce2488275596f7e80d074ad1b292c1e&#34;&gt;秘密なんてないさ&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000833.shtml&#34;&gt;個人的に今年イチオシ&lt;/a&gt;の映画である『イミテーション・ゲーム』に印象的なシーンがある。
-ドイツの暗号機械「エニグマ」の暗号鍵を短時間で解読することに成功したアラン等のチームは，この事実を（政府や軍にも）知らせないことに決めた。
-理由は（政治的な思惑もあるだろうが）事実を敵国に知られないためである。
-敵国に知られれば相手は暗号システムを変えるだろうから。&lt;/p&gt;
-
-&lt;p&gt;秘密を隠すためには秘密が存在することをも隠す必要がある。&lt;/p&gt;
-
-&lt;p&gt;フランスの警察当局がテロ事件の犯人を捕まえることができたのは暗号を解読したからではない。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.gizmodo.jp/2015/11/what-police-can-learn-from-a-terrorist.html&#34;&gt;警察がテロリストの捨てた携帯からわかること : ギズモード・ジャパン&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;警察・諜報組織は一般の人がアクセスできない情報にもアクセスできる。
-たとえ暗号データそのものを解読できなくても，いったん対象を絞り込むことができれば，行動履歴をかき集め「名寄せ」することで追い詰めることができるのだ。
-これを回避するのは並大抵ではない。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000768.shtml&#34;&gt;「オーウェルが描いた悪夢のような監視社会をさまざまな点で超えてしまっているこの世界」で私たちはいかにして生き残るか — Baldanders.info&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;だから問題はどうやって「対象を絞り込む」か，つまりフィルタリングあるいはスクリーニングの問題である。&lt;/p&gt;
-
-&lt;h2 id=&#34;前門の虎-後門の狼少年:dce2488275596f7e80d074ad1b292c1e&#34;&gt;前門の虎，後門の狼少年&lt;/h2&gt;
-
-&lt;p&gt;現在「パリのテロ」は西欧諸国にとって「錦の御旗」になっている。&lt;/p&gt;
-
-&lt;p&gt;名前が示す通り「テロ（terrorism）」は誰だって怖い。
-そして，それによって大勢の人や近しい人が命を落とすのであれば，怒りを感じて当然である（恐怖は怒りを駆動する）。&lt;/p&gt;
-
-&lt;p&gt;テロの目的は相手に「恐怖」を刷り込み戦争状態を維持・活性化することにある。
-でも「恐怖」を利用しているのはテロリストだけではない。
-このことを 9.11 以後の10年あまりの間に私たちは嫌というほど見せつけられた筈である。
-西欧諸国は「パリのテロ」を利用して 9.11 と同じ状況を作り出そうとしている。
-目の前の恐怖に竦みあがっていると後ろから刺される。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;ニューヨーク州南部地区連邦地方裁判所のVictor Marrero判事は判決文の中で、FBIの見解は「極端であり、範囲を過度に拡大している」と述べている。&lt;br&gt;
-同判事はまた、Merrill氏に対する発言禁止命令の適用範囲が広すぎる点について、「米国憲法修正第1項（言論の自由）、および国民に対する政府の説明責任という両方の観点から、重大な問題をはらんでいる」との判断を示した。&lt;br&gt;
-NSLの発言禁止命令を完全に解くことに成功したのは、Merrill氏が初めてだ。&lt;br&gt;
-米国愛国者法（US Patriot Act）は、2001年9月11日の同時多発テロ事件から1カ月後に成立したときに、NSLの適用範囲を拡大した。&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://japan.zdnet.com/article/35074261/&#34;&gt;FBIによる令状なしの個人情報開示要求、実態が明らかに–あらゆる通信記録が対象 - ZDNet Japan&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;h2 id=&#34;秘密なんてないyo:dce2488275596f7e80d074ad1b292c1e&#34;&gt;秘密なんてないYO&lt;/h2&gt;
-
-&lt;p&gt;「&lt;a href=&#34;https://wirelesswire.jp/2015/12/48567/&#34; title=&#34;我匿す、ゆえに我あり - WirelessWire News（ワイヤレスワイヤーニュース）&#34;&gt;我匿す、ゆえに我あり&lt;/a&gt;」では &lt;a href=&#34;https://www.schneier.com/&#34;&gt;Bruce Schneier&lt;/a&gt; さんの “&lt;a href=&#34;https://www.schneier.com/essays/archives/2015/06/why_we_encrypt.html&#34;&gt;Why We Encrypt&lt;/a&gt;” の一部を翻訳されている。
-以下に少し紹介する。&lt;/p&gt;
-
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote&gt;
-&lt;q&gt;If we only use encryption when we’re working with important data, then encryption signals that data&#39;s importance. If only dissidents use encryption in a country, that country&#39;s authorities have an easy way of identifying them. But if everyone uses it all of the time, encryption ceases to be a signal. No one can distinguish simple chatting from deeply private conversation. The government can&#39;t tell the dissidents from the rest of the population. Every time you use encryption, you&#39;re protecting someone who needs to use it to stay alive.&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://www.schneier.com/essays/archives/2015/06/why_we_encrypt.html&#34;&gt;Essays: Why We Encrypt - Schneier on Security&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;重要なデータに携わる場合にだけ暗号を使うと、暗号化はそのデータが重要である合図になってしまう。ある国で反体制派しか暗号を使わないと、その国の権力者は反体制派を特定する容易な手段を手にすることになる。でも、誰もがいつでも暗号を使うなら、暗号化は合図でなくなる。単なるお喋りと深刻な密談の区別を誰もつけられなくなる。政府は反体制派とそれ以外の国民を区別できなくなる。あなたは暗号を使うたびに、生きのびるために暗号を使う必要のある誰かを守っているのだ。&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://wirelesswire.jp/2015/12/48567/&#34;&gt;我匿す、ゆえに我あり&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;「木の葉を隠すなら森のなか&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:dce2488275596f7e80d074ad1b292c1e:br&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:dce2488275596f7e80d074ad1b292c1e:br&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;」ということだろう。
-たぶんこれは通信・ネットワークに於いては正しい。&lt;/p&gt;
-
-&lt;p&gt;現代社会においては善人と悪人，内部告発者と犯罪者，あるいは愛国者とテロリストを区別することはできない。
-これらは私たちの日常空間に埋め込まれているからだ。&lt;/p&gt;
-
-&lt;p&gt;特に今回のパリのテロや先日の&lt;a href=&#34;http://www.fsight.jp/articles/-/40737&#34;&gt;米国カリフォルニア州のテロ&lt;/a&gt;のような「ローン・ウルフ型」と言われるテロは，活動主体の武装組織などと事前に negotiation する必要はなく，勝手に立案して勝手に実行して勝手に名乗りを上げることができてしまう&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:dce2488275596f7e80d074ad1b292c1e:a&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:dce2488275596f7e80d074ad1b292c1e:a&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
-こういったことを警察・諜報組織が（事後ならともかく）事前に察知することは，たとえ全ての通信履歴を解読できたとしても，難しいだろう。
-何故なら誰とも秘密を共有する必要はない（または共有する範囲がごく限られる）し，秘密の存在自体を秘匿しやすいからだ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:dce2488275596f7e80d074ad1b292c1e:b&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:dce2488275596f7e80d074ad1b292c1e:b&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;p&gt;テロのような犯罪を事前に防ぐことが難しいのは暗号技術のせいではない。
-彼ら為政者はただ，森に隠された木の葉を探すために「焼き払え！」と叫んでいるだけである。&lt;/p&gt;
-
-&lt;h2 id=&#34;強すぎる結界は更なる魔を引き寄せる:dce2488275596f7e80d074ad1b292c1e&#34;&gt;強すぎる結界は更なる魔を引き寄せる&lt;/h2&gt;
-
-&lt;p&gt;しかし，実際問題として暗号技術が正しく機能しているのかというと甚だ疑問と言わざるを得ない。&lt;/p&gt;
-
-&lt;p&gt;「&lt;a href=&#34;https://wirelesswire.jp/2015/12/48567/&#34; title=&#34;我匿す、ゆえに我あり - WirelessWire News（ワイヤレスワイヤーニュース）&#34;&gt;我匿す、ゆえに我あり&lt;/a&gt;」では電子メールを挙げていた&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:dce2488275596f7e80d074ad1b292c1e:mua&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:dce2488275596f7e80d074ad1b292c1e:mua&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; が， HTTPS も基盤である &lt;a href=&#34;http://text.baldanders.info/remark/2015/1128-diary/#pki:69db4720d983b07bf75e11bfad43c4fd&#34;&gt;PKI が揺らいでいる&lt;/a&gt;。
-もっと言うと利便性やセキュリティの名のもとに HTTPS 通信に「中間者攻撃（man-in-the-middle-attack）」を仕掛けて通信内容を「監査」する製品がセキュリティ企業などから提供され，ユーザ企業側もそれを使うことをよしとしている。
-しかも「中間者攻撃」の仕組みがあることが分かっているのなら，犯罪者だってそれを利用できる可能性があるわけだ。
-知らぬは末端のユーザのみである。&lt;/p&gt;
-
-&lt;p&gt;こう考えると本当に「あらゆる通信に」暗号化を適用すべきなのか疑問に感じてしまう。
-政治的圧力には同じ圧力で対抗できるかもしれないが，市場はそんな政治的思惑も「面倒」なルールも全部迂回してしまう。
-かといって他に冴えたやり方もないので，とりあえずはせっせと「森を作る」しかないのだが。&lt;/p&gt;
-
-&lt;p&gt;強すぎる光は影を濃くするのみだ。
-あるいは強すぎる結界は更なる魔を引き寄せる。&lt;/p&gt;
-
-&lt;p&gt;これはいつも言っていることだが，ルールが守られないのはルール自体に問題がある。
-そろそろ排除するだけのセキュリティも暗号技術も曲がり角に来ているのではないかと思ったりする。&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:dce2488275596f7e80d074ad1b292c1e:br&#34;&gt;正しくは「賢い人は葉をどこへ隠す？ 森の中だ。森がない時は、自分で森を作る。一枚の枯れ葉を隠したいと願う者は、枯れ葉の林をこしらえあげるだろう」らしい。 Gilbert Keith Chesterton 著『&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E3%83%96%E3%83%A9%E3%82%A6%E3%83%B3%E7%A5%9E%E7%88%B6%E3%81%AE%E7%AB%A5%E5%BF%83&#34;&gt;ブラウン神父の童心（The Innocence of Father Brown）&lt;/a&gt;』より「折れた剣（The Sign of the Broken Sword）」の中の一節。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:dce2488275596f7e80d074ad1b292c1e:br&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:dce2488275596f7e80d074ad1b292c1e:a&#34;&gt;ちゃんと名乗りを上げないとただの犯罪と見分けがつかないからね。そのせいで米国の例では「テロ」の判断が遅れたわけだが（笑）
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:dce2488275596f7e80d074ad1b292c1e:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:dce2488275596f7e80d074ad1b292c1e:b&#34;&gt;さらに言えば，自爆テロなら「事後」を考慮する必要もない。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:dce2488275596f7e80d074ad1b292c1e:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:dce2488275596f7e80d074ad1b292c1e:mua&#34;&gt;私も同じネタで&lt;a href=&#34;http://text.baldanders.info/remark/2015/use-the-signal-luke/&#34;&gt;記事を書いた&lt;/a&gt;。実は TextSecure が Signal に統合されてからウチのスマホでは動かなくなってしまった。とほほ orz
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:dce2488275596f7e80d074ad1b292c1e:mua&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
