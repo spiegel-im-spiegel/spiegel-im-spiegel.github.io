@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cc="http://web.resource.org/cc/">
+	<title>Recursion - text.Baldanders.info</title>
+	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/recursion/" />
+	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/recursion/index.xml" />
+	<id>tag:text.Baldanders.info,2016-01-18:/</id>
+	<updated>2016-01-18T22:59:07+09:00</updated>
+	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
+	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
+	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
+	<generator uri="http://gohugo.io/">Hugo 0.15</generator>
+
+	
+	<entry>
+		<title>再帰呼び出しと関数テーブル - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/recursive-call-and-function-table/" />
+		<id>tag:text.Baldanders.info,2016-01-18:/golang/recursive-call-and-function-table/</id>
+		<published>2016-01-18T22:59:07+09:00</published>
+		<updated>2016-01-18T22:59:07+09:00</updated>
+		<summary>今回は再帰呼び出しの話。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;今回は再帰呼び出しの話。&lt;/p&gt;
+
+&lt;p&gt;再帰呼び出しのサンプルとして典型的なのは&lt;a href=&#34;https://en.wikipedia.org/wiki/Fibonacci_number&#34; title=&#34;Fibonacci number - Wikipedia, the free encyclopedia&#34;&gt;フィボナッチ数&lt;/a&gt;かな。
+&lt;a href=&#34;https://en.wikipedia.org/wiki/Fibonacci_number&#34; title=&#34;Fibonacci number - Wikipedia, the free encyclopedia&#34;&gt;フィボナッチ数&lt;/a&gt;の定義を愚直にコードにするとこんな感じになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func fibonacciNumber(n int) int {
+	switch n {
+	case 0:
+		return 0
+	case 1:
+		return 1
+	default:
+		return fibonacciNumber(n-2) + fibonacciNumber(n-1)
+	}
+}
+
+type ff func(int) int
+
+var fib = fibonacciNumber
+
+func main() {
+	fmt.Println(fibonacciNumber(40))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;一般に手続き型言語は再帰呼び出しに弱いと言われている（関数型のほうが有利）。
+特に &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の場合は &lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt; に最適化を割り振っている関係で，関数呼び出しのパフォーマンスが冷遇されているようだ。
+したがって，再帰呼び出し部分のパフォーマンスを改善したければ，なるべく呼び出し回数を減らすようにするのがコツである。
+たとえば上の&lt;a href=&#34;https://en.wikipedia.org/wiki/Fibonacci_number&#34; title=&#34;Fibonacci number - Wikipedia, the free encyclopedia&#34;&gt;フィボナッチ数&lt;/a&gt;の場合は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+var fibonacciNumbers = make(map[int]int)
+
+func fibonacciNumber(n int) int {
+	switch n {
+	case 0:
+		return 0
+	case 1:
+		return 1
+	default:
+		if fn, ok := fibonacciNumbers[n]; ok {
+			return fn
+		}
+		fn := fibonacciNumber(n-2) + fibonacciNumber(n-1)
+		fibonacciNumbers[n] = fn
+		return fn
+	}
+}
+
+func main() {
+	fmt.Println(fibonacciNumber(40))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;という感じに計算結果を保持っておくことでかなり改善する。&lt;/p&gt;
+
+&lt;p&gt;ところで，再帰呼び出しで怖いのが無限呼び出しに陥るパターンである。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では関数値（function value）を介す場合であれば再帰呼び出しを禁止する。&lt;/p&gt;
+
+&lt;p&gt;たとえば先ほどのコードを以下のように書き換えてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+var fibonacciNumbers = make(map[int]int)
+
+func fibonacciNumber(n int) int {
+	switch n {
+	case 0:
+		return 0
+	case 1:
+		return 1
+	default:
+		if fn, ok := fibonacciNumbers[n]; ok {
+			return fn
+		}
+		fn := fib(n-2) + fib(n-1)
+		fibonacciNumbers[n] = fn
+		return fn
+	}
+}
+
+type ff func(int) int
+
+var fib ff = fibonacciNumber
+
+func main() {
+	fmt.Println(fib(40))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;fibonacciNumber()&lt;/code&gt; を &lt;code&gt;fib()&lt;/code&gt; で別名定義しているだけだが，これを実行しようとすると以下のコンパイルエラーになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;prog.go:25: initialization loop:
+	prog.go:25 fib refers to
+	prog.go:7 fibonacciNumber refers to
+	prog.go:25 fib
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;関数値 &lt;code&gt;fib&lt;/code&gt; の部分でエラーになっている点に注目してほしい。&lt;/p&gt;
+
+&lt;p&gt;本当に「ついうっかり」再帰呼び出しになってしまう場合はエラーではじいてもらってありがたいのだが，そうでない場合もある。
+あまり例示がうまくなくて申し訳ないのだが，以下の簡単なステート・マシンを考えてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func f0(evt int) int {
+	fmt.Println(&amp;quot;processing f0&amp;quot;)
+	return 1
+}
+
+func f1(evt int) int {
+	fmt.Println(&amp;quot;processing f1&amp;quot;)
+	return 2
+}
+
+func f2(evt int) int {
+	fmt.Println(&amp;quot;processing f2&amp;quot;)
+	return 3
+}
+
+func f3(evt int) int {
+	fmt.Println(&amp;quot;processing f3&amp;quot;)
+	return 0
+}
+
+type fn func(int) int
+
+var fs = []fn{
+	f0,
+	f1,
+	f2,
+	f3,
+}
+
+func StateMachin(stat, evt int) int {
+	return fs[stat](evt)
+}
+
+func main() {
+	s := 0
+	for e := 0; e &amp;lt; 10; e++ {
+		s = StateMachin(s, e)
+		if s == 0 {
+			break
+		}
+	}
+	fmt.Println(&amp;quot;end&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;fs&lt;/code&gt; が関数テーブルになっていて，状態 &lt;code&gt;s&lt;/code&gt; とイベント &lt;code&gt;e&lt;/code&gt; に対する処理 &lt;code&gt;fs[s](e)&lt;/code&gt; を呼び出して処理後の状態を返してもらう。
+一応 &lt;code&gt;StateMachine()&lt;/code&gt; 関数で詳細を隠蔽しているつもりである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:90181bd94c22568ae136c2a2c4e81a10:b&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:90181bd94c22568ae136c2a2c4e81a10:b&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;ここで &lt;code&gt;StateMachine(3, evt)&lt;/code&gt; の処理に続けて &lt;code&gt;StateMachine(1, evt)&lt;/code&gt; の処理がしたくなり&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func f3(evt int) int {
+    fmt.Println(&amp;quot;processing f3&amp;quot;)
+    return StateMachin(1, evt)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;などと書いたらどうなるか。
+もちろんこれもコンパイルエラーになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;prog.go:32: initialization loop:
+	prog.go:32 fs refers to
+	prog.go:20 f3 refers to
+	prog.go:34 StateMachin refers to
+	prog.go:32 fs
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;しかし実際には &lt;code&gt;f3&lt;/code&gt; を無限に呼び出しているわけではないので，このコンパイルエラーでは困ってしまう&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:90181bd94c22568ae136c2a2c4e81a10:a&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:90181bd94c22568ae136c2a2c4e81a10:a&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+このエラーを回避するには関数テーブル &lt;code&gt;fs&lt;/code&gt; を介さなければよい。
+たとえば&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;var fs = []fn{
+	f0,
+	f1,
+	f2,
+	//f3,
+}
+
+func StateMachin(stat, evt int) int {
+	if stat == 3 {
+		return f3(evt)
+	}
+	return fs[stat](evt)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とすれば，めでたく &lt;code&gt;f1&lt;/code&gt; → &lt;code&gt;f2&lt;/code&gt; → &lt;code&gt;f3&lt;/code&gt; → &lt;code&gt;f1&lt;/code&gt; とエンドレスにつながる。
+ちなみにここでうっかり&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func f3(evt int) int {
+	fmt.Println(&amp;quot;processing f3&amp;quot;)
+	return StateMachin(3, evt)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;などと書くと，コンパイルエラーにもならず無限呼び出しが発生する。&lt;/p&gt;
+
+&lt;p&gt;再帰呼び出しは計画的に。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:90181bd94c22568ae136c2a2c4e81a10&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://ymotongpoo.hatenablog.com/entry/2015/02/23/165341&#34;&gt;Goで再帰使うと遅くなりますがそれが何だ - YAMAGUCHI::weblog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/zetamatta/items/cc0f29441b16d63472ed&#34;&gt;.\hoge.go:7: initialization loop - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:90181bd94c22568ae136c2a2c4e81a10:b&#34;&gt;実際には別パッケージにしてちゃんとクラス設計すべきだろうけど色々端折っている。ゴメンペコン。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:90181bd94c22568ae136c2a2c4e81a10:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:90181bd94c22568ae136c2a2c4e81a10:a&#34;&gt;このコードに限れば &lt;code&gt;StateMachine(1, evt)&lt;/code&gt; ではなく &lt;code&gt;f1(evt)&lt;/code&gt; を呼び出せば済む話なのでこれは言いがかりであるが，「話の都合」ということで軽く流していただけるとありがたい。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:90181bd94c22568ae136c2a2c4e81a10:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+</feed>
