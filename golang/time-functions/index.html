@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjapanese.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>Go 言語の日付処理 — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="今回は日付処理の話。特にフォーマットの定義の仕方はよく忘れるので覚え書きとして記しておく。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,time">
+<link rel='prev' href='http://text.baldanders.info/golang/recursive-call-and-function-table/' title='再帰呼び出しと関数テーブル' />
+
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>Go 言語の日付処理 — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/golang">golang</a> #<a href="/tags/time">time</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/time-functions/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>今回は日付処理の話。
+特にフォーマットの定義の仕方はよく忘れるので覚え書きとして記しておく。</p>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で日付処理を行うには <a href="http://golang.org/pkg/time/"><code>time</code></a> パッケージを使う。
+よく使う型としては</p>
+
+<ul>
+<li><a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Time</code></li>
+<li><a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Duration</code></li>
+<li><a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Location</code></li>
+</ul>
+
+<p>が挙げられるだろう。
+<a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Time</code> は時刻を， <a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Duration</code> は2時点間の時間を，そして <a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Location</code> は地球上の時差を表す型である。
+たとえば</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	tz, err := time.LoadLocation(&quot;Asia/Tokyo&quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	tm := time.Date(2006, 1, 2, 15, 4, 5, 0, tz)
+	fmt.Println(tm)
+	now := time.Now()
+	fmt.Println(now)
+	d := now.Sub(tm)
+	fmt.Println(d)
+}
+</code></pre>
+
+<p>と書くと</p>
+
+<pre><code>2006-01-02 15:04:05 +0900 JST
+2009-11-10 23:00:00 +0000 UTC
+33808h55m55s
+</code></pre>
+
+<p>てな感じになる<sup class="footnote-ref" id="fnref:c11a81a4a42bf05b71b8320d533680a9:m"><a rel="footnote" href="#fn:c11a81a4a42bf05b71b8320d533680a9:m">1</a></sup>。</p>
+
+<p>時刻を任意のフォーマットで表示する場合は少し特殊な方法を使う。
+たとえば <a href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> フォーマットに出力するなら</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	tz, err := time.LoadLocation(&quot;Asia/Tokyo&quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	tm := time.Date(2015, 12, 31, 23, 59, 59, 0, tz)
+	fmt.Println(tm.Format(&quot;2006-01-02T15:04:05Z07:00&quot;))
+}
+</code></pre>
+
+<p>とすれば</p>
+
+<pre><code>2015-12-31T23:59:59+09:00
+</code></pre>
+
+<p>と出力される。
+テンプレート文字列が <code>%Y</code> とか <code>YYYY</code> のような形式ではないのだ。
+これは適当な文字列ではなく一応法則があって</p>
+
+<ul>
+<li>月は <code>1</code> （または <code>01</code>, <code>Jan</code>, <code>January</code>）</li>
+<li>日は <code>2</code> （または <code>02</code>, <code>_2</code>）</li>
+<li>時は <code>3</code> （または <code>03</code>, <code>15</code>） ※ 午後3時を指す</li>
+<li>分は <code>4</code> （または <code>04</code>）</li>
+<li>秒は <code>5</code> （または <code>05</code>）</li>
+<li>年は <code>06</code> （または <code>2006</code>）</li>
+<li>時差は <code>-07</code> （または <code>-0700</code>, <code>-07:00</code>, <code>Z07:00</code>, <code>MST</code><sup class="footnote-ref" id="fnref:c11a81a4a42bf05b71b8320d533680a9:tz"><a rel="footnote" href="#fn:c11a81a4a42bf05b71b8320d533680a9:tz">2</a></sup> など）</li>
+<li>曜日は <code>Mon</code> （または <code>Monday</code>）</li>
+<li>AM/PM は <code>PM</code> （または <code>pm</code>）</li>
+</ul>
+
+<p>という感じに 1 からの連番になっている（曜日等は例外だけど）ので，まぁ覚えられるかな？ でもよく忘れるんだよなぁ。
+<code>%Y</code> みたいなのとどちらがいいかは微妙な気がするが，慣れの問題かもしれない。</p>
+
+<p>典型的なフォーマットは定数化されている。</p>
+
+<pre><code class="language-go">const (
+	ANSIC       = &quot;Mon Jan _2 15:04:05 2006&quot;
+	UnixDate    = &quot;Mon Jan _2 15:04:05 MST 2006&quot;
+	RubyDate    = &quot;Mon Jan 02 15:04:05 -0700 2006&quot;
+	RFC822      = &quot;02 Jan 06 15:04 MST&quot;
+	RFC822Z     = &quot;02 Jan 06 15:04 -0700&quot; // RFC822 with numeric zone
+	RFC850      = &quot;Monday, 02-Jan-06 15:04:05 MST&quot;
+	RFC1123     = &quot;Mon, 02 Jan 2006 15:04:05 MST&quot;
+	RFC1123Z    = &quot;Mon, 02 Jan 2006 15:04:05 -0700&quot; // RFC1123 with numeric zone
+	RFC3339     = &quot;2006-01-02T15:04:05Z07:00&quot;
+	RFC3339Nano = &quot;2006-01-02T15:04:05.999999999Z07:00&quot;
+	Kitchen     = &quot;3:04PM&quot;
+	// Handy time stamps.
+	Stamp      = &quot;Jan _2 15:04:05&quot;
+	StampMilli = &quot;Jan _2 15:04:05.000&quot;
+	StampMicro = &quot;Jan _2 15:04:05.000000&quot;
+	StampNano  = &quot;Jan _2 15:04:05.000000000&quot;
+)
+</code></pre>
+
+<p>なので，先ほどのコードも出力部分を</p>
+
+<pre><code class="language-go">fmt.Println(tm.Format(time.RFC3339))
+</code></pre>
+
+<p>とすれば同じ結果が得られる。
+時刻フォーマットは，いったんシステムの中で決めてしまえば同じものを使い回すことになると思うので，定数化してしまえば「フォーマットどうだっけ？」と煩わされることも少ないだろう。</p>
+
+<p>ところで現行（バージョン 1.5 系）の <a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Parse()</code> 関数は日付の解釈が寛容で，各月の末日を31日まで許容している。
+たとえば閏年でない2月29日でも</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	tm, err := time.Parse(time.RFC3339, &quot;2015-02-29T23:59:59+09:00&quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Println(tm)
+}
+</code></pre>
+
+<pre><code>2015-03-01 23:59:59 +0900 +0900
+</code></pre>
+
+<p>となり，エラーとならずいい感じ（？）に加減してくれるのだが，バージョン 1.6 からは少し解釈が厳密になりエラーを返すようだ。</p>
+
+<figure lang="en">
+<blockquote>
+<q>The time package's Parse function has always rejected any day of month larger than 31, such as January 32. In Go 1.6, Parse now also rejects February 29 in non-leap years, February 30, February 31, April 31, June 31, September 31, and November 31.</q>
+</blockquote>
+<figcaption>via <q><a href="https://tip.golang.org/doc/go1.6">Go 1.6 Release Notes DRAFT - The Go Programming Language</a></q></figcaption>
+</figure>
+
+<p>ちなみに <a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Date()</code> 関数は更に寛容である。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;os&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	tz, err := time.LoadLocation(&quot;Asia/Tokyo&quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	tm := time.Date(2015, 13, 32, 25, 60, 00, 0, tz)
+	fmt.Println(tm)
+}
+</code></pre>
+
+<pre><code>2016-02-03 02:00:00 +0900 JST
+</code></pre>
+
+<h2 id="ブックマーク:c11a81a4a42bf05b71b8320d533680a9">ブックマーク</h2>
+
+<ul>
+<li><a href="http://ymotongpoo.hatenablog.com/entry/2015/12/22/000011">Goで良い感じに日時をパースするライブラリdatemakiの話とGo 1.6 - YAMAGUCHI::weblog</a></li>
+<li><a href="http://qiita.com/ushio_s/items/3e270933641710bbd88e">golangのtime.Timeの当日00:00:00を取得する方法とベンチマーク - Qiita</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:c11a81a4a42bf05b71b8320d533680a9:m">厳密にいうと月の値は <a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Month</code> 型である。サンプル・コードのようにリテラルな数値なら気にする必要はないが，変数を <a href="http://golang.org/pkg/time/"><code>time</code></a>.<code>Date()</code> 関数にセットする場合は注意が必要である。
+ <a class="footnote-return" href="#fnref:c11a81a4a42bf05b71b8320d533680a9:m"><sup>[return]</sup></a></li>
+<li id="fn:c11a81a4a42bf05b71b8320d533680a9:tz">時差の MST は米国の山岳部時間（Mountain Standad Time）を指すらしい。ソルトレイクシティとかデンバーとかかな。
+ <a class="footnote-return" href="#fnref:c11a81a4a42bf05b71b8320d533680a9:tz"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/recursive-call-and-function-table/">再帰呼び出しと関数テーブル</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/time-functions\/';
+    var disqus_title = 'Go 言語の日付処理';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/time-functions\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-01-22</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/time-functions/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="Go 言語の日付処理 - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2ftime-functions%2f&amp;title=Go%20%e8%a8%80%e8%aa%9e%e3%81%ae%e6%97%a5%e4%bb%98%e5%87%a6%e7%90%86" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2ftime-functions%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+<script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>
+
+</body>
+</html>
+
