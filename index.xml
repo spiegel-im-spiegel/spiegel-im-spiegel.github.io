@@ -3,13 +3,361 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2016-01-26:/</id>
-	<updated>2016-01-26T20:29:34+09:00</updated>
+	<id>tag:text.Baldanders.info,2016-01-30:/</id>
+	<updated>2016-01-30T04:05:52+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.15</generator>
 
+	
+	<entry>
+		<title>Go 言語と Unicode 正規化 - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/unicode-normalization/" />
+		<id>tag:text.Baldanders.info,2016-01-30:/golang/unicode-normalization/</id>
+		<published>2016-01-30T04:05:52+09:00</published>
+		<updated>2016-01-30T04:05:52+09:00</updated>
+		<summary>今回は少し目先を変えて「Unicode 正規化」のお話。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;今回は少し目先を変えて「Unicode 正規化（normalization）」のお話。&lt;/p&gt;
+
+&lt;h2 id=&#34;2羽の-ペンギン:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;2羽の「ペンギン」&lt;/h2&gt;
+
+&lt;p&gt;まず「ペンギン」という文字列を思い浮かべてみる。
+この文字列を Unicode のコードポイントで表すと以下のようになる。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;ペ：U+30DA&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;li&gt;ギ：U+30AE&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ところでペンギンの「ペ」と「ギ」は半濁点および濁点を含む。
+Unicode は「ペ」と「ギ」をそれぞれ2つの要素に分解できる。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;ペ：U+30D8 + U+309A&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;li&gt;ギ：U+30AD + U+3099&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;U+309A および U+3099 はそれぞれ半濁点と濁点を表す「結合文字（combining character）」である。
+「ヘ」や「キ」のような「基底文字（base character）」に結合文字を1つ以上&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; 付加した文字を「合成列（composite sequence）」と呼ぶ。
+これに対して「ペ：U+30DA」や「ギ：U+30AE」のような文字を「事前合成形（precomposed）」と呼ぶ。&lt;/p&gt;
+
+&lt;p&gt;つまり同じ文字を同じ文字集合&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; で表しているのにもかかわらず複数の符号化&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; が存在するわけだ。
+これを「重複符号化」と言う。
+文字集合に重複符号化があるというのは，はっきり言って「クソ仕様」である。&lt;/p&gt;
+
+&lt;p&gt;もちろんこれは Unicode を作った連中がヘボいのではなく（いや，ヘボいのかもしれないが），いわゆる「歴史的経緯」というやつである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。
+だからこれはこういうものだと諦めるしかない。&lt;/p&gt;
+
+&lt;p&gt;しかし情報処理を行う上では，この2羽の「ペンギン」が等価（equivalance）であることを示す手立てを考えなければならない。&lt;/p&gt;
+
+&lt;h2 id=&#34;正規等価:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;正規等価&lt;/h2&gt;
+
+&lt;p&gt;2羽の「ペンギン」が等価であることを示す一番簡単な方法は，文字列を事前合成形あるいは合成列のどちらかに統一（＝正規化）してしまえばいい。
+事前合成形に正規化する方法を “NFC（Normalization Form Composition）”，合成列に正規化する方法を “NFD（Normalization Form Decomposition）” と呼ぶ。
+これらの正規化によって2羽の「ペンギン」が等価となることを「正規等価（canonical equivalance）」と呼ぶ。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では &lt;code&gt;golang.org/x/text/unicode/&lt;/code&gt;&lt;a href=&#34;https://godoc.org/golang.org/x/text/unicode/norm&#34; title=&#34;norm - GoDoc&#34;&gt;&lt;code&gt;norm&lt;/code&gt;&lt;/a&gt; パッケージで Unicode 文字列を正規化できる。
+まぁ，コードで書いたほうがはやいか。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+func main() {
+	penguin := &amp;quot;ペンギン&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFD.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin3 := string(norm.NFC.Bytes([]byte(penguin2)))
+	for pos, runeValue := range penguin3 {
+		fmt.Printf(&amp;quot;penguin3[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+30DA &#39;ペ&#39;
+penguin[3] = U+30F3 &#39;ン&#39;
+penguin[6] = U+30AE &#39;ギ&#39;
+penguin[9] = U+30F3 &#39;ン&#39;
+penguin2[0] = U+30D8 &#39;ヘ&#39;
+penguin2[3] = U+309A &#39;゚&#39;
+penguin2[6] = U+30F3 &#39;ン&#39;
+penguin2[9] = U+30AD &#39;キ&#39;
+penguin2[12] = U+3099 &#39;゙&#39;
+penguin2[15] = U+30F3 &#39;ン&#39;
+penguin3[0] = U+30DA &#39;ペ&#39;
+penguin3[3] = U+30F3 &#39;ン&#39;
+penguin3[6] = U+30AE &#39;ギ&#39;
+penguin3[9] = U+30F3 &#39;ン&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;NFC と NFD が交換可能であることがわかると思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;3羽目の-ペンギン-と互換等価:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;3羽目の「ペンギン」と互換等価&lt;/h2&gt;
+
+&lt;p&gt;さてここで3羽目の「ペンギン」に登場してもらおう。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;ﾍ：U+FF8D&lt;/li&gt;
+&lt;li&gt;ﾟ：U+FF9F&lt;/li&gt;
+&lt;li&gt;ﾝ：U+FF9D&lt;/li&gt;
+&lt;li&gt;ｷ：U+FF77&lt;/li&gt;
+&lt;li&gt;ﾞ：U+FF9E&lt;/li&gt;
+&lt;li&gt;ﾝ：U+FF9D&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;これはいわゆる「半角カナ」である。
+半角カナの濁点および半濁点は結合文字ではない。
+そのためこの文字列を NFC で事前合成形に正規化しようとしても&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+func main() {
+	penguin := &amp;quot;ﾍﾟﾝｷﾞﾝ&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+FF8D &#39;ﾍ&#39;
+penguin[3] = U+FF9F &#39;ﾟ&#39;
+penguin[6] = U+FF9D &#39;ﾝ&#39;
+penguin[9] = U+FF77 &#39;ｷ&#39;
+penguin[12] = U+FF9E &#39;ﾞ&#39;
+penguin[15] = U+FF9D &#39;ﾝ&#39;
+penguin2[0] = U+FF8D &#39;ﾍ&#39;
+penguin2[3] = U+FF9F &#39;ﾟ&#39;
+penguin2[6] = U+FF9D &#39;ﾝ&#39;
+penguin2[9] = U+FF77 &#39;ｷ&#39;
+penguin2[12] = U+FF9E &#39;ﾞ&#39;
+penguin2[15] = U+FF9D &#39;ﾝ&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;何も変わらないことが分かるだろう。&lt;/p&gt;
+
+&lt;p&gt;このような場合は半角の「ﾍﾟﾝｷﾞﾝ」と互換性のある文字列に正規化できるとよい。
+これを「互換等価（compatibility equivalance）」と呼ぶ。
+具体的には NFKC（Normalization Form Compatibility Composition）および NFKD（Normalization Form Compatibility Decomposition）の2つの正規化がある。&lt;/p&gt;
+
+&lt;p&gt;早速 &lt;a href=&#34;https://godoc.org/golang.org/x/text/unicode/norm&#34; title=&#34;norm - GoDoc&#34;&gt;&lt;code&gt;norm&lt;/code&gt;&lt;/a&gt; パッケージを使ってコードを書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+func main() {
+	penguin := &amp;quot;ﾍﾟﾝｷﾞﾝ&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFKC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+FF8D &#39;ﾍ&#39;
+penguin[3] = U+FF9F &#39;ﾟ&#39;
+penguin[6] = U+FF9D &#39;ﾝ&#39;
+penguin[9] = U+FF77 &#39;ｷ&#39;
+penguin[12] = U+FF9E &#39;ﾞ&#39;
+penguin[15] = U+FF9D &#39;ﾝ&#39;
+penguin2[0] = U+30DA &#39;ペ&#39;
+penguin2[3] = U+30F3 &#39;ン&#39;
+penguin2[6] = U+30AE &#39;ギ&#39;
+penguin2[9] = U+30F3 &#39;ン&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となり， NFC で正規化した「ペンギン」と等価であることがわかる。&lt;/p&gt;
+
+&lt;p&gt;互換等価による正規化は応用範囲が広い。
+たとえば「㈱」（U+3231）は「（株）」（U+0028 + U+682A + U+0029）に変換される。
+文字列検索の前に互換等価による正規化を行っておくことで処理がやりやすくなるというのはあるかもしれない。
+ただし， NFC と NFD は交換可能だが， NFKC や NFKD で正規化した文字列を元のオリジナルに戻す方法はないので注意が必要である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;恐怖の-cjk-互換文字:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;恐怖の CJK 互換文字&lt;/h2&gt;
+
+&lt;p&gt;正規等価については注意すべき点がある。
+有名な「神」を例に挙げよう。
+これを NFC / NFD で正規化する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+//神様の遊び
+func main() {
+	penguin := &amp;quot;神&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFKC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin3 := string(norm.NFKD.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin3 {
+		fmt.Printf(&amp;quot;penguin3[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+FA19 &#39;神&#39;
+penguin2[0] = U+795E &#39;神&#39;
+penguin3[0] = U+795E &#39;神&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となり，NFC でも NFD でも違う文字になってしまった。
+ちなみに「神」から「神」へ正規化する方法はない。
+困ったね。&lt;/p&gt;
+
+&lt;p&gt;実は「神」は「CJK 互換文字」と呼ばれるグループに属し，「神」とは異体字の関係にある。
+故に「神」を「神」に正規化してしまったのである。&lt;/p&gt;
+
+&lt;p&gt;しかし，これは明らかに仕様ミスである。
+「神」と「神」のような異体字の関係は正規等価ではなく互換等価だからだ。&lt;/p&gt;
+
+&lt;p&gt;&amp;hellip;やっぱり Unicode はクソ仕様だ。&lt;/p&gt;
+
+&lt;p&gt;しかし，これが実際の場面で問題になることは少ないと思われる。
+なぜなら，正規化を行うのは「2つの文字列が等価であるか？」を調べるための手段にすぎないからだ。
+普通はね。&lt;/p&gt;
+
+&lt;p&gt;ところが，普通でないことをする馬鹿がいるのである。&lt;/p&gt;
+
+&lt;h3 id=&#34;独自路線に走る-apple:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;独自路線に走る Apple&lt;/h3&gt;
+
+&lt;p&gt;Apple の OS X （iOS も？）のファイルシステムである HFS+ はファイル名を NFD 相当に正規化するという恐ろしい仕様になっている&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。
+しかしそれでは，先ほどの例のように異体字に関しては正規化によって別の文字に変えられてしまうため困ったことになってしまう。&lt;/p&gt;
+
+&lt;p&gt;そこで Apple は CJK 互換文字を含むいくつかの文字を正規化の対象から外すという蛮行に出た。
+俗に “NFD-mac” などと呼ばれる独自路線に走ってしまったわけだ。&lt;/p&gt;
+
+&lt;p&gt;これにより様々な（特にマルチプラットフォームな）アプリケーションが多大なる迷惑を被ることになるが&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;，深くはツッコむまい。&lt;/p&gt;
+
+&lt;h2 id=&#34;unicode-正規化に関するまとめ:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;Unicode 正規化に関するまとめ&lt;/h2&gt;
+
+&lt;p&gt;以上， Unicode 正規化の4つの方式をまとめると以下のようになる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th&gt;Composing&lt;/th&gt;
+    &lt;th&gt;Decomposing&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Canonical equivalence&lt;/th&gt;
+    &lt;td&gt;NFC&lt;/td&gt;
+    &lt;td&gt;NFD&lt;br&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Compatibility equivalence&lt;/th&gt;
+    &lt;td&gt;NFKC&lt;/td&gt;
+    &lt;td&gt;NFKD&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;figcaption&gt;&lt;a href=&#34;https://blog.golang.org/normalization&#34;&gt;Text normalization in Go&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Unicode 文字列の等価属性を調べる際には是非参考にどうぞ。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://internet.watch.impress.co.jp/www/column/ogata/sp24.htm&#34;&gt;特別編24 JIS X 0213の改正は、文字コードにどんな未来をもたらすか（7）　番外編：改正JIS X 0213とUnicodeの等価属性／正規化について（上）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://internet.watch.impress.co.jp/www/column/ogata/sp25.htm&#34;&gt;特別編24 JIS X 0213の改正は、文字コードにどんな未来をもたらすか（7）　番外編：改正JIS X 0213とUnicodeの等価属性／正規化について（下）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://nomenclator.la.coocan.jp/unicode/normalization.htm&#34;&gt;Unicode正規化&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/normalization&#34;&gt;Text normalization in Go - The Go Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/masakielastic/items/01a4fb691c572dd71a19&#34;&gt;Go で UTF-8 の文字列を扱う - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://tech.albert2005.co.jp/blog/2014/11/21/mco-normalize/&#34;&gt;文字コード地獄秘話 第3話：後戻りの効かないUnicode正規化 - ALBERT Engineer Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://cpplover.blogspot.jp/2015/01/blog-post_14.html&#34;&gt;本の虫: Linus Torvalds、HFS+に激怒&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;ちなみに結合文字はひとつの基底文字に対して複数付加される場合もある。しかもこの場合に結合文字同士の順序は不定である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;正しくは「符号化文字集合（coded character set）」である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;これは UTF-8 などの「文字エンコーディング」とは異なるものだ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;日本の JIS 規格にも「歴史的経緯」による重複符号化がある。言わずと知れた「半角」「全角」文字である。異体字も一種の重複符号化と言える。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;単に全角・半角変換ができればいいのなら &lt;code&gt;golang.org/x/text/&lt;/code&gt;&lt;a href=&#34;https://godoc.org/golang.org/x/text/width&#34; title=&#34;width - GoDoc&#34;&gt;&lt;code&gt;width&lt;/code&gt;&lt;/a&gt; パッケージをお勧めする。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;ちなみに Windows のファイルシステムはフォルダ・ファイルの名前を正規化するとかいうアホなことはしない。事前合成形も合成列も受け入れる。見かけ同じ名前のフォルダ・ファイルが複数できる可能性はあるが，それはそれ。多分，ほとんどの OS のファイルシステムは名前の正規化なんてしてないはず。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;たとえば Linus Torvalds は HFS+ に起因する git の脆弱性問題で&lt;a href=&#34;http://cpplover.blogspot.jp/2015/01/blog-post_14.html&#34;&gt;激怒&lt;/a&gt;している。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>二次的著作物と CC-Licenses - cc-licenses</title>
@@ -1526,488 +1874,6 @@ Bitcoin は「誰が」取り引きしているかについて気にしない&lt
 &lt;ol&gt;
 &lt;li id=&#34;fn:3f46fb39de5d548520d8e2de8805aa77:bw&#34;&gt;「割れ窓理論」では米国ニューヨーク市警の事例が有名だろう。1993年から1996年にかけてニューヨークの犯罪発生率が 36% も減少した。しかし当時の警視総監は後の講演で，当時のニューヨークで「ゼロ・トレランス政策」は実施されていなかったと証言した。また当時の米国の主要都市の犯罪発生率は，犯罪対策の有無や警察体制に関わらず，全体的に減少傾向にあった。「ゼロ・トレランス政策とは、大量の人々が周縁に追いやられ、貧困にあえぎ、抑圧されるような社会をつくりだす排除の過程の一部をなすものであり、さらにいえば、それはたんなる保険統計的な処理にすぎないもので、司法というより公共衛生と呼ぶべき政策である」（『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4903127044/baldandersinf-22/&#34;&gt;排除型社会&lt;/a&gt;』より）。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:3f46fb39de5d548520d8e2de8805aa77:bw&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>コマンドライン・インタフェースとファサード・パターン - golang</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/cli-and-facade-pattern/" />
-		<id>tag:text.Baldanders.info,2016-01-05:/golang/cli-and-facade-pattern/</id>
-		<published>2016-01-05T22:06:41+09:00</published>
-		<updated>2016-01-06T09:48:00+09:00</updated>
-		<summary>ファサード・パターンは DDD (Domain-Driven Design) と相性がよい。普通は Web アプリケーションのような多様なサブシステムを持つシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンがよいだろう。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラには &lt;a href=&#34;https://golang.org/pkg/flag/&#34; title=&#34;flag - The Go Programming Language&#34;&gt;&lt;code&gt;flag&lt;/code&gt;&lt;/a&gt; パッケージが標準で提供されており，いわゆるコマンドライン・インタフェース（Command line interface; CLI）の操作はこれでまかなうことができる。
-ただし &lt;a href=&#34;https://golang.org/pkg/flag/&#34; title=&#34;flag - The Go Programming Language&#34;&gt;&lt;code&gt;flag&lt;/code&gt;&lt;/a&gt; パッケージではサブコマンドをサポートしていないためサブコマンドを構成したい場合は少し工夫が必要となる。
-ちなみにサブコマンドとは，以下のようなコマンドラインの構成になっているアプリケーションである。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;$ command [golabal options] &amp;lt;sub-command&amp;gt; [sub-options] [arguments]
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;たとえば &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラの &lt;code&gt;go run&lt;/code&gt; もサブコマンドだし， &lt;a href=&#34;https://git-scm.com/&#34; title=&#34;Git&#34;&gt;git&lt;/a&gt; の &lt;code&gt;git commit&lt;/code&gt; とかもサブコマンドである。&lt;/p&gt;
-
-&lt;h2 id=&#34;コマンドライン-インタフェースと-unix-philosophy:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;コマンドライン・インタフェースと UNIX Philosophy&lt;/h2&gt;
-
-&lt;p&gt;ところで CLI でよく引き合いに出されるのが “&lt;a href=&#34;http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html&#34; title=&#34;Tenets of the UNIX Philosophy&#34;&gt;UNIX Philosophy&lt;/a&gt;” と呼ばれるアプリケーションを作る際の哲学というか指針のようなものである。
-曰く&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;Small is beautiful. （小さいものは美しい）&lt;/li&gt;
-&lt;li&gt;Make each program do one thing well. （各プログラムが一つのことをうまくやるようにせよ）&lt;/li&gt;
-&lt;li&gt;Build a prototype as soon as possible. （できる限り早くプロトタイプを作れ）&lt;/li&gt;
-&lt;li&gt;Choose portability over efficiency. （効率よりも移植しやすさを選べ）&lt;/li&gt;
-&lt;li&gt;Store data in flat text files. （単純なテキストファイルにデータを格納せよ）&lt;/li&gt;
-&lt;li&gt;Use software leverage to your advantage. （ソフトウェアの効率を優位さとして利用せよ）&lt;/li&gt;
-&lt;li&gt;Use shell scripts to increase leverage and portability. （効率と移植性を高めるためにシェルスクリプトを利用せよ）&lt;/li&gt;
-&lt;li&gt;Avoid captive user interfaces. （拘束的なユーザーインターフェースは作るな）&lt;/li&gt;
-&lt;li&gt;Make every program a Filter. （全てのプログラムはフィルタとして振る舞うようにせよ）&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;の9項目&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
-昨今は UNIX 互換環境でも GUI が普通になってきたので対話型のインタフェースも増えてきたが，それでも従来の CUI shell 上で動作するアプリケーションの需要が減ったわけではなく，サーバサイドではむしろ需要は大きくなっていると言ってもいい。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で CLI アプリケーションを作る際に気をつける点としては&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;他のツールと shell を介して連携できるよう標準入出力を使ったフィルタプログラムとする&lt;/li&gt;
-&lt;li&gt;外部データの入出力は JSON, YAML, TOML といったテキストを用い UTF-8 文字エンコーディングに統一する&lt;/li&gt;
-&lt;li&gt;コードの可搬性（または移植性）を考慮し，プラットフォーム依存を避けるようにする&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;といったところだろうか。
-もともと &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;はクロスプラットフォーム開発に強いため，それほど難しい要件ではないはずである。&lt;/p&gt;
-
-&lt;h2 id=&#34;サブコマンドとファサード-パターン:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;サブコマンドとファサード・パターン&lt;/h2&gt;
-
-&lt;p&gt;サブコマンド方式は一見 “&lt;a href=&#34;http://www.ru.j-npcs.org/usoft/WWW/LJ/Articles/unixtenets.html&#34; title=&#34;Tenets of the UNIX Philosophy&#34;&gt;UNIX Philosophy&lt;/a&gt;” に反しているように見えるが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の場合は全てのパッケージをひとつの実行モジュールに結合してしまうため，関連する機能をサブコマンドとして組み込むのは悪くないやりかたである。&lt;/p&gt;
-
-&lt;p&gt;サブコマンドを構成する場合は「ファサード・パターン（facade pattern）」で考えるとよい。
-「ファサード」は「建物の正面」という意味だそうで，システム内の各サブシステムの窓口のように機能する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:fcd&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:fcd&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34;&gt;&lt;img src=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34; alt=&#34;Facade Pattern&#34;&gt;&lt;/a&gt;
-&lt;figcaption&gt;&lt;a href=&#34;http://text.baldanders.info/images/facade-pattern.svg&#34;&gt;Facade Pattern&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;この図のようにファサード・パターンは DDD (Domain-Driven Design) と相性がよい。
-普通は Web アプリケーションのような多様なサブシステムを含むシステムを設計する際に導入する考え方だが， CLI の場合でもサブコマンドを構成するのであればファサード・パターンがよいだろう。&lt;/p&gt;
-
-&lt;h2 id=&#34;mitchellh-cli-パッケージ:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli パッケージ&lt;/h2&gt;
-
-&lt;p&gt;CLI をサポートするパッケージはいくつか公開されているのだが，この中で今回は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; パッケージを紹介する。
-&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。&lt;/p&gt;
-
-&lt;h3 id=&#34;command-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;Command インタフェース&lt;/h3&gt;
-
-&lt;p&gt;まずは &lt;code&gt;Command&lt;/code&gt; インタフェース。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// A command is a runnable sub-command of a CLI.
-type Command interface {
-	// Help should return long-form help text that includes the command-line
-	// usage, a brief few sentences explaining the function of the command,
-	// and the complete list of flags the command accepts.
-	Help() string
-
-	// Run should run the actual command with the given CLI instance and
-	// command-line arguments. It should return the exit status when it is
-	// finished.
-	Run(args []string) int
-
-	// Synopsis should return a one-line, short synopsis of the command.
-	// This should be less than 50 characters ideally.
-	Synopsis() string
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;Command&lt;/code&gt; インタフェースはサブコマンドの context 情報を構成するのに使う。
-&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; は &lt;code&gt;Command&lt;/code&gt; インタフェースに適合する型（&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt;）のインスタンスを受け取ってサブコマンドの制御を行う&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。
-さらに以下の関数値（function value）を示す型 &lt;code&gt;CommandFactory&lt;/code&gt; も用意されている。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// CommandFactory is a type of function that is a factory for commands.
-// We need a factory because we may need to setup some state on the
-// struct that implements the command itself.
-type CommandFactory func() (Command, error)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;このように &lt;code&gt;Command&lt;/code&gt; 型のインスタンスを返す関数を型として定義し，この型のリストを作成するのである。&lt;/p&gt;
-
-&lt;h3 id=&#34;cli-構造体:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;CLI 構造体&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; に渡す context 情報は &lt;code&gt;CLI&lt;/code&gt; 構造体にまとめられている。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// CLI contains the state necessary to run subcommands and parse the
-// command line arguments.
-type CLI struct {
-	// Args is the list of command-line arguments received excluding
-	// the name of the app. For example, if the command &amp;quot;./cli foo bar&amp;quot;
-	// was invoked, then Args should be []string{&amp;quot;foo&amp;quot;, &amp;quot;bar&amp;quot;}.
-	Args []string
-
-	// Commands is a mapping of subcommand names to a factory function
-	// for creating that Command implementation. If there is a command
-	// with a blank string &amp;quot;&amp;quot;, then it will be used as the default command
-	// if no subcommand is specified.
-	Commands map[string]CommandFactory
-
-	// Name defines the name of the CLI.
-	Name string
-
-	// Version of the CLI.
-	Version string
-
-	// HelpFunc and HelpWriter are used to output help information, if
-	// requested.
-	//
-	// HelpFunc is the function called to generate the generic help
-	// text that is shown if help must be shown for the CLI that doesn&#39;t
-	// pertain to a specific command.
-	//
-	// HelpWriter is the Writer where the help text is outputted to. If
-	// not specified, it will default to Stderr.
-	HelpFunc   HelpFunc
-	HelpWriter io.Writer
-
-	once           sync.Once
-	isHelp         bool
-	subcommand     string
-	subcommandArgs []string
-	topFlags       []string
-
-	isVersion bool
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;構造体の中に &lt;code&gt;CommandFactory&lt;/code&gt; のリストが含まれていることがお分かりだろうか。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;Commands map[string]CommandFactory
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これによってサブコマンド名と対応する処理を関連付けている。&lt;/p&gt;
-
-&lt;h3 id=&#34;ui-インタフェース:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;Ui インタフェース&lt;/h3&gt;
-
-&lt;p&gt;入出力関数群を持つ &lt;code&gt;Ui&lt;/code&gt; インタフェースは以下のように定義されている。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Ui is an interface for interacting with the terminal, or &amp;quot;interface&amp;quot;
-// of a CLI. This abstraction doesn&#39;t have to be used, but helps provide
-// a simple, layerable way to manage user interactions.
-type Ui interface {
-	// Ask asks the user for input using the given query. The response is
-	// returned as the given string, or an error.
-	Ask(string) (string, error)
-
-	// AskSecret asks the user for input using the given query, but does not echo
-	// the keystrokes to the terminal.
-	AskSecret(string) (string, error)
-
-	// Output is called for normal standard output.
-	Output(string)
-
-	// Info is called for information related to the previous output.
-	// In general this may be the exact same as Output, but this gives
-	// Ui implementors some flexibility with output formats.
-	Info(string)
-
-	// Error is used for any error messages that might appear on standard
-	// error.
-	Error(string)
-
-	// Warn is used for any warning messages that might appear on standard
-	// error.
-	Warn(string)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;更に &lt;code&gt;Ui&lt;/code&gt; の特化クラスとして &lt;code&gt;BasicUi&lt;/code&gt; や &lt;code&gt;PrefixedUi&lt;/code&gt; や &lt;code&gt;ColoredUi&lt;/code&gt; が定義されている。
-&lt;code&gt;ColoredUi&lt;/code&gt; は出力をカラーにできるが，残念ながら Windows のコマンドプロンプトには対応していないようだ。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;Ui&lt;/code&gt; インタフェースは &lt;code&gt;Command&lt;/code&gt; インタフェースと組み合わせてサブコマンド側の context 情報を構成するのに使う。&lt;/p&gt;
-
-&lt;h3 id=&#34;mitchellh-cli-パッケージのメリット:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli パッケージのメリット&lt;/h3&gt;
-
-&lt;p&gt;上述したように &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; はサブコマンドをファサード・パターンで実装するのに便利な機能を実装している。
-なおかつ &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; ではファサード・パターンを入れ子にすることができる。
-たとえばサブコマンドのサブコマンドを構成することもできるのだ。&lt;/p&gt;
-
-&lt;h2 id=&#34;mitchellh-cli-を使ってファサード-パターンを組んでみる:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;mitchellh/cli を使ってファサード・パターンを組んでみる&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; をファサード・パターンとして組みやすくするためのラッパーとして &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; パッケージを作ってみた&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;p&gt;まず，入出力の Context を定義するためのクラスとして &lt;code&gt;Context&lt;/code&gt; 構造体を作った。
-中身は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;BasicUi&lt;/code&gt; 構造体を埋め込んでいるだけである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Context inheritance cli.BasicUi
-type Context struct {
-	//Embedded BasicUi
-	*cli.BasicUi
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;更に &lt;code&gt;Context&lt;/code&gt; 構造体を包含する &lt;code&gt;Facade&lt;/code&gt; 構造体を定義する。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Facade is context of facade
-type Facade struct {
-	//UI defines user interface of the Cli
-	Cxt *Context
-	// commands is a mapping of subcommand names to a factory function
-	commands map[string]cli.CommandFactory
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;Facade&lt;/code&gt; 構造体には &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;CommandFactory&lt;/code&gt; のリストを含んでいる。
-このリストに &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Command&lt;/code&gt; インタフェースに適合するインスタンスを追加するための関数がこれ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// AddCommand add command
-func (f *Facade) AddCommand(name string, command cli.Command) {
-	f.commands[name] = func() (cli.Command, error) {
-		return command, nil
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;実際にファサードを実行するには以下の関数を起動する。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Run facade
-func (f *Facade) Run(appName, version string, args []string) (int, error) {
-	c := cli.NewCLI(appName, version)
-	c.Args = args
-	c.Commands = f.commands
-	c.HelpWriter = f.Cxt.Writer
-	return c.Run()
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;他に細かい道具はあるが，まぁこんなもんだろう。&lt;/p&gt;
-
-&lt;h3 id=&#34;spiegel-im-spiegel-gofacade-の実装例:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;spiegel-im-spiegel/gofacade の実装例&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; パッケージの実装例として &lt;a href=&#34;https://github.com/spiegel-im-spiegel/astrocalc&#34; title=&#34;spiegel-im-spiegel/astrocalc&#34;&gt;spiegel-im-spiegel/astrocalc&lt;/a&gt; パッケージに CLI ツールを追加してみた。
-こんな感じのコマンドラインを構成してみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;$ astrocalc [-v | -h] mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;まず &lt;code&gt;astrocalc mjdn&lt;/code&gt; サブコマンドを以下のように定義する。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package mjdnCmd
-
-import (
-	&amp;quot;flag&amp;quot;
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;strconv&amp;quot;
-	&amp;quot;strings&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/mjdn&amp;quot;
-	&amp;quot;github.com/spiegel-im-spiegel/gofacade&amp;quot;
-)
-
-// Name は mjdn コマンド名を定義する
-const Name string = &amp;quot;mjdn&amp;quot;
-
-// Context は mjdn コマンドのコンテキストを定義する
-type Context struct {
-	//Embedded gofacade.Context
-	*gofacade.Context
-	//AppName にはアプリケーション名を格納する
-	AppName string
-}
-
-// Command は Context のインスタンスを返す
-func Command(cxt *gofacade.Context, appName string) *Context {
-	return &amp;amp;Context{Context: cxt, AppName: appName}
-}
-
-// Synopsis は mjdn コマンドの概要を返す
-func (c Context) Synopsis() string {
-	return &amp;quot;Calculation of Modified Julian Day&amp;quot;
-}
-
-// Help は mjdn コマンドのヘルプを返す
-func (c Context) Help() string {
-	helpText := `
-Usage: astrocalc mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
-`
-	return fmt.Sprintln(strings.TrimSpace(helpText))
-}
-
-// Run は mjdn コマンドを実行する
-func (c Context) Run(args []string) int {
-	flags := flag.NewFlagSet(Name, flag.ContinueOnError)
-	flags.Usage = func() {
-		c.Error(c.Help())
-	}
-	// Parse commandline flag
-	if err := flags.Parse(args); err != nil {
-		return gofacade.ExitCodeError
-	}
-	if flags.NArg() != 3 {
-		c.Error(fmt.Sprintf(&amp;quot;年月日を指定してください\n\n%s&amp;quot;, c.Help()))
-		return gofacade.ExitCodeError
-	}
-	argsStr := flags.Args()
-	var ymd = make([]int, 3)
-	for i, arg := range argsStr {
-		num, err := strconv.Atoi(arg)
-		if err != nil {
-			c.Error(fmt.Sprintln(err))
-			return gofacade.ExitCodeError
-		}
-		ymd[i] = num
-	}
-	tm := time.Date(ymd[0], time.Month(ymd[1]), ymd[2], 0, 0, 0, 0, time.UTC)
-	c.Output(fmt.Sprint(mjdn.DayNumber(tm)))
-	return gofacade.ExitCodeOK
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ポイントは &lt;code&gt;astrocalc mjdn&lt;/code&gt; サブコマンド用の context 情報として &lt;code&gt;Context&lt;/code&gt; 構造体を定義しているところ。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Context は mjdn コマンドのコンテキストを定義する
-type Context struct {
-	//Embedded gofacade.Context
-	*gofacade.Context
-	//AppName にはアプリケーション名を格納する
-	AppName string
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;&lt;code&gt;gofacade&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Context&lt;/code&gt; 構造体を埋め込みフィールドで定義しているのがお分かりだろうか。
-&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;&lt;code&gt;gofacade&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Context&lt;/code&gt; はさらに &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;BasicUi&lt;/code&gt; 構造体を埋め込んでいる。
-また &lt;code&gt;Context&lt;/code&gt; 構造体は &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;cli&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Command&lt;/code&gt; インタフェースの特化クラスとして実装している。&lt;/p&gt;
-
-&lt;p&gt;では，この &lt;code&gt;Context&lt;/code&gt; 構造体を使ってアプリケーションの起動部分を書いてみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd&amp;quot;
-	&amp;quot;github.com/spiegel-im-spiegel/gofacade&amp;quot;
-)
-
-const (
-	// Name はアプリケーション名を定義する
-	Name string = &amp;quot;astrocalc&amp;quot;
-	// Version はアプリケーションのバージョン番号を定義する
-	Version string = &amp;quot;0.1.0&amp;quot;
-)
-
-func setupFacade(cxt *gofacade.Context) *gofacade.Facade {
-	fcd := gofacade.NewFacade(cxt)
-	fcd.AddCommand(mjdnCmd.Name, mjdnCmd.Command(cxt, Name))
-	return fcd
-}
-
-func main() {
-	cxt := gofacade.NewContext(os.Stdin, os.Stdout, os.Stderr)
-	fcd := setupFacade(cxt)
-	rtn, err := fcd.Run(Name, Version, os.Args[1:])
-	if err != nil {
-		cxt.Error(fmt.Sprintln(err))
-	}
-	os.Exit(rtn)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;setupFacade()&lt;/code&gt; 関数でファサードを作成し， &lt;code&gt;main()&lt;/code&gt; 関数で実行しているのが分かると思う。
-では実際に compile &amp;amp; run してみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;C:\workspace\astrocalc&amp;gt; pushd C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc
-
-C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&amp;gt; glide up
-[INFO] Fetching updates for github.com/spiegel-im-spiegel/gofacade.
-[INFO] Found glide.yaml in C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc\vendor\github.com\spiegel-im-spiegel\gofacade/glide.yaml
-[INFO] Fetching updates for github.com/mitchellh/cli.
-[INFO] Scanning github.com/mitchellh/cli for dependencies.
-[INFO] ==&amp;gt; Unknown github.com/bgentry/speakeasy (github.com/bgentry/speakeasy)
-[INFO] ==&amp;gt; Unknown github.com/mattn/go-isatty (github.com/mattn/go-isatty)
-[INFO] Fetching updates for github.com/bgentry/speakeasy.
-[INFO] Fetching updates for github.com/mattn/go-isatty.
-[INFO] Scanning github.com/bgentry/speakeasy for dependencies.
-[INFO] Scanning github.com/mattn/go-isatty for dependencies.
-[INFO] Project relies on 4 dependencies.
-[INFO] Writing glide.lock file
-
-C:\workspace\astrocalc\src\github.com\spiegel-im-spiegel\astrocalc&amp;gt; popd
-
-C:\workspace\astrocalc&amp;gt; go install -v github.com/spiegel-im-spiegel/astrocalc
-github.com/spiegel-im-spiegel/astrocalc/mjdn
-github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/bgentry/speakeasy
-github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mattn/go-isatty
-github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/mitchellh/cli
-github.com/spiegel-im-spiegel/astrocalc/vendor/github.com/spiegel-im-spiegel/gofacade
-github.com/spiegel-im-spiegel/astrocalc/internal/mjdnCmd
-github.com/spiegel-im-spiegel/astrocalc
-
-C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe -h
-usage: astrocalc [--version] [--help] &amp;lt;command&amp;gt; [&amp;lt;args&amp;gt;]
-
-Available commands are:
-    mjdn    Calculation of Modified Julian Day
-
-C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe -h mjdn
-Usage: astrocalc mjdn &amp;lt;year&amp;gt; &amp;lt;month&amp;gt; &amp;lt;day&amp;gt;
-
-C:\workspace\astrocalc&amp;gt; bin\astrocalc.exe mjdn 2015 1 1
-57023 (2015-01-01)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;よしよし。
-うまくいった。
-なお &lt;a href=&#34;https://github.com/Masterminds/glide&#34; title=&#34;Masterminds/glide&#34;&gt;glide&lt;/a&gt; については「&lt;a href=&#34;http://text.baldanders.info/golang/vendoring-with-glide/&#34;&gt;Glide で Vendoring&lt;/a&gt;」を参考にどうぞ。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://yuuki.hatenablog.com/entry/go-cli-unix&#34;&gt;Go言語によるCLIツール開発とUNIX哲学について - ゆううきブログ&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://tellme.tokyo/post/2015/06/23/unix_cli_tool_go/&#34;&gt;開発者から見た UNIX 哲学とコマンドラインツールと Go言語 - TELLME.TOKYO&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://ryochack.hatenablog.com/entry/2013/04/17/232753&#34;&gt;Go言語のflagパッケージを使う - uragami note&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2015/04/17/panicwrap/&#34;&gt;Go言語のCLIツールのpanicをラップしてクラッシュレポートをつくる | SOTA&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/kumatch/items/258d7984c0270f6dd73a&#34;&gt;flag 並にシンプルでより強力な CLI パーサ kingpin の紹介 - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-
-&lt;h2 id=&#34;参考図書:d4a750c9c3ada9f8f4bd4f3022a7bb81&#34;&gt;参考図書&lt;/h2&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8ATHGW/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/41mh5r0NwLL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8ATHGW/baldandersinf-22/&#34;&gt;増補改訂版 Java言語で学ぶデザインパターン入門&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2004-06-18&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;4&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1BS/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1BS.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;増補改訂版 Java言語で学ぶデザインパターン入門 マルチスレッド編&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1EU/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1EU.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Java言語で学ぶリファクタリング入門&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00JEYPPOE/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00JEYPPOE.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Code Complete 第2版 上　完全なプログラミングを目指して&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0197SZZZ0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0197SZZZ0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;日経Linux（リナックス） 2016年 1月号 [雑誌]&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00V2WMQNE/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00V2WMQNE.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;改訂2版　パーフェクトJava&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;結城浩さんによる通称「デザパタ本」。 Java 以外でも使える優れもの。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-01-05&#34;&gt;2016-01-05&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;翻訳は &lt;a href=&#34;https://ja.wikipedia.org/wiki/UNIX%E5%93%B2%E5%AD%A6&#34;&gt;Wikipedia の記事&lt;/a&gt;から拝借させてもらった。ちなみに &lt;a href=&#34;https://ja.wikipedia.org/wiki/Wikipedia:Text_of_Creative_Commons_Attribution-ShareAlike_3.0_Unported_License&#34;&gt;Wikipedia のコンテンツは基本的には by-sa ライセンスで公開&lt;/a&gt;されている。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:up&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:fcd&#34;&gt;ファサード自身はサブシステムの詳細を知らず context 情報を渡して処理をキックするのみなのが特徴。サブシステム側はファサードに依存せず， context 情報さえあれば処理可能にするのがコツである。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:fcd&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;型（&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt;）については「&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;」を参照のこと。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:t&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gofacade&#34; title=&#34;spiegel-im-spiegel/gofacade&#34;&gt;spiegel-im-spiegel/gofacade&lt;/a&gt; は &lt;a href=&#34;https://creativecommons.org/publicdomain/zero/1.0/&#34;&gt;CC0&lt;/a&gt; で公開している。個人的には実証コードの扱いなので，（著作権情報の書き換えも含めて）自由に利用して 構わない。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:li&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;なんでこんな回りくどいことをしているかというと， &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;mitchellh/cli&lt;/a&gt; パッケージをカプセル化したかったから。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:ebd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では関数は全て関数閉包（closure）として機能する。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:d4a750c9c3ada9f8f4bd4f3022a7bb81:cl&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>

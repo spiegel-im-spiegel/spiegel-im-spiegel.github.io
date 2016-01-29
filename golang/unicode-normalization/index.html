@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjapanese.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>Go 言語と Unicode 正規化 — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="今回は少し目先を変えて「Unicode 正規化」のお話。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,unicode,normalization">
+<link rel='prev' href='http://text.baldanders.info/golang/time-functions/' title='Go 言語の日付処理' />
+
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>Go 言語と Unicode 正規化 — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/golang">golang</a> #<a href="/tags/normalization">normalization</a> #<a href="/tags/unicode">unicode</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/unicode-normalization/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>今回は少し目先を変えて「Unicode 正規化（normalization）」のお話。</p>
+
+<h2 id="2羽の-ペンギン:751a772bc6e9a12c63d6df9ab1f95927">2羽の「ペンギン」</h2>
+
+<p>まず「ペンギン」という文字列を思い浮かべてみる。
+この文字列を Unicode のコードポイントで表すと以下のようになる。</p>
+
+<ul>
+<li>ペ：U+30DA</li>
+<li>ン：U+30F3</li>
+<li>ギ：U+30AE</li>
+<li>ン：U+30F3</li>
+</ul>
+
+<p>ところでペンギンの「ペ」と「ギ」は半濁点および濁点を含む。
+Unicode は「ペ」と「ギ」をそれぞれ2つの要素に分解できる。</p>
+
+<ul>
+<li>ペ：U+30D8 + U+309A</li>
+<li>ン：U+30F3</li>
+<li>ギ：U+30AD + U+3099</li>
+<li>ン：U+30F3</li>
+</ul>
+
+<p>U+309A および U+3099 はそれぞれ半濁点と濁点を表す「結合文字（combining character）」である。
+「ヘ」や「キ」のような「基底文字（base character）」に結合文字を1つ以上<sup class="footnote-ref" id="fnref:751a772bc6e9a12c63d6df9ab1f95927:cs"><a rel="footnote" href="#fn:751a772bc6e9a12c63d6df9ab1f95927:cs">1</a></sup> 付加した文字を「合成列（composite sequence）」と呼ぶ。
+これに対して「ペ：U+30DA」や「ギ：U+30AE」のような文字を「事前合成形（precomposed）」と呼ぶ。</p>
+
+<p>つまり同じ文字を同じ文字集合<sup class="footnote-ref" id="fnref:751a772bc6e9a12c63d6df9ab1f95927:ccs"><a rel="footnote" href="#fn:751a772bc6e9a12c63d6df9ab1f95927:ccs">2</a></sup> で表しているのにもかかわらず複数の符号化<sup class="footnote-ref" id="fnref:751a772bc6e9a12c63d6df9ab1f95927:ecd"><a rel="footnote" href="#fn:751a772bc6e9a12c63d6df9ab1f95927:ecd">3</a></sup> が存在するわけだ。
+これを「重複符号化」と言う。
+文字集合に重複符号化があるというのは，はっきり言って「クソ仕様」である。</p>
+
+<p>もちろんこれは Unicode を作った連中がヘボいのではなく（いや，ヘボいのかもしれないが），いわゆる「歴史的経緯」というやつである<sup class="footnote-ref" id="fnref:751a772bc6e9a12c63d6df9ab1f95927:jis"><a rel="footnote" href="#fn:751a772bc6e9a12c63d6df9ab1f95927:jis">4</a></sup>。
+だからこれはこういうものだと諦めるしかない。</p>
+
+<p>しかし情報処理を行う上では，この2羽の「ペンギン」が等価（equivalance）であることを示す手立てを考えなければならない。</p>
+
+<h2 id="正規等価:751a772bc6e9a12c63d6df9ab1f95927">正規等価</h2>
+
+<p>2羽の「ペンギン」が等価であることを示す一番簡単な方法は，文字列を事前合成形あるいは合成列のどちらかに統一（＝正規化）してしまえばいい。
+事前合成形に正規化する方法を “NFC（Normalization Form Composition）”，合成列に正規化する方法を “NFD（Normalization Form Decomposition）” と呼ぶ。
+これらの正規化によって2羽の「ペンギン」が等価となることを「正規等価（canonical equivalance）」と呼ぶ。</p>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>では <code>golang.org/x/text/unicode/</code><a href="https://godoc.org/golang.org/x/text/unicode/norm" title="norm - GoDoc"><code>norm</code></a> パッケージで Unicode 文字列を正規化できる。
+まぁ，コードで書いたほうがはやいか。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+
+	&quot;golang.org/x/text/unicode/norm&quot;
+)
+
+func main() {
+	penguin := &quot;ペンギン&quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&quot;penguin[%d] = %#U\n&quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFD.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&quot;penguin2[%d] = %#U\n&quot;, pos, runeValue)
+	}
+
+	penguin3 := string(norm.NFC.Bytes([]byte(penguin2)))
+	for pos, runeValue := range penguin3 {
+		fmt.Printf(&quot;penguin3[%d] = %#U\n&quot;, pos, runeValue)
+	}
+}
+</code></pre>
+
+<p>実行結果はこんな感じ。</p>
+
+<pre><code>penguin[0] = U+30DA 'ペ'
+penguin[3] = U+30F3 'ン'
+penguin[6] = U+30AE 'ギ'
+penguin[9] = U+30F3 'ン'
+penguin2[0] = U+30D8 'ヘ'
+penguin2[3] = U+309A '゚'
+penguin2[6] = U+30F3 'ン'
+penguin2[9] = U+30AD 'キ'
+penguin2[12] = U+3099 '゙'
+penguin2[15] = U+30F3 'ン'
+penguin3[0] = U+30DA 'ペ'
+penguin3[3] = U+30F3 'ン'
+penguin3[6] = U+30AE 'ギ'
+penguin3[9] = U+30F3 'ン'
+</code></pre>
+
+<p>NFC と NFD が交換可能であることがわかると思う。</p>
+
+<h2 id="3羽目の-ペンギン-と互換等価:751a772bc6e9a12c63d6df9ab1f95927">3羽目の「ペンギン」と互換等価</h2>
+
+<p>さてここで3羽目の「ペンギン」に登場してもらおう。</p>
+
+<ul>
+<li>ﾍ：U+FF8D</li>
+<li>ﾟ：U+FF9F</li>
+<li>ﾝ：U+FF9D</li>
+<li>ｷ：U+FF77</li>
+<li>ﾞ：U+FF9E</li>
+<li>ﾝ：U+FF9D</li>
+</ul>
+
+<p>これはいわゆる「半角カナ」である。
+半角カナの濁点および半濁点は結合文字ではない。
+そのためこの文字列を NFC で事前合成形に正規化しようとしても</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+
+	&quot;golang.org/x/text/unicode/norm&quot;
+)
+
+func main() {
+	penguin := &quot;ﾍﾟﾝｷﾞﾝ&quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&quot;penguin[%d] = %#U\n&quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&quot;penguin2[%d] = %#U\n&quot;, pos, runeValue)
+	}
+}
+</code></pre>
+
+<pre><code>penguin[0] = U+FF8D 'ﾍ'
+penguin[3] = U+FF9F 'ﾟ'
+penguin[6] = U+FF9D 'ﾝ'
+penguin[9] = U+FF77 'ｷ'
+penguin[12] = U+FF9E 'ﾞ'
+penguin[15] = U+FF9D 'ﾝ'
+penguin2[0] = U+FF8D 'ﾍ'
+penguin2[3] = U+FF9F 'ﾟ'
+penguin2[6] = U+FF9D 'ﾝ'
+penguin2[9] = U+FF77 'ｷ'
+penguin2[12] = U+FF9E 'ﾞ'
+penguin2[15] = U+FF9D 'ﾝ'
+</code></pre>
+
+<p>何も変わらないことが分かるだろう。</p>
+
+<p>このような場合は半角の「ﾍﾟﾝｷﾞﾝ」と互換性のある文字列に正規化できるとよい。
+これを「互換等価（compatibility equivalance）」と呼ぶ。
+具体的には NFKC（Normalization Form Compatibility Composition）および NFKD（Normalization Form Compatibility Decomposition）の2つの正規化がある。</p>
+
+<p>早速 <a href="https://godoc.org/golang.org/x/text/unicode/norm" title="norm - GoDoc"><code>norm</code></a> パッケージを使ってコードを書いてみる。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+
+	&quot;golang.org/x/text/unicode/norm&quot;
+)
+
+func main() {
+	penguin := &quot;ﾍﾟﾝｷﾞﾝ&quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&quot;penguin[%d] = %#U\n&quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFKC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&quot;penguin2[%d] = %#U\n&quot;, pos, runeValue)
+	}
+}
+</code></pre>
+
+<p>これを実行すると</p>
+
+<pre><code>penguin[0] = U+FF8D 'ﾍ'
+penguin[3] = U+FF9F 'ﾟ'
+penguin[6] = U+FF9D 'ﾝ'
+penguin[9] = U+FF77 'ｷ'
+penguin[12] = U+FF9E 'ﾞ'
+penguin[15] = U+FF9D 'ﾝ'
+penguin2[0] = U+30DA 'ペ'
+penguin2[3] = U+30F3 'ン'
+penguin2[6] = U+30AE 'ギ'
+penguin2[9] = U+30F3 'ン'
+</code></pre>
+
+<p>となり， NFC で正規化した「ペンギン」と等価であることがわかる。</p>
+
+<p>互換等価による正規化は応用範囲が広い。
+たとえば「㈱」（U+3231）は「（株）」（U+0028 + U+682A + U+0029）に変換される。
+文字列検索の前に互換等価による正規化を行っておくことで処理がやりやすくなるというのはあるかもしれない。
+ただし， NFC と NFD は交換可能だが， NFKC や NFKD で正規化した文字列を元のオリジナルに戻す方法はないので注意が必要である<sup class="footnote-ref" id="fnref:751a772bc6e9a12c63d6df9ab1f95927:hw"><a rel="footnote" href="#fn:751a772bc6e9a12c63d6df9ab1f95927:hw">5</a></sup>。</p>
+
+<h2 id="恐怖の-cjk-互換文字:751a772bc6e9a12c63d6df9ab1f95927">恐怖の CJK 互換文字</h2>
+
+<p>正規等価については注意すべき点がある。
+有名な「神」を例に挙げよう。
+これを NFC / NFD で正規化する。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+
+	&quot;golang.org/x/text/unicode/norm&quot;
+)
+
+//神様の遊び
+func main() {
+	penguin := &quot;神&quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&quot;penguin[%d] = %#U\n&quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFKC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&quot;penguin2[%d] = %#U\n&quot;, pos, runeValue)
+	}
+
+	penguin3 := string(norm.NFKD.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin3 {
+		fmt.Printf(&quot;penguin3[%d] = %#U\n&quot;, pos, runeValue)
+	}
+}
+</code></pre>
+
+<p>これを実行すると</p>
+
+<pre><code>penguin[0] = U+FA19 '神'
+penguin2[0] = U+795E '神'
+penguin3[0] = U+795E '神'
+</code></pre>
+
+<p>となり，NFC でも NFD でも違う文字になってしまった。
+ちなみに「神」から「神」へ正規化する方法はない。
+困ったね。</p>
+
+<p>実は「神」は「CJK 互換文字」と呼ばれるグループに属し，「神」とは異体字の関係にある。
+故に「神」を「神」に正規化してしまったのである。</p>
+
+<p>しかし，これは明らかに仕様ミスである。
+「神」と「神」のような異体字の関係は正規等価ではなく互換等価だからだ。</p>
+
+<p>&hellip;やっぱり Unicode はクソ仕様だ。</p>
+
+<p>しかし，これが実際の場面で問題になることは少ないと思われる。
+なぜなら，正規化を行うのは「2つの文字列が等価であるか？」を調べるための手段にすぎないからだ。
+普通はね。</p>
+
+<p>ところが，普通でないことをする馬鹿がいるのである。</p>
+
+<h3 id="独自路線に走る-apple:751a772bc6e9a12c63d6df9ab1f95927">独自路線に走る Apple</h3>
+
+<p>Apple の OS X （iOS も？）のファイルシステムである HFS+ はファイル名を NFD 相当に正規化するという恐ろしい仕様になっている<sup class="footnote-ref" id="fnref:751a772bc6e9a12c63d6df9ab1f95927:fs"><a rel="footnote" href="#fn:751a772bc6e9a12c63d6df9ab1f95927:fs">6</a></sup>。
+しかしそれでは，先ほどの例のように異体字に関しては正規化によって別の文字に変えられてしまうため困ったことになってしまう。</p>
+
+<p>そこで Apple は CJK 互換文字を含むいくつかの文字を正規化の対象から外すという蛮行に出た。
+俗に “NFD-mac” などと呼ばれる独自路線に走ってしまったわけだ。</p>
+
+<p>これにより様々な（特にマルチプラットフォームな）アプリケーションが多大なる迷惑を被ることになるが<sup class="footnote-ref" id="fnref:751a772bc6e9a12c63d6df9ab1f95927:mac"><a rel="footnote" href="#fn:751a772bc6e9a12c63d6df9ab1f95927:mac">7</a></sup>，深くはツッコむまい。</p>
+
+<h2 id="unicode-正規化に関するまとめ:751a772bc6e9a12c63d6df9ab1f95927">Unicode 正規化に関するまとめ</h2>
+
+<p>以上， Unicode 正規化の4つの方式をまとめると以下のようになる。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+
+<table>
+  <tr>
+    <th></th>
+    <th>Composing</th>
+    <th>Decomposing</th>
+  </tr>
+  <tr>
+    <th>Canonical equivalence</th>
+    <td>NFC</td>
+    <td>NFD<br></td>
+  </tr>
+  <tr>
+    <th>Compatibility equivalence</th>
+    <td>NFKC</td>
+    <td>NFKD</td>
+  </tr>
+</table>
+
+<figcaption><a href="https://blog.golang.org/normalization">Text normalization in Go</a></figcaption>
+</figure>
+
+<p>Unicode 文字列の等価属性を調べる際には是非参考にどうぞ。</p>
+
+<h2 id="ブックマーク:751a772bc6e9a12c63d6df9ab1f95927">ブックマーク</h2>
+
+<ul>
+<li><a href="http://internet.watch.impress.co.jp/www/column/ogata/sp24.htm">特別編24 JIS X 0213の改正は、文字コードにどんな未来をもたらすか（7）　番外編：改正JIS X 0213とUnicodeの等価属性／正規化について（上）</a></li>
+<li><a href="http://internet.watch.impress.co.jp/www/column/ogata/sp25.htm">特別編24 JIS X 0213の改正は、文字コードにどんな未来をもたらすか（7）　番外編：改正JIS X 0213とUnicodeの等価属性／正規化について（下）</a></li>
+<li><a href="http://nomenclator.la.coocan.jp/unicode/normalization.htm">Unicode正規化</a></li>
+<li><a href="https://blog.golang.org/normalization">Text normalization in Go - The Go Blog</a></li>
+<li><a href="http://qiita.com/masakielastic/items/01a4fb691c572dd71a19">Go で UTF-8 の文字列を扱う - Qiita</a></li>
+<li><a href="http://tech.albert2005.co.jp/blog/2014/11/21/mco-normalize/">文字コード地獄秘話 第3話：後戻りの効かないUnicode正規化 - ALBERT Engineer Blog</a></li>
+<li><a href="http://cpplover.blogspot.jp/2015/01/blog-post_14.html">本の虫: Linus Torvalds、HFS+に激怒</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:751a772bc6e9a12c63d6df9ab1f95927:cs">ちなみに結合文字はひとつの基底文字に対して複数付加される場合もある。しかもこの場合に結合文字同士の順序は不定である。
+ <a class="footnote-return" href="#fnref:751a772bc6e9a12c63d6df9ab1f95927:cs"><sup>[return]</sup></a></li>
+<li id="fn:751a772bc6e9a12c63d6df9ab1f95927:ccs">正しくは「符号化文字集合（coded character set）」である。
+ <a class="footnote-return" href="#fnref:751a772bc6e9a12c63d6df9ab1f95927:ccs"><sup>[return]</sup></a></li>
+<li id="fn:751a772bc6e9a12c63d6df9ab1f95927:ecd">これは UTF-8 などの「文字エンコーディング」とは異なるものだ。
+ <a class="footnote-return" href="#fnref:751a772bc6e9a12c63d6df9ab1f95927:ecd"><sup>[return]</sup></a></li>
+<li id="fn:751a772bc6e9a12c63d6df9ab1f95927:jis">日本の JIS 規格にも「歴史的経緯」による重複符号化がある。言わずと知れた「半角」「全角」文字である。異体字も一種の重複符号化と言える。
+ <a class="footnote-return" href="#fnref:751a772bc6e9a12c63d6df9ab1f95927:jis"><sup>[return]</sup></a></li>
+<li id="fn:751a772bc6e9a12c63d6df9ab1f95927:hw">単に全角・半角変換ができればいいのなら <code>golang.org/x/text/</code><a href="https://godoc.org/golang.org/x/text/width" title="width - GoDoc"><code>width</code></a> パッケージをお勧めする。
+ <a class="footnote-return" href="#fnref:751a772bc6e9a12c63d6df9ab1f95927:hw"><sup>[return]</sup></a></li>
+<li id="fn:751a772bc6e9a12c63d6df9ab1f95927:fs">ちなみに Windows のファイルシステムはフォルダ・ファイルの名前を正規化するとかいうアホなことはしない。事前合成形も合成列も受け入れる。見かけ同じ名前のフォルダ・ファイルが複数できる可能性はあるが，それはそれ。多分，ほとんどの OS のファイルシステムは名前の正規化なんてしてないはず。
+ <a class="footnote-return" href="#fnref:751a772bc6e9a12c63d6df9ab1f95927:fs"><sup>[return]</sup></a></li>
+<li id="fn:751a772bc6e9a12c63d6df9ab1f95927:mac">たとえば Linus Torvalds は HFS+ に起因する git の脆弱性問題で<a href="http://cpplover.blogspot.jp/2015/01/blog-post_14.html">激怒</a>している。
+ <a class="footnote-return" href="#fnref:751a772bc6e9a12c63d6df9ab1f95927:mac"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/time-functions/">Go 言語の日付処理</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/unicode-normalization\/';
+    var disqus_title = 'Go 言語と Unicode 正規化';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/unicode-normalization\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-01-30</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/unicode-normalization/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="Go 言語と Unicode 正規化 - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2funicode-normalization%2f&amp;title=Go%20%e8%a8%80%e8%aa%9e%e3%81%a8%20Unicode%20%e6%ad%a3%e8%a6%8f%e5%8c%96" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2funicode-normalization%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+<script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>
+
+</body>
+</html>
+

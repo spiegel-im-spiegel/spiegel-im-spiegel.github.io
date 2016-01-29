@@ -3,13 +3,361 @@
 	<title>プログラミング言語 Go — text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/golang/index.xml" />
-	<id>tag:text.Baldanders.info,2016-01-22:/hugo</id>
-	<updated>2016-01-22T20:56:21+09:00</updated>
+	<id>tag:text.Baldanders.info,2016-01-30:/hugo</id>
+	<updated>2016-01-30T04:05:52+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.15</generator>
 
+	
+	<entry>
+		<title>Go 言語と Unicode 正規化 — プログラミング言語 Go</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/unicode-normalization/" />
+		<id>tag:text.Baldanders.info,2016-01-30:/golang/unicode-normalization/</id>
+		<published>2016-01-30T04:05:52+09:00</published>
+		<updated>2016-01-30T04:05:52+09:00</updated>
+		<summary>今回は少し目先を変えて「Unicode 正規化」のお話。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;今回は少し目先を変えて「Unicode 正規化（normalization）」のお話。&lt;/p&gt;
+
+&lt;h2 id=&#34;2羽の-ペンギン:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;2羽の「ペンギン」&lt;/h2&gt;
+
+&lt;p&gt;まず「ペンギン」という文字列を思い浮かべてみる。
+この文字列を Unicode のコードポイントで表すと以下のようになる。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;ペ：U+30DA&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;li&gt;ギ：U+30AE&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ところでペンギンの「ペ」と「ギ」は半濁点および濁点を含む。
+Unicode は「ペ」と「ギ」をそれぞれ2つの要素に分解できる。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;ペ：U+30D8 + U+309A&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;li&gt;ギ：U+30AD + U+3099&lt;/li&gt;
+&lt;li&gt;ン：U+30F3&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;U+309A および U+3099 はそれぞれ半濁点と濁点を表す「結合文字（combining character）」である。
+「ヘ」や「キ」のような「基底文字（base character）」に結合文字を1つ以上&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; 付加した文字を「合成列（composite sequence）」と呼ぶ。
+これに対して「ペ：U+30DA」や「ギ：U+30AE」のような文字を「事前合成形（precomposed）」と呼ぶ。&lt;/p&gt;
+
+&lt;p&gt;つまり同じ文字を同じ文字集合&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; で表しているのにもかかわらず複数の符号化&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; が存在するわけだ。
+これを「重複符号化」と言う。
+文字集合に重複符号化があるというのは，はっきり言って「クソ仕様」である。&lt;/p&gt;
+
+&lt;p&gt;もちろんこれは Unicode を作った連中がヘボいのではなく（いや，ヘボいのかもしれないが），いわゆる「歴史的経緯」というやつである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。
+だからこれはこういうものだと諦めるしかない。&lt;/p&gt;
+
+&lt;p&gt;しかし情報処理を行う上では，この2羽の「ペンギン」が等価（equivalance）であることを示す手立てを考えなければならない。&lt;/p&gt;
+
+&lt;h2 id=&#34;正規等価:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;正規等価&lt;/h2&gt;
+
+&lt;p&gt;2羽の「ペンギン」が等価であることを示す一番簡単な方法は，文字列を事前合成形あるいは合成列のどちらかに統一（＝正規化）してしまえばいい。
+事前合成形に正規化する方法を “NFC（Normalization Form Composition）”，合成列に正規化する方法を “NFD（Normalization Form Decomposition）” と呼ぶ。
+これらの正規化によって2羽の「ペンギン」が等価となることを「正規等価（canonical equivalance）」と呼ぶ。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では &lt;code&gt;golang.org/x/text/unicode/&lt;/code&gt;&lt;a href=&#34;https://godoc.org/golang.org/x/text/unicode/norm&#34; title=&#34;norm - GoDoc&#34;&gt;&lt;code&gt;norm&lt;/code&gt;&lt;/a&gt; パッケージで Unicode 文字列を正規化できる。
+まぁ，コードで書いたほうがはやいか。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+func main() {
+	penguin := &amp;quot;ペンギン&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFD.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin3 := string(norm.NFC.Bytes([]byte(penguin2)))
+	for pos, runeValue := range penguin3 {
+		fmt.Printf(&amp;quot;penguin3[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+30DA &#39;ペ&#39;
+penguin[3] = U+30F3 &#39;ン&#39;
+penguin[6] = U+30AE &#39;ギ&#39;
+penguin[9] = U+30F3 &#39;ン&#39;
+penguin2[0] = U+30D8 &#39;ヘ&#39;
+penguin2[3] = U+309A &#39;゚&#39;
+penguin2[6] = U+30F3 &#39;ン&#39;
+penguin2[9] = U+30AD &#39;キ&#39;
+penguin2[12] = U+3099 &#39;゙&#39;
+penguin2[15] = U+30F3 &#39;ン&#39;
+penguin3[0] = U+30DA &#39;ペ&#39;
+penguin3[3] = U+30F3 &#39;ン&#39;
+penguin3[6] = U+30AE &#39;ギ&#39;
+penguin3[9] = U+30F3 &#39;ン&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;NFC と NFD が交換可能であることがわかると思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;3羽目の-ペンギン-と互換等価:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;3羽目の「ペンギン」と互換等価&lt;/h2&gt;
+
+&lt;p&gt;さてここで3羽目の「ペンギン」に登場してもらおう。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;ﾍ：U+FF8D&lt;/li&gt;
+&lt;li&gt;ﾟ：U+FF9F&lt;/li&gt;
+&lt;li&gt;ﾝ：U+FF9D&lt;/li&gt;
+&lt;li&gt;ｷ：U+FF77&lt;/li&gt;
+&lt;li&gt;ﾞ：U+FF9E&lt;/li&gt;
+&lt;li&gt;ﾝ：U+FF9D&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;これはいわゆる「半角カナ」である。
+半角カナの濁点および半濁点は結合文字ではない。
+そのためこの文字列を NFC で事前合成形に正規化しようとしても&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+func main() {
+	penguin := &amp;quot;ﾍﾟﾝｷﾞﾝ&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+FF8D &#39;ﾍ&#39;
+penguin[3] = U+FF9F &#39;ﾟ&#39;
+penguin[6] = U+FF9D &#39;ﾝ&#39;
+penguin[9] = U+FF77 &#39;ｷ&#39;
+penguin[12] = U+FF9E &#39;ﾞ&#39;
+penguin[15] = U+FF9D &#39;ﾝ&#39;
+penguin2[0] = U+FF8D &#39;ﾍ&#39;
+penguin2[3] = U+FF9F &#39;ﾟ&#39;
+penguin2[6] = U+FF9D &#39;ﾝ&#39;
+penguin2[9] = U+FF77 &#39;ｷ&#39;
+penguin2[12] = U+FF9E &#39;ﾞ&#39;
+penguin2[15] = U+FF9D &#39;ﾝ&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;何も変わらないことが分かるだろう。&lt;/p&gt;
+
+&lt;p&gt;このような場合は半角の「ﾍﾟﾝｷﾞﾝ」と互換性のある文字列に正規化できるとよい。
+これを「互換等価（compatibility equivalance）」と呼ぶ。
+具体的には NFKC（Normalization Form Compatibility Composition）および NFKD（Normalization Form Compatibility Decomposition）の2つの正規化がある。&lt;/p&gt;
+
+&lt;p&gt;早速 &lt;a href=&#34;https://godoc.org/golang.org/x/text/unicode/norm&#34; title=&#34;norm - GoDoc&#34;&gt;&lt;code&gt;norm&lt;/code&gt;&lt;/a&gt; パッケージを使ってコードを書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+func main() {
+	penguin := &amp;quot;ﾍﾟﾝｷﾞﾝ&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFKC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+FF8D &#39;ﾍ&#39;
+penguin[3] = U+FF9F &#39;ﾟ&#39;
+penguin[6] = U+FF9D &#39;ﾝ&#39;
+penguin[9] = U+FF77 &#39;ｷ&#39;
+penguin[12] = U+FF9E &#39;ﾞ&#39;
+penguin[15] = U+FF9D &#39;ﾝ&#39;
+penguin2[0] = U+30DA &#39;ペ&#39;
+penguin2[3] = U+30F3 &#39;ン&#39;
+penguin2[6] = U+30AE &#39;ギ&#39;
+penguin2[9] = U+30F3 &#39;ン&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となり， NFC で正規化した「ペンギン」と等価であることがわかる。&lt;/p&gt;
+
+&lt;p&gt;互換等価による正規化は応用範囲が広い。
+たとえば「㈱」（U+3231）は「（株）」（U+0028 + U+682A + U+0029）に変換される。
+文字列検索の前に互換等価による正規化を行っておくことで処理がやりやすくなるというのはあるかもしれない。
+ただし， NFC と NFD は交換可能だが， NFKC や NFKD で正規化した文字列を元のオリジナルに戻す方法はないので注意が必要である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;恐怖の-cjk-互換文字:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;恐怖の CJK 互換文字&lt;/h2&gt;
+
+&lt;p&gt;正規等価については注意すべき点がある。
+有名な「神」を例に挙げよう。
+これを NFC / NFD で正規化する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;golang.org/x/text/unicode/norm&amp;quot;
+)
+
+//神様の遊び
+func main() {
+	penguin := &amp;quot;神&amp;quot;
+	for pos, runeValue := range penguin {
+		fmt.Printf(&amp;quot;penguin[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin2 := string(norm.NFKC.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin2 {
+		fmt.Printf(&amp;quot;penguin2[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+
+	penguin3 := string(norm.NFKD.Bytes([]byte(penguin)))
+	for pos, runeValue := range penguin3 {
+		fmt.Printf(&amp;quot;penguin3[%d] = %#U\n&amp;quot;, pos, runeValue)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;penguin[0] = U+FA19 &#39;神&#39;
+penguin2[0] = U+795E &#39;神&#39;
+penguin3[0] = U+795E &#39;神&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となり，NFC でも NFD でも違う文字になってしまった。
+ちなみに「神」から「神」へ正規化する方法はない。
+困ったね。&lt;/p&gt;
+
+&lt;p&gt;実は「神」は「CJK 互換文字」と呼ばれるグループに属し，「神」とは異体字の関係にある。
+故に「神」を「神」に正規化してしまったのである。&lt;/p&gt;
+
+&lt;p&gt;しかし，これは明らかに仕様ミスである。
+「神」と「神」のような異体字の関係は正規等価ではなく互換等価だからだ。&lt;/p&gt;
+
+&lt;p&gt;&amp;hellip;やっぱり Unicode はクソ仕様だ。&lt;/p&gt;
+
+&lt;p&gt;しかし，これが実際の場面で問題になることは少ないと思われる。
+なぜなら，正規化を行うのは「2つの文字列が等価であるか？」を調べるための手段にすぎないからだ。
+普通はね。&lt;/p&gt;
+
+&lt;p&gt;ところが，普通でないことをする馬鹿がいるのである。&lt;/p&gt;
+
+&lt;h3 id=&#34;独自路線に走る-apple:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;独自路線に走る Apple&lt;/h3&gt;
+
+&lt;p&gt;Apple の OS X （iOS も？）のファイルシステムである HFS+ はファイル名を NFD 相当に正規化するという恐ろしい仕様になっている&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。
+しかしそれでは，先ほどの例のように異体字に関しては正規化によって別の文字に変えられてしまうため困ったことになってしまう。&lt;/p&gt;
+
+&lt;p&gt;そこで Apple は CJK 互換文字を含むいくつかの文字を正規化の対象から外すという蛮行に出た。
+俗に “NFD-mac” などと呼ばれる独自路線に走ってしまったわけだ。&lt;/p&gt;
+
+&lt;p&gt;これにより様々な（特にマルチプラットフォームな）アプリケーションが多大なる迷惑を被ることになるが&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;，深くはツッコむまい。&lt;/p&gt;
+
+&lt;h2 id=&#34;unicode-正規化に関するまとめ:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;Unicode 正規化に関するまとめ&lt;/h2&gt;
+
+&lt;p&gt;以上， Unicode 正規化の4つの方式をまとめると以下のようになる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+
+&lt;table&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th&gt;Composing&lt;/th&gt;
+    &lt;th&gt;Decomposing&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Canonical equivalence&lt;/th&gt;
+    &lt;td&gt;NFC&lt;/td&gt;
+    &lt;td&gt;NFD&lt;br&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Compatibility equivalence&lt;/th&gt;
+    &lt;td&gt;NFKC&lt;/td&gt;
+    &lt;td&gt;NFKD&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;figcaption&gt;&lt;a href=&#34;https://blog.golang.org/normalization&#34;&gt;Text normalization in Go&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Unicode 文字列の等価属性を調べる際には是非参考にどうぞ。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:751a772bc6e9a12c63d6df9ab1f95927&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://internet.watch.impress.co.jp/www/column/ogata/sp24.htm&#34;&gt;特別編24 JIS X 0213の改正は、文字コードにどんな未来をもたらすか（7）　番外編：改正JIS X 0213とUnicodeの等価属性／正規化について（上）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://internet.watch.impress.co.jp/www/column/ogata/sp25.htm&#34;&gt;特別編24 JIS X 0213の改正は、文字コードにどんな未来をもたらすか（7）　番外編：改正JIS X 0213とUnicodeの等価属性／正規化について（下）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://nomenclator.la.coocan.jp/unicode/normalization.htm&#34;&gt;Unicode正規化&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/normalization&#34;&gt;Text normalization in Go - The Go Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/masakielastic/items/01a4fb691c572dd71a19&#34;&gt;Go で UTF-8 の文字列を扱う - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://tech.albert2005.co.jp/blog/2014/11/21/mco-normalize/&#34;&gt;文字コード地獄秘話 第3話：後戻りの効かないUnicode正規化 - ALBERT Engineer Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://cpplover.blogspot.jp/2015/01/blog-post_14.html&#34;&gt;本の虫: Linus Torvalds、HFS+に激怒&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;ちなみに結合文字はひとつの基底文字に対して複数付加される場合もある。しかもこの場合に結合文字同士の順序は不定である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:cs&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;正しくは「符号化文字集合（coded character set）」である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:ccs&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;これは UTF-8 などの「文字エンコーディング」とは異なるものだ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:ecd&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;日本の JIS 規格にも「歴史的経緯」による重複符号化がある。言わずと知れた「半角」「全角」文字である。異体字も一種の重複符号化と言える。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:jis&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;単に全角・半角変換ができればいいのなら &lt;code&gt;golang.org/x/text/&lt;/code&gt;&lt;a href=&#34;https://godoc.org/golang.org/x/text/width&#34; title=&#34;width - GoDoc&#34;&gt;&lt;code&gt;width&lt;/code&gt;&lt;/a&gt; パッケージをお勧めする。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:hw&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;ちなみに Windows のファイルシステムはフォルダ・ファイルの名前を正規化するとかいうアホなことはしない。事前合成形も合成列も受け入れる。見かけ同じ名前のフォルダ・ファイルが複数できる可能性はあるが，それはそれ。多分，ほとんどの OS のファイルシステムは名前の正規化なんてしてないはず。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:fs&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;たとえば Linus Torvalds は HFS+ に起因する git の脆弱性問題で&lt;a href=&#34;http://cpplover.blogspot.jp/2015/01/blog-post_14.html&#34;&gt;激怒&lt;/a&gt;している。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:751a772bc6e9a12c63d6df9ab1f95927:mac&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>Go 言語の日付処理 — プログラミング言語 Go</title>
@@ -2375,388 +2723,6 @@ Help Options:
 &lt;/ul&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>エラー・ハンドリングについて（追記あり） — プログラミング言語 Go</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/error-handling/" />
-		<id>tag:text.Baldanders.info,2015-09-30:/golang/error-handling/</id>
-		<published>2015-09-30T00:27:48+09:00</published>
-		<updated>2015-12-19T23:24:48+09:00</updated>
-		<summary>C&#43;&#43; や Java のような言語圏から来た（私のような）人間にとって Go 言語の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。この最たるものが error 型である。（追記あり）</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;C++ や Java のような言語圏から来た（私のような）人間にとって &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。
-なんで C++ や Java はこのようなアプローチをとらなかったのか不思議なほどである。&lt;/p&gt;
-
-&lt;p&gt;この最たるものがエラー・ハンドリングだ。&lt;/p&gt;
-
-&lt;h2 id=&#34;go-言語には-例外-がない:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;Go 言語には「例外」がない&lt;/h2&gt;
-
-&lt;p&gt;「例外（exception）」は本来の処理の流れをぶった切って「大域脱出」するための仕組みである。
-でも考えてみれば例外というのはかなり微妙な言語仕様だ。&lt;/p&gt;
-
-&lt;p&gt;例外が抱える問題というのは本質的に &lt;code&gt;goto&lt;/code&gt; 文の問題と同じ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
-オブジェクトの状態ごと脱出するため，（脱出前ではなく）脱出後にオブジェクトの後始末を記述せざるを得ないし，記述するためには脱出前の状態（の可能性）を「知識」として知っていなければならない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
-もし後始末をきちんとしないと，それがバグやリークやその他の脆弱性のもとになる。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;はそんな面倒くさいことは考えない。
-どうするかというと，普通に返り値に &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を返す。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, err := os.Open(filename)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は無視することもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, _ := os.Open(filename)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;検出した &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; はその場で処理して抜けてしまえばよい。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, err := os.Open(filename)
-if err != nil {
-    fmt.Fprintln(os.Stderr, err)
-    return false
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;開始処理と終了（後始末）処理が対になっている場合（&lt;code&gt;Open&lt;/code&gt;/&lt;code&gt;Close&lt;/code&gt; とは限らない）は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で終了処理を保証する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, err := os.Open(filename)
-if err != nil {
-    fmt.Fprintln(os.Stderr, err)
-    return false
-}
-defer file.Close()
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これが &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の基本的な書き方。
-特徴的なのは，ある処理に纏わる処理をセットで記述できる点である。
-&lt;code&gt;try&lt;/code&gt; と &lt;code&gt;catch&lt;/code&gt; と &lt;code&gt;finally&lt;/code&gt; の間で目線を行ったり来たりさせなくても，「そこ」だけを見れば把握できる。
-ある意味でとても文芸的なコード&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;5&lt;/a&gt;&lt;/sup&gt; であると言える&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;h2 id=&#34;error:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;error&lt;/h2&gt;
-
-&lt;p&gt;ここで &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; について改めて説明しておく。
-&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は以下の形式で表現できる &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; 型のひとつである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;type error interface {
-	Error() string
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;つまり &lt;code&gt;Error()&lt;/code&gt; 関数を持つオブジェクトなら &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; として使える。
-これのいちばん簡単な実装が &lt;a href=&#34;https://golang.org/pkg/errors/&#34; title=&#34;errors - The Go Programming Language&#34;&gt;&lt;code&gt;errors&lt;/code&gt;&lt;/a&gt; パッケージである。
-&lt;a href=&#34;https://golang.org/pkg/errors/&#34; title=&#34;errors - The Go Programming Language&#34;&gt;&lt;code&gt;errors&lt;/code&gt;&lt;/a&gt; パッケージの中身は以下のようになっている。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package errors
-
-// New returns an error that formats as the given text.
-func New(text string) error {
-	return &amp;amp;errorString{text}
-}
-
-// errorString is a trivial implementation of error.
-type errorString struct {
-	s string
-}
-
-func (e *errorString) Error() string {
-	return e.s
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これは実体として &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型の property がひとつだけあって &lt;code&gt;Error()&lt;/code&gt; 関数で property をそのまま返すというものだ。
-&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の標準パッケージの多くはこの &lt;a href=&#34;https://golang.org/pkg/errors/&#34; title=&#34;errors - The Go Programming Language&#34;&gt;&lt;code&gt;errors&lt;/code&gt;&lt;/a&gt; パッケージを使って &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を定義している。
-たとえば &lt;a href=&#34;https://golang.org/pkg/os/&#34; title=&#34;os - The Go Programming Language&#34;&gt;&lt;code&gt;os&lt;/code&gt;&lt;/a&gt; パッケージの最下位の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は以下のように定義されている。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package os
-
-import (
-	&amp;quot;errors&amp;quot;
-)
-
-// Portable analogs of some common system call errors.
-var (
-	ErrInvalid    = errors.New(&amp;quot;invalid argument&amp;quot;)
-	ErrPermission = errors.New(&amp;quot;permission denied&amp;quot;)
-	ErrExist      = errors.New(&amp;quot;file already exists&amp;quot;)
-	ErrNotExist   = errors.New(&amp;quot;file does not exist&amp;quot;)
-)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;もう少し複雑な &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; では，以下のように詳細情報を持つものもある。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// PathError records an error and the operation and file path that caused it.
-type PathError struct {
-	Op   string
-	Path string
-	Err  error
-}
-
-func (e *PathError) Error() string { return e.Op + &amp;quot; &amp;quot; + e.Path + &amp;quot;: &amp;quot; + e.Err.Error() }
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h2 id=&#34;3つのエラー-ハンドリング:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;3つのエラー・ハンドリング&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を判別する方法としては以下の3つがある。&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスを比較する&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; の型を判別する&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;Error()&lt;/code&gt; 関数で出力される文字列を解釈する&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&#34;インスタンスを比較する:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;インスタンスを比較する&lt;/h3&gt;
-
-&lt;p&gt;あらかじめ定義済みの &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスがあれば，インスタンスの比較で判別できる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;if err != nil {
-    switch err {
-    case os.ErrInvalid:
-        fmt.Fprintln(os.Stderr, &amp;quot;引数が不正&amp;quot;)
-    case os.ErrPermission:
-        fmt.Fprintln(os.Stderr, &amp;quot;アクセスは許可できない&amp;quot;)
-    case os.ErrExist:
-        fmt.Fprintln(os.Stderr, &amp;quot;そのファイルは既にある&amp;quot;)
-    case os.ErrNotExist:
-        fmt.Fprintln(os.Stderr, &amp;quot;ファイルが存在しない&amp;quot;)
-    default:
-        fmt.Fprintln(os.Stderr, err)
-    }
-    return
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;単純にエラーの種類が分かればいいのであれば，この方法が最もシンプル。&lt;/p&gt;
-
-&lt;h3 id=&#34;型を判別する:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;型を判別する&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; 型なので &lt;a href=&#34;https://golang.org/ref/spec#Conversions&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;Conversion&lt;/a&gt; 構文で判別できる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;if err != nil {
-    switch e := err.(type) {
-    case *os.PathError:
-        if errno, ok := e.Err.(syscall.Errno); ok {
-            switch errno {
-            case syscall.ENOENT:
-                fmt.Fprintln(os.Stderr, &amp;quot;ファイルが存在しない&amp;quot;)
-            case syscall.ENOTDIR:
-                fmt.Fprintln(os.Stderr, &amp;quot;ディレクトリが存在しない&amp;quot;)
-            default:
-                fmt.Fprintln(os.Stderr, &amp;quot;Errno =&amp;quot;, errno)
-            }
-        } else {
-            fmt.Fprintln(os.Stderr, &amp;quot;その他の PathError&amp;quot;)
-        }
-    default:
-        fmt.Fprintln(os.Stderr, &amp;quot;その他のエラー&amp;quot;)
-    }
-    return
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; に状態（status）を持たせる必要がある場合は，この方法を使うべき。&lt;/p&gt;
-
-&lt;h3 id=&#34;文字列を比較する:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;文字列を比較する&lt;/h3&gt;
-
-&lt;p&gt;上述の方法で判別できない場合は &lt;code&gt;Error()&lt;/code&gt; 関数で出力される文字列を解釈して処理するしかない。
-&lt;a href=&#34;http://0xcc.net/misc/bad-knowhow.html&#34;&gt;バッドノウハウ&lt;/a&gt;。&lt;/p&gt;
-
-&lt;h2 id=&#34;エラー-ハンドリングの設計:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;エラー・ハンドリングの設計&lt;/h2&gt;
-
-&lt;p&gt;エラー・ハンドリングの方針としては，以下の2つのうちのどちらかだろう。&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を下位ロジックから上位ロジックまで持ち回し，最上位ロジックで最終的な判定と処理を行う&lt;/li&gt;
-&lt;li&gt;下位ロジックの &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; をカプセル化した新たなインスタンスを生成し上位ロジックに渡す。上位ロジックは直近のロジックの &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; のみが見える&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;最初のやり方は一見よさげだが，この方針では上位ロジックが下位ロジックの全ての &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を把握している必要があり現実的でない。
-またオブジェクト指向設計では “Don&amp;rsquo;t talk to strangers” の原則があり，いわゆる「友達の友達」のことは知らないふりをするのがよい設計と言われている。&lt;/p&gt;
-
-&lt;p&gt;こう考えると文字列での比較は最も下策であると言える。
-また，型を判別する場合でも，下位レイヤの状態を生のまま見せるのではなく，必要な情報のみを返す関数を実装するほうが上策と言えるだろう。&lt;/p&gt;
-
-&lt;p&gt;もうひとつ考慮すべき点としてエラー・メッセージの設計が挙げられるだろう。
-&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; に対するメッセージをどのように設計するかは（大規模アプリケーションでは特に）重要である。&lt;/p&gt;
-
-&lt;h2 id=&#34;追記-panic-と-recover:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;【追記】 Panic と Recover&lt;/h2&gt;
-
-&lt;p&gt;たとえばゼロ除算を行った場合や配列などで領域外を参照・設定しようとした場合，あるいは allocation に失敗した場合など，致命的なエラーが発生する場合がある。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import &amp;quot;fmt&amp;quot;
-
-func main() {
-	f()
-}
-
-func f() {
-	numbers := []int{0, 1, 2}
-
-	fmt.Println(numbers[3])
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これを実行すると&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic01&amp;gt;go run panic01.go
-panic: runtime error: index out of range
-
-goroutine 1 [running]:
-main.f()
-        C:/workspace/go-practice/src/panic01/panic01.go:12 +0x14a
-main.main()
-        C:/workspace/go-practice/src/panic01/panic01.go:6 +0x1b
-exit status 2
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;となり，大域脱出させてアプリケーションを強制終了させているのが分かる。
-この仕組みを &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; と呼ぶ。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; は意図的に発生させることもできる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-func main() {
-	f()
-}
-
-func f() {
-	panic(&amp;quot;Panic!&amp;quot;)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これを実行すると&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic02&amp;gt;go run panic02.go
-panic: Panic!
-
-goroutine 1 [running]:
-main.f()
-        C:/workspace/go-practice/src/panic02/panic02.go:8 +0x6c
-main.main()
-        C:/workspace/go-practice/src/panic02/panic02.go:4 +0x1b
-exit status 2
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;となる。&lt;/p&gt;
-
-&lt;p&gt;一方で， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; することもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import &amp;quot;fmt&amp;quot;
-
-func main() {
-	err := r()
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(&amp;quot;Normal End.&amp;quot;)
-	}
-}
-
-func r() (err error) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			err = fmt.Errorf(&amp;quot;Recovered from: %v&amp;quot;, rec)
-		}
-	}()
-
-	f()
-	err = nil
-	return
-}
-
-func f() {
-	panic(&amp;quot;Panic!&amp;quot;)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これを実行すると&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic03&amp;gt;go run panic03.go
-Recovered from: Panic!
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;となる。
-&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で捕まえて通常の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; として返しているのがお分かりだろうか。&lt;/p&gt;
-
-&lt;p&gt;一般的に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; はアプリケーション内で続行不可能な致命的エラーが発生した場合に投げられる。
-例えばゼロ除算や領域外アクセスのようなエラーは &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; が発生する前に回避するコードにすべきだ。
-Allocation エラーのような回避不能かつアプリケーション続行不可能なエラーの場合は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; が投げられるのもやむを得ないが， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; することにほとんど意味はない。&lt;/p&gt;
-
-&lt;p&gt;例外的な使い方として &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer&lt;/code&gt; では，メモリ確保で panic が発生した際に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で捕まえ， &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスを入れ替えて &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げ直している。
-このような用途で &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; を使うことはあり得る。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// makeSlice allocates a slice of size n. If the allocation fails, it panics
-// with ErrTooLarge.
-func makeSlice(n int) []byte {
-	// If the make fails, give a known error.
-	defer func() {
-		if recover() != nil {
-			panic(ErrTooLarge)
-		}
-	}()
-	return make([]byte, n)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;また再帰処理中に続行不能なエラーが発生した場合に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げてトップレベルの関数に一気に復帰するような使い方をすることもある。
-この場合，トップレベルの関数は（続行不可能なら）改めて &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げるか（処理続行できる根拠があるのなら）通常の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を返すことになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;9&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;p&gt;いずれにしろ，いわゆる「例外処理」的なハンドリングを &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt;/&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で行うべきではない。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.kaoriya.net/blog/2014/04/17/&#34;&gt;または私は如何にして例外するのを止めて golang を愛するようになったか — KaoriYa&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://mattn.kaoriya.net/software/lang/go/20140416212413.htm&#34;&gt;Big Sky :: golang で複数のエラーをハンドリングする方法&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://dsas.blog.klab.org/archives/go-errors.html&#34;&gt;DSAS開発者の部屋:Go ではエラーを文字列比較する？という話について&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/ruiu/items/ff98ded599d97cf6646e&#34;&gt;panicはともかくrecoverに使いどころはほとんどない - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;ちなみに &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の &lt;code&gt;goto&lt;/code&gt; や ラベル付きの &lt;code&gt;break&lt;/code&gt;, &lt;code&gt;continue&lt;/code&gt; は&lt;a href=&#34;https://golang.org/test/goto.go&#34;&gt;飛び先に制約&lt;/a&gt;があり，どこにでもジャンプできるわけではない。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;例外を備える言語でこれを緩和する仕様はいくつかある。例えば Java は 1.7 から &lt;a href=&#34;http://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html&#34;&gt;try-with-resources 構文&lt;/a&gt;を導入した。もちろんこの構文を有効にするためには対象となるオブジェクトがこの構文に対応した作りになっていなければならない。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;いや，ファイル・オープンのエラーを無視したらダメです（笑）
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で指定された処理は &lt;code&gt;return&lt;/code&gt; 時に起動することが保証される。したがって，エラー発生時にはその都度 &lt;code&gt;return&lt;/code&gt; で抜けて問題ない。むしろ &lt;code&gt;goto&lt;/code&gt; や &lt;code&gt;break&lt;/code&gt; で強制的に処理を抜けるよりは処理を分割して &lt;code&gt;return&lt;/code&gt; で安全に処理を抜ける方法がないか検討すべきである。なお &lt;code&gt;os.Exit()&lt;/code&gt; などで強制終了した場合は， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で指定した処理は起動しないので注意。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;いわゆる「文芸的プログラミング」とは異なるけど。紛らわしくてゴメン。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;これからのコードは「文芸的」であることが必要条件だと思う。何故ならエンジニアにとって最も信頼できる「設計書」は（動いている）コードだからだ。コードをひとりで考えてひとりで書いてひとりで使ってひとりでメンテナンスするなら（本人さえ理解していれば）文芸的である必要はないかもしれない。が，実用的なコードでそんな状況はもはやありえない。コードにおいても暗黙知をできるだけ排除していくことが重要。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は組み込み型なので，実際にこのような定義が標準パッケージにあるわけではない。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文とともに使用する。つまり &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; 発生時でも &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で予約された処理は実行される。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;これ以外にサーバ用途などでプロセスを落とせない場合に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で回避することもあるが，既に続行不可能な状態で無理やりプロセスを続行するのが正しい動きなのかどうかは疑問が残る。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
 </content>
 	</entry>
 	
