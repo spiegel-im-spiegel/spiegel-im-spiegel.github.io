@@ -83,7 +83,7 @@ Go 言語の &lt;code&gt;return&lt;/code&gt; をどう記述するか（ある�
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/error-handling/" />
 		<id>tag:text.Baldanders.info,2015-09-30:/golang/error-handling/</id>
 		<published>2015-09-30T00:27:48+09:00</published>
-		<updated>2015-12-19T23:24:48+09:00</updated>
+		<updated>2016-02-10T17:34:12+09:00</updated>
 		<summary>C&#43;&#43; や Java のような言語圏から来た（私のような）人間にとって Go 言語の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。この最たるものが error 型である。（追記あり）</summary>
 		
 			<author>
@@ -152,7 +152,9 @@ defer file.Close()
 &lt;p&gt;ここで &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; について改めて説明しておく。
 &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は以下の形式で表現できる &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; 型のひとつである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;type error interface {
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// The error built-in interface type is the conventional interface for
+// representing an error condition, with the nil value representing no error.
+type error interface {
 	Error() string
 }
 &lt;/code&gt;&lt;/pre&gt;
@@ -422,6 +424,36 @@ func makeSlice(n int) []byte {
 
 &lt;p&gt;いずれにしろ，いわゆる「例外処理」的なハンドリングを &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt;/&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で行うべきではない。&lt;/p&gt;
 
+&lt;h2 id=&#34;追記-error-の-nil-が-nil-にならない場合:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;【追記】 error の nil が nil にならない場合&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://medium.com/@tucnak/why-go-is-a-poorly-designed-language-1cc04e5daf2#.ucutrogyz&#34;&gt;Why Go is a poorly designed language — Medium&lt;/a&gt; （&lt;a href=&#34;http://postd.cc/why-go-is-a-poorly-designed-language/&#34;&gt;日本語訳&lt;/a&gt;）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure style=&#39;margin:0 auto;&#39;&gt;
+&lt;script src=&#34;https://gist.github.com/tucnak/eccdb53e7884084f5674.js&#34;&gt;&lt;/script&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;このコードの実行結果は “Hello, Mr. Pike!” を出力する。
+このコードのポイントは &lt;code&gt;Generate()&lt;/code&gt; 関数が &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; ではなく &lt;code&gt;*MagicError&lt;/code&gt; 型を返している点にある。
+他にも&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func test(x int) error {
+    var err *myError
+    if x &amp;lt; 0 {
+        err = &amp;amp;myError{}
+    }
+    return err
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;のようなコードでは &lt;code&gt;x&lt;/code&gt; の値に関わらず返り値は nil にならない。&lt;/p&gt;
+
+&lt;p&gt;実は &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; 型というのは実体への参照と型情報をペアで保持っているため，上述のような形で nil を返しても受け取った側は「nil 値のなにか」という評価になり，型情報を含めた完全な nil にはならないのだ。&lt;/p&gt;
+
+&lt;p&gt;エラーハンドリングを行う際は結構ここがハマりどころになる。
+ご注意を。&lt;/p&gt;
+
 &lt;h2 id=&#34;ブックマーク:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;ブックマーク&lt;/h2&gt;
 
 &lt;ul&gt;
@@ -449,7 +481,7 @@ func makeSlice(n int) []byte {
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;これからのコードは「文芸的」であることが必要条件だと思う。何故ならエンジニアにとって最も信頼できる「設計書」は（動いている）コードだからだ。コードをひとりで考えてひとりで書いてひとりで使ってひとりでメンテナンスするなら（本人さえ理解していれば）文芸的である必要はないかもしれない。が，実用的なコードでそんな状況はもはやありえない。コードにおいても暗黙知をできるだけ排除していくことが重要。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は組み込み型なので，実際にこのような定義が標準パッケージにあるわけではない。
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は組み込み型。組み込み型や組み込み関数（&lt;code&gt;append()&lt;/code&gt; とか）は &lt;a href=&#34;https://golang.org/pkg/builtin/&#34; title=&#34;builtin - The Go Programming Language&#34;&gt;&lt;code&gt;builtin&lt;/code&gt;&lt;/a&gt; パッケージに定義が記述されているが，実際にこのパッケージを import して使うわけではない。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文とともに使用する。つまり &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; 発生時でも &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で予約された処理は実行される。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;

@@ -126,7 +126,9 @@ defer file.Close()
 <p>ここで <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> について改めて説明しておく。
 <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> は以下の形式で表現できる <a href="https://golang.org/doc/effective_go.html#interfaces_and_types" title="Effective Go - The Go Programming Language">interface</a> 型のひとつである<sup class="footnote-ref" id="fnref:94adf3c4c1b9841365d464e984a9ce2f:d"><a rel="footnote" href="#fn:94adf3c4c1b9841365d464e984a9ce2f:d">7</a></sup>。</p>
 
-<pre><code class="language-go">type error interface {
+<pre><code class="language-go">// The error built-in interface type is the conventional interface for
+// representing an error condition, with the nil value representing no error.
+type error interface {
 	Error() string
 }
 </code></pre>
@@ -396,6 +398,36 @@ func makeSlice(n int) []byte {
 
 <p>いずれにしろ，いわゆる「例外処理」的なハンドリングを <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a>/<a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> で行うべきではない。</p>
 
+<h2 id="追記-error-の-nil-が-nil-にならない場合:94adf3c4c1b9841365d464e984a9ce2f">【追記】 error の nil が nil にならない場合</h2>
+
+<ul>
+<li><a href="https://medium.com/@tucnak/why-go-is-a-poorly-designed-language-1cc04e5daf2#.ucutrogyz">Why Go is a poorly designed language — Medium</a> （<a href="http://postd.cc/why-go-is-a-poorly-designed-language/">日本語訳</a>）</li>
+</ul>
+
+<figure style='margin:0 auto;'>
+<script src="https://gist.github.com/tucnak/eccdb53e7884084f5674.js"></script>
+</figure>
+
+<p>このコードの実行結果は “Hello, Mr. Pike!” を出力する。
+このコードのポイントは <code>Generate()</code> 関数が <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> ではなく <code>*MagicError</code> 型を返している点にある。
+他にも</p>
+
+<pre><code class="language-go">func test(x int) error {
+    var err *myError
+    if x &lt; 0 {
+        err = &amp;myError{}
+    }
+    return err
+}
+</code></pre>
+
+<p>のようなコードでは <code>x</code> の値に関わらず返り値は nil にならない。</p>
+
+<p>実は <a href="https://golang.org/doc/effective_go.html#interfaces_and_types" title="Effective Go - The Go Programming Language">interface</a> 型というのは実体への参照と型情報をペアで保持っているため，上述のような形で nil を返しても受け取った側は「nil 値のなにか」という評価になり，型情報を含めた完全な nil にはならないのだ。</p>
+
+<p>エラーハンドリングを行う際は結構ここがハマりどころになる。
+ご注意を。</p>
+
 <h2 id="ブックマーク:94adf3c4c1b9841365d464e984a9ce2f">ブックマーク</h2>
 
 <ul>
@@ -423,7 +455,7 @@ func makeSlice(n int) []byte {
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:b"><sup>[return]</sup></a></li>
 <li id="fn:94adf3c4c1b9841365d464e984a9ce2f:bb">これからのコードは「文芸的」であることが必要条件だと思う。何故ならエンジニアにとって最も信頼できる「設計書」は（動いている）コードだからだ。コードをひとりで考えてひとりで書いてひとりで使ってひとりでメンテナンスするなら（本人さえ理解していれば）文芸的である必要はないかもしれない。が，実用的なコードでそんな状況はもはやありえない。コードにおいても暗黙知をできるだけ排除していくことが重要。
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:bb"><sup>[return]</sup></a></li>
-<li id="fn:94adf3c4c1b9841365d464e984a9ce2f:d"><a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> は組み込み型なので，実際にこのような定義が標準パッケージにあるわけではない。
+<li id="fn:94adf3c4c1b9841365d464e984a9ce2f:d"><a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> は組み込み型。組み込み型や組み込み関数（<code>append()</code> とか）は <a href="https://golang.org/pkg/builtin/" title="builtin - The Go Programming Language"><code>builtin</code></a> パッケージに定義が記述されているが，実際にこのパッケージを import して使うわけではない。
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:d"><sup>[return]</sup></a></li>
 <li id="fn:94adf3c4c1b9841365d464e984a9ce2f:e"><a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> は <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Defer</a> 構文とともに使用する。つまり <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Panic</a> 発生時でも <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Defer</a> 構文で予約された処理は実行される。
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:e"><sup>[return]</sup></a></li>
@@ -492,7 +524,7 @@ func makeSlice(n int) []byte {
 		</div>
 		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
 			
-				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-30</time> (revised in <time property='dc:modified'>2015-12-19</time>).
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-30</time> (revised in <time property='dc:modified'>2016-02-10</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
 
