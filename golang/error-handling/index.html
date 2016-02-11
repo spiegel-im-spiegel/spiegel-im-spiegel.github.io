@@ -409,21 +409,39 @@ func makeSlice(n int) []byte {
 </figure>
 
 <p>このコードの実行結果は “Hello, Mr. Pike!” を出力する。
-このコードのポイントは <code>Generate()</code> 関数が <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> ではなく <code>*MagicError</code> 型を返している点にある。
-他にも</p>
+このコードのポイントは <code>Generate()</code> 関数が <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> ではなく <code>*MagicError</code> 型を返している点にある。</p>
 
-<pre><code class="language-go">func test(x int) error {
-    var err *myError
-    if x &lt; 0 {
-        err = &amp;myError{}
-    }
-    return err
+<p>実は <a href="http://blog.golang.org/error-handling-and-go" title="Error handling and Go - The Go Blog">error</a> を含む <a href="https://golang.org/doc/effective_go.html#interfaces_and_types" title="Effective Go - The Go Programming Language">interface</a> 型のインスタンスは値（への参照）と型情報をセットで保持っているため，上述のような形で nil を返しても受け取った側は「nil 状態を持つなにか」という評価になり，完全な nil にはならないのだ。
+たとえば上のコードを以下のように書き換えると分かりやすいかもしれない。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type MagicError struct{}
+
+func (m *MagicError) Error() string {
+    return fmt.Sprintf(&quot;%#v&quot;, m)
+}
+
+func Generate() *MagicError {
+	return nil
+}
+
+func Test() error {
+	return Generate()
+}
+
+func main() {
+	if err := Test(); err != nil {
+		fmt.Println(err)
+	}
 }
 </code></pre>
 
-<p>のようなコードでは <code>x</code> の値に関わらず返り値は nil にならない。</p>
-
-<p>実は <a href="https://golang.org/doc/effective_go.html#interfaces_and_types" title="Effective Go - The Go Programming Language">interface</a> 型というのは実体への参照と型情報をペアで保持っているため，上述のような形で nil を返しても受け取った側は「nil 値のなにか」という評価になり，型情報を含めた完全な nil にはならないのだ。</p>
+<p>このコードを実行すると “(*main.MagicError)(nil)” と出力する。
+<code>Generate()</code> 関数が返す nil がどのように機能しているか分かると思う。
+「<a href="/golang/object-oriented-programming/">Go 言語における「オブジェクト」</a>」で解説するが， <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の型（<a href="https://golang.org/ref/spec#Properties_of_types_and_values" title="Properties of types and values">type</a>）は C++ や Java で言うところの class のように機能するため，このような動きになると思われる<sup class="footnote-ref" id="fnref:94adf3c4c1b9841365d464e984a9ce2f:nil"><a rel="footnote" href="#fn:94adf3c4c1b9841365d464e984a9ce2f:nil">10</a></sup>。</p>
 
 <p>エラーハンドリングを行う際は結構ここがハマりどころになる。
 ご注意を。</p>
@@ -461,6 +479,8 @@ func makeSlice(n int) []byte {
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:e"><sup>[return]</sup></a></li>
 <li id="fn:94adf3c4c1b9841365d464e984a9ce2f:f">これ以外にサーバ用途などでプロセスを落とせない場合に <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">Recover</a> で回避することもあるが，既に続行不可能な状態で無理やりプロセスを続行するのが正しい動きなのかどうかは疑問が残る。
  <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:f"><sup>[return]</sup></a></li>
+<li id="fn:94adf3c4c1b9841365d464e984a9ce2f:nil">それでもやっぱり nil は nil として扱ってほしいのだが。
+ <a class="footnote-return" href="#fnref:94adf3c4c1b9841365d464e984a9ce2f:nil"><sup>[return]</sup></a></li>
 </ol>
 </div>
 
@@ -524,7 +544,7 @@ func makeSlice(n int) []byte {
 		</div>
 		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
 			
-				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-30</time> (revised in <time property='dc:modified'>2016-02-10</time>).
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2015-09-30</time> (revised in <time property='dc:modified'>2016-02-11</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
 
