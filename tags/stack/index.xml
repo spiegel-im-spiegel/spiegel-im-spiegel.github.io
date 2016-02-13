@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cc="http://web.resource.org/cc/">
+	<title>Stack - text.Baldanders.info</title>
+	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/stack/" />
+	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/stack/index.xml" />
+	<id>tag:text.Baldanders.info,2016-02-13:/</id>
+	<updated>2016-02-13T14:48:05+09:00</updated>
+	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
+	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
+	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
+	<generator uri="http://gohugo.io/">Hugo 0.15</generator>
+
+	
+	<entry>
+		<title>スタック追跡とパニック・ハンドリング - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/stack-trace-and-panic-handling/" />
+		<id>tag:text.Baldanders.info,2016-02-13:/golang/stack-trace-and-panic-handling/</id>
+		<published>2016-02-13T14:48:05+09:00</published>
+		<updated>2016-02-13T14:48:05+09:00</updated>
+		<summary>panic 時の出力をカスタマイズすることを考える。スタック情報を取得するには， panic を recover で捕まえた上で runtime.Caller() 関数を使う。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;今回は軽めの小ネタで。&lt;/p&gt;
+
+&lt;p&gt;「&lt;a href=&#34;http://text.baldanders.info/golang/error-handling/&#34;&gt;エラー・ハンドリングについて&lt;/a&gt;」でも少し説明したが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では回復不能のエラー（ゼロ除算やメモリ不足など）が発生した場合には &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; を投げる仕様になっている。
+たとえば以下のコードでは&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+)
+
+func main() {
+	os.Exit(run())
+}
+
+func run() int {
+	f()
+	return 0
+}
+
+func f() {
+	numbers := []int{0, 1, 2}
+	fmt.Println(numbers[3]) //panic!
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以下のスタック情報が標準エラー出力に表示される&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:4e4334940cfbd371abfb6e84384d704c:s&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:4e4334940cfbd371abfb6e84384d704c:s&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+（&lt;a href=&#34;https://play.golang.org/&#34;&gt;The Go Playground&lt;/a&gt; での実行結果）&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;panic: runtime error: index out of range
+
+goroutine 1 [running]:
+main.f()
+	/tmp/sandbox269685094/main.go:19 +0x160
+main.run(0x20300, 0x104000e0)
+	/tmp/sandbox269685094/main.go:13 +0x20
+main.main()
+	/tmp/sandbox269685094/main.go:9 +0x20
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まぁ必要な情報はあるのでこれでも構わないのだが，ファイル名がフルパスで表示されるのがアレな感じである。
+また出力先が標準エラー出力で固定されているのも面白くない。&lt;/p&gt;
+
+&lt;p&gt;そこで &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; 時の出力をカスタマイズすることを考える。
+スタック情報を取得するには， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;recover&lt;/a&gt; で捕まえた上で &lt;a href=&#34;https://golang.org/pkg/runtime/&#34; title=&#34;runtime - The Go Programming Language&#34;&gt;&lt;code&gt;runtime&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Caller()&lt;/code&gt; 関数を使う。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;runtime&amp;quot;
+)
+
+func main() {
+	os.Exit(run(os.Stderr))
+}
+
+func run(log io.Writer) (exit int) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(log, &amp;quot;Panic: %v\n&amp;quot;, r)
+			for depth := 0; ; depth++ {
+				pc, src, line, ok := runtime.Caller(depth)
+				if !ok {
+					break
+				}
+				fmt.Fprintf(log, &amp;quot; -&amp;gt; %d: %s: %s(%d)\n&amp;quot;, depth, runtime.FuncForPC(pc).Name(), src, line)
+			}
+			exit = 1
+		}
+	}()
+
+	f()
+    exit = 0
+    return
+}
+
+func f() {
+	numbers := []int{0, 1, 2}
+	fmt.Println(numbers[3]) //panic!
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これで出力は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Panic: runtime error: index out of range
+ -&amp;gt; 0: main.run.func1: /tmp/sandbox562252505/main.go(19)
+ -&amp;gt; 1: runtime.call16: /usr/local/go/src/runtime/asm_amd64p32.s(390)
+ -&amp;gt; 2: runtime.gopanic: /usr/local/go/src/runtime/panic.go(423)
+ -&amp;gt; 3: runtime.panicindex: /usr/local/go/src/runtime/panic.go(12)
+ -&amp;gt; 4: main.f: /tmp/sandbox562252505/main.go(36)
+ -&amp;gt; 5: main.run: /tmp/sandbox562252505/main.go(29)
+ -&amp;gt; 6: main.main: /tmp/sandbox562252505/main.go(11)
+ -&amp;gt; 7: runtime.main: /usr/local/go/src/runtime/proc.go(111)
+ -&amp;gt; 8: runtime.goexit: /usr/local/go/src/runtime/asm_amd64p32.s(1133)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となる。
+ファイル名を出力したくないなら for 文の中を&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;for depth := 0; ; depth++ {
+	pc, _, line, ok := runtime.Caller(depth)
+	if !ok {
+		break
+	}
+	fmt.Fprintf(log, &amp;quot; -&amp;gt; %d: %s: (%d)\n&amp;quot;, depth, runtime.FuncForPC(pc).Name(), line)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とする手もある。
+コードを書いてる人はスタック追跡情報とファイルの行番号があれば大体あたりをつけられるので，これだけでもありがたい。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:4e4334940cfbd371abfb6e84384d704c&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://sgykfjsm.github.io/blog/2016/01/20/golang-function-tracing/&#34;&gt;Goでfunctionが実行された順番を追いかける - sgykfjsm.github.com&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:4e4334940cfbd371abfb6e84384d704c:s&#34;&gt;ちなみにこの情報は &lt;code&gt;-s&lt;/code&gt; のリンクオプション（ビルド時に &lt;code&gt;-ldflags &amp;quot;-s&amp;quot;&lt;/code&gt; と指定する）でデバッグ用のシンボル情報を削除しても表示されるようだ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:4e4334940cfbd371abfb6e84384d704c:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+</feed>
