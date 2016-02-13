@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjapanese.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>Travis CI でクロス・コンパイル — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="description">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,cross-compile,continuous-integration">
+<link rel='prev' href='http://text.baldanders.info/golang/stack-trace-and-panic-handling/' title='スタック追跡とパニック・ハンドリング' />
+
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>Travis CI でクロス・コンパイル — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/continuous-integration">continuous-integration</a> #<a href="/tags/cross-compile">cross-compile</a> #<a href="/tags/golang">golang</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/cross-compiling-in-travis-ci/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<h2 id="gox-でまとめてクロス-コンパイル:fa953b67964726c338be9843a0c52e04">Gox でまとめてクロス・コンパイル</h2>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の特徴のひとつにクロス・コンパイルの容易さがあるが，複数プラットフォームのビルドをまとめて行う <a href="https://github.com/mitchellh/gox" title="mitchellh/gox: A dead simple, no frills Go cross compile tool">mitchellh/gox</a> を使うと便利である。</p>
+
+<pre><code class="language-text">$ go get github.com/mitchellh/gox
+
+$gox -h
+Usage: gox [options] [packages]
+
+  Gox cross-compiles Go applications in parallel.
+
+  If no specific operating systems or architectures are specified, Gox
+  will build for all pairs supported by your version of Go.
+
+Options:
+
+  -arch=&quot;&quot;            Space-separated list of architectures to build for
+  -build-toolchain    Build cross-compilation toolchain
+  -cgo                Sets CGO_ENABLED=1, requires proper C toolchain (advanced)
+  -gcflags=&quot;&quot;         Additional '-gcflags' value to pass to go build
+  -ldflags=&quot;&quot;         Additional '-ldflags' value to pass to go build
+  -tags=&quot;&quot;            Additional '-tags' value to pass to go build
+  -os=&quot;&quot;              Space-separated list of operating systems to build for
+  -osarch=&quot;&quot;          Space-separated list of os/arch pairs to build for
+  -osarch-list        List supported os/arch pairs for your Go version
+  -output=&quot;foo&quot;       Output path template. See below for more info
+  -parallel=-1        Amount of parallelism, defaults to number of CPUs
+  -rebuild            Force rebuilding of package that were up to date
+  -verbose            Verbose mode
+
+Output path template:
+
+  The output path for the compiled binaries is specified with the
+  &quot;-output&quot; flag. The value is a string that is a Go text template.
+  The default value is &quot;{{.Dir}}_{{.OS}}_{{.Arch}}&quot;. The variables and
+  their values should be self-explanatory.
+
+Platforms (OS/Arch):
+
+  The operating systems and architectures to cross-compile for may be
+  specified with the &quot;-arch&quot; and &quot;-os&quot; flags. These are space separated lists
+  of valid GOOS/GOARCH values to build for, respectively. You may prefix an
+  OS or Arch with &quot;!&quot; to negate and not build for that platform. If the list
+  is made up of only negations, then the negations will come from the default
+  list.
+
+  Additionally, the &quot;-osarch&quot; flag may be used to specify complete os/arch
+  pairs that should be built or ignored. The syntax for this is what you would
+  expect: &quot;darwin/amd64&quot; would be a valid osarch value. Multiple can be space
+  separated. An os/arch pair can begin with &quot;!&quot; to not build for that platform.
+
+  The &quot;-osarch&quot; flag has the highest precedent when determing whether to
+  build for a platform. If it is included in the &quot;-osarch&quot; list, it will be
+  built even if the specific os and arch is negated in &quot;-os&quot; and &quot;-arch&quot;,
+  respectively.
+</code></pre>
+
+<p>オプションは色々あるが，とりあえずパッケージを指定して起動すれば全てのプラットフォームについてビルドを行う<sup class="footnote-ref" id="fnref:fa953b67964726c338be9843a0c52e04:bt"><a rel="footnote" href="#fn:fa953b67964726c338be9843a0c52e04:bt">1</a></sup>。
+私が今つくってる <a href="https://github.com/spiegel-im-spiegel/gpgpdump" title="spiegel-im-spiegel/gpgpdump: gpgpdump - OpenPGP packet visualizer">gpgpdump</a> を例にすると</p>
+
+<pre><code class="language-text">$ go get get github.com/spiegel-im-spiegel/gpgpdump
+
+$ gox -output &quot;goxdist/{{.OS}}_{{.Arch}}/{{.Dir}}&quot; github.com/spiegel-im-spiegel/gpgpdump
+
+--&gt;      netbsd/arm: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;   windows/amd64: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;   freebsd/amd64: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;      darwin/386: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;    darwin/amd64: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;       linux/386: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;     linux/amd64: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;       linux/arm: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;     freebsd/386: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;      netbsd/386: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;     freebsd/arm: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;    netbsd/amd64: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;   openbsd/amd64: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;     openbsd/386: github.com/spiegel-im-spiegel/gpgpdump
+--&gt;     windows/386: github.com/spiegel-im-spiegel/gpgpdump
+
+$ ls -l goxdist
+drwx 0 2016-02-13 17:41 darwin_386/
+drwx 0 2016-02-13 17:41 darwin_amd64/
+drwx 0 2016-02-13 17:42 freebsd_386/
+drwx 0 2016-02-13 17:41 freebsd_amd64/
+drwx 0 2016-02-13 17:42 freebsd_arm/
+drwx 0 2016-02-13 17:41 linux_386/
+drwx 0 2016-02-13 17:41 linux_amd64/
+drwx 0 2016-02-13 17:42 linux_arm/
+drwx 0 2016-02-13 17:42 netbsd_386/
+drwx 0 2016-02-13 17:42 netbsd_amd64/
+drwx 0 2016-02-13 17:41 netbsd_arm/
+drwx 0 2016-02-13 17:42 openbsd_386/
+drwx 0 2016-02-13 17:42 openbsd_amd64/
+drwx 0 2016-02-13 17:42 windows_386/
+drwx 0 2016-02-13 17:41 windows_amd64/
+
+$ ls -l goxdist/windows_amd64
+-rw- 5712896 2016-02-13 17:41 gpgpdump.exe
+</code></pre>
+
+<p>といい感じに出力してくれる。</p>
+
+<p>OS を指定する場合は <code>-os &quot;linux windows&quot;</code> のように指定する。
+アーキテクチャは <code>-arch</code> オプションを， OS とアーキテクチャを組み合わせる場合は <code>-osarch linux/arm</code> などとする。</p>
+
+<p><code>-output</code> オプションの <code>&quot;goxdist/{{.OS}}_{{.Arch}}/{{.Dir}}&quot;</code> は出力先のテンプレートで <code>{{ }}</code> で囲まれている部分に実際の値が埋め込まれる。
+たとえば OS が windows でアーキテクチャが amd64 なら <code>goxdist/windows_amd64/gpgpdump</code> と展開されるわけだ<sup class="footnote-ref" id="fnref:fa953b67964726c338be9843a0c52e04:tpl"><a rel="footnote" href="#fn:fa953b67964726c338be9843a0c52e04:tpl">2</a></sup>。</p>
+
+<p>このようにクロス・コンパイルが非常に簡単なので <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> などで複数プラットフォームのバイナリを生成するのも難しくない。</p>
+
+<h2 id="ghr-を使って-github-に-deploy-する:fa953b67964726c338be9843a0c52e04">ghr を使って GitHub に Deploy する</h2>
+
+<p>今回は <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> から <a href="https://github.com/" title="GitHub">GitHub</a> へ <a href="https://github.com/mitchellh/gox" title="mitchellh/gox: A dead simple, no frills Go cross compile tool">mitchellh/gox</a> で生成した実行バイナリを deploy することを考える。</p>
+
+<p><a href="https://github.com/mitchellh/gox" title="mitchellh/gox: A dead simple, no frills Go cross compile tool">mitchellh/gox</a> で生成した実行バイナリをそのままアップしてもいいのだが，ちょっと気持ち悪いので<sup class="footnote-ref" id="fnref:fa953b67964726c338be9843a0c52e04:s"><a rel="footnote" href="#fn:fa953b67964726c338be9843a0c52e04:s">3</a></sup>，まずは zip で固めてしまおう。
+以下のような簡単な shell script を書いてみた。</p>
+
+<pre><code class="language-bash">#!/bin/bash
+
+DIR=`pwd`
+mkdir ./goxdist/dist
+for PLATFORM in $(find ./goxdist -mindepth 1 -maxdepth 1 -type d); do
+    PLATFORM_NAME=$(basename ${PLATFORM})
+
+    if [ ${PLATFORM_NAME} = &quot;dist&quot; ]; then
+        continue
+    fi
+
+    cd ${PLATFORM}
+    zip ${DIR}/goxdist/dist/${PLATFORM_NAME}.zip ./*
+    cd ${DIR}
+done
+</code></pre>
+
+<p>先ほど <code>goxdist</code> フォルダ以下に生成した各バイナリをひとつづつ zip 圧縮して <code>goxdist/dist</code> フォルダに置くだけの簡単なお仕事。
+これで <code>goxdist/dist</code> フォルダの中身を <a href="https://github.com/" title="GitHub">GitHub</a> に deploy すればよい。
+<a href="https://github.com/" title="GitHub">GitHub</a> への deploy には <a href="https://github.com/tcnksm/ghr" title="tcnksm/ghr: Create Github Release and upload artifacts in parallel">tcnksm/ghr</a> が便利である。</p>
+
+<pre><code class="language-text">$ go get github.com/tcnksm/ghr
+
+$ ghr -h
+
+Usage: ghr [options] TAG PATH
+
+  ghr is a tool to create Release on Github and upload your artifacts to
+  it. ghr parallelizes upload multiple artifacts.
+
+  You can use ghr on GitHub Enterprise. Change URL by GITHUB_API env var.
+
+Options:
+
+  --username, -u        GitHub username. By default, ghr extracts user
+                        name from global gitconfig value.
+
+  --repository, -r      GitHub repository name. By default, ghr extracts
+                        repository name from current directory's .git/config
+                        value.
+
+  --token, -t           GitHub API Token. To use ghr, you will first need
+                        to create a GitHub API token with an account which
+                        has enough permissions to be able to create releases.
+                        You can set this value via GITHUB_TOKEN env var.
+
+  --parallel=-1         Parallelization factor. This option limit amount
+                        of parallelism of uploading. By default, ghr uses
+                        number of logic CPU of your PC.
+
+  --delete              Delete release if it already created. If you want
+                        to recreate release itself from begining, use
+                        this. Just want to upload same artifacts to same
+                        release again, use --replace option.
+
+  --replace             Replace artifacts if it is already uploaded. Same
+                        artifact measn, same release and same artifact
+                        name.
+
+  --stat=false          Show number of download of each release and quit.
+                        This is special command.
+
+Examples:
+
+  $ ghr v1.0 dist/     Upload all artifacts which are in dist directory
+                       with version v1.0.
+
+  $ ghr --stat         Show download number of each relase and quit.
+
+$ ghr --username spiegel-im-spiegel --token $GITHUB_TOKEN v0.1.2 goxdist/dist/
+--&gt; Uploading: windows_amd64_v0.1.2.zip
+--&gt; Uploading: linux_amd64_v0.1.2.zip
+--&gt; Uploading: darwin_386_v0.1.2.zip
+--&gt; Uploading: darwin_amd64_v0.1.2.zip
+--&gt; Uploading: freebsd_386_v0.1.2.zip
+--&gt; Uploading: freebsd_amd64_v0.1.2.zip
+--&gt; Uploading: freebsd_arm_v0.1.2.zip
+--&gt; Uploading: linux_386_v0.1.2.zip
+--&gt; Uploading: netbsd_arm_v0.1.2.zip
+--&gt; Uploading: linux_arm_v0.1.2.zip
+--&gt; Uploading: netbsd_386_v0.1.2.zip
+--&gt; Uploading: netbsd_amd64_v0.1.2.zip
+--&gt; Uploading: openbsd_amd64_v0.1.2.zip
+--&gt; Uploading: openbsd_386_v0.1.2.zip
+--&gt; Uploading: windows_386_v0.1.2.zip
+</code></pre>
+
+<p>てな感じで deploy できる。
+ちなみに <code>$GITHUB_TOKEN</code> には <a href="https://github.com/" title="GitHub">GitHub</a> の access token をセットする。
+Access token は <a href="https://github.com/" title="GitHub">GitHub</a> の &ldquo;Settings” の &ldquo;Personal access tokens” のページで取得できる。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a data-flickr-embed="true" href="https://www.flickr.com/photos/spiegel/24367702843/"><img src="https://farm2.staticflickr.com/1626/24367702843_e72366313f.jpg" alt="Get access token in GitHub"></a>
+<figcaption><a href="https://www.flickr.com/photos/spiegel/24367702843/">Get access token in GitHub</a></figcaption>
+</figure>
+
+<p>repo の権限を付けること。
+この access token を <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> で参照するには， &ldquo;Settings” の &ldquo;Environment Variables” でセットすればよい。
+Build log にこの access token が表示されないようにすること。</p>
+
+<p>最終的な <code>.travis.yml</code> の内容はこんな感じ。</p>
+
+<pre><code class="language-yaml">language: go
+
+go:
+  - 1.5.3
+
+branches:
+  only: master
+
+before_install:
+  - go get -v github.com/mitchellh/gox
+  - go get -v github.com/tcnksm/ghr
+
+script:
+  - go test -v ./...
+
+after_success:
+  - gox -output &quot;goxdist/{{.OS}}_{{.Arch}}_`git tag | tail -1`/{{.Dir}}&quot; -ldflags &quot;-X main.Version=`git tag | tail -1`&quot;
+  - sh scripts/package.sh
+  - ghr --username spiegel-im-spiegel --token $GITHUB_TOKEN `git tag | tail -1` goxdist/dist/
+</code></pre>
+
+<p><code>git tag | tail -1</code> で最新のタグを取得して，そこに deploy するようにしている。
+<a href="https://github.com/" title="GitHub">GitHub</a> に何か push するたびにビルドが走るのはウザいので， master ブランチのみテスト &amp; ビルドの対象とした。</p>
+
+<p>まっ，こんなもんかな。</p>
+
+<h2 id="ブックマーク:fa953b67964726c338be9843a0c52e04">ブックマーク</h2>
+
+<ul>
+<li><a href="http://qiita.com/yanolab/items/5a6dfb3c07c94f7c760d">Golang + Raspberry Pi + LPS331AP で気圧・温度を測定してみた - Qiita</a> : arm アーキテクチャでいけるらしい</li>
+<li><a href="http://deeeet.com/writing/2015/07/22/go1_5-cross-compile/">Go1.5はクロスコンパイルがより簡単 | SOTA</a></li>
+<li><a href="http://qiita.com/rerofumi/items/d6a8ba08270acb61b31c">Raspberry PI ２ 用の consul を作る (201512版 - Qiita</a> : Raspberry PI 上でビルドするより Linux のクロス環境を使ったほうが速いらしい</li>
+<li><a href="http://deeeet.com/writing/2014/10/16/golang-in-ci-as-a-service/">CI-as-a-ServiceでGo言語プロジェクトの最新ビルドを継続的に提供する | SOTA</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:fa953b67964726c338be9843a0c52e04:bt">ちなみに <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の 1.4 までは <a href="https://github.com/mitchellh/gox" title="mitchellh/gox: A dead simple, no frills Go cross compile tool">mitchellh/gox</a> インストール後に <code>gox -build-toolchain</code> でクロス環境を生成する必要があったが， 1.5 からは不要になった。めでたい！
+ <a class="footnote-return" href="#fnref:fa953b67964726c338be9843a0c52e04:bt"><sup>[return]</sup></a></li>
+<li id="fn:fa953b67964726c338be9843a0c52e04:tpl"><code>{{ }}</code> でテンプレートをハンドリングするには <a href="https://golang.org/pkg/text/template/" title="template - The Go Programming Language"><code>text/template</code></a> パッケージを使う。静的サイト・ジェネレータの <a href="http://gohugo.io/" title="Hugo :: A fast and modern static website engine">Hugo</a> でもこのテンプレート・パッケージを使っている。
+ <a class="footnote-return" href="#fnref:fa953b67964726c338be9843a0c52e04:tpl"><sup>[return]</sup></a></li>
+<li id="fn:fa953b67964726c338be9843a0c52e04:s">企業などのネット環境では Web から exe ファイルなどの実行バイナリを直接ダウンロードすることを禁止している場合もある。
+ <a class="footnote-return" href="#fnref:fa953b67964726c338be9843a0c52e04:s"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/stack-trace-and-panic-handling/">スタック追跡とパニック・ハンドリング</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/cross-compiling-in-travis-ci\/';
+    var disqus_title = 'Travis CI でクロス・コンパイル';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/cross-compiling-in-travis-ci\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-02-13</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/golang/cross-compiling-in-travis-ci/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="Travis CI でクロス・コンパイル - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcross-compiling-in-travis-ci%2f&amp;title=Travis%20CI%20%e3%81%a7%e3%82%af%e3%83%ad%e3%82%b9%e3%83%bb%e3%82%b3%e3%83%b3%e3%83%91%e3%82%a4%e3%83%ab" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcross-compiling-in-travis-ci%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+<script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>
+
+</body>
+</html>
+
