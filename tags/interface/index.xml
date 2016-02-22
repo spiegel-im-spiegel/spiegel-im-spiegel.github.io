@@ -162,4 +162,876 @@ func main() {
 </content>
 	</entry>
 	
+	<entry>
+		<title>Go 言語における「オブジェクト」 - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/object-oriented-programming/" />
+		<id>tag:text.Baldanders.info,2015-12-15:/golang/object-oriented-programming/</id>
+		<published>2015-12-15T21:19:58+09:00</published>
+		<updated>2016-02-22T19:23:38+09:00</updated>
+		<summary>Go 言語がいわゆる「オブジェクト指向言語」と言えるかどうかについては色々とあるようだが，オブジェクト指向プログラミングを助けるための仕掛けはいくつか存在する。今回はその中の type キーワードを中心に解説していく。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;がいわゆる「オブジェクト指向言語」と言えるかどうかについては色々とあるようだが，オブジェクト指向プログラミングを助けるための仕掛けはいくつか存在する。
+今回はその中の &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードを中心に解説していく。&lt;/p&gt;
+
+&lt;p&gt;なお，今回のソースコードは “&lt;a href=&#34;https://tour.golang.org/&#34;&gt;A Tour of Go&lt;/a&gt;” のものをかなり流用しているため取り扱いに注意。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の公式ドキュメントは CC License の by 3.0，ソースコードは &lt;a href=&#34;https://golang.org/LICENSE&#34;&gt;BSD license&lt;/a&gt; で提供されている。&lt;/p&gt;
+
+&lt;h2 id=&#34;go-言語の基本型:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;Go 言語の基本型&lt;/h2&gt;
+
+&lt;p&gt;今さらだけど， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の基本型（basic type）は以下の通り。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;bool&lt;/li&gt;
+&lt;li&gt;string&lt;/li&gt;
+&lt;li&gt;int, int8, int16, int32, int64&lt;/li&gt;
+&lt;li&gt;uint, uint8, uint16, uint32, uint64&lt;/li&gt;
+&lt;li&gt;uintptr&lt;/li&gt;
+&lt;li&gt;byte&lt;/li&gt;
+&lt;li&gt;rune&lt;/li&gt;
+&lt;li&gt;float32, float64&lt;/li&gt;
+&lt;li&gt;complex64, complex128&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このうち byte は uint8 の別名で rune&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:rn&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:rn&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; は int32 の別名である。
+また int, uint, uintptr のサイズはプラットフォーム依存になっている。
+string は不変（immutable）な値で，その実体は byte 配列である。
+基本型は組み込み型であり，振る舞いを追加・変更することはできない。&lt;/p&gt;
+
+&lt;p&gt;さらにこれらの基本型を集約した構造体 &lt;a href=&#34;https://golang.org/ref/spec#Struct_types&#34; title=&#34;Struct types&#34;&gt;struct&lt;/a&gt; を定義できる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	vertex := struct {
+		X int
+		Y int
+	}{X: 1, Y: 2}
+	fmt.Println(vertex)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ちなみに構造体のフィールド（field）には構造体を含めることができ，入れ子構造にすることもできる。&lt;/p&gt;
+
+&lt;p&gt;この他に配列（array/slice）や連想配列（map）あるいは関数値（function value）といったものもあるが，今回は踏み込まない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:slc&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:slc&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;型に名前を付ける:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;型に名前を付ける&lt;/h2&gt;
+
+&lt;p&gt;全ての型には &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードを使って名前を付けることができる。
+例えば先ほどのコードは&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func main() {
+	vertex := Vertex{X: 1, Y: 2}
+	fmt.Println(vertex)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と書き直すことができる。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードが使えるのは構造体だけではない。
+上述の基本型も &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードを使って型を再定義できる。&lt;/p&gt;
+
+&lt;p&gt;たとえば，2つの時点間の時間を表す &lt;a href=&#34;https://golang.org/pkg/time/&#34; title=&#34;time - The Go Programming Language&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Duration&lt;/code&gt; は以下のように定義されている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;type Duration int64
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;また，配列なども型として再定義できる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;type Msgs []string
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードを使って型に名前を付ける利点は3つある。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;名前を付けることでコードの可読性を上げる（オブジェクト指向設計では名前がとても重要）&lt;/li&gt;
+&lt;li&gt;再利用性の向上（特に構造体の場合）&lt;/li&gt;
+&lt;li&gt;型に関数を関連付けることができる。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードによる名付けは単なる別名定義ではないということだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;型に関数を関連付ける:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;型に関数を関連付ける&lt;/h2&gt;
+
+&lt;p&gt;型に関数を関連付けるには以下のように記述する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X =&amp;quot;, v.X, &amp;quot;, Y =&amp;quot;, v.Y)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;(v Vertex)&lt;/code&gt; の部分はメソッド・レシーバ（method receiver）と呼ばれ，これが型と関数を関連付ける役割を果たす。
+内部処理としては&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func String(v Vertex) string {
+	return fmt.Sprint(&amp;quot;X =&amp;quot;, v.X, &amp;quot;, Y =&amp;quot;, v.Y)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と等価である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:call&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:call&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。
+関数の呼び出し側は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X =&amp;quot;, v.X, &amp;quot;, Y =&amp;quot;, v.Y)
+}
+
+func main() {
+	vertex := Vertex{X: 1, Y: 2}
+	fmt.Println(vertex.String())
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;のようにピリオドで関数を連結して記述する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:pr&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:pr&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;構造体そのものには関数を付与できない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:mt&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:mt&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。
+たとえば&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func (v struct{ X, Y int }) String() string {
+	return fmt.Sprint(&amp;quot;X =&amp;quot;, v.X, &amp;quot;, Y =&amp;quot;, v.Y)
+}
+
+func main() {
+	var vertex = struct {
+		X int
+		Y int
+	}{X: 1, Y: 2}
+	fmt.Println(vertex.String())
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;などと書いても，コンパイル時に&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;invalid receiver type struct { X int; Y int } (struct { X int; Y int } is an unnamed type)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と怒られる。
+&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードによって型に名前が付けられていることが重要なのだ。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;には class キーワードはないが， &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードを使うことで，名前と属性と操作を持つクラスを記述することができる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:cls&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:cls&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;汎化-特化と処理の委譲:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;汎化・特化と処理の委譲&lt;/h2&gt;
+
+&lt;p&gt;オブジェクト指向設計においてクラス間の関係は大きく2つある。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;汎化・特化&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:c1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:c1&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;（継承または is-a 関係）&lt;/li&gt;
+&lt;li&gt;関連&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:c2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:c2&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;（包含または has-a 関係）&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;このうち関連についてはこれまで説明した方法で実現できるが，汎化・特化は表現できない。
+そこで以下の機能を使って汎化・特化を実現する。&lt;/p&gt;
+
+&lt;h3 id=&#34;振る舞いのみを定義した型:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;振る舞いのみを定義した型&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec#Interface_types&#34; title=&#34;Interface types&#34;&gt;interface&lt;/a&gt; を使うと振る舞いのみを定義した型を表現することができる。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec#Interface_types&#34; title=&#34;Interface types&#34;&gt;interface&lt;/a&gt; で定義された型で最もよく目にするのは &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; だろう。
+&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は以下のように定義できる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:er1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:er1&#34;&gt;9&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;type error interface {
+	Error() string
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;つまり &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は「string 型を返す &lt;code&gt;Error()&lt;/code&gt; 関数」のみが定義されている。
+逆に言うと「string 型を返す &lt;code&gt;Error()&lt;/code&gt; 関数」を持つ全ての型は &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; の一種（つまり is-a 関係）であると見なすことができる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:dt&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:dt&#34;&gt;10&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;たとえば&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package os
+
+// PathError records an error and the operation and file path that caused it.
+type PathError struct {
+	Op   string
+	Path string
+	Err  error
+}
+
+func (e *PathError) Error() string { return e.Op + &amp;quot; &amp;quot; + e.Path + &amp;quot;: &amp;quot; + e.Err.Error() }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と定義される &lt;a href=&#34;https://golang.org/pkg/os/&#34; title=&#34;os - The Go Programming Language&#34;&gt;&lt;code&gt;os&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;PathError&lt;/code&gt; は &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; の一種である。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec#Interface_types&#34; title=&#34;Interface types&#34;&gt;interface&lt;/a&gt; も &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードで名前を付けることができ，他の型と同じように扱うことができる。
+さらに &lt;a href=&#34;https://golang.org/ref/spec#Interface_types&#34; title=&#34;Interface types&#34;&gt;interface&lt;/a&gt; で定義した型は振る舞いのみで具体的な実装を含まないため，多態性を持たせた記述が可能になる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:if&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:if&#34;&gt;11&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h3 id=&#34;型の埋め込み:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;型の埋め込み&lt;/h3&gt;
+
+&lt;p&gt;もうひとつの汎化・特化の機能が型の埋め込み（embedding）である。
+構造体や &lt;a href=&#34;https://golang.org/ref/spec#Interface_types&#34; title=&#34;Interface types&#34;&gt;interface&lt;/a&gt; には別の型を埋め込むことができる。&lt;/p&gt;
+
+&lt;p&gt;たとえば &lt;a href=&#34;https://golang.org/pkg/io/&#34; title=&#34;io - The Go Programming Language&#34;&gt;&lt;code&gt;io&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;ReadWriter&lt;/code&gt; は以下のように &lt;code&gt;Reader&lt;/code&gt; および &lt;code&gt;Writer&lt;/code&gt; を埋め込んでいる。
+（このときの &lt;code&gt;Reader&lt;/code&gt; および &lt;code&gt;Writer&lt;/code&gt; を「埋め込みインタフェース（embedding interface）」と呼ぶ）&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package io
+
+// Implementations must not retain p.
+type Reader interface {
+	Read(p []byte) (n int, err error)
+}
+
+// Implementations must not retain p.
+type Writer interface {
+	Write(p []byte) (n int, err error)
+}
+
+// ReadWriter is the interface that groups the basic Read and Write methods.
+type ReadWriter interface {
+	Reader
+	Writer
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これによって &lt;code&gt;ReadWriter&lt;/code&gt; は &lt;code&gt;Read()&lt;/code&gt; および &lt;code&gt;Write()&lt;/code&gt; を自身の振る舞いのように扱うことができる。
+この場合も &lt;code&gt;ReadWriter&lt;/code&gt; は &lt;code&gt;Reader&lt;/code&gt; および &lt;code&gt;Writer&lt;/code&gt; の一種であると見なすことができる。&lt;/p&gt;
+
+&lt;p&gt;同様に &lt;a href=&#34;https://golang.org/pkg/bufio/&#34; title=&#34;io - The Go Programming Language&#34;&gt;&lt;code&gt;bufio&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;ReadWriter&lt;/code&gt; についても&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package bufio
+
+// ReadWriter stores pointers to a Reader and a Writer.
+// It implements io.ReadWriter.
+type ReadWriter struct {
+	*Reader
+	*Writer
+}
+
+// NewReadWriter allocates a new ReadWriter that dispatches to r and w.
+func NewReadWriter(r *Reader, w *Writer) *ReadWriter {
+	return &amp;amp;ReadWriter{r, w}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と実装されていて， &lt;a href=&#34;https://golang.org/pkg/bufio/&#34; title=&#34;io - The Go Programming Language&#34;&gt;&lt;code&gt;bufio&lt;/code&gt;&lt;/a&gt; の &lt;code&gt;Reader&lt;/code&gt; および &lt;code&gt;Writer&lt;/code&gt; を埋め込み，これらの型の一種として実装されている（このときの &lt;code&gt;Reader&lt;/code&gt; および &lt;code&gt;Writer&lt;/code&gt; を「埋め込みフィールド（embedded field）」または「匿名フィールド（anonymous field）」と呼ぶ）。
+なお， &lt;a href=&#34;https://golang.org/pkg/bufio/&#34; title=&#34;io - The Go Programming Language&#34;&gt;&lt;code&gt;bufio&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;ReadWriter&lt;/code&gt; は &lt;a href=&#34;https://golang.org/pkg/io/&#34; title=&#34;io - The Go Programming Language&#34;&gt;&lt;code&gt;io&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;ReadWriter&lt;/code&gt; の一種として機能している点にも注目してほしい。&lt;/p&gt;
+
+&lt;h3 id=&#34;関数のオーバーライドと処理の委譲:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;関数のオーバーライドと処理の委譲&lt;/h3&gt;
+
+&lt;p&gt;では，今まで述べたことを使って以下のコードを書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type ErrorInfo interface {
+	error
+	Errno() int
+}
+
+type ErrorInfo1 struct{}
+
+func (err *ErrorInfo1) Error() string {
+	return fmt.Sprint(&amp;quot;Error Information: &amp;quot;, err.Errno())
+}
+
+func (err *ErrorInfo1) Errno() int {
+	return 1
+}
+
+func Action() error {
+	err := &amp;amp;ErrorInfo1{}
+	return err
+}
+
+func main() {
+    if err := Action(); err != nil {
+		fmt.Println(err)
+        return
+	}
+    fmt.Println(&amp;quot;Normal End&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; の拡張として &lt;code&gt;ErrorInfo&lt;/code&gt; を定義する。
+&lt;code&gt;ErrorInfo&lt;/code&gt; では &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を埋め込み，さらに &lt;code&gt;Errno()&lt;/code&gt; を追加している。
+これを実装したのが &lt;code&gt;ErrorInfo1&lt;/code&gt; である。
+したがって実行結果は “&lt;code&gt;Error Information: 1&lt;/code&gt;” が出力される。&lt;/p&gt;
+
+&lt;p&gt;次に &lt;code&gt;ErrorInfo1&lt;/code&gt; のバリエーションとして &lt;code&gt;ErrorInfo2&lt;/code&gt; を追加してみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type ErrorInfo interface {
+	error
+	Errno() int
+}
+
+type ErrorInfo1 struct{}
+
+func (err *ErrorInfo1) Error() string {
+	return fmt.Sprint(&amp;quot;Error Information: &amp;quot;, err.Errno())
+}
+
+func (err *ErrorInfo1) Errno() int {
+	return 1
+}
+
+type ErrorInfo2 struct {
+	ErrorInfo1
+}
+
+func (err *ErrorInfo2) Errno() int {
+	return 2
+}
+
+func Action() error {
+	err := &amp;amp;ErrorInfo2{}
+	return err
+}
+
+func main() {
+    if err := Action(); err != nil {
+		fmt.Println(err)
+        return
+	}
+    fmt.Println(&amp;quot;Normal End&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;ErrorInfo2&lt;/code&gt; では &lt;code&gt;Error()&lt;/code&gt; は &lt;code&gt;ErrorInfo1&lt;/code&gt; のものをそのまま使い回したいが &lt;code&gt;Errno()&lt;/code&gt; では異なる値を出力したい，と考えた。
+実行結果として “&lt;code&gt;Error Information: 2&lt;/code&gt;” が出力されることを期待したが，実際には前回と同じ “&lt;code&gt;Error Information: 1&lt;/code&gt;” が出力される。&lt;/p&gt;
+
+&lt;p&gt;埋め込みフィールド（&lt;code&gt;ErrorInfo1&lt;/code&gt;）の関数の名前が埋め込みを行った型（&lt;code&gt;ErrorInfo2&lt;/code&gt;）の名前と衝突する場合は埋め込みを行った型のほうが優先的される&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:ovr&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:ovr&#34;&gt;12&lt;/a&gt;&lt;/sup&gt; が，これは C++ や Java などにある仮想関数のオーバーライドとは少し異なる。&lt;/p&gt;
+
+&lt;p&gt;上のコードでは &lt;code&gt;ErrorInfo2&lt;/code&gt; と直接関連付けられた &lt;code&gt;Error()&lt;/code&gt; がないため &lt;code&gt;ErrorInfo1&lt;/code&gt; の &lt;code&gt;Error()&lt;/code&gt; が呼ばれるが，その関数の中で呼ばれる &lt;code&gt;Errno()&lt;/code&gt; は &lt;code&gt;ErrorInfo2&lt;/code&gt; と関連付けられた関数ではなく &lt;code&gt;ErrorInfo1&lt;/code&gt; と関連付けられた関数になる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/delegation.svg&#34;&gt;&lt;img src=&#34;http://text.baldanders.info/images/delegation.svg&#34; alt=&#34;delegation&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;http://text.baldanders.info/images/delegation.svg&#34;&gt;delegation&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;これは &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では埋め込みフィールドの関数呼び出しが「委譲」として機能しているためである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:ef&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:ef&#34;&gt;13&lt;/a&gt;&lt;/sup&gt;。
+たとえば C++ 言語では virtual 修飾子を付与して仮想関数化することで意図的にオーバーライドできるが&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:dlg&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:dlg&#34;&gt;14&lt;/a&gt;&lt;/sup&gt;， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;ではこのような仕掛けがないため，呼ばれた関数は常に委譲として機能する。&lt;/p&gt;
+
+&lt;p&gt;上の例はクラス構成からして明らかにダメダメなのだが，今回のポイントはサブクラスである &lt;code&gt;ErrorInfo2&lt;/code&gt; から &lt;code&gt;Errno()&lt;/code&gt; 関数を上書きすることでスーパークラス &lt;code&gt;ErrorInfo1&lt;/code&gt; の &lt;code&gt;Error()&lt;/code&gt; 関数の処理を書き換えようとした点にある。
+継承&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:374c32c25cfbe86872f0cdc7cd9ba174:ih&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:374c32c25cfbe86872f0cdc7cd9ba174:ih&#34;&gt;15&lt;/a&gt;&lt;/sup&gt; の実装で一番よくあるミスがこの「カプセル化の破れ」で， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の場合は敢えて移譲を強制することでこの手の不具合が発生するのを回避しようとしているように見える。&lt;/p&gt;
+
+&lt;p&gt;また，他の言語では明示的に委譲を実装しようとすると冗長な記述になることが多いが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の場合は埋め込みを使うことでシンプルな記述で委譲を実装できる点がメリットと言える。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:374c32c25cfbe86872f0cdc7cd9ba174&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://mattn.kaoriya.net/software/lang/go/20130919023425.htm&#34;&gt;Big Sky :: Go言語でインタフェースの変更がそれ程問題にならない理由&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/shibukawa/items/16acb36e94cfe3b02aa1&#34;&gt;オブジェクト指向言語としてGolangをやろうとするとハマること - Qiita&lt;/a&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/sona-tar/items/2b4b70694fd680f6297c&#34;&gt;オブジェクト指向言語としてGolangをやろうとするとハマる点を整理してみる - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://otiai10.hatenablog.com/entry/2014/01/15/220136&#34;&gt;Go言語に継承は無いんですか【golang】 - DRYな備忘録&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://otiai10.hatenablog.com/entry/2014/06/16/224109&#34;&gt;Go言語でジェネリクスっぽいことがしたいでござる【generics】【golang】 - DRYな備忘録&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:rn&#34;&gt;rune は Unicode 文字の符号点（code point）を示す型で文字そのものを表現する。 string と rune の関係については「&lt;a href=&#34;http://text.baldanders.info/golang/string-and-rune/&#34;&gt;String と Rune&lt;/a&gt;」を参照のこと。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:rn&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:slc&#34;&gt;slice については「&lt;a href=&#34;http://text.baldanders.info/golang/search-prime-numbers/&#34;&gt;素数探索アルゴリズムで遊ぶ&lt;/a&gt;」で少し紹介している。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:slc&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:call&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の関数呼び出しでは，引数の渡し方は基本的に「値渡し」である。「参照渡し」にするにはポインタを使う。メソッド・レシーバについては値渡しで定義すれば値とポインタ両方のインスタンスに対して関数を呼び出せる。いわゆる value object についてはこれで問題ないだろう。バッファ操作のような内部状態を操作する関数についてはメソッド・レシーバを参照渡しにして定義するとよい。ちなみに &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のポインタは C/C++ のようなポインタ演算はできないので注意（ポインタ演算をしたい場合は &lt;a href=&#34;https://golang.org/pkg/unsafe/&#34; title=&#34;unsafe - The Go Programming Language&#34;&gt;&lt;code&gt;unsafe&lt;/code&gt;&lt;/a&gt; パッケージを使う）。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:call&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:pr&#34;&gt;ちなみに &lt;a href=&#34;https://golang.org/pkg/fmt/&#34; title=&#34;time - The Go Programming Language&#34;&gt;&lt;code&gt;fmt&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Print&lt;/code&gt; などでは引数の型が &lt;code&gt;String()&lt;/code&gt; を持っていることを期待し，この関数の出力結果をデフォルト書式にしている。したがって &lt;code&gt;fmt.Println(vertex.String())&lt;/code&gt; と &lt;code&gt;fmt.Println(vertex)&lt;/code&gt; は同じ結果になる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:pr&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:mt&#34;&gt;他にも基本型や他パッケージで定義されている型に関数を追加することはできない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:mt&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:cls&#34;&gt;クラスは名前と属性と操作の3つの要素で構成されている。名前は他クラスと識別できるものを1個。属性と操作は0個以上存在する。 &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では空のフィールドの &lt;a href=&#34;https://golang.org/ref/spec#Struct_types&#34; title=&#34;Struct types&#34;&gt;struct&lt;/a&gt; を定義することにより0個の属性を持つクラスを構成できる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:cls&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:c1&#34;&gt;言わずもがなだが，サブクラスから見たスーパークラスが「汎化」でその逆が「特化」である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:c1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:c2&#34;&gt;関連は更に集約と複合に分類できるが今回は踏み込まない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:c2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:er1&#34;&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は組み込み型なので，実際にこのような定義が標準パッケージにあるわけではない。 &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; について詳しくは「&lt;a href=&#34;http://text.baldanders.info/golang/error-handling/&#34;&gt;エラー・ハンドリングについて&lt;/a&gt;」を参照のこと。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:er1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:dt&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では Java の implement のような継承を明示するキーワードはない。記述された振る舞いからクラス関係を決定する方法を「&lt;a href=&#34;https://en.wikipedia.org/wiki/Duck_typing&#34;&gt;ダック・タイピング（duck typing）&lt;/a&gt;」と呼ぶ。ダック・タイピングの由来は「&lt;a href=&#34;https://en.wikipedia.org/wiki/Duck_test&#34;&gt;ダック・テスト（duck test）&lt;/a&gt;」だそうで，ダック・テストとは “If it looks like a duck, swims like a duck, and quacks like a duck, then it probably is a duck.” と帰納法的に対象を推測する手法を指すらしい。ダック・タイピングのメリットのひとつは多重継承で発生する様々な問題（名前の衝突や菱形継承など）を気にする必要がない点である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:dt&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:if&#34;&gt;たとえば &lt;code&gt;interface{}&lt;/code&gt; と記述すればあらゆる型を含むことになる。これを利用して &lt;a href=&#34;https://golang.org/pkg/fmt/&#34; title=&#34;time - The Go Programming Language&#34;&gt;&lt;code&gt;fmt&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Print&lt;/code&gt; は &lt;code&gt;func Print(a ...interface{}) (n int, err error) { ... }&lt;/code&gt; と定義されている。ちなみに &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;にはいわゆる&lt;a href=&#34;https://golang.org/doc/faq#generics&#34;&gt;「総称型」はサポートされていない&lt;/a&gt;。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:if&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:ovr&#34;&gt;複数の型を埋め込んでいる場合，埋め込みフィールド間で名前が衝突しているフィールドや関数を使おうとするとコンパイルエラーになる。この場合は &lt;code&gt;err.ErrorInfo1.Error()&lt;/code&gt; のように型を明示して回避できる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:ovr&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:ef&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;的には埋め込みフィールドはフィールドのバリエーションのひとつにすぎないため，動作も通常のフィールドが持つ関数を呼び出した場合と変わらない。そういう意味では構造体への埋め込みは，見かけ上は「is-a 関係」でも，実質的には「has-a 関係」に近いと言えるかもしれない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:ef&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:dlg&#34;&gt;逆に Java では関数は常に仮想関数として機能しオーバーライドされる可能性がある。これを抑止するためには final 修飾子を付加する。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:dlg&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:374c32c25cfbe86872f0cdc7cd9ba174:ih&#34;&gt;ここで言う継承は設計時の「汎化・特化」のことではなく，言語機能などを使った実装上の継承のこと。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:374c32c25cfbe86872f0cdc7cd9ba174:ih&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>エラー・ハンドリングについて（追記あり） - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/error-handling/" />
+		<id>tag:text.Baldanders.info,2015-09-30:/golang/error-handling/</id>
+		<published>2015-09-30T00:27:48+09:00</published>
+		<updated>2016-02-22T19:23:46+09:00</updated>
+		<summary>C&#43;&#43; や Java のような言語圏から来た（私のような）人間にとって Go 言語の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。この最たるものが error 型である。（追記あり）</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;C++ や Java のような言語圏から来た（私のような）人間にとって &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の「オブジェクト指向」はかなり異質なのだが，慣れてみると逆にとても合理的に見えてくる。
+なんで C++ や Java はこのようなアプローチをとらなかったのか不思議なほどである。&lt;/p&gt;
+
+&lt;p&gt;この最たるものがエラー・ハンドリングだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;go-言語には-例外-がない:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;Go 言語には「例外」がない&lt;/h2&gt;
+
+&lt;p&gt;「例外（exception）」は本来の処理の流れをぶった切って「大域脱出」するための仕組みである。
+でも考えてみれば例外というのはかなり微妙な言語仕様だ。&lt;/p&gt;
+
+&lt;p&gt;例外が抱える問題というのは本質的に &lt;code&gt;goto&lt;/code&gt; 文の問題と同じ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+オブジェクトの状態ごと脱出するため，（脱出前ではなく）脱出後にオブジェクトの後始末を記述せざるを得ないし，記述するためには脱出前の状態（の可能性）を「知識」として知っていなければならない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+もし後始末をきちんとしないと，それがバグやリークやその他の脆弱性のもとになる。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;はそんな面倒くさいことは考えない。
+どうするかというと，普通に返り値に &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を返す。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, err := os.Open(filename)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は無視することもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, _ := os.Open(filename)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;検出した &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; はその場で処理して抜けてしまえばよい。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, err := os.Open(filename)
+if err != nil {
+    fmt.Fprintln(os.Stderr, err)
+    return false
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;開始処理と終了（後始末）処理が対になっている場合（&lt;code&gt;Open&lt;/code&gt;/&lt;code&gt;Close&lt;/code&gt; とは限らない）は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で終了処理を保証する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;file, err := os.Open(filename)
+if err != nil {
+    fmt.Fprintln(os.Stderr, err)
+    return false
+}
+defer file.Close()
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これが &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の基本的な書き方。
+特徴的なのは，ある処理に纏わる処理をセットで記述できる点である。
+&lt;code&gt;try&lt;/code&gt; と &lt;code&gt;catch&lt;/code&gt; と &lt;code&gt;finally&lt;/code&gt; の間で目線を行ったり来たりさせなくても，「そこ」だけを見れば把握できる。
+ある意味でとても文芸的なコード&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;5&lt;/a&gt;&lt;/sup&gt; であると言える&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;error:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;error&lt;/h2&gt;
+
+&lt;p&gt;ここで &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; について改めて説明しておく。
+&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は以下の形式で表現できる &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; 型のひとつである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// The error built-in interface type is the conventional interface for
+// representing an error condition, with the nil value representing no error.
+type error interface {
+	Error() string
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;つまり &lt;code&gt;Error()&lt;/code&gt; 関数を持つオブジェクトなら &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; として使える。
+これのいちばん簡単な実装が &lt;a href=&#34;https://golang.org/pkg/errors/&#34; title=&#34;errors - The Go Programming Language&#34;&gt;&lt;code&gt;errors&lt;/code&gt;&lt;/a&gt; パッケージである。
+&lt;a href=&#34;https://golang.org/pkg/errors/&#34; title=&#34;errors - The Go Programming Language&#34;&gt;&lt;code&gt;errors&lt;/code&gt;&lt;/a&gt; パッケージの中身は以下のようになっている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package errors
+
+// New returns an error that formats as the given text.
+func New(text string) error {
+	return &amp;amp;errorString{text}
+}
+
+// errorString is a trivial implementation of error.
+type errorString struct {
+	s string
+}
+
+func (e *errorString) Error() string {
+	return e.s
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これは実体として &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型の property がひとつだけあって &lt;code&gt;Error()&lt;/code&gt; 関数で property をそのまま返すというものだ。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の標準パッケージの多くはこの &lt;a href=&#34;https://golang.org/pkg/errors/&#34; title=&#34;errors - The Go Programming Language&#34;&gt;&lt;code&gt;errors&lt;/code&gt;&lt;/a&gt; パッケージを使って &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を定義している。
+たとえば &lt;a href=&#34;https://golang.org/pkg/os/&#34; title=&#34;os - The Go Programming Language&#34;&gt;&lt;code&gt;os&lt;/code&gt;&lt;/a&gt; パッケージの最下位の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は以下のように定義されている。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package os
+
+import (
+	&amp;quot;errors&amp;quot;
+)
+
+// Portable analogs of some common system call errors.
+var (
+	ErrInvalid    = errors.New(&amp;quot;invalid argument&amp;quot;)
+	ErrPermission = errors.New(&amp;quot;permission denied&amp;quot;)
+	ErrExist      = errors.New(&amp;quot;file already exists&amp;quot;)
+	ErrNotExist   = errors.New(&amp;quot;file does not exist&amp;quot;)
+)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;もう少し複雑な &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; では，以下のように詳細情報を持つものもある。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// PathError records an error and the operation and file path that caused it.
+type PathError struct {
+	Op   string
+	Path string
+	Err  error
+}
+
+func (e *PathError) Error() string { return e.Op + &amp;quot; &amp;quot; + e.Path + &amp;quot;: &amp;quot; + e.Err.Error() }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;3つのエラー-ハンドリング:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;3つのエラー・ハンドリング&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を判別する方法としては以下の3つがある。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスを比較する&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; の型を判別する&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;Error()&lt;/code&gt; 関数で出力される文字列を解釈する&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&#34;インスタンスを比較する:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;インスタンスを比較する&lt;/h3&gt;
+
+&lt;p&gt;あらかじめ定義済みの &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスがあれば，インスタンスの比較で判別できる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;if err != nil {
+    switch err {
+    case os.ErrInvalid:
+        fmt.Fprintln(os.Stderr, &amp;quot;引数が不正&amp;quot;)
+    case os.ErrPermission:
+        fmt.Fprintln(os.Stderr, &amp;quot;アクセスは許可できない&amp;quot;)
+    case os.ErrExist:
+        fmt.Fprintln(os.Stderr, &amp;quot;そのファイルは既にある&amp;quot;)
+    case os.ErrNotExist:
+        fmt.Fprintln(os.Stderr, &amp;quot;ファイルが存在しない&amp;quot;)
+    default:
+        fmt.Fprintln(os.Stderr, err)
+    }
+    return
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;単純にエラーの種類が分かればいいのであれば，この方法が最もシンプル。&lt;/p&gt;
+
+&lt;h3 id=&#34;型を判別する:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;型を判別する&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; 型なので &lt;a href=&#34;https://golang.org/ref/spec#Conversions&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;Conversion&lt;/a&gt; 構文で判別できる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;if err != nil {
+    switch e := err.(type) {
+    case *os.PathError:
+        if errno, ok := e.Err.(syscall.Errno); ok {
+            switch errno {
+            case syscall.ENOENT:
+                fmt.Fprintln(os.Stderr, &amp;quot;ファイルが存在しない&amp;quot;)
+            case syscall.ENOTDIR:
+                fmt.Fprintln(os.Stderr, &amp;quot;ディレクトリが存在しない&amp;quot;)
+            default:
+                fmt.Fprintln(os.Stderr, &amp;quot;Errno =&amp;quot;, errno)
+            }
+        } else {
+            fmt.Fprintln(os.Stderr, &amp;quot;その他の PathError&amp;quot;)
+        }
+    default:
+        fmt.Fprintln(os.Stderr, &amp;quot;その他のエラー&amp;quot;)
+    }
+    return
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; に状態（status）を持たせる必要がある場合は，この方法を使うべき。&lt;/p&gt;
+
+&lt;h3 id=&#34;文字列を比較する:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;文字列を比較する&lt;/h3&gt;
+
+&lt;p&gt;上述の方法で判別できない場合は &lt;code&gt;Error()&lt;/code&gt; 関数で出力される文字列を解釈して処理するしかない。
+&lt;a href=&#34;http://0xcc.net/misc/bad-knowhow.html&#34;&gt;バッドノウハウ&lt;/a&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;エラー-ハンドリングの設計:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;エラー・ハンドリングの設計&lt;/h2&gt;
+
+&lt;p&gt;エラー・ハンドリングの方針としては，以下の2つのうちのどちらかだろう。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を下位ロジックから上位ロジックまで持ち回し，最上位ロジックで最終的な判定と処理を行う&lt;/li&gt;
+&lt;li&gt;下位ロジックの &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; をカプセル化した新たなインスタンスを生成し上位ロジックに渡す。上位ロジックは直近のロジックの &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; のみが見える&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;最初のやり方は一見よさげだが，この方針では上位ロジックが下位ロジックの全ての &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を把握している必要があり現実的でない。
+またオブジェクト指向設計では “Don&amp;rsquo;t talk to strangers” の原則があり，いわゆる「友達の友達」のことは知らないふりをするのがよい設計と言われている。&lt;/p&gt;
+
+&lt;p&gt;こう考えると文字列での比較は最も下策であると言える。
+また，型を判別する場合でも，下位レイヤの状態を生のまま見せるのではなく，必要な情報のみを返す関数を実装するほうが上策と言えるだろう。&lt;/p&gt;
+
+&lt;p&gt;もうひとつ考慮すべき点としてエラー・メッセージの設計が挙げられるだろう。
+&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; に対するメッセージをどのように設計するかは（大規模アプリケーションでは特に）重要である。&lt;/p&gt;
+
+&lt;h2 id=&#34;追記-panic-と-recover:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;【追記】 Panic と Recover&lt;/h2&gt;
+
+&lt;p&gt;たとえばゼロ除算を行った場合や配列などで領域外を参照・設定しようとした場合，あるいは allocation に失敗した場合など，致命的なエラーが発生する場合がある。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	f()
+}
+
+func f() {
+	numbers := []int{0, 1, 2}
+
+	fmt.Println(numbers[3])
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic01&amp;gt;go run panic01.go
+panic: runtime error: index out of range
+
+goroutine 1 [running]:
+main.f()
+        C:/workspace/go-practice/src/panic01/panic01.go:12 +0x14a
+main.main()
+        C:/workspace/go-practice/src/panic01/panic01.go:6 +0x1b
+exit status 2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となり，大域脱出させてアプリケーションを強制終了させているのが分かる。
+この仕組みを &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; と呼ぶ。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; は意図的に発生させることもできる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+func main() {
+	f()
+}
+
+func f() {
+	panic(&amp;quot;Panic!&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic02&amp;gt;go run panic02.go
+panic: Panic!
+
+goroutine 1 [running]:
+main.f()
+        C:/workspace/go-practice/src/panic02/panic02.go:8 +0x6c
+main.main()
+        C:/workspace/go-practice/src/panic02/panic02.go:4 +0x1b
+exit status 2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となる。&lt;/p&gt;
+
+&lt;p&gt;一方で， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; することもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	err := r()
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(&amp;quot;Normal End.&amp;quot;)
+	}
+}
+
+func r() (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf(&amp;quot;Recovered from: %v&amp;quot;, rec)
+		}
+	}()
+
+	f()
+	err = nil
+	return
+}
+
+func f() {
+	panic(&amp;quot;Panic!&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;C:\workspace\go-practice\src\panic03&amp;gt;go run panic03.go
+Recovered from: Panic!
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となる。
+&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で捕まえて通常の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; として返しているのがお分かりだろうか。&lt;/p&gt;
+
+&lt;p&gt;一般的に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; はアプリケーション内で続行不可能な致命的エラーが発生した場合に投げられる。
+例えばゼロ除算や領域外アクセスのようなエラーは &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; が発生する前に回避するコードにすべきだ。
+Allocation エラーのような回避不能かつアプリケーション続行不可能なエラーの場合は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; が投げられるのもやむを得ないが， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; することにほとんど意味はない。&lt;/p&gt;
+
+&lt;p&gt;例外的な使い方として &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer&lt;/code&gt; では，メモリ確保で panic が発生した際に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で捕まえ， &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスを入れ替えて &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げ直している。
+このような用途で &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; を使うことはあり得る。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// makeSlice allocates a slice of size n. If the allocation fails, it panics
+// with ErrTooLarge.
+func makeSlice(n int) []byte {
+	// If the make fails, give a known error.
+	defer func() {
+		if recover() != nil {
+			panic(ErrTooLarge)
+		}
+	}()
+	return make([]byte, n)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;また再帰処理中に続行不能なエラーが発生した場合に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げてトップレベルの関数に一気に復帰するような使い方をすることもある。
+この場合，トップレベルの関数は（続行不可能なら）改めて &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; を投げるか（処理続行できる根拠があるのなら）通常の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を返すことになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;9&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;いずれにしろ，いわゆる「例外処理」的なハンドリングを &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt;/&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で行うべきではない。&lt;/p&gt;
+
+&lt;h2 id=&#34;追記-error-の-nil-が-nil-にならない場合:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;【追記】 error の nil が nil にならない場合&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://medium.com/@tucnak/why-go-is-a-poorly-designed-language-1cc04e5daf2#.ucutrogyz&#34;&gt;Why Go is a poorly designed language — Medium&lt;/a&gt; （&lt;a href=&#34;http://postd.cc/why-go-is-a-poorly-designed-language/&#34;&gt;日本語訳&lt;/a&gt;）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure style=&#39;margin:0 auto;&#39;&gt;
+&lt;script src=&#34;https://gist.github.com/tucnak/eccdb53e7884084f5674.js&#34;&gt;&lt;/script&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;このコードの実行結果は “Hello, Mr. Pike!” を出力する。
+このコードのポイントは &lt;code&gt;Generate()&lt;/code&gt; 関数が &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; ではなく &lt;code&gt;*MagicError&lt;/code&gt; 型を返している点にある。&lt;/p&gt;
+
+&lt;p&gt;実は &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を含む &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; 型のインスタンスは値（への参照）と型情報をセットで保持っているため，上述のような形で nil を返しても受け取った側は「nil 状態を持つなにか」という評価になり，完全な nil にはならないのだ。
+たとえば上のコードを以下のように書き換えると分かりやすいかもしれない。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type MagicError struct{}
+
+func (m *MagicError) Error() string {
+    return fmt.Sprintf(&amp;quot;%#v&amp;quot;, m)
+}
+
+func Generate() *MagicError {
+	return nil
+}
+
+func Test() error {
+	return Generate()
+}
+
+func main() {
+	if err := Test(); err != nil {
+		fmt.Println(err)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このコードを実行すると “(*main.MagicError)(nil)” と出力する。
+&lt;code&gt;Generate()&lt;/code&gt; 関数が返す nil がどのように機能しているか分かると思う。
+「&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;」で解説するが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の型（&lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt;）は C++ や Java で言うところの class のように機能するため，このような動きになると思われる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:94adf3c4c1b9841365d464e984a9ce2f:nil&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:94adf3c4c1b9841365d464e984a9ce2f:nil&#34;&gt;10&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;エラーハンドリングを行う際は結構ここがハマりどころになる。
+ご注意を。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク:94adf3c4c1b9841365d464e984a9ce2f&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.kaoriya.net/blog/2014/04/17/&#34;&gt;または私は如何にして例外するのを止めて golang を愛するようになったか — KaoriYa&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://mattn.kaoriya.net/software/lang/go/20140416212413.htm&#34;&gt;Big Sky :: golang で複数のエラーをハンドリングする方法&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://dsas.blog.klab.org/archives/go-errors.html&#34;&gt;DSAS開発者の部屋:Go ではエラーを文字列比較する？という話について&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ruiu/items/ff98ded599d97cf6646e&#34;&gt;panicはともかくrecoverに使いどころはほとんどない - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/stsn/items/73714caf8458b1d973f2&#34;&gt;Golang: nil Pointer Receiverの話 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;ちなみに &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の &lt;code&gt;goto&lt;/code&gt; や ラベル付きの &lt;code&gt;break&lt;/code&gt;, &lt;code&gt;continue&lt;/code&gt; は&lt;a href=&#34;https://golang.org/test/goto.go&#34;&gt;飛び先に制約&lt;/a&gt;があり，どこにでもジャンプできるわけではない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:aa&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;例外を備える言語でこれを緩和する仕様はいくつかある。例えば Java は 1.7 から &lt;a href=&#34;http://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html&#34;&gt;try-with-resources 構文&lt;/a&gt;を導入した。もちろんこの構文を有効にするためには対象となるオブジェクトがこの構文に対応した作りになっていなければならない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;いや，ファイル・オープンのエラーを無視したらダメです（笑）
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:0&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で指定された処理は &lt;code&gt;return&lt;/code&gt; 時に起動することが保証される。したがって，エラー発生時にはその都度 &lt;code&gt;return&lt;/code&gt; で抜けて問題ない。むしろ &lt;code&gt;goto&lt;/code&gt; や &lt;code&gt;break&lt;/code&gt; で強制的に処理を抜けるよりは処理を分割して &lt;code&gt;return&lt;/code&gt; で安全に処理を抜ける方法がないか検討すべきである。なお &lt;code&gt;os.Exit()&lt;/code&gt; などで強制終了した場合は， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で指定した処理は起動しないので注意。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:c&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;いわゆる「文芸的プログラミング」とは異なるけど。紛らわしくてゴメン。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;これからのコードは「文芸的」であることが必要条件だと思う。何故ならエンジニアにとって最も信頼できる「設計書」は（動いている）コードだからだ。コードをひとりで考えてひとりで書いてひとりで使ってひとりでメンテナンスするなら（本人さえ理解していれば）文芸的である必要はないかもしれない。が，実用的なコードでそんな状況はもはやありえない。コードにおいても暗黙知をできるだけ排除していくことが重要。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:bb&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; は組み込み型。組み込み型や組み込み関数（&lt;code&gt;append()&lt;/code&gt; とか）は &lt;a href=&#34;https://golang.org/pkg/builtin/&#34; title=&#34;builtin - The Go Programming Language&#34;&gt;&lt;code&gt;builtin&lt;/code&gt;&lt;/a&gt; パッケージに定義が記述されているが，実際にこのパッケージを import して使うわけではない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:d&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文とともに使用する。つまり &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Panic&lt;/a&gt; 発生時でも &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Defer&lt;/a&gt; 構文で予約された処理は実行される。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:e&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;これ以外にサーバ用途などでプロセスを落とせない場合に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;Recover&lt;/a&gt; で回避することもあるが，既に続行不可能な状態で無理やりプロセスを続行するのが正しい動きなのかどうかは疑問が残る。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:f&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:94adf3c4c1b9841365d464e984a9ce2f:nil&#34;&gt;それでもやっぱり nil は nil として扱ってほしいのだが。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:94adf3c4c1b9841365d464e984a9ce2f:nil&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
 </feed>
