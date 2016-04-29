@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.15" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjapanese.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/fonts/ipa-aozora.css">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>JavaScipt の演算誤差 — しっぽのさきっちょ | text.Baldanders.info</title>
+<meta name="description" content="今回は小ネタ。JavaScript の数値演算における演算誤差の話。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="programming,javascript,error">
+<link rel='prev' href='http://text.baldanders.info/remark/2016/04/delicious-to-del_icio_us/' title='delicious.com が del.icio.us に移行するらしい（出戻り？）' />
+
+</head>
+<body>
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.0";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<script src='//platform.twitter.com/widgets.js'></script>
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<div><strong><a href="/remark">しっぽのさきっちょ</a>: 2016-04-29 付</strong></div>
+<h1 itemprop='name'>JavaScipt の演算誤差</h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/error">error</a> #<a href="/tags/javascript">javascript</a> #<a href="/tags/programming">programming</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2016/04/arithmetic-error-by-javascript/index.html">History</a></div>
+</nav>
+
+<section><div>
+<div style="float:right;margin:0.5em;padding:0.5em;">
+<a href="http://www.baldanders.info/spiegel/log2/000820.shtml" title="Stop Fast Track TPP — Baldanders.info"><img src="http://www.baldanders.info/images/noextension.png" alt="no extension" width="165" height="50" /></a>
+</div>
+<p>今回は小ネタ。
+実は最近の JavaScript についてはよく知らなかったりするので（勉強中），間違いとか「最近はもっと簡単にできるよ」とかいった点があったら指摘していただけると助かります。</p>
+
+<p>（そうそう。
+<a href="https://nodejs.org/en/blog/announcements/v6-release/">node.js v6 のリリース</a>おめでとうございます）</p>
+
+<p>JavaScript の数値（Number）型の実体は IEEE754 浮動小数点形式である。
+他の言語でよく見るような整数型や decimal/currency 型というのは存在しない。
+たとえばある値の百分率を取ろうとして，うっかり</p>
+
+<pre><code class="language-javascript">function percent(rate) {
+	let pc = 100.0 * rate;
+	console.log(&quot;rate: &quot; + pc + &quot;%&quot;);
+}
+
+percent(0.0112);
+</code></pre>
+
+<p>なんてなコードを書くと</p>
+
+<pre><code class="language-text">rate: 1.1199999999999999%
+</code></pre>
+
+<p>などと表示され「はうーん」な感じになってしまう。
+これは浮動小数点形式特有の演算誤差で，数値の符号化を2進数を基数として行っているためにどうしてもそうなってしまう<sup class="footnote-ref" id="fnref:824e390733f8890cf144f9b42d1dbd8c:fp"><a rel="footnote" href="#fn:824e390733f8890cf144f9b42d1dbd8c:fp">1</a></sup>。</p>
+
+<p>表示の上でこれを回避する方法はいくつかある。
+よくあるのは以下の2つ。</p>
+
+<ol>
+<li>演算部分を他の言語（Java や SQL など）で行う。</li>
+<li>有効桁数以下を丸める</li>
+</ol>
+
+<p>ビジネスロジックを実装する Entity 以下のクラスを JavaScript 以外の言語で記述している場合は最初のやり方で問題ないだろう。
+これができない場合でも，大抵の数値計算は「有効桁数」が仕様として決められている筈なので，2番目のやり方で <code>Math.round()</code>, <code>Math.ceil()</code>, <code>Math.floor()</code> といった関数を組み合わせて表示桁数を調整できる<sup class="footnote-ref" id="fnref:824e390733f8890cf144f9b42d1dbd8c:cf"><a rel="footnote" href="#fn:824e390733f8890cf144f9b42d1dbd8c:cf">2</a></sup>。
+たとえば先程の <code>percent()</code> 関数を小数点以下3位で四捨五入するように変更すると</p>
+
+<pre><code class="language-javascript">function percent(rate) {
+	let pc = Math.round(100000.0 * rate) / 1000.0;
+	console.log(&quot;rate: &quot; + pc + &quot;%&quot;);
+}
+
+percent(0.0112);
+</code></pre>
+
+<pre><code class="language-text">rate: 1.12%
+</code></pre>
+
+<p>と表示される。</p>
+
+<p>しかし他システムと連携していて有効桁が決まらないとか，要求として値を丸められては困る場合もある。
+こういう場合は以下のようにするとよい。</p>
+
+<pre><code class="language-javascript">function percent(rate) {
+	let sRate = rate.toString();
+	let digits = sRate.indexOf(&quot;.&quot;);
+	if (digits &lt; 0) {
+		digits = 0;
+	} else {
+		digits = sRate.length - (digits + 1);
+	}
+	let pc = (100 * sRate.replace(&quot;.&quot;, &quot;&quot;).valueOf()) / Math.pow(10, digits);
+	console.log(&quot;rate: &quot; + pc + &quot;%&quot;);
+}
+
+percent(0.0112);
+</code></pre>
+
+<p>これで表示結果は <code>1.12%</code> になる（ちなみに入力値が <code>1</code> ならちゃんと <code>100%</code> になる）。
+つまり 0.0112 は $0.0112 = 112 \times 10^{-4}$ と整数部分と小数点以下の桁数に分解できるので，演算は整数部分で行い，最後に小数点以下の桁数分だけ割り算をすればよい。</p>
+
+<p>これは固定小数点形式の数値演算によく似ている。
+ポイントは整数同士の演算に変換し最後に桁を揃えることである。
+これなら演算誤差は生じない。</p>
+
+<p>余談だが <code>percent()</code> 関数では <code>100</code> は固定値なので</p>
+
+<pre><code class="language-javascript">function percent(rate) {
+	let sRate = rate.toString();
+	let digits = sRate.indexOf(&quot;.&quot;);
+	if (digits &lt; 0) {
+		digits = 0;
+	} else {
+		digits = sRate.length - (digits + 1);
+	}
+	let pc = (sRate.replace(&quot;.&quot;, &quot;&quot;)+&quot;00&quot;).valueOf() / (&quot;1&quot;+&quot;0&quot;.repeat(digits)).valueOf();
+	console.log(&quot;rate: &quot; + pc + &quot;%&quot;);
+}
+
+percent(0.0112);
+</code></pre>
+
+<p>とすれば割り算1回で済む（数学関数と文字列操作のどちらがコストが高いかは微妙な気もするが）。</p>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:824e390733f8890cf144f9b42d1dbd8c:fp">最近の IEEE754-2008 では10進数を基数とした符号化も標準化されている。
+ <a class="footnote-return" href="#fnref:824e390733f8890cf144f9b42d1dbd8c:fp"><sup>[return]</sup></a></li>
+<li id="fn:824e390733f8890cf144f9b42d1dbd8c:cf">ググってみると <code>Math.ceil()</code> を切り上げ， <code>Math.floor()</code> を切り捨てと紹介している記事を見かけるが厳密には間違いである。正しくは <code>Math.ceil()</code> は天井関数（ceiling function）で <code>Math.floor()</code> は床関数（floor function）である。切り上げや切り捨てとは負値の扱いで挙動が異なるので注意が必要。
+ <a class="footnote-return" href="#fnref:824e390733f8890cf144f9b42d1dbd8c:cf"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2016/04/delicious-to-del_icio_us/">delicious.com が del.icio.us に移行するらしい（出戻り？）</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/remark\/2016\/04\/arithmetic-error-by-javascript\/';
+    var disqus_title = 'JavaScipt の演算誤差';
+    var disqus_url = 'http:\/\/text.baldanders.info\/remark\/2016\/04\/arithmetic-error-by-javascript\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-04-29</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<div>
+		<div class="fb-share-button" data-href="http://text.baldanders.info/remark/2016/04/arithmetic-error-by-javascript/" data-layout="button"></div>
+		<a href="https://twitter.com/share" class="twitter-share-button" data-text="JavaScipt の演算誤差 - text.Baldanders.info" data-via="spiegel_2007" data-count="none" data-dnt="true">Tweet</a>
+		<a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f04%2farithmetic-error-by-javascript%2f&amp;title=JavaScipt%20%e3%81%ae%e6%bc%94%e7%ae%97%e8%aa%a4%e5%b7%ae" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a>
+	</div>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f04%2farithmetic-error-by-javascript%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.15</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+<script async src="//embedr.flickr.com/assets/client-code.js" charset="utf-8"></script>
+</body>
+</html>
+
