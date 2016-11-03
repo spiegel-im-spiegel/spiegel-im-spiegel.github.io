@@ -12,6 +12,268 @@
 
 	
 	<entry>
+		<title>Error の構造化 - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/error-handling2/" />
+		<id>tag:text.Baldanders.info,2016-11-03:/golang/error-handling2/</id>
+		<published>2016-11-03T20:51:00+09:00</published>
+		<updated>2016-11-03T20:51:00+09:00</updated>
+		<summary>エラーハンドリングのために error を構造化する手段として github.com/pkg/errors というパッケージがあるそうだ。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;今回は「&lt;a href=&#34;http://text.baldanders.info/golang/error-handling/&#34;&gt;エラー・ハンドリングについて&lt;/a&gt;」の続き。
+とりあえず，エラーハンドリングのデモ用にこんなパッケージを考える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package errdemo1
+
+import &amp;quot;os&amp;quot;
+
+// F returns error.
+func F() error {
+	file, err := os.Open(&amp;quot;not-exist.txt&amp;quot;)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;呼び出し側の &lt;code&gt;main()&lt;/code&gt; 関数では，このパッケージを以下のようにハンドリングする。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;errdemo/errdemo1&amp;quot;
+)
+
+func main() {
+	if err := errdemo1.F(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	return
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;not-exist.txt&lt;/code&gt; が存在しない場合，実行結果は以下のようになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main1.go
+open not-exist.txt: The system cannot find the file specified.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まぁハンドリングというか &lt;code&gt;Error()&lt;/code&gt; 関数が吐くエラー内容（文字列）を垂れ流してるだけだけど。
+もし &lt;code&gt;errdemo1.F()&lt;/code&gt; 関数が返す &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; の &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; を知りたければ &lt;a href=&#34;https://golang.org/ref/spec#Conversions&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;Conversion&lt;/a&gt; 構文を使って&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;errdemo/errdemo1&amp;quot;
+)
+
+func main() {
+	if err := errdemo1.F(); err != nil {
+		switch err.(type) {
+		case *os.PathError:
+			fmt.Fprintln(os.Stderr, &amp;quot;*os.PathError&amp;quot;)
+		default:
+		}
+        fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	return
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;のように書ける&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+実行結果は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main2.go
+*os.PathError
+open not-exist.txt: The system cannot find the file specified.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;となる。&lt;/p&gt;
+
+&lt;p&gt;この方法の欠点は大元の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を吐いた位置と &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; の伝達経路が分かりにくい点である。
+&lt;code&gt;errdemo1.F()&lt;/code&gt; 関数で &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を拾ったら &lt;code&gt;errdemo1&lt;/code&gt; パッケージ専用の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; に差し替えて呼び出し側に返す方法もあるが，単に &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を差し替えただけでは大元の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; 情報が消失してしまう。
+このようなことが起きるのは &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; 情報が構造化されていないことに原因がある。&lt;/p&gt;
+
+&lt;p&gt;エラーハンドリングのために &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を構造化する手段として &lt;a href=&#34;https://github.com/pkg/errors&#34; title=&#34;pkg/errors: Simple error handling primitives&#34;&gt;&lt;code&gt;github.com/pkg/errors&lt;/code&gt;&lt;/a&gt; というパッケージがあるそうだ。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://deeeet.com/writing/2016/04/25/go-pkg-errors/&#34;&gt;Golangのエラー処理とpkg/errors | SOTA&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/pkg/errors&#34; title=&#34;pkg/errors: Simple error handling primitives&#34;&gt;&lt;code&gt;github.com/pkg/errors&lt;/code&gt;&lt;/a&gt; というパッケージは &lt;code&gt;go get&lt;/code&gt; コマンドで導入できる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go get -v github.com/pkg/errors
+github.com/pkg/errors (download)
+github.com/pkg/errors
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;あるパッケージで大元の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; 情報を含んだ &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; をセットする場合は &lt;code&gt;errors.Wrap()&lt;/code&gt; 関数を使う&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:2&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:2&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package errdemo2
+
+import (
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;github.com/pkg/errors&amp;quot;
+)
+
+// F returns error.
+func F() error {
+	file, err := os.Open(&amp;quot;not-exist.txt&amp;quot;)
+	if err != nil {
+		return errors.Wrap(err, &amp;quot;Error by F() function&amp;quot;)
+	}
+	defer file.Close()
+
+	return nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;この &lt;code&gt;errdemo2&lt;/code&gt; パッケージを呼び出す側を以下のように書けば&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;errdemo/errdemo2&amp;quot;
+)
+
+func main() {
+	if err := errdemo2.F(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	return
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果は以下のようになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main3.go
+Error by F() function: open not-exist.txt: The system cannot find the file specified.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;また大元の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を取得したければ &lt;code&gt;errors.Cause()&lt;/code&gt; 関数を使う。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;errdemo/errdemo2&amp;quot;
+
+	&amp;quot;github.com/pkg/errors&amp;quot;
+)
+
+func main() {
+	if err := errdemo2.F(); err != nil {
+		switch errors.Cause(err).(type) {
+		case *os.PathError:
+			fmt.Fprintln(os.Stderr, &amp;quot;*os.PathError&amp;quot;)
+		default:
+		}
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	return
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;この場合の実行結果は以下のようになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main4.go
+*os.PathError
+Error by F() function: open not-exist.txt: The system cannot find the file specified.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ちなみに &lt;code&gt;errors.Cause()&lt;/code&gt; 関数の中身はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Cause returns the underlying cause of the error, if possible.
+// An error value has a cause if it implements the following
+// interface:
+//
+//     type causer interface {
+//            Cause() error
+//     }
+//
+// If the error does not implement Cause, the original error will
+// be returned. If the error is nil, nil will be returned without further
+// investigation.
+func Cause(err error) error {
+	type causer interface {
+		Cause() error
+	}
+
+	for err != nil {
+		cause, ok := err.(causer)
+		if !ok {
+			break
+		}
+		err = cause.Cause()
+	}
+	return err
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;つまり &lt;code&gt;Cause()&lt;/code&gt; 関数を持つ &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスであれば &lt;code&gt;Cause()&lt;/code&gt; 関数を辿って大元の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスを返すが， &lt;code&gt;Cause()&lt;/code&gt; 関数がない場合はそのまま引数の &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; インスタンスを返す。&lt;/p&gt;
+
+&lt;p&gt;このように &lt;a href=&#34;https://github.com/pkg/errors&#34; title=&#34;pkg/errors: Simple error handling primitives&#34;&gt;&lt;code&gt;github.com/pkg/errors&lt;/code&gt;&lt;/a&gt; パッケージを使えば &lt;a href=&#34;http://blog.golang.org/error-handling-and-go&#34; title=&#34;Error handling and Go - The Go Blog&#34;&gt;error&lt;/a&gt; を構造的に，かつ手軽に扱うことができる。
+とても便利なパッケージなので是非活用したいところである。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;実際にはこのような &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; の判別はパッケージ側で提供すべきなのだろうが，今回はコードの比較のためにこんな書き方をしている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;追加する文字列部分を書式文字列とパラメータで指定する &lt;code&gt;errors.Wrapf()&lt;/code&gt; 関数も用意されている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>週末スペシャル： 「UNIX コマンドを SQL で抽出できるツール qq」が面白そう - remark</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2016/08/07-stories/" />
 		<id>tag:text.Baldanders.info,2016-08-07:/remark/2016/08/07-stories/</id>
@@ -1838,129 +2100,6 @@ func (c *Choirs) CountZunDoko() (int, int) {
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:rand&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:lr&#34;&gt;たとえば &lt;a href=&#34;https://golang.org/pkg/container/list/&#34; title=&#34;list - The Go Programming Language&#34;&gt;&lt;code&gt;container/list&lt;/code&gt;&lt;/a&gt; や &lt;a href=&#34;https://golang.org/pkg/container/ring/&#34; title=&#34;ring - The Go Programming Language&#34;&gt;&lt;code&gt;container/ring&lt;/code&gt;&lt;/a&gt; といったパッケージを使う手がある。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:lr&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>icat4json 公開 - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2016/02/icat4json/" />
-		<id>tag:text.Baldanders.info,2016-02-25:/remark/2016/02/icat4json/</id>
-		<published>2016-02-25T16:45:01+09:00</published>
-		<updated>2016-02-26T17:40:58+09:00</updated>
-		<summary>IPA が提供する “icat for JSON” にアクセスする Go 言語用のパッケージを公開した。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">&lt;p&gt;IPA が提供する “&lt;a href=&#34;https://www.ipa.go.jp/security/vuln/icat.html&#34; title=&#34;サイバーセキュリティ注意喚起サービス「icat for JSON」：IPA 独立行政法人 情報処理推進機構&#34;&gt;icat for JSON&lt;/a&gt;” にアクセスする &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;用のパッケージを公開した。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/icat4json&#34; title=&#34;spiegel-im-spiegel/icat4json: icat for JSON with Golang&#34;&gt;github.com/spiegel-im-spiegel/icat4json&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;以下のような感じで使える。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;log&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/icat4json&amp;quot;
-)
-
-func main() {
-	json, err := icat4json.Get(icat4json.ToolICATW)
-	if err != nil {
-		log.Fatal(err)
-	}
-	data, err := json.Decode()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf(&amp;quot;Title: %v\n&amp;quot;, data.Title)
-	fmt.Printf(&amp;quot;  URL: %v\n&amp;quot;, data.Link)
-	fmt.Printf(&amp;quot; Date: %v\n&amp;quot;, data.Date)
-	fmt.Print(&amp;quot;Items:\n&amp;quot;)
-	for _, item := range data.Itemdata {
-		fmt.Printf(&amp;quot;\t%v: %v (%v)\n&amp;quot;, item.Date, item.Title, item.Link)
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code&gt;$ go run sample.go
-Title: IPAセキュリティセンター:重要なセキュリティ情報
-  URL: https://www.ipa.go.jp/security/vuln/icat.html
- Date: 2016-02-10 11:58:22 +0900 JST
-Items:
-	2016-02-10 12:00:00 +0900 JST: Microsoft 製品の脆弱性対策について(2016年02月) (http://www.ipa.go.jp/security/ciadr/vul/20160210-ms.html)
-	2016-02-10 12:00:00 +0900 JST: Adobe Flash Player の脆弱性対策について(APSB16-04)(CVE-2016-0985等) (http://www.ipa.go.jp/security/ciadr/vul/20160210-adobeflashplayer.html)
-	2016-01-20 12:00:00 +0900 JST: Oracle Java の脆弱性対策について(CVE-2016-0494等) (http://www.ipa.go.jp/security/ciadr/vul/20160120-jre.html)
-	2016-01-13 12:00:00 +0900 JST: Microsoft 製品の脆弱性対策について(2016年01月) (http://www.ipa.go.jp/security/ciadr/vul/20160113-ms.html)
-	2016-01-13 12:00:00 +0900 JST: Adobe Reader および Acrobat の脆弱性対策について(APSB16-02)(CVE-2016-0932等) (http://www.ipa.go.jp/security/ciadr/vul/20160113-adobereader.html)
-	2016-01-06 16:40:00 +0900 JST: 【注意喚起】インターネットに接続する複合機等のオフィス機器の再点検を！ (http://www.ipa.go.jp/security/ciadr/vul/20160106-printer.html)
-	2016-01-05 14:00:00 +0900 JST: 「DXライブラリ」におけるバッファオーバーフローの脆弱性対策について(JVN#49476817) (http://www.ipa.go.jp/security/ciadr/vul/20160105-jvn.html)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;“&lt;a href=&#34;https://www.ipa.go.jp/security/vuln/icat.html&#34; title=&#34;サイバーセキュリティ注意喚起サービス「icat for JSON」：IPA 独立行政法人 情報処理推進機構&#34;&gt;icat for JSON&lt;/a&gt;” という名前なのに IPA は API の仕様を公開していない。
-そこで JavaScript コードの中身を見てみた。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/4acefe47d3dda688a03e&#34;&gt;icat for JSON について - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/icat4json&#34; title=&#34;spiegel-im-spiegel/icat4json: icat for JSON with Golang&#34;&gt;&lt;code&gt;icat4json&lt;/code&gt;&lt;/a&gt; パッケージでは “&lt;a href=&#34;https://www.ipa.go.jp/security/vuln/icat.html&#34; title=&#34;サイバーセキュリティ注意喚起サービス「icat for JSON」：IPA 独立行政法人 情報処理推進機構&#34;&gt;icat for JSON&lt;/a&gt;” から取得した JSON データを以下の構造体にデコードする。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Item - itemdata from icat
-type Item struct {
-	Title      string    `json:&amp;quot;item_title&amp;quot;`
-	Link       string    `json:&amp;quot;item_link&amp;quot;`
-	Date       time.Time `json:&amp;quot;item_date&amp;quot;`
-	Identifier []string  `json:&amp;quot;item_identifier&amp;quot;`
-}
-
-//ICAT - data from icat
-type ICAT struct {
-	Itemdata []Item    `json:&amp;quot;itemdata&amp;quot;`
-	Title    string    `json:&amp;quot;docTitle&amp;quot;`
-	Fix      string    `json:&amp;quot;docTitleFix&amp;quot;`
-	Link     string    `json:&amp;quot;docLink&amp;quot;`
-	Date     time.Time `json:&amp;quot;docDate&amp;quot;`
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;JavaScript コードを見ると &lt;code&gt;item_identifier&lt;/code&gt; 項目は使ってない模様。
-&lt;code&gt;docTitleFix&lt;/code&gt; 項目は中身が &lt;code&gt;null&lt;/code&gt; かどうかしかチェックしてなくて&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:s&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:s&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;， &lt;code&gt;null&lt;/code&gt; 以外だと &lt;code&gt;htmlentities()&lt;/code&gt; 関数を通さずに素のまま表示するという恐ろしいことをしている（普通こういうのって boolean 値を使うんじゃないのか？）。
-これらの項目は無視でもいいだろう。
-本当は IPA が仕様を公開してくれると有難いんだけどねぇ。&lt;/p&gt;
-
-&lt;p&gt;脆弱性情報をクライアントサイドで取るのなら “&lt;a href=&#34;https://www.ipa.go.jp/security/vuln/icat.html&#34; title=&#34;サイバーセキュリティ注意喚起サービス「icat for JSON」：IPA 独立行政法人 情報処理推進機構&#34;&gt;icat for JSON&lt;/a&gt;” ではなく Twitter の @&lt;a href=&#34;https://twitter.com/ICATalerts/&#34;&gt;ICATalerts&lt;/a&gt; アカウントのタイム・ラインをチェックするほうがオススメ。
-JSON データを使うのならサーバサイドでやるべきだよね。
-&lt;a href=&#34;https://github.com/spiegel-im-spiegel/icat4json&#34; title=&#34;spiegel-im-spiegel/icat4json: icat for JSON with Golang&#34;&gt;&lt;code&gt;icat4json&lt;/code&gt;&lt;/a&gt; パッケージはドメイン・レイヤのエンティティとして使われることを意識している。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;http://text.baldanders.info/images/icat4json.svg&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/icat4json.svg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;icat4json entity&#34;&gt;&lt;/a&gt;
-&lt;figcaption&gt;&lt;a href=&#34;http://text.baldanders.info/images/icat4json.svg&#34;&gt;icat4json entity&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;私はたまたま &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;を勉強中なので &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のパッケージとして実装したけど，本当なら Java とか Ruby とか node.js とかサーバサイドの実装があるといいよね。
-IPA も jQuery じゃなくて，そういうので実装すればいいのに。&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:s&#34;&gt;ところで &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;における &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; の実体は &lt;code&gt;[]byte&lt;/code&gt; だが nil 状態はない。 &lt;a href=&#34;https://github.com/spiegel-im-spiegel/icat4json&#34; title=&#34;spiegel-im-spiegel/icat4json: icat for JSON with Golang&#34;&gt;&lt;code&gt;icat4json&lt;/code&gt;&lt;/a&gt; パッケージでは &lt;code&gt;docTitleFix&lt;/code&gt; 項目が &lt;code&gt;null&lt;/code&gt; の場合は空文字列に展開される。 JSON の &lt;code&gt;null&lt;/code&gt; 状態を区別したいのであれば &lt;a href=&#34;https://github.com/guregu/null&#34; title=&#34;guregu/null: reasonable handling of nullable values&#34;&gt;&lt;code&gt;github.com/guregu/null&lt;/code&gt;&lt;/a&gt; パッケージ等を使う手もある。ちなみに &lt;a href=&#34;https://github.com/guregu/null&#34; title=&#34;guregu/null: reasonable handling of nullable values&#34;&gt;&lt;code&gt;github.com/guregu/null&lt;/code&gt;&lt;/a&gt; パッケージの型の実体は &lt;a href=&#34;https://golang.org/pkg/database/sql/&#34; title=&#34;sql - The Go Programming Language&#34;&gt;&lt;code&gt;database/sql&lt;/code&gt;&lt;/a&gt; の &lt;code&gt;NullString&lt;/code&gt; 型等である。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
