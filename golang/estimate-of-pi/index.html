@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.17" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>モンテカルロ法による円周率の推定（その1） — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,math,random,circle-ratio">
+<link rel='prev' href='http://text.baldanders.info/golang/error-handling2/' title='Error の構造化' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>モンテカルロ法による円周率の推定（その1） — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/circle-ratio">circle-ratio</a> #<a href="/tags/golang">golang</a> #<a href="/tags/math">math</a> #<a href="/tags/random">random</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/estimate-of-pi/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。
+ので早速試してみる。
+ちなみに「モンテカルロ法」というのは数値計算やシミュレーションに乱数を用いる手法をさす。</p>
+
+<h2 id="モンテカルロ法による円周率の推定">モンテカルロ法による円周率の推定</h2>
+
+<p>では乱数を使ってどうやって円周率を求めるのか。
+まずは以下のように原点を中心とした半径 $1$ の円を考える。
+ただしここでは第一象限のみを対象とする。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<img srcset="/images/circle.png 500w" sizes="(min-width:600px) 500px, 80vw" alt="">
+
+</figure>
+
+<p>そして $0 \le y \le 1$ および $0 \le y \le 1$ の範囲でランダムに点をプロットしていく。
+（以下の<a href="https://commons.wikimedia.org/wiki/File:Pi_30K.gif" title="File:Pi 30K.gif - Wikimedia Commons">図は Wikimedia Commons のもの</a>を拝借した。 <a href="https://creativecommons.org/licenses/by/3.0/" title="Creative Commons — Attribution 3.0 Unported — CC BY 3.0">CC-BY-3.0</a> で公開されている）</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="https://commons.wikimedia.org/wiki/File:Pi_30K.gif"><img srcset="https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif 500w" sizes="(min-width:600px) 500px, 80vw" alt="From Wikimedia Commons"></a>
+<figcaption><a href="https://commons.wikimedia.org/wiki/File:Pi_30K.gif">From Wikimedia Commons</a></figcaption>
+</figure>
+
+<p>全ての点 $n$ が領域内に均等にプロットされていれば，円の内側に入る点の数 $m$ は以下の式のようになることが期待できる。</p>
+
+<figure>
+<blockquote>
+\[
+m \simeq \frac{1}{4}{\pi}n
+\]
+</blockquote>
+
+</figure>
+
+<p>この式を $\pi$ を求める形に変形すると</p>
+
+<figure>
+<blockquote>
+\[
+\pi \simeq \frac{4m}{n}
+\]
+</blockquote>
+
+</figure>
+
+<p>となる。
+プロットした点が円の内側かどうかは原点からの距離で判定できる。
+すなわち</p>
+
+<figure>
+<blockquote>
+\[
+\sqrt{x^2 + y^2} \le 1
+\]
+</blockquote>
+
+</figure>
+
+<p>を満たしていればよい。</p>
+
+<h2 id="math-rand-パッケージ">math/rand パッケージ</h2>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a> にはコア・パッケージとして <a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> が用意されていて，このパッケージを使って擬似乱数を発生させることができる。
+今回は $0 \le r \le 1.0$ の範囲で乱数を発生させればいいのだが，生憎そのものズバリな関数が用意されていない。
+たとえば <code>rand.Float64()</code> が吐く値の範囲は $0 \le r \lt 1.0$ なのでそのままでは使えないのだ。</p>
+
+<p>そこで，こんなコードを考えてみる。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math/rand&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i &lt; 10; i++ {
+		fmt.Println(float64(rand.Int63n(10000001)) / float64(10000000))
+	}
+}
+</code></pre>
+
+<p><code>rand.Int63n(n)</code> 関数は $0 \le i \lt n$ の範囲で整数を吐く。
+$n=10,000,001$ なら $0 \le i \le 10,000,000$ の範囲になる。
+これを $10,000,000$ で割って $0 \le r \le 1.0$ の範囲の乱数を作るのである。</p>
+
+<p>実際には2次元座標なので複素数（<a href="https://golang.org/ref/spec#Complex_numbers" title="Manipulating complex numbers">complex</a>）表現にして</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math/cmplx&quot;
+	&quot;math/rand&quot;
+	&quot;time&quot;
+)
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i &lt; 10; i++ {
+		c := complex(float64(rand.Int63n(10000001))/float64(10000000), float64(rand.Int63n(10000001))/float64(10000000))
+		fmt.Printf(&quot;%v (%v)\n&quot;, c, cmplx.Abs(c))
+	}
+}
+</code></pre>
+
+<p>とすればよい。
+ちなみに <code>cmplx.Abs()</code> 関数は複素数の絶対値を取るもので， $\sqrt{x^2 + y^2}$ と同じである。</p>
+
+<p>では，以上を踏まえてランダムな点を生成する <code>gencmplx</code> パッケージを作ってみよう。
+こんな感じかな。</p>
+
+<pre><code class="language-go">package gencmplx
+
+import &quot;math/rand&quot;
+
+//New returns generator of random complex number
+func New(s rand.Source, count int64) &lt;-chan complex128 {
+	ch := make(chan complex128)
+	r := rand.New(s)
+	go func(r *rand.Rand, count int64) {
+		for i := int64(0); i &lt; count; i++ {
+			ch &lt;- complex(float64(r.Int63n(10000001))/float64(10000000), float64(r.Int63n(10000001))/float64(10000000))
+		}
+		close(ch)
+	}(r, count)
+	return ch
+}
+</code></pre>
+
+<p>後々のことを考えて，乱数の <code>rand.Source</code><sup class="footnote-ref" id="fnref:s"><a rel="footnote" href="#fn:s">1</a></sup> と生成する点の個数は引数で指定するようにした。</p>
+
+<p>いっぽう， <code>gencmplx</code> パッケージの呼び出し側はこんな感じになる。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math/rand&quot;
+	&quot;time&quot;
+
+	&quot;github.com/spiegel-im-spiegel/pi/gencmplx&quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(10000))
+	for p := range c {
+		fmt.Printf(&quot;%v\t%v\n&quot;, real(p), imag(p))
+	}
+}
+</code></pre>
+
+<p>ここでは少なめに1万個の点を生成している。
+早速これを動かしてみよう。</p>
+
+<pre><code class="language-text">$ go run main.go &gt; plot-1.dat
+</code></pre>
+
+<p>これで1万個の点を <code>plot-1.dat</code> に格納したことになる。
+<code>plot-1.dat</code> を <a href="http://www.gnuplot.info/" title="gnuplot homepage">gnuplot</a> に食わせてみるとこんな感じ。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<img srcset="/images/random-plot-1.png 500w" sizes="(min-width:600px) 500px, 80vw" alt="">
+
+</figure>
+
+<p>うーん。
+一様？ なのかなぁ。
+まぁ，この辺の評価については後ほど。</p>
+
+<p>最後に，生成した点の集合から円周率を推定するところまでやってみよう。
+<code>main()</code> 関数はこのように変える。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;math/cmplx&quot;
+	&quot;math/rand&quot;
+	&quot;time&quot;
+
+	&quot;github.com/spiegel-im-spiegel/pi/gencmplx&quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(100000))
+	n := int64(0) // total
+	m := int64(0) // plot in circle
+	for p := range c {
+		n++
+		if cmplx.Abs(p) &lt;= float64(1) {
+			m++
+		}
+	}
+	fmt.Printf(&quot;n = %v, m = %v, 4m/n = %v\n&quot;, n, m, float64(4*m)/float64(n))
+}
+</code></pre>
+
+<p>点の数は10万個まで増やしている。
+実行結果は</p>
+
+<pre><code class="language-text">$ go run main2.go
+n = 100000, m = 78397, 4m/n = 3.13588
+</code></pre>
+
+<p>と，まぁそれっぽい値が出てきた。</p>
+
+<p>今回はここまで。
+次回は実際に値の評価を行ってみる。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="http://ruby.kyoto-wu.ac.jp/info-com/NumericalModels/RandomProcess/montecarlo.html">モンテカルロ法入門</a></li>
+<li><a href="http://qiita.com/intelfike/items/039eccffd422321ec6dd">golang complex(複素数)型を使う - Qiita</a>
+
+<ul>
+<li><a href="http://qiita.com/intelfike/items/f92f5c9ff2e515e16d47">golang complex(複素数)型の計算をする - Qiita</a></li>
+</ul></li>
+<li><a href="http://www.cse.kyoto-su.ac.jp/~oomoto/lecture/program/gnuplot/gnuplot.html">GNUPLOTを用いたグラフ作成</a></li>
+</ul>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:s"><code>rand.Source</code> は <a href="https://golang.org/doc/effective_go.html#interfaces_and_types" title="Effective Go - The Go Programming Language">interface</a> として定義されていて，これを満たす <a href="https://golang.org/ref/spec#Properties_of_types_and_values" title="Properties of types and values">type</a> であれば他の擬似乱数アルゴリズムも使えるようになっている。
+ <a class="footnote-return" href="#fnref:s"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/error-handling2/">Error の構造化</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/estimate-of-pi\/';
+    var disqus_title = 'モンテカルロ法による円周率の推定（その1）';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/estimate-of-pi\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-11-05</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f" rel=”nofollow” target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae1%ef%bc%89&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f" rel=”nofollow” target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f&amp;title=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae1%ef%bc%89" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.17</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+

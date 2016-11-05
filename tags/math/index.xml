@@ -12,6 +12,268 @@
 
 	
 	<entry>
+		<title>モンテカルロ法による円周率の推定（その1） - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi/" />
+		<id>tag:text.Baldanders.info,2016-11-05:/golang/estimate-of-pi/</id>
+		<published>2016-11-05T23:26:29+09:00</published>
+		<updated>2016-11-05T23:26:29+09:00</updated>
+		<summary>乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。
+ので早速試してみる。
+ちなみに「モンテカルロ法」というのは数値計算やシミュレーションに乱数を用いる手法をさす。&lt;/p&gt;
+
+&lt;h2 id=&#34;モンテカルロ法による円周率の推定&#34;&gt;モンテカルロ法による円周率の推定&lt;/h2&gt;
+
+&lt;p&gt;では乱数を使ってどうやって円周率を求めるのか。
+まずは以下のように原点を中心とした半径 $1$ の円を考える。
+ただしここでは第一象限のみを対象とする。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;img srcset=&#34;http://text.baldanders.info/images/circle.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;そして $0 \le y \le 1$ および $0 \le y \le 1$ の範囲でランダムに点をプロットしていく。
+（以下の&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34; title=&#34;File:Pi 30K.gif - Wikimedia Commons&#34;&gt;図は Wikimedia Commons のもの&lt;/a&gt;を拝借した。 &lt;a href=&#34;https://creativecommons.org/licenses/by/3.0/&#34; title=&#34;Creative Commons — Attribution 3.0 Unported — CC BY 3.0&#34;&gt;CC-BY-3.0&lt;/a&gt; で公開されている）&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34;&gt;&lt;img srcset=&#34;https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;From Wikimedia Commons&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34;&gt;From Wikimedia Commons&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;全ての点 $n$ が領域内に均等にプロットされていれば，円の内側に入る点の数 $m$ は以下の式のようになることが期待できる。&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[
+m \simeq \frac{1}{4}{\pi}n
+\]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;この式を $\pi$ を求める形に変形すると&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[
+\pi \simeq \frac{4m}{n}
+\]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;となる。
+プロットした点が円の内側かどうかは原点からの距離で判定できる。
+すなわち&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[
+\sqrt{x^2 + y^2} \le 1
+\]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;を満たしていればよい。&lt;/p&gt;
+
+&lt;h2 id=&#34;math-rand-パッケージ&#34;&gt;math/rand パッケージ&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt; にはコア・パッケージとして &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; が用意されていて，このパッケージを使って擬似乱数を発生させることができる。
+今回は $0 \le r \le 1.0$ の範囲で乱数を発生させればいいのだが，生憎そのものズバリな関数が用意されていない。
+たとえば &lt;code&gt;rand.Float64()&lt;/code&gt; が吐く値の範囲は $0 \le r \lt 1.0$ なのでそのままでは使えないのだ。&lt;/p&gt;
+
+&lt;p&gt;そこで，こんなコードを考えてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i &amp;lt; 10; i++ {
+		fmt.Println(float64(rand.Int63n(10000001)) / float64(10000000))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;rand.Int63n(n)&lt;/code&gt; 関数は $0 \le i \lt n$ の範囲で整数を吐く。
+$n=10,000,001$ なら $0 \le i \le 10,000,000$ の範囲になる。
+これを $10,000,000$ で割って $0 \le r \le 1.0$ の範囲の乱数を作るのである。&lt;/p&gt;
+
+&lt;p&gt;実際には2次元座標なので複素数（&lt;a href=&#34;https://golang.org/ref/spec#Complex_numbers&#34; title=&#34;Manipulating complex numbers&#34;&gt;complex&lt;/a&gt;）表現にして&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/cmplx&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i &amp;lt; 10; i++ {
+		c := complex(float64(rand.Int63n(10000001))/float64(10000000), float64(rand.Int63n(10000001))/float64(10000000))
+		fmt.Printf(&amp;quot;%v (%v)\n&amp;quot;, c, cmplx.Abs(c))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とすればよい。
+ちなみに &lt;code&gt;cmplx.Abs()&lt;/code&gt; 関数は複素数の絶対値を取るもので， $\sqrt{x^2 + y^2}$ と同じである。&lt;/p&gt;
+
+&lt;p&gt;では，以上を踏まえてランダムな点を生成する &lt;code&gt;gencmplx&lt;/code&gt; パッケージを作ってみよう。
+こんな感じかな。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package gencmplx
+
+import &amp;quot;math/rand&amp;quot;
+
+//New returns generator of random complex number
+func New(s rand.Source, count int64) &amp;lt;-chan complex128 {
+	ch := make(chan complex128)
+	r := rand.New(s)
+	go func(r *rand.Rand, count int64) {
+		for i := int64(0); i &amp;lt; count; i++ {
+			ch &amp;lt;- complex(float64(r.Int63n(10000001))/float64(10000000), float64(r.Int63n(10000001))/float64(10000000))
+		}
+		close(ch)
+	}(r, count)
+	return ch
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;後々のことを考えて，乱数の &lt;code&gt;rand.Source&lt;/code&gt;&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:s&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:s&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; と生成する点の個数は引数で指定するようにした。&lt;/p&gt;
+
+&lt;p&gt;いっぽう， &lt;code&gt;gencmplx&lt;/code&gt; パッケージの呼び出し側はこんな感じになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(10000))
+	for p := range c {
+		fmt.Printf(&amp;quot;%v\t%v\n&amp;quot;, real(p), imag(p))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ここでは少なめに1万個の点を生成している。
+早速これを動かしてみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go &amp;gt; plot-1.dat
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これで1万個の点を &lt;code&gt;plot-1.dat&lt;/code&gt; に格納したことになる。
+&lt;code&gt;plot-1.dat&lt;/code&gt; を &lt;a href=&#34;http://www.gnuplot.info/&#34; title=&#34;gnuplot homepage&#34;&gt;gnuplot&lt;/a&gt; に食わせてみるとこんな感じ。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;img srcset=&#34;http://text.baldanders.info/images/random-plot-1.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;うーん。
+一様？ なのかなぁ。
+まぁ，この辺の評価については後ほど。&lt;/p&gt;
+
+&lt;p&gt;最後に，生成した点の集合から円周率を推定するところまでやってみよう。
+&lt;code&gt;main()&lt;/code&gt; 関数はこのように変える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/cmplx&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(100000))
+	n := int64(0) // total
+	m := int64(0) // plot in circle
+	for p := range c {
+		n++
+		if cmplx.Abs(p) &amp;lt;= float64(1) {
+			m++
+		}
+	}
+	fmt.Printf(&amp;quot;n = %v, m = %v, 4m/n = %v\n&amp;quot;, n, m, float64(4*m)/float64(n))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;点の数は10万個まで増やしている。
+実行結果は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main2.go
+n = 100000, m = 78397, 4m/n = 3.13588
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と，まぁそれっぽい値が出てきた。&lt;/p&gt;
+
+&lt;p&gt;今回はここまで。
+次回は実際に値の評価を行ってみる。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://ruby.kyoto-wu.ac.jp/info-com/NumericalModels/RandomProcess/montecarlo.html&#34;&gt;モンテカルロ法入門&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/intelfike/items/039eccffd422321ec6dd&#34;&gt;golang complex(複素数)型を使う - Qiita&lt;/a&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/intelfike/items/f92f5c9ff2e515e16d47&#34;&gt;golang complex(複素数)型の計算をする - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.cse.kyoto-su.ac.jp/~oomoto/lecture/program/gnuplot/gnuplot.html&#34;&gt;GNUPLOTを用いたグラフ作成&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:s&#34;&gt;&lt;code&gt;rand.Source&lt;/code&gt; は &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; として定義されていて，これを満たす &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; であれば他の擬似乱数アルゴリズムも使えるようになっている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>パズルと水素水 - remark</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2016/10/puzzle-and-hydrogen-water/" />
 		<id>tag:text.Baldanders.info,2016-10-25:/remark/2016/10/puzzle-and-hydrogen-water/</id>
@@ -912,260 +1174,6 @@ Swift は Apple 製ということで Objective-C 並に毛嫌いしていたが
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:aol&#34;&gt;光行差が発見されたのは18世紀である。光行差が発見できるほど観測技術が進歩したということでもある。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:aol&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>算数で遊ぼう または 11 × 11 × 3.14 = 379.94 は誤りか - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2016/02/playing-with-math/" />
-		<id>tag:text.Baldanders.info,2016-02-21:/remark/2016/02/playing-with-math/</id>
-		<published>2016-02-21T22:33:47+09:00</published>
-		<updated>2016-02-22T14:12:09+09:00</updated>
-		<summary>最近の子どもは知らないが，私はこれ（誤差論）を大学に入ってから正式に習った。「小学生には無理」とは言わないが，有効桁数を含め誤差について論じるのならきちんと手順を踏んで教える必要がある。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://togetter.com/li/940931&#34;&gt;算数の問題「円周率を3.14とするとき、半径11の円の面積を求めよ」の解を379.94とするのは誤り？ - Togetterまとめ&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;問題はこう。&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;円周率を 3.14 とするとき、半径 11 の円の面積を求めよ&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;この答えとして $11 \times 11 \times 3.14 = 379.94$ とするのは誤りか？ という話。&lt;/p&gt;
-
-&lt;p&gt;結論から言おう。&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;馬鹿じゃねーの？&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;そもそもこれを正解か不正解かという観点で論じる時点で阿呆である。
-日本の学校教育の悪影響がいかんなく発揮されている例と言えよう。
-だから「&lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000744.shtml&#34;&gt;掛け算は順序が大事&lt;/a&gt;」とか言う馬鹿がはびこるんだよ。&lt;/p&gt;
-
-&lt;p&gt;これは計算問題である。
-上の問題を言い換えるのなら&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;$r = 11$, $\pi = 3.14$ として $\pi{r}^2$ を計算せよ&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;と言っているのと同じ。
-ただの計算結果だから答えは 379.94 で間違いない。
-ここに議論の余地はない。&lt;/p&gt;
-
-&lt;p&gt;（国外は知らないが）日本の小学校は何故か代数を教えない。
-だから算数の問題もこんな冗長な文章になってしまうし意味のないものに意味を付加する馬鹿野郎も現れる。
-ちゃんと小学生の時に代数を教えれば鶴亀算とかワケワカメなものも教えなくて済むのに。&lt;/p&gt;
-
-&lt;p&gt;閑話休題。&lt;/p&gt;
-
-&lt;p&gt;問題を，文章を糞真面目に解釈して，「（誤差評価を含めて）円の面積を求めよ」とするなら話は変わる。
-なぜなら 11 も 3.14 も「数」ではなく「値」になるから。&lt;/p&gt;
-
-&lt;p&gt;円周率は超越数である（今の小学生が「超越数」という言葉を習うかどうかは知らないが）。
-ある決まった定数だが，いくらでも桁を大きくとれる。
-「半径11」を固定にして円周率の桁を変えて計算してみる。
-暗算が苦手なら電卓を使えばいいし，電卓もかったるいというのならプログラムを組めばいい。
-私は最近 &lt;a href=&#34;http://text.baldanders.info/golang&#34;&gt;Go 言語を勉強している&lt;/a&gt;ので，これでプログラムを組んでみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import &amp;quot;fmt&amp;quot;
-
-func main() {
-	r := 11.0
-	pilist := []float64{3.0, 3.1, 3.14, 3.142, 3.1416, 3.14159}
-	for _, pi := range pilist {
-		fmt.Printf(&amp;quot;r = %f , pi = %f , pi*r^2 = %f\n&amp;quot;, r, pi, pi*r*r)
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;この計算結果を表にして整理してみる。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-
-&lt;table&gt;
-  &lt;tr&gt;
-    &lt;th&gt;$r$&lt;/th&gt;
-    &lt;th&gt;$\pi$&lt;/th&gt;
-    &lt;th&gt;$\pi{r}^2$&lt;/th&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td rowspan=&#34;6&#34;&gt;11&lt;/td&gt;
-    &lt;td&gt;3&lt;br&gt;&lt;/td&gt;
-    &lt;td&gt;363.000000&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;3.1&lt;/td&gt;
-    &lt;td&gt;375.100000&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;3.14&lt;/td&gt;
-    &lt;td&gt;379.940000&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;3.142&lt;/td&gt;
-    &lt;td&gt;380.182000&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;3.1416&lt;/td&gt;
-    &lt;td&gt;380.133600&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;3.14159&lt;/td&gt;
-    &lt;td&gt;380.132390&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/table&gt;
-
-
-&lt;/figure&gt;
-
-&lt;p&gt;最初の 3 を除いて先頭の2桁がほぼ &amp;ldquo;38” に収斂しているのがわかると思う。
-ここで「有効桁数」の概念が出てくる。
-つまり有効桁数で評価するなら約 380 または $3.8 \times 10^2$ となる。&lt;/p&gt;
-
-&lt;p&gt;一方，半径 11 は測定値である。
-測定値には必ず誤差が伴う&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:0&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:0&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
-ここでは半径を $11.00\pm0.40\,\mathrm{cm}$ として考える（値なら単位がないとね。この範囲なら四捨五入して 11 である）。
-この条件で計算結果がどう変わるか同じように計算してみる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
-ちなみに円周率は先ほどの計算結果を考慮して大きめに 3.1416 としてみた。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import &amp;quot;fmt&amp;quot;
-
-func main() {
-	rlist := []float64{10.6, 10.7, 10.8, 10.9, 11.0, 11.1, 11.2, 11.3, 11.4}
-	pi := 3.1416
-	for _, r := range rlist {
-		fmt.Printf(&amp;quot;r = %f , pi = %f , pi*r^2 = %f\n&amp;quot;, r, pi, pi*r*r)
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;以下が計算結果。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-
-&lt;table&gt;
-  &lt;tr&gt;
-    &lt;th&gt;$r$&lt;/th&gt;
-    &lt;th&gt;$\pi$&lt;/th&gt;
-    &lt;th&gt;$\pi{r}^2$&lt;/th&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;10.60&lt;br&gt;&lt;/td&gt;
-    &lt;td rowspan=&#34;9&#34;&gt;3.1416&lt;/td&gt;
-    &lt;td&gt;352.990176&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;10.70&lt;/td&gt;
-    &lt;td&gt;359.681784&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;10.80&lt;/td&gt;
-    &lt;td&gt;366.436224&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;10.90&lt;/td&gt;
-    &lt;td&gt;373.253496&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;11.00&lt;/td&gt;
-    &lt;td&gt;380.133600&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;11.10&lt;/td&gt;
-    &lt;td&gt;387.076536&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;11.20&lt;/td&gt;
-    &lt;td&gt;394.082304&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;11.30&lt;/td&gt;
-    &lt;td&gt;401.150904&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;11.40&lt;/td&gt;
-    &lt;td&gt;408.282336&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/table&gt;
-
-
-&lt;/figure&gt;
-
-&lt;p&gt;同じ「半径11」でこんなにも計算結果が違うのが分かるだろう。
-これを「誤差の伝播」という。&lt;/p&gt;
-
-&lt;p&gt;実は半径の誤差の $\pm0.40\,\mathrm{cm}$ というのは $11\,\mathrm{cm}$ に対してかなり大きい。
-詳しい説明は面倒くさいので省くが， $A$, $r$ の関係式&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-\[
-    A = \pi{r}^2
-\]
-&lt;/blockquote&gt;
-
-&lt;/figure&gt;
-
-&lt;p&gt;の誤差をそれぞれ $r_A$, $r_r$ とすると&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-\[
-    \left(\frac{r_A}{A}\right)^2 = 4\left(\frac{r_r}{r}\right)^2
-\]
-&lt;/blockquote&gt;
-
-&lt;/figure&gt;
-
-&lt;p&gt;の関係があるため&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:b&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:b&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;，この場合の面積は $380.1\pm27.6\,\mathrm{cm}^2$ ということになる。
-これがもし半径  $11.00\pm0.10\,\mathrm{cm}$ 程度の誤差なら面積は $380.1\pm6.9\,\mathrm{cm}^2$ となる。&lt;/p&gt;
-
-&lt;p&gt;最近の子どもは知らないが，私はこれ（誤差論）を大学に入ってから正式に習った。
-「小学生には無理」とは言わないが，有効桁数を含め誤差について論じるのならきちんと手順を踏んで教える必要がある。
-「正解」「不正解」でぶった切るなんてもっともやってはいけないことである。&lt;/p&gt;
-
-&lt;p&gt;なお，誤差論を習うなら微積分と統計学の基礎知識が必要である。
-高校の数学レベルでいけるはず。
-あるいは結城浩さんの「数学ガール」シリーズを読む手もある。&lt;/p&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797382317/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/411g%2BaRmCzL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797382317/baldandersinf-22/&#34;&gt;数学ガールの秘密ノート/微分を追いかけて&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-04-18&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797375698/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797375698.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/479737568X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/479737568X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797374152/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797374152.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/整数で遊ぼう&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4480095268/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4480095268.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学文章作法 推敲編 (ちくま学芸文庫)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/434402740X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/434402740X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学の言葉で世界を見たら 父から娘に贈る数学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34; &gt;三角関数や微分方程式は物理学，特に天文学を理解するには必須の道具。学校で教えてくれるのを待ってる暇はないのだよ。そして三角関数や微分（と積分）を理解すると理科も数学も抜群に面白くなる。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#34;#maker&#34; class=&#34;reviewer&#34;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-04-30&#34;&gt;2015/04/30&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34;&gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4320030885/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/41n4-gFkFPL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4320030885/baldandersinf-22/&#34;&gt;基礎物理学実験 増訂版&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;下村 健次 &lt;/dd&gt;&lt;dd&gt;共立出版 1977-10-05&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;
-&lt;p class=&#34;description&#34;&gt;学生時代，私はコレで実験の基礎を習いました。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-02-21&#34;&gt;2016-02-21&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:0&#34;&gt;有効桁数が云々というのなら他の誤差評価も必ず必要。なお，ここでは誤差を平均2乗誤差とみなす。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:0&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:1&#34;&gt;平均2乗誤差の $11.00\pm0.40\,\mathrm{cm}$ は厳密には「測定値が 10.6 から 11.4 の間にある」という意味ではないのだが，ここでは計算結果の振れ方を見て欲しいので，こんな感じになっている。専門家の方，怒らないでね。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:b&#34;&gt;これを「誤差の伝播」の法則と呼ぶ。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:b&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>

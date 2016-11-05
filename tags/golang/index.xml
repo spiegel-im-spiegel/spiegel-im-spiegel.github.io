@@ -12,6 +12,268 @@
 
 	
 	<entry>
+		<title>モンテカルロ法による円周率の推定（その1） - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi/" />
+		<id>tag:text.Baldanders.info,2016-11-05:/golang/estimate-of-pi/</id>
+		<published>2016-11-05T23:26:29+09:00</published>
+		<updated>2016-11-05T23:26:29+09:00</updated>
+		<summary>乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。
+ので早速試してみる。
+ちなみに「モンテカルロ法」というのは数値計算やシミュレーションに乱数を用いる手法をさす。&lt;/p&gt;
+
+&lt;h2 id=&#34;モンテカルロ法による円周率の推定&#34;&gt;モンテカルロ法による円周率の推定&lt;/h2&gt;
+
+&lt;p&gt;では乱数を使ってどうやって円周率を求めるのか。
+まずは以下のように原点を中心とした半径 $1$ の円を考える。
+ただしここでは第一象限のみを対象とする。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;img srcset=&#34;http://text.baldanders.info/images/circle.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;そして $0 \le y \le 1$ および $0 \le y \le 1$ の範囲でランダムに点をプロットしていく。
+（以下の&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34; title=&#34;File:Pi 30K.gif - Wikimedia Commons&#34;&gt;図は Wikimedia Commons のもの&lt;/a&gt;を拝借した。 &lt;a href=&#34;https://creativecommons.org/licenses/by/3.0/&#34; title=&#34;Creative Commons — Attribution 3.0 Unported — CC BY 3.0&#34;&gt;CC-BY-3.0&lt;/a&gt; で公開されている）&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34;&gt;&lt;img srcset=&#34;https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;From Wikimedia Commons&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34;&gt;From Wikimedia Commons&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;全ての点 $n$ が領域内に均等にプロットされていれば，円の内側に入る点の数 $m$ は以下の式のようになることが期待できる。&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[
+m \simeq \frac{1}{4}{\pi}n
+\]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;この式を $\pi$ を求める形に変形すると&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[
+\pi \simeq \frac{4m}{n}
+\]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;となる。
+プロットした点が円の内側かどうかは原点からの距離で判定できる。
+すなわち&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[
+\sqrt{x^2 + y^2} \le 1
+\]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;を満たしていればよい。&lt;/p&gt;
+
+&lt;h2 id=&#34;math-rand-パッケージ&#34;&gt;math/rand パッケージ&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt; にはコア・パッケージとして &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; が用意されていて，このパッケージを使って擬似乱数を発生させることができる。
+今回は $0 \le r \le 1.0$ の範囲で乱数を発生させればいいのだが，生憎そのものズバリな関数が用意されていない。
+たとえば &lt;code&gt;rand.Float64()&lt;/code&gt; が吐く値の範囲は $0 \le r \lt 1.0$ なのでそのままでは使えないのだ。&lt;/p&gt;
+
+&lt;p&gt;そこで，こんなコードを考えてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i &amp;lt; 10; i++ {
+		fmt.Println(float64(rand.Int63n(10000001)) / float64(10000000))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;rand.Int63n(n)&lt;/code&gt; 関数は $0 \le i \lt n$ の範囲で整数を吐く。
+$n=10,000,001$ なら $0 \le i \le 10,000,000$ の範囲になる。
+これを $10,000,000$ で割って $0 \le r \le 1.0$ の範囲の乱数を作るのである。&lt;/p&gt;
+
+&lt;p&gt;実際には2次元座標なので複素数（&lt;a href=&#34;https://golang.org/ref/spec#Complex_numbers&#34; title=&#34;Manipulating complex numbers&#34;&gt;complex&lt;/a&gt;）表現にして&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/cmplx&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i &amp;lt; 10; i++ {
+		c := complex(float64(rand.Int63n(10000001))/float64(10000000), float64(rand.Int63n(10000001))/float64(10000000))
+		fmt.Printf(&amp;quot;%v (%v)\n&amp;quot;, c, cmplx.Abs(c))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とすればよい。
+ちなみに &lt;code&gt;cmplx.Abs()&lt;/code&gt; 関数は複素数の絶対値を取るもので， $\sqrt{x^2 + y^2}$ と同じである。&lt;/p&gt;
+
+&lt;p&gt;では，以上を踏まえてランダムな点を生成する &lt;code&gt;gencmplx&lt;/code&gt; パッケージを作ってみよう。
+こんな感じかな。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package gencmplx
+
+import &amp;quot;math/rand&amp;quot;
+
+//New returns generator of random complex number
+func New(s rand.Source, count int64) &amp;lt;-chan complex128 {
+	ch := make(chan complex128)
+	r := rand.New(s)
+	go func(r *rand.Rand, count int64) {
+		for i := int64(0); i &amp;lt; count; i++ {
+			ch &amp;lt;- complex(float64(r.Int63n(10000001))/float64(10000000), float64(r.Int63n(10000001))/float64(10000000))
+		}
+		close(ch)
+	}(r, count)
+	return ch
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;後々のことを考えて，乱数の &lt;code&gt;rand.Source&lt;/code&gt;&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:s&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:s&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; と生成する点の個数は引数で指定するようにした。&lt;/p&gt;
+
+&lt;p&gt;いっぽう， &lt;code&gt;gencmplx&lt;/code&gt; パッケージの呼び出し側はこんな感じになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(10000))
+	for p := range c {
+		fmt.Printf(&amp;quot;%v\t%v\n&amp;quot;, real(p), imag(p))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ここでは少なめに1万個の点を生成している。
+早速これを動かしてみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go &amp;gt; plot-1.dat
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これで1万個の点を &lt;code&gt;plot-1.dat&lt;/code&gt; に格納したことになる。
+&lt;code&gt;plot-1.dat&lt;/code&gt; を &lt;a href=&#34;http://www.gnuplot.info/&#34; title=&#34;gnuplot homepage&#34;&gt;gnuplot&lt;/a&gt; に食わせてみるとこんな感じ。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;img srcset=&#34;http://text.baldanders.info/images/random-plot-1.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;うーん。
+一様？ なのかなぁ。
+まぁ，この辺の評価については後ほど。&lt;/p&gt;
+
+&lt;p&gt;最後に，生成した点の集合から円周率を推定するところまでやってみよう。
+&lt;code&gt;main()&lt;/code&gt; 関数はこのように変える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/cmplx&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(100000))
+	n := int64(0) // total
+	m := int64(0) // plot in circle
+	for p := range c {
+		n++
+		if cmplx.Abs(p) &amp;lt;= float64(1) {
+			m++
+		}
+	}
+	fmt.Printf(&amp;quot;n = %v, m = %v, 4m/n = %v\n&amp;quot;, n, m, float64(4*m)/float64(n))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;点の数は10万個まで増やしている。
+実行結果は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main2.go
+n = 100000, m = 78397, 4m/n = 3.13588
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と，まぁそれっぽい値が出てきた。&lt;/p&gt;
+
+&lt;p&gt;今回はここまで。
+次回は実際に値の評価を行ってみる。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://ruby.kyoto-wu.ac.jp/info-com/NumericalModels/RandomProcess/montecarlo.html&#34;&gt;モンテカルロ法入門&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/intelfike/items/039eccffd422321ec6dd&#34;&gt;golang complex(複素数)型を使う - Qiita&lt;/a&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/intelfike/items/f92f5c9ff2e515e16d47&#34;&gt;golang complex(複素数)型の計算をする - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.cse.kyoto-su.ac.jp/~oomoto/lecture/program/gnuplot/gnuplot.html&#34;&gt;GNUPLOTを用いたグラフ作成&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:s&#34;&gt;&lt;code&gt;rand.Source&lt;/code&gt; は &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; として定義されていて，これを満たす &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; であれば他の擬似乱数アルゴリズムも使えるようになっている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>Error の構造化 - golang</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/error-handling2/" />
 		<id>tag:text.Baldanders.info,2016-11-03:/golang/error-handling2/</id>
@@ -1790,316 +2052,6 @@ Windows の（マネタイズを含めた）思想は20年以上も&lt;strong&gt
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:c&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:naoj&#34;&gt;国立天文台では毎年2月1日に翌年の暦を発表する。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:naoj&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>「ズンドコチェック」なるものが流行っているらしい - golang</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/zundoko-choir/" />
-		<id>tag:text.Baldanders.info,2016-03-12:/golang/zundoko-choir/</id>
-		<published>2016-03-12T22:12:53+09:00</published>
-		<updated>2016-03-16T17:35:35+09:00</updated>
-		<summary>というわけで Go 言語で実装することを考えてみる。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-
-&lt;blockquote class=&#34;twitter-tweet&#34; data-lang=&#34;ja&#34;&gt;&lt;p lang=&#34;ja&#34; dir=&#34;ltr&#34;&gt;Javaの講義、試験が「自作関数を作り記述しなさい」って問題だったから&lt;br&gt;「ズン」「ドコ」のいずれかをランダムで出力し続けて「ズン」「ズン」「ズン」「ズン」「ドコ」の配列が出たら「キ・ヨ・シ！」って出力した後終了って関数作ったら満点で単位貰ってた&lt;/p&gt;&amp;mdash; てくも (@kumiromilk) &lt;a href=&#34;https://twitter.com/kumiromilk/status/707437861881180160&#34;&gt;2016年3月9日&lt;/a&gt;&lt;/blockquote&gt;
-
-
-&lt;/figure&gt;
-
-&lt;p&gt;「習作（study）」としてはなかなか秀逸なアイデアだと思う。
-これで満点くれる教官も流石だが（笑） 巷では「ズンドコキヨシ」とか「キヨシチェック」とか「ズンドコチェック」とか呼ばれているらしい。&lt;/p&gt;
-
-&lt;p&gt;というわけで&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;「ズン」「ドコ」のいずれかをランダムで出力し続けて「ズン」「ズン」「ズン」「ズン」「ドコ」の配列が出たら「キ・ヨ・シ！」って出力した後終了って関数&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;を &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で実装することを考えてみる。
-私はコレを「ズンドコ・コール（zundoko-choir）」と呼ぶことにする。&lt;/p&gt;
-
-&lt;p&gt;とはいえ，ズンドコ・コールを実装する事自体はそう難しくない。
-たとえばこんな感じ。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-const (
-	zun     = &amp;quot;ズン&amp;quot;
-	doko    = &amp;quot;ドコ&amp;quot;
-	kiyoshi = &amp;quot;キ・ヨ・シ！&amp;quot;
-)
-
-func generate() chan string {
-	ch := make(chan string)
-	go func() {
-		var zundoko = [2]string{zun, doko}
-		rand.Seed(time.Now().UnixNano())
-		for {
-			ch &amp;lt;- zundoko[rand.Intn(2)]
-		}
-	}()
-	return ch
-}
-
-func main() {
-	zundoko := generate()
-	zcount := 0
-	for {
-		zd := &amp;lt;-zundoko
-		fmt.Print(zd)
-		if zd == zun {
-			zcount++
-		} else if zcount &amp;gt;= 4 {
-			break
-		} else {
-			zcount = 0
-		}
-	}
-	fmt.Print(kiyoshi)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;「ズン」および「ドコ」をランダムに生成する部分は &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; と &lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt; を使えばいいだろう（&lt;code&gt;generate()&lt;/code&gt; 関数内の処理）。
-擬似乱数は厳密でなくてもいいので安直に &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; を使うことにした&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:rand&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:rand&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
-さらに「ズン」「ズン」「ズン」「ズン」「ドコ」の配列パターンのチェックだが，「ズン」が4回以上連続で来た直後に「ドコ」が来たら OK としてみた。
-まぁ，これがもっとも素朴な実装でパフォーマンスとしてもそれほど遜色ない筈。&lt;/p&gt;
-
-&lt;p&gt;と，ここまで考えてハタと気づいた。
-問題は「自作関数を作り記述しなさい」なんだからメイン関数にロジック書いたらアカンやん！&lt;/p&gt;
-
-&lt;p&gt;というわけでまたもゴリゴリとコードを書いてパッケージにしてしまった。
-アホだ，私（笑）&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/zundoko&#34;&gt;spiegel-im-spiegel/zundoko: Zundoko-choirs&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;出力は標準出力に直書きするのではなく &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; の &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; に &lt;code&gt;append()&lt;/code&gt; することで実現する。
-この出力先を &lt;code&gt;Choirs&lt;/code&gt; 型として定義した。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Choirs - zundoko-choirs list
-type Choirs struct {
-	c []string
-}
-
-//Push is append choirs
-func (c *Choirs) Push(s string) {
-	c.c = append(c.c, s) //maybe panic if c is nil.
-}
-
-func (c *Choirs) String() string {
-	if c == nil {
-		return &amp;quot;&amp;quot;
-	}
-	content := make([]byte, 0, 128)
-	for _, s := range c.c {
-		content = append(content, s...)
-	}
-	return string(content)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ちなみに文字列の連結は &lt;a href=&#34;https://golang.org/pkg/strings/&#34; title=&#34;strings - The Go Programming Language&#34;&gt;&lt;code&gt;strings&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Join()&lt;/code&gt; 関数は使わず「&lt;a href=&#34;http://text.baldanders.info/golang/join-strings/&#34; title=&#34;文字列連結はどれが速い？ — プログラミング言語 Go&#34;&gt;文字列連結はどれが速い？&lt;/a&gt;」で紹介した方法を使っている。&lt;/p&gt;
-
-&lt;p&gt;これで最初のコードは&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func generate() chan string {
-	ch := make(chan string)
-	go func() {
-		var zd = [2]string{Zun, Doko}
-		rand.Seed(time.Now().UnixNano())
-		for {
-			ch &amp;lt;- zd[rand.Intn(2)]
-		}
-	}()
-	return ch
-}
-
-//Run zundoko-choirs
-func Run() *Choirs {
-	zd := generate()
-	c := &amp;amp;Choirs{make([]string, 0)}
-	zcount := 0
-	for {
-		s := &amp;lt;-zd
-		c.Push(s)
-		if s == Zun {
-			zcount++
-		} else if zcount &amp;gt;= 4 {
-			break
-		} else {
-			zcount = 0
-		}
-	}
-	c.Push(Kiyoshi)
-	return c
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;と書き換えることができる。
-このパッケージを呼び出すメイン側は例えば&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/zundoko&amp;quot;
-)
-
-func main() {
-	c := zundoko.Run()
-	fmt.Println(c)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;と書けばいい。&lt;/p&gt;
-
-&lt;p&gt;ところで「ズン」「ドコ」の出力は &lt;code&gt;Choirs&lt;/code&gt; 型で保持られているので，末尾の5要素のパターンを調べる別の方法もあると気づく。
-たとえばこんな感じ。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;var matchingPattern = []string{Zun, Zun, Zun, Zun, Doko}
-
-func (c *Choirs) match() bool {
-	if c == nil {
-		return false
-	}
-	if len(c.c) &amp;lt; 5 {
-		return false
-	}
-	return reflect.DeepEqual(c.c[len(c.c)-5:], matchingPattern)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;この関数を使えば &lt;code&gt;Run()&lt;/code&gt; 関数は&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Run2 zundoko-choirs (another logic)
-func Run2() *Choirs {
-	zd := generate()
-	c := &amp;amp;Choirs{make([]string, 0)}
-	for {
-		s := &amp;lt;-zd
-		c.Push(s)
-		if c.match() {
-			break
-		}
-	}
-	c.Push(Kiyoshi)
-	return c
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;となり随分すっきりする。
-ただこれコストが高くつきそうである。
-というわけで，これも調べてみた。
-まず以下のベンチマークを書く。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package zundoko
-
-import &amp;quot;testing&amp;quot;
-
-func BenchmarkRun1(b *testing.B) {
-	for i := 0; i &amp;lt; b.N; i++ {
-		Run()
-	}
-}
-
-func BenchmarkRun2(b *testing.B) {
-	for i := 0; i &amp;lt; b.N; i++ {
-		Run2()
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;BenchmarkRun1&lt;/code&gt; が従来のもの， &lt;code&gt;BenchmarkRun2&lt;/code&gt; が先程の &lt;code&gt;match()&lt;/code&gt; 関数を使ったバージョンである。
-結果は以下のとおり。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go test -bench Run -benchmem
-testing: warning: no tests to run
-PASS
-BenchmarkRun1-4    50000     28141 ns/op    1800 B/op     9 allocs/op
-BenchmarkRun2-4    30000     40102 ns/op    3912 B/op   115 allocs/op
-ok      github.com/spiegel-im-spiegel/zundoko   4.261s
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;乱数の要素が絡むので毎回同じ値ではないが，傾向としてはこんな感じ。
-&lt;code&gt;BenchmarkRun2&lt;/code&gt; のほうが allocation 回数が圧倒的に多いのが分かるだろう。
-これがスピードにもダイレクトに反映されている感じである。&lt;/p&gt;
-
-&lt;p&gt;今回は「「ズン」が4回以上連続で来た直後に「ドコ」が来たら OK」という単純なロジックだったが，もっと複雑なパターンが要求される場合は工夫が必要かもしれない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:lr&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:lr&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;p&gt;「ズン」と「ドコ」の出現回数を数える関数も作ってみた。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//CountZunDoko returns count of &amp;quot;ZUN&amp;quot; and &amp;quot;DOKO&amp;quot; choirs
-func (c *Choirs) CountZunDoko() (int, int) {
-	z := 0
-	d := 0
-	if c == nil {
-		return z, d
-	}
-	for _, s := range c.c {
-		switch s {
-		case Zun:
-			z++
-		case Doko:
-			d++
-		}
-	}
-	return z, d
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;たとえば &lt;code&gt;generate()&lt;/code&gt; 関数内で使っている擬似乱数パッケージを別のものに換えた時に統計処理で簡単な性能評価ができるかもしれない。
-今回はそこまではしなけど（擬似乱数の話はいずれやりたい）。&lt;/p&gt;
-
-&lt;p&gt;こうやって手遊びでコードを弄るのは楽しいものである。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/shunsugai@github/items/971a15461de29563bf90&#34;&gt;ズンドコキヨシまとめ - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/shinderuman@github/items/2ff67c2404647d2b7ea6&#34;&gt;ズンドコキヨシ with Go (n番煎じ) - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/Rompei/items/bfa03fbc9a94a37703bb&#34;&gt;ズンドコキヨシGolang並列版 - Qiita&lt;/a&gt; : 「ズン」「ドコ」の生成部分を CPU の数だけ並列処理で行わせてひとつの &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; に入力するというユニークな実装&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/spiegel-im-spiegel/items/6a5bc07dbfa46a328e26&#34;&gt;「ズンドコキヨシ」と擬似乱数 - Qiita&lt;/a&gt; : Qiita で擬似乱数について簡単にまとめてみた。整理できたらこちらでも記事にするかも&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/41aCueik45L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-15&lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117607/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117607.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;マイクロサービスアーキテクチャ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117402/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117402.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;ハイパフォーマンスPython&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/0134190440/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/0134190440.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;The Go Programming Language (Addison-Wesley Professional Computing Series)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4774166340/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4774166340.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Vim script テクニックバイブル ~Vim使いの魔法の杖&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。買おうかどうか悩み中。目次があればなぁ。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-03-12&#34;&gt;2016-03-12&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:rand&#34;&gt;&lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; の乱数生成アルゴリズムの既定は線形合同法らしい。&lt;a href=&#34;http://www001.upp.so-net.ne.jp/isaku/rand.html&#34; title=&#34;良い乱数・悪い乱数&#34;&gt;線形合同法は性能が良くなく&lt;/a&gt;ゲームや暗号等では使えない。&lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; の乱数生成アルゴリズムは他のものに入れ替えることができる。たとえば &lt;a href=&#34;https://github.com/seehuhn/mt19937&#34; title=&#34;seehuhn/mt19937: An implementation of Takuji Nishimura&#39;s and Makoto Matsumoto&#39;s Mersenne Twister pseudo random number generator in Go.&#34;&gt;&lt;code&gt;seehuhn/mt19937&lt;/code&gt;&lt;/a&gt; パッケージが使える。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:rand&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:lr&#34;&gt;たとえば &lt;a href=&#34;https://golang.org/pkg/container/list/&#34; title=&#34;list - The Go Programming Language&#34;&gt;&lt;code&gt;container/list&lt;/code&gt;&lt;/a&gt; や &lt;a href=&#34;https://golang.org/pkg/container/ring/&#34; title=&#34;ring - The Go Programming Language&#34;&gt;&lt;code&gt;container/ring&lt;/code&gt;&lt;/a&gt; といったパッケージを使う手がある。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:lr&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
