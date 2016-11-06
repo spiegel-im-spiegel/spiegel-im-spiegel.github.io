@@ -3,8 +3,8 @@
 	<title>プログラミング言語 Go — text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/index.xml" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/golang/index.xml/index.xml" />
-	<id>tag:text.Baldanders.info,2016-11-05:/hugo</id>
-	<updated>2016-11-05T23:26:29+09:00</updated>
+	<id>tag:text.Baldanders.info,2016-11-06:/hugo</id>
+	<updated>2016-11-06T17:57:37+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
@@ -12,11 +12,431 @@
 
 	
 	<entry>
+		<title>モンテカルロ法による円周率の推定（その2 CLI） — プログラミング言語 Go</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi-2-cli/" />
+		<id>tag:text.Baldanders.info,2016-11-06:/golang/estimate-of-pi-2-cli/</id>
+		<published>2016-11-06T17:57:37+09:00</published>
+		<updated>2016-11-06T17:57:37+09:00</updated>
+		<summary>前回「次回は実際に値の評価を行ってみる」と書いたが，その前に CLI (command-line interface) を整備する。今回は spf13/cobra パッケージを使うことにする。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;コマンドライン-インタフェース&#34;&gt;コマンドライン・インタフェース&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34; title=&#34;モンテカルロ法による円周率の推定（その1）&#34;&gt;前回&lt;/a&gt;「次回は実際に値の評価を行ってみる」と書いたが，その前に CLI (command-line interface) を整備する。
+どういうことかというと，&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34; title=&#34;モンテカルロ法による円周率の推定（その1）&#34;&gt;前回&lt;/a&gt;作った2つの &lt;code&gt;main()&lt;/code&gt; 関数の処理&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(10000))
+	for p := range c {
+		fmt.Printf(&amp;quot;%v\t%v\n&amp;quot;, real(p), imag(p))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/cmplx&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
+)
+
+func main() {
+	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(100000))
+	n := int64(0) // total
+	m := int64(0) // plot in circle
+	for p := range c {
+		n++
+		if cmplx.Abs(p) &amp;lt;= float64(1) {
+			m++
+		}
+	}
+	fmt.Printf(&amp;quot;n = %v, m = %v, 4m/n = %v\n&amp;quot;, n, m, float64(4*m)/float64(n))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これをひとつの CLI で呼び出せるよう統合してしまおうというわけ。&lt;/p&gt;
+
+&lt;p&gt;CLI については以前に解説した。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/cli-and-facade-pattern/&#34;&gt;コマンドライン・インタフェースとファサード・パターン&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このときは &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;mitchellh/cli&lt;/code&gt;&lt;/a&gt; を紹介したが，今回は &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; を使うことにする。&lt;/p&gt;
+
+&lt;h3 id=&#34;spf13-cobra-パッケージ&#34;&gt;spf13/cobra パッケージ&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; パッケージの作者 &lt;a href=&#34;https://github.com/spf13&#34;&gt;spf13 (Steve Francia)&lt;/a&gt; さんは &lt;a href=&#34;https://www.linkedin.com/in/stevefrancia&#34; title=&#34;Steven Francia | LinkedIn&#34;&gt;Docker の中の人&lt;/a&gt;で &lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; の作者としても有名な方。
+もちろん &lt;a href=&#34;http://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; の CLI にも &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; が使われている。&lt;/p&gt;
+
+&lt;p&gt;さらにありがたいことに &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; にはテンプレートコードを出力する CLI も用意されている。
+インストールは &lt;code&gt;go get&lt;/code&gt; コマンドで行う。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go get -v github.com/spf13/cobra/cobra
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これで &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; パッケージ本体と CLI がインストールされる。
+テンプレートコードの生成は以下のコマンドを叩く。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ cobra init github.com/spiegel-im-spiegel/pi
+Your Cobra application is ready at
+C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi
+Give it a try by going there and running `go run main.go`
+Add commands to it by running `cobra add [cmdname]`
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;既にパッケージ用のフォルダが作られている場合は，そのフォルダまで降りて&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ cobra init .
+Your Cobra application is ready at
+C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi
+Give it a try by going there and running `go run main.go`
+Add commands to it by running `cobra add [cmdname]`
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;でもよい。&lt;/p&gt;
+
+&lt;p&gt;この時点で &lt;code&gt;main.go&lt;/code&gt; と &lt;code&gt;cmd/root.go&lt;/code&gt; のふたつが生成される。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Copyright © 2016 NAME HERE &amp;lt;EMAIL ADDRESS&amp;gt;
+//
+// Licensed under the Apache License, Version 2.0 (the &amp;quot;License&amp;quot;);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &amp;quot;AS IS&amp;quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package main
+
+import &amp;quot;github.com/spiegel-im-spiegel/pi/cmd&amp;quot;
+
+func main() {
+	cmd.Execute()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Copyright © 2016 NAME HERE &amp;lt;EMAIL ADDRESS&amp;gt;
+//
+// Licensed under the Apache License, Version 2.0 (the &amp;quot;License&amp;quot;);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &amp;quot;AS IS&amp;quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cmd
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+
+	&amp;quot;github.com/spf13/cobra&amp;quot;
+	&amp;quot;github.com/spf13/viper&amp;quot;
+)
+
+var cfgFile string
+
+// RootCmd represents the base command when called without any subcommands
+var RootCmd = &amp;amp;cobra.Command{
+	Use:   &amp;quot;pi&amp;quot;,
+	Short: &amp;quot;A brief description of your application&amp;quot;,
+	Long: `A longer description that spans multiple lines and likely contains
+examples and usage of using your application. For example:
+
+Cobra is a CLI library for Go that empowers applications.
+This application is a tool to generate the needed files
+to quickly create a Cobra application.`,
+// Uncomment the following line if your bare application
+// has an action associated with it:
+//	Run: func(cmd *cobra.Command, args []string) { },
+}
+
+// Execute adds all child commands to the root command sets flags appropriately.
+// This is called by main.main(). It only needs to happen once to the rootCmd.
+func Execute() {
+	if err := RootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+}
+
+func init() {
+	cobra.OnInitialize(initConfig)
+
+	// Here you will define your flags and configuration settings.
+	// Cobra supports Persistent Flags, which, if defined here,
+	// will be global for your application.
+
+	RootCmd.PersistentFlags().StringVar(&amp;amp;cfgFile, &amp;quot;config&amp;quot;, &amp;quot;&amp;quot;, &amp;quot;config file (default is $HOME/.pi.yaml)&amp;quot;)
+	// Cobra also supports local flags, which will only run
+	// when this action is called directly.
+	RootCmd.Flags().BoolP(&amp;quot;toggle&amp;quot;, &amp;quot;t&amp;quot;, false, &amp;quot;Help message for toggle&amp;quot;)
+}
+
+// initConfig reads in config file and ENV variables if set.
+func initConfig() {
+	if cfgFile != &amp;quot;&amp;quot; { // enable ability to specify config file via flag
+		viper.SetConfigFile(cfgFile)
+	}
+
+	viper.SetConfigName(&amp;quot;.pi&amp;quot;) // name of config file (without extension)
+	viper.AddConfigPath(&amp;quot;$HOME&amp;quot;)  // adding home directory as first search path
+	viper.AutomaticEnv()          // read in environment variables that match
+
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Println(&amp;quot;Using config file:&amp;quot;, viper.ConfigFileUsed())
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;この状態でいきなり動かしてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go
+A longer description that spans multiple lines and likely contains
+examples and usage of using your application. For example:
+
+Cobra is a CLI library for Go that empowers applications.
+This application is a tool to generate the needed files
+to quickly create a Cobra application.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;RootCmd&lt;/code&gt; で定義した説明が表示されているのがわかると思う。&lt;/p&gt;
+
+&lt;p&gt;次にサブコマンドを定義する。
+名前は &lt;code&gt;plot&lt;/code&gt; と &lt;code&gt;estmt&lt;/code&gt; としようか。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ cobra add plot
+plot created at C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi\cmd\plot.go
+
+$ cobra add estmt
+estmt created at C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi\cmd\estmt.go
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これで &lt;code&gt;cmd/plot.go&lt;/code&gt; と &lt;code&gt;cmd/estmt.go&lt;/code&gt; のふたつが生成された。
+&lt;code&gt;cmd/plot.go&lt;/code&gt; の中身を見てみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Copyright Â© 2016 NAME HERE &amp;lt;EMAIL ADDRESS&amp;gt;
+//
+// Licensed under the Apache License, Version 2.0 (the &amp;quot;License&amp;quot;);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &amp;quot;AS IS&amp;quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cmd
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;github.com/spf13/cobra&amp;quot;
+)
+
+// plotCmd represents the plot command
+var plotCmd = &amp;amp;cobra.Command{
+	Use:   &amp;quot;plot&amp;quot;,
+	Short: &amp;quot;A brief description of your command&amp;quot;,
+	Long: `A longer description that spans multiple lines and likely contains examples
+and usage of using your command. For example:
+
+Cobra is a CLI library for Go that empowers applications.
+This application is a tool to generate the needed files
+to quickly create a Cobra application.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// TODO: Work your own magic here
+		fmt.Println(&amp;quot;plot called&amp;quot;)
+	},
+}
+
+func init() {
+	RootCmd.AddCommand(plotCmd)
+
+	// Here you will define your flags and configuration settings.
+
+	// Cobra supports Persistent Flags which will work for this command
+	// and all subcommands, e.g.:
+	// plotCmd.PersistentFlags().String(&amp;quot;foo&amp;quot;, &amp;quot;&amp;quot;, &amp;quot;A help for foo&amp;quot;)
+
+	// Cobra supports local flags which will only run when this command
+	// is called directly, e.g.:
+	// plotCmd.Flags().BoolP(&amp;quot;toggle&amp;quot;, &amp;quot;t&amp;quot;, false, &amp;quot;Help message for toggle&amp;quot;)
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; パッケージで特徴的なのは，サブコマンドを追加する際に &lt;code&gt;cmd/root.go&lt;/code&gt; を変更する必要が無いことである。
+サブコマンドの組み込みは &lt;code&gt;cmd&lt;/code&gt; パッケージ内の &lt;code&gt;init()&lt;/code&gt; 関数によって &lt;code&gt;main()&lt;/code&gt; 起動前に行われる。&lt;/p&gt;
+
+&lt;h2 id=&#34;cli-の作成&#34;&gt;CLI の作成&lt;/h2&gt;
+
+&lt;p&gt;では，生成されたテンプレートをベースに機能を組み込んでいく。 &amp;hellip;というわけで，出来上がりが以下の repository にある。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/pi&#34;&gt;spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;フォルダ構成は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;github.com/spiegel-im-spiegel/pi
+|   .editorconfig
+|   .gitignore
+|   glide.lock
+|   glide.yaml
+|   LICENSE
+|   main.go
+|   README.md
+|
++---cmd
+|       estmt.go
+|       plot.go
+|       root.go
+|
++---estmt
+|       estmt.go
+|
++---gencmplx
+|       gencmplx.go
+|
++---genpi
+|       genpi.go
+|
+\---plot
+        plot.go
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;そして各パッケージの構成は以下のようになっている。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/estimate-of-pi.svg&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/estimate-of-pi.svg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;パッケージ構成&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;http://text.baldanders.info/images/estimate-of-pi.svg&#34;&gt;パッケージ構成&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34; title=&#34;モンテカルロ法による円周率の推定（その1）&#34;&gt;前回&lt;/a&gt;と変わったところは &lt;code&gt;estmt&lt;/code&gt; パッケージを追加したことだろうか。
+こんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package genpi
+
+import (
+	&amp;quot;math/cmplx&amp;quot;
+	&amp;quot;math/rand&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
+)
+
+//New returns generator of Pi
+func New(pc, ec int64) &amp;lt;-chan float64 {
+	ch := make(chan float64)
+	pcf := float64(pc)
+	go func(pc, ec int64) {
+		for i := int64(0); i &amp;lt; ec; i++ {
+			c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), pc)
+			m := int64(0) // plot in circle
+			for p := range c {
+				if cmplx.Abs(p) &amp;lt;= float64(1) {
+					m++
+				}
+			}
+			ch &amp;lt;- float64(4*m) / pcf
+		}
+		close(ch)
+	}(pc, ec)
+
+	return ch
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;指定した回数だけ推定処理を行い，結果を [channel] に渡している。
+たとえば100,000個の点から円周率を推定する処理を10回をしたければ&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go estmt -e 10 -p 100000
+3.14576
+3.1422
+3.13716
+3.14648
+3.14852
+3.13952
+3.14824
+3.13828
+3.14532
+3.14312
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とすればよい。&lt;/p&gt;
+
+&lt;p&gt;これでようやく評価のための準備が整った。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://lab.flama.co.jp/archives/1536/&#34;&gt;GolangでCLIの場合にcobraを使うことにした件 | FLAMA技術Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/astronoka/items/aa2f271d280863cedf5e&#34;&gt;packageに複数のinitがあるときの挙動 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>モンテカルロ法による円周率の推定（その1） — プログラミング言語 Go</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi/" />
 		<id>tag:text.Baldanders.info,2016-11-05:/golang/estimate-of-pi/</id>
 		<published>2016-11-05T23:26:29+09:00</published>
-		<updated>2016-11-05T23:26:29+09:00</updated>
+		<updated>2016-11-06T08:42:22+09:00</updated>
 		<summary>乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。</summary>
 		
 			<author>
@@ -34,6 +454,11 @@
 &lt;p&gt;乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。
 ので早速試してみる。
 ちなみに「モンテカルロ法」というのは数値計算やシミュレーションに乱数を用いる手法をさす。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
 
 &lt;h2 id=&#34;モンテカルロ法による円周率の推定&#34;&gt;モンテカルロ法による円周率の推定&lt;/h2&gt;
 
@@ -54,7 +479,7 @@
 &lt;figcaption&gt;&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34;&gt;From Wikimedia Commons&lt;/a&gt;&lt;/figcaption&gt;
 &lt;/figure&gt;
 
-&lt;p&gt;全ての点 $n$ が領域内に均等にプロットされていれば，円の内側に入る点の数 $m$ は以下の式のようになることが期待できる。&lt;/p&gt;
+&lt;p&gt;全ての点 $n$ が領域内に均等にプロットされていれば，円の内側に入る点の数 $m$ は，面積比から，以下の式のようになると期待できる。&lt;/p&gt;
 
 &lt;figure&gt;
 &lt;blockquote&gt;
@@ -143,7 +568,7 @@ func main() {
 ちなみに &lt;code&gt;cmplx.Abs()&lt;/code&gt; 関数は複素数の絶対値を取るもので， $\sqrt{x^2 + y^2}$ と同じである。&lt;/p&gt;
 
 &lt;p&gt;では，以上を踏まえてランダムな点を生成する &lt;code&gt;gencmplx&lt;/code&gt; パッケージを作ってみよう。
-こんな感じかな。&lt;/p&gt;
+&lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; と &lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt; を使ってこんな感じにするかな。&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package gencmplx
 
@@ -186,7 +611,9 @@ func main() {
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;p&gt;ここでは少なめに1万個の点を生成している。
-早速これを動かしてみよう。&lt;/p&gt;
+&lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; &lt;code&gt;c&lt;/code&gt; からの値の取り出しは for-range 構文を使うと記述がシンプルになり &lt;code&gt;c&lt;/code&gt; が &lt;code&gt;close()&lt;/code&gt; するまでループしてくれる。&lt;/p&gt;
+
+&lt;p&gt;早速これを動かしてみよう。&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go &amp;gt; plot-1.dat
 &lt;/code&gt;&lt;/pre&gt;
@@ -200,7 +627,7 @@ func main() {
 &lt;/figure&gt;
 
 &lt;p&gt;うーん。
-一様？ なのかなぁ。
+均等？ なのかなぁ。
 まぁ，この辺の評価については後ほど。&lt;/p&gt;
 
 &lt;p&gt;最後に，生成した点の集合から円周率を推定するところまでやってみよう。
@@ -255,11 +682,18 @@ n = 100000, m = 78397, 4m/n = 3.13588
 &lt;li&gt;&lt;a href=&#34;http://www.cse.kyoto-su.ac.jp/~oomoto/lecture/program/gnuplot/gnuplot.html&#34;&gt;GNUPLOTを用いたグラフ作成&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+
 &lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
 
 &lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
 &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
 &lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1FO/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/416jAxVU4NL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1FO/baldandersinf-22/&#34;&gt;数学ガール／乱択アルゴリズム&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ株式会社 2014-02-14&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1D6/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1D6.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／ゲーデルの不完全性定理&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1CM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1CM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／フェルマーの最終定理&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00L0PDMK4.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／ガロア理論&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00EYXMA9I/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00EYXMA9I.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMIQ/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00L0PDMIQ.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／式とグラフ&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34; &gt;工学ガール，リサちゃん登場！&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#34;#maker&#34; class=&#34;reviewer&#34;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-04-19&#34;&gt;2015/04/19&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34;&gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class=&#34;footnotes&#34;&gt;
 
@@ -2602,237 +3036,6 @@ god3[0] = U+795E &#39;神&#39;
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:fs&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:mac&#34;&gt;たとえば Linus Torvalds は HFS+ に起因する git の脆弱性問題で&lt;a href=&#34;http://cpplover.blogspot.jp/2015/01/blog-post_14.html&#34;&gt;激怒&lt;/a&gt;している。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:mac&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>Go 言語の日付処理 — プログラミング言語 Go</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/time-functions/" />
-		<id>tag:text.Baldanders.info,2016-01-22:/golang/time-functions/</id>
-		<published>2016-01-22T20:56:21+09:00</published>
-		<updated>2016-05-21T10:27:41+09:00</updated>
-		<summary>今回は日付処理の話。特にフォーマットの定義の仕方はよく忘れるので覚え書きとして記しておく。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;今回は日付処理の話。
-特にフォーマットの定義の仕方はよく忘れるので覚え書きとして記しておく。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で日付処理を行うには &lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt; パッケージを使う。
-よく使う型としては&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Time&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Duration&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Location&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;が挙げられるだろう。
-&lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Time&lt;/code&gt; は時刻を， &lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Duration&lt;/code&gt; は2時点間の時間を，そして &lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Location&lt;/code&gt; は地球上の時差を表す型である。
-たとえば&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-func main() {
-	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	tm := time.Date(2006, 1, 2, 15, 4, 5, 0, tz)
-	fmt.Println(tm)
-	now := time.Now()
-	fmt.Println(now)
-	d := now.Sub(tm)
-	fmt.Println(d)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;と書くと&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;2006-01-02 15:04:05 +0900 JST
-2009-11-10 23:00:00 +0000 UTC
-33808h55m55s
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;てな感じになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:m&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:m&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;p&gt;時刻を任意のフォーマットで表示する場合は少し特殊な方法を使う。
-たとえば &lt;a href=&#34;https://tools.ietf.org/html/rfc3339&#34;&gt;RFC 3339&lt;/a&gt; フォーマットに出力するなら&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-func main() {
-	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	tm := time.Date(2015, 12, 31, 23, 59, 59, 0, tz)
-	fmt.Println(tm.Format(&amp;quot;2006-01-02T15:04:05Z07:00&amp;quot;))
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;とすれば&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;2015-12-31T23:59:59+09:00
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;と出力される。
-テンプレート文字列が &lt;code&gt;%Y&lt;/code&gt; とか &lt;code&gt;YYYY&lt;/code&gt; のような形式ではないのだ。
-これは適当な文字列ではなく一応法則があって&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;月は &lt;code&gt;1&lt;/code&gt; （または &lt;code&gt;01&lt;/code&gt;, &lt;code&gt;Jan&lt;/code&gt;, &lt;code&gt;January&lt;/code&gt;）&lt;/li&gt;
-&lt;li&gt;日は &lt;code&gt;2&lt;/code&gt; （または &lt;code&gt;02&lt;/code&gt;, &lt;code&gt;_2&lt;/code&gt;）&lt;/li&gt;
-&lt;li&gt;時は &lt;code&gt;3&lt;/code&gt; （または &lt;code&gt;03&lt;/code&gt;, &lt;code&gt;15&lt;/code&gt;） ※ 午後3時を指す&lt;/li&gt;
-&lt;li&gt;分は &lt;code&gt;4&lt;/code&gt; （または &lt;code&gt;04&lt;/code&gt;）&lt;/li&gt;
-&lt;li&gt;秒は &lt;code&gt;5&lt;/code&gt; （または &lt;code&gt;05&lt;/code&gt;）&lt;/li&gt;
-&lt;li&gt;年は &lt;code&gt;06&lt;/code&gt; （または &lt;code&gt;2006&lt;/code&gt;）&lt;/li&gt;
-&lt;li&gt;時差は &lt;code&gt;-07&lt;/code&gt; （または &lt;code&gt;-0700&lt;/code&gt;, &lt;code&gt;-07:00&lt;/code&gt;, &lt;code&gt;Z07:00&lt;/code&gt;, &lt;code&gt;MST&lt;/code&gt;&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:tz&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:tz&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; など）&lt;/li&gt;
-&lt;li&gt;曜日は &lt;code&gt;Mon&lt;/code&gt; （または &lt;code&gt;Monday&lt;/code&gt;）&lt;/li&gt;
-&lt;li&gt;AM/PM は &lt;code&gt;PM&lt;/code&gt; （または &lt;code&gt;pm&lt;/code&gt;）&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;という感じに 1 からの連番になっている（曜日等は例外だけど）ので，まぁ覚えられるかな？ でもよく忘れるんだよなぁ。
-&lt;code&gt;%Y&lt;/code&gt; みたいなのとどちらがいいかは微妙な気がするが，慣れの問題かもしれない。&lt;/p&gt;
-
-&lt;p&gt;典型的なフォーマットは定数化されている。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;const (
-	ANSIC       = &amp;quot;Mon Jan _2 15:04:05 2006&amp;quot;
-	UnixDate    = &amp;quot;Mon Jan _2 15:04:05 MST 2006&amp;quot;
-	RubyDate    = &amp;quot;Mon Jan 02 15:04:05 -0700 2006&amp;quot;
-	RFC822      = &amp;quot;02 Jan 06 15:04 MST&amp;quot;
-	RFC822Z     = &amp;quot;02 Jan 06 15:04 -0700&amp;quot; // RFC822 with numeric zone
-	RFC850      = &amp;quot;Monday, 02-Jan-06 15:04:05 MST&amp;quot;
-	RFC1123     = &amp;quot;Mon, 02 Jan 2006 15:04:05 MST&amp;quot;
-	RFC1123Z    = &amp;quot;Mon, 02 Jan 2006 15:04:05 -0700&amp;quot; // RFC1123 with numeric zone
-	RFC3339     = &amp;quot;2006-01-02T15:04:05Z07:00&amp;quot;
-	RFC3339Nano = &amp;quot;2006-01-02T15:04:05.999999999Z07:00&amp;quot;
-	Kitchen     = &amp;quot;3:04PM&amp;quot;
-	// Handy time stamps.
-	Stamp      = &amp;quot;Jan _2 15:04:05&amp;quot;
-	StampMilli = &amp;quot;Jan _2 15:04:05.000&amp;quot;
-	StampMicro = &amp;quot;Jan _2 15:04:05.000000&amp;quot;
-	StampNano  = &amp;quot;Jan _2 15:04:05.000000000&amp;quot;
-)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;なので，先ほどのコードも出力部分を&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;fmt.Println(tm.Format(time.RFC3339))
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;とすれば同じ結果が得られる。
-時刻フォーマットは，いったんシステムの中で決めてしまえば同じものを使い回すことになると思うので，定数化してしまえば「フォーマットどうだっけ？」と煩わされることも少ないだろう。&lt;/p&gt;
-
-&lt;p&gt;ところでバージョン 1.5 系の &lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Parse()&lt;/code&gt; 関数は日付の解釈が寛容で，各月の末日を31日まで許容している。
-たとえば閏年でない2月29日でも&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-func main() {
-	tm, err := time.Parse(time.RFC3339, &amp;quot;2015-02-29T23:59:59+09:00&amp;quot;)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	fmt.Println(tm)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code&gt;2015-03-01 23:59:59 +0900 +0900
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;となり，エラーとならずいい感じ（？）に加減してくれるのだが，バージョン 1.6 からは少し解釈が厳密になりエラーを返すようだ。&lt;/p&gt;
-
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote&gt;
-&lt;q&gt;The &lt;a href=&#34;https://tip.golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt; package&#39;s &lt;a href=&#34;https://tip.golang.org/pkg/time/#Parse&#34;&gt;&lt;code&gt;Parse&lt;/code&gt;&lt;/a&gt; function has always rejected any day of month larger than 31, such as January 32. In Go 1.6, Parse now also rejects February 29 in non-leap years, February 30, February 31, April 31, June 31, September 31, and November 31.&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://tip.golang.org/doc/go1.6&#34;&gt;Go 1.6 Release Notes - The Go Programming Language&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;実際に 1.6 で上のコードを実行すると&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;parsing time &amp;quot;2015-02-29T23:59:59+09:00&amp;quot;: day out of range
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;とエラーが返ってくる。&lt;/p&gt;
-
-&lt;p&gt;ちなみに &lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Date()&lt;/code&gt; 関数は更に寛容である。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-func main() {
-	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	tm := time.Date(2015, 13, 32, 25, 60, 00, 0, tz)
-	fmt.Println(tm)
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code&gt;2016-02-02 02:00:00 +0900 JST
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://ymotongpoo.hatenablog.com/entry/2015/12/22/000011&#34;&gt;Goで良い感じに日時をパースするライブラリdatemakiの話とGo 1.6 - YAMAGUCHI::weblog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/ushio_s/items/3e270933641710bbd88e&#34;&gt;golangのtime.Timeの当日00:00:00を取得する方法とベンチマーク - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/masa23/items/e781124a7e0305bc40c4&#34;&gt;Golang 日付のフォーマットでハマった話 - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:m&#34;&gt;厳密にいうと月の値は &lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Month&lt;/code&gt; 型である。サンプル・コードのようにリテラルな数値なら気にする必要はないが，変数を &lt;a href=&#34;http://golang.org/pkg/time/&#34;&gt;&lt;code&gt;time&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Date()&lt;/code&gt; 関数にセットする場合は注意が必要である。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:m&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:tz&#34;&gt;時差の MST は米国の山岳部時間（Mountain Standad Time）を指すらしい。ソルトレイクシティとかデンバーとかかな。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:tz&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
