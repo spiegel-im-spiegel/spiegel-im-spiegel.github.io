@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.17" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>「null 安全」について — しっぽのさきっちょ | text.Baldanders.info</title>
+<meta name="description" content="nullable 参照と non-null 参照の区別は，コードに「意図」を記述することを言語仕様レベルで規定するものである。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="programming,null-safety">
+<link rel='prev' href='http://text.baldanders.info/remark/2016/11/kotlin/' title='Kotlin に関する覚え書き' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<div><strong><a href="/remark">しっぽのさきっちょ</a>: 2016-11-13 付</strong></div>
+<h1 itemprop='name'>「null 安全」について</h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/null-safety">null-safety</a> #<a href="/tags/programming">programming</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2016/11/null-safety/index.html">History</a></div>
+</nav>
+
+<section><div>
+<div style="float:right;margin:0.5em;padding:0.5em;">
+<a href="http://www.baldanders.info/spiegel/log2/000820.shtml" title="Stop Fast Track TPP — Baldanders.info"><img src="http://www.baldanders.info/images/noextension.png" alt="no extension" width="165" height="50" /></a>
+</div>
+
+
+<figure>
+<blockquote>
+<q>公理によって与えられる暗黙の制約。この制約が集合の要素同士をしっかり結びつける。単純にしばるのではない、相互に秩序ある関係を結ぶ。言い換えれば――公理によって与えられる制約が構造を生み出しているのだ</q>
+</blockquote>
+<figcaption>via <q><a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1CM/baldandersinf-22/">数学ガール／フェルマーの最終定理</a></q></figcaption>
+</figure>
+
+<ul>
+<li><a href="http://qiita.com/koher/items/e4835bd429b88809ab33">null安全でない言語は、もはやレガシー言語だ - Qiita</a></li>
+<li><a href="http://qiita.com/omochimetaru/items/ee29d4c6eb0d78f02b15">null安全を誤解している人達へのメッセージ - Qiita</a></li>
+</ul>
+
+<p>「null 安全（null safety）」についての上の記事はなかなか興味深かった。
+特に「<a href="http://qiita.com/omochimetaru/items/ee29d4c6eb0d78f02b15">null安全を誤解している人達へのメッセージ</a>」は事実上の FAQ になっているので是非読んでみてほしい。</p>
+
+<p>以下は個人的なメモ。</p>
+
+<p>「null 参照（null reference）」とは「参照が無効である」ことを示すものだ。
+「null 参照」は昔から悩ましい問題である<sup class="footnote-ref" id="fnref:ah"><a rel="footnote" href="#fn:ah">1</a></sup>。
+どんなプログラムであれ「null 参照」が存在するのであれば，それを異常系としてハンドリングしなければならない。
+しかし大抵の場合，「null 参照」をセットする場所と評価する場所は異なっていて，特にライブラリやフレームワークの中で「null 参照」をセットしている場合は評価されることなくスルーしてしまうことも多い。</p>
+
+<p>オブジェクト指向以前，たとえばアセンブラや C 言語の時代では値と参照は明確に区別されているわけではなく，「それ」を値と見なすのか「参照（addressing/pointer）」と見なすのかは完全にプログラマの責任だった。
+それからオブジェクト指向プログラミングが産業分野でも台頭してきたのだが，このパラダイムシフトの過程で「参照（reference）」が言語仕様レベルで意味を持つものとなった。</p>
+
+<p>更に「null 安全」な言語では nullable （null かもしれない）参照と non-null （null を許容しない）参照を明確に区別し未評価の nullable 参照をエラーと見なす。
+これは言語仕様の根幹<sup class="footnote-ref" id="fnref:ns"><a rel="footnote" href="#fn:ns">2</a></sup> に関わるパラダイムシフトのひとつである。</p>
+
+<p>もちろん設計<sup class="footnote-ref" id="fnref:vo"><a rel="footnote" href="#fn:vo">3</a></sup> などで「null 参照」に起因するバグや脆弱性を回避することは重要である。
+「null 参照」をいかにハンドリングするのかは相変わらずプログラマの責任なのだから。
+機械がやってくれるのは nullable 参照をそのままアドホックに使いまわさないようコンパイルエラーを出すところまでだ。（ただし，そのコードがコンパイルエラーになるのなら少なくとも製品として世に出ることはない）</p>
+
+<p>私はアセンブラや C 言語（それも K&amp;R バージョン）が全盛のころからの（今やロートル）エンジニアだが，こうして見ていくと人と機械の責務分担が時代ごとに変わっていくのを感じる。</p>
+
+<p>私は将来のプログラミング言語においてはコードに「意図」を記述できるようになっていくと期待している。
+nullable 参照と non-null 参照の区別は，コードに「意図」を記述することを言語仕様レベルで規定するものと言える。
+これまでもコンパイラヒントとしての annotation のような機能はあったが，そういったものとは質的に異なっている。</p>
+
+<p>コードに「意図」を記述できるようになれば，それ自体が設計書になる。
+最近の私は「プログラマも要求定義（開発）から参加すべき」と思っている。
+参加してがんがんコードを書けばいい。
+百万ページの設計書より「動くコード」のほうが価値が高い。</p>
+
+<p>これまでもそうだったように，コードの「正しさ」を機械の側で担保してくれるならプログラマはもっと違うことに脳みそを振り分けられる。
+テストを書かずに済むならそれに越したことはない。
+まぁ，最終的に AI がコードを書くようになればプログラマという職業がなくなる（もしくは意味が変わる）かもだけど（笑）</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="https://tbd.kaitoy.xyz/2015/07/26/why-null-is-bad/">なぜNullはダメか | To Be Decided</a></li>
+<li><a href="http://qiita.com/kmry2045/items/0d412a6461de70719ec4">Null安全な言語をめぐるエトセトラ　その１　３種の「現場」 - Qiita</a></li>
+<li><a href="http://qiita.com/takasek/items/119218a2bae2f75062c0">null安全はいいぞ。だって、型安全はいいぞ。 - Qiita</a></li>
+</ul>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:ah">「null 参照」による損失を10億ドルと見積もっている人もいる。（「<a href="https://en.wikipedia.org/wiki/Tony_Hoare">Tony Hoare - Wikipedia</a>」参照）
+ <a class="footnote-return" href="#fnref:ah"><sup>[return]</sup></a></li>
+<li id="fn:ns">たとえば nullable 参照と non-null 参照を区別するのであればおそらく静的な型付けが要求されるだろうし，型を円滑にドライブするには型推論も必要かもしれない。
+ <a class="footnote-return" href="#fnref:ns"><sup>[return]</sup></a></li>
+<li id="fn:vo">たとえば安直に null をセットするのではなく null 状態を扱える適切な value object を使うなど。そういえば <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>ではある型の値が nil でもその型に紐付く関数（参照渡し）を呼び出すことができ（故に nil は必ず何らかの型を持っている）， nil を正しくハンドリングするのはその関数の責務となっている（「<a href="/golang/function-and-pointer/">関数とポインタ</a>」参照）。そういう意味でも <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>は value object を構成するのに都合がいい。なお <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>は「null 安全」ではない，残念ながら。
+ <a class="footnote-return" href="#fnref:vo"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2016/11/kotlin/">Kotlin に関する覚え書き</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/remark\/2016\/11\/null-safety\/';
+    var disqus_title = '「null 安全」について';
+    var disqus_url = 'http:\/\/text.baldanders.info\/remark\/2016\/11\/null-safety\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-11-13</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f11%2fnull-safety%2f" rel=”nofollow” target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=%e3%80%8cnull%20%e5%ae%89%e5%85%a8%e3%80%8d%e3%81%ab%e3%81%a4%e3%81%84%e3%81%a6&amp;url=http%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f11%2fnull-safety%2f" rel=”nofollow” target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f11%2fnull-safety%2f&amp;title=%e3%80%8cnull%20%e5%ae%89%e5%85%a8%e3%80%8d%e3%81%ab%e3%81%a4%e3%81%84%e3%81%a6" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f11%2fnull-safety%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.17</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+
