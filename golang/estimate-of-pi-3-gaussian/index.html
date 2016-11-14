@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.17" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>モンテカルロ法による円周率の推定（その3 Gaussian） — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="さて，前回書いたコードを利用していよいよ円周率の推定結果を評価してみる。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,math,random,circle-ratio,gaussian">
+<link rel='prev' href='http://text.baldanders.info/golang/estimate-of-pi-2-cli/' title='モンテカルロ法による円周率の推定（その2 CLI）' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>モンテカルロ法による円周率の推定（その3 Gaussian） — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/circle-ratio">circle-ratio</a> #<a href="/tags/gaussian">gaussian</a> #<a href="/tags/golang">golang</a> #<a href="/tags/math">math</a> #<a href="/tags/random">random</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/estimate-of-pi-3-gaussian/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<ol>
+<li><a href="/golang/estimate-of-pi/">モンテカルロ法による円周率の推定（その1）</a></li>
+<li><a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a></li>
+<li><a href="/golang/estimate-of-pi-3-gaussian/">モンテカルロ法による円周率の推定（その3 Gaussian）</a> ← イマココ</li>
+</ol>
+
+<h2 id="推定結果の分布">推定結果の分布</h2>
+
+<p>さて，<a href="/golang/estimate-of-pi-2-cli/" title="モンテカルロ法による円周率の推定（その2 CLI）">前回</a>書いたコードを利用していよいよ円周率の推定結果を評価してみる。</p>
+
+<ul>
+<li><a href="https://github.com/spiegel-im-spiegel/pi">spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.</a></li>
+</ul>
+
+<p>CLI はこんな感じになった。</p>
+
+<pre><code class="language-text">$ go run main.go estmt --help
+Estimate of Pi with Monte Carlo method.
+
+Usage:
+  pi estmt [flags]
+
+Flags:
+  -e, --ecount int   Count of estimate (default 100)
+  -p, --pcount int   Count of points (default 10000)
+
+Global Flags:
+      --config string   config file (default is $HOME/.pi.yaml)
+</code></pre>
+
+<p>まずは円周率の推定処理を10,000回繰り返してみる。
+また推定処理のためのランダムな点の数 $n$ を1,000個，10,000個，100,000個と変えて実行してみようか。</p>
+
+<pre><code class="language-text">$ go run main.go estmt -e 10000 -p 1000 &gt; estmt1k.dat
+minimum value: 2.94800
+maximum value: 3.31600
+average value: 3.14199
+standard deviation: 0.05104 (69.9%)
+
+$ go run main.go estmt -e 10000 -p 10000 &gt; estmt10k.dat
+minimum value: 3.07240
+maximum value: 3.20360
+average value: 3.14178
+standard deviation: 0.01654 (68.0%)
+
+$ go run main.go estmt -e 10000 -p 100000 &gt; estmt100k.dat
+minimum value: 3.12360
+maximum value: 3.16184
+average value: 3.14163
+standard deviation: 0.00518 (68.3%)
+</code></pre>
+
+<p>最後のはさすがに時間がかかるので，お茶でも飲みながら優雅に待ちましょう（笑）</p>
+
+<p>標準エラー出力に最小値，最大値，平均値（$E$），標準偏差（$\sigma$）を出力してみた。
+標準偏差の後ろの括弧は $\left[ E-\sigma, E+\sigma \right]$ の範囲にある推定値の割合を示したものだ。</p>
+
+<p>円周率の推定処理の試行回数が十分大きいなら推定値の分布は正規分布（またはガウス分布）に近似できる筈である。
+（以下の<a href="https://commons.wikimedia.org/wiki/File:Standard_deviation_diagram.svg" title="File:Standard deviation diagram.svg - Wikimedia Commons">図は Wikimedia Commons のもの</a>を拝借した。 <a href="https://creativecommons.org/licenses/by/2.5/" title="Creative Commons — Attribution 2.5 Generic — CC BY 2.5">CC-BY-2.5 Generic</a> で公開されている）
+<figure style='margin:0 auto;text-align:center;'>
+<a href="https://commons.wikimedia.org/wiki/File:Standard_deviation_diagram.svg"><img srcset="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Standard_deviation_diagram.svg/640px-Standard_deviation_diagram.svg.png 640w" sizes="(min-width:600px) 500px, 80vw" alt="normal distribution from Wikimedia"></a>
+<figcaption><a href="https://commons.wikimedia.org/wiki/File:Standard_deviation_diagram.svg">normal distribution from Wikimedia</a></figcaption>
+</figure></p>
+
+<p>そこで $n=100,000$ のときの推定結果についてヒストグラムを描いてみる。
+幸いなことに <a href="http://www.gnuplot.info/" title="gnuplot homepage">gnuplot</a> では簡単にヒストグラムを作図できる。
+こんな感じ（階級幅を0.001としている）。</p>
+
+<pre><code class="language-text">gnuplot&gt; filter(x,y)=int(x/y)*y
+gnuplot&gt; plot &quot;estmt100k.dat&quot; u (filter($1,0.001)):(1) smooth frequency with boxes lc rgb &quot;black&quot;
+</code></pre>
+
+<p><a href="http://www.gnuplot.info/" title="gnuplot homepage">gnuplot</a> の出力結果はこんな感じ。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/histogram.png"><img srcset="/images/histogram.png 640w" sizes="(min-width:600px) 500px, 80vw" alt=""></a>
+
+</figure>
+
+<p>んー。
+まぁ正規分布っぽい？</p>
+
+<p>もうひとつ，正規確率の分布を調べてみよう。
+これも <a href="http://www.gnuplot.info/" title="gnuplot homepage">gnuplot</a> で描こうと思ったけど，少し面倒そうなので，ズルして以下を参考に <a href="https://www.libreoffice.org/" title="Home | LibreOffice - Free Office Suite - Fun Project - Fantastic People">LibreOffice</a> の Calc で描くことにした<sup class="footnote-ref" id="fnref:calc"><a rel="footnote" href="#fn:calc">1</a></sup>。</p>
+
+<ul>
+<li><a href="http://hitorimarketing.net/tools/normal-quantile-quantile-plot.html">正規確率プロット（Normal Q-Q Plot）の作成 with Excel</a></li>
+</ul>
+
+<p>とりあえず結果だけ。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/qq-plot.png"><img srcset="/images/qq-plot.png 653w" sizes="(min-width:600px) 500px, 80vw" alt=""></a>
+
+</figure>
+
+<p>プロットが直線状に並んでいれば正規分布であると言える。
+図から見る限り，概ね正規分布になっているようである。</p>
+
+<h2 id="モンテカルロ法の誤差評価">モンテカルロ法の誤差評価</h2>
+
+<p>モンテカルロ法を使ってどの程度の精度で円周率が求まるかの考察については以下が参考になる。</p>
+
+<ul>
+<li><a href="http://ruby.kyoto-wu.ac.jp/info-com/NumericalModels/RandomProcess/estimateMCmodel.html">モンテカルロ法の誤差を考える</a></li>
+</ul>
+
+<p>これも横着して結果だけを拝借すると， $n=100,000$ で推定を行った場合の値の分布は，中央値を $\pi$，99%信頼区間を $\frac{4.230}{\sqrt{100,000}} = 0.013$ として， $\left[ \pi - 0.013, \pi + 0.013 \right]$ の範囲になるようだ。</p>
+
+<p>しまった。
+今回は <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>が全然出てこなかった。
+まぁ，いいや。
+多分あと1回続きます。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="http://qiita.com/iwiwi/items/4c7635d4c84bc785e47a">gnuplot でヒストグラム（頻度分布図）を描画する - Qiita</a></li>
+<li><a href="http://qiita.com/kenmatsu4/items/59605dc745707e8701e0">【統計学】Q-Qプロットの仕組みをアニメーションで理解する。 - Qiita</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1FO/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/416jAxVU4NL._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1FO/baldandersinf-22/">数学ガール／乱択アルゴリズム</a></dt><dd>結城 浩 </dd><dd>SBクリエイティブ株式会社 2014-02-14</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1D6/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8AT1D6.09._SCTHUMBZZZ_.jpg"  alt="数学ガール／ゲーデルの不完全性定理"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1CM/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8AT1CM.09._SCTHUMBZZZ_.jpg"  alt="数学ガール／フェルマーの最終定理"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00L0PDMK4.09._SCTHUMBZZZ_.jpg"  alt="数学ガール／ガロア理論"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00EYXMA9I/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00EYXMA9I.09._SCTHUMBZZZ_.jpg"  alt="数学ガール"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMIQ/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00L0PDMIQ.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート／式とグラフ"  /></a> </p>
+<p class="description" >工学ガール，リサちゃん登場！</p>
+<p class="gtools" >reviewed by <a href="#maker" class="reviewer">Spiegel</a> on <abbr class="dtreviewed" title="2015-04-19">2015/04/19</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html">G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:calc">Calc でも Excel の関数がそのまま使えるようだ。助かる。
+ <a class="footnote-return" href="#fnref:calc"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/estimate-of-pi-3-gaussian\/';
+    var disqus_title = 'モンテカルロ法による円周率の推定（その3 Gaussian）';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/estimate-of-pi-3-gaussian\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-11-14</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-3-gaussian%2f" rel=”nofollow” target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae3%20Gaussian%ef%bc%89&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-3-gaussian%2f" rel=”nofollow” target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-3-gaussian%2f&amp;title=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae3%20Gaussian%ef%bc%89" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-3-gaussian%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.17</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+
