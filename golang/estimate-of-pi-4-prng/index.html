@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.17" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>モンテカルロ法による円周率の推定（その4 PRNG） — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="math/rand パッケージでは rand.Source interface を持つ別の擬似乱数生成器を使うことができる。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,math,random,circle-ratio">
+<link rel='prev' href='http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/' title='モンテカルロ法による円周率の推定（その3 Gaussian）' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>モンテカルロ法による円周率の推定（その4 PRNG） — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/circle-ratio">circle-ratio</a> #<a href="/tags/golang">golang</a> #<a href="/tags/math">math</a> #<a href="/tags/random">random</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/estimate-of-pi-4-prng/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<ol>
+<li><a href="/golang/estimate-of-pi/">モンテカルロ法による円周率の推定（その1）</a></li>
+<li><a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a></li>
+<li><a href="/golang/estimate-of-pi-3-gaussian/">モンテカルロ法による円周率の推定（その3 Gaussian）</a></li>
+<li><a href="/golang/estimate-of-pi-4-prng/">モンテカルロ法による円周率の推定（その4 PRNG）</a> ← イマココ</li>
+</ol>
+
+<p>「モンテカルロ法による円周率の推定」もひととおり終わったので，今回は擬似乱数生成器（pseudo random number generator）の話。</p>
+
+<h2 id="math-rand-の擬似乱数生成器">math/rand の擬似乱数生成器</h2>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>では <a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> パッケージで擬似乱数を取り扱えることは「<a href="/golang/estimate-of-pi/" title="モンテカルロ法による円周率の推定（その1）">その1</a>」で紹介した通り。
+<a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> パッケージに実装されている擬似乱数生成器は ALFG (Additive Lagged Fibonacci Generator) のバリエーションらしい。</p>
+
+<figure lang="en">
+<blockquote>
+<q>If I am not mistaken again, the generator is an ALFG (Additive Lagged Fibonacci Generator, thats what Wikipedia calls it). Knuth describes the algorithm in Volume 2 of The art of computer programming in section 3.2.2 (around equation 7). Both Wikipedia and Knuth state the parameter combination 607,273 as possible combination with a period length of 2^(e-1)*(2^607-1) where e is the length of the random number in bits.<br>
+I actually found a few references examining its properties and it seems to be a good rng so faar, but there is still seems to be a lack of mathematical background and it is fairly easy to get into trouble by not seeding properly.</q>
+</blockquote>
+<figcaption>via <q><a href="https://groups.google.com/forum/#!topic/golang-nuts/RZ1G3_cxMcM">[Announce] A rand package for high quality 64bit random numbers (possibly go2)</a></q></figcaption>
+</figure>
+
+<p>ラグ付フィボナッチ法は<a href="#lcg">線形合同法（後述）</a>を改善することを目的としたものでフィボナッチ数の生成法を元にしている。</p>
+
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Lagged_Fibonacci_generator">Lagged Fibonacci generator - Wikipedia</a></li>
+</ul>
+
+<p>ラグ付フィボナッチ法は以下の式で表される。</p>
+
+<figure>
+<blockquote>
+\[ \begin{array}{ll}
+S_{n} \equiv S_{n-j} * S_{n-k} \pmod{m}, & 0 \lt j \lt k
+\end{array} \]
+</blockquote>
+
+</figure>
+
+<p>ラグ付フィボナッチ法は $*$ 演算子によってバリエーションがあるが <a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> パッケージの実装では加算を使うため <strong>Additive</strong> Lagged Fibonacci Generator ということらしい。
+ソースコードで言うとこの部分。</p>
+
+<pre><code class="language-go">// Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
+func (rng *rngSource) Int63() int64 {
+	rng.tap--
+	if rng.tap &lt; 0 {
+		rng.tap += _LEN
+	}
+
+	rng.feed--
+	if rng.feed &lt; 0 {
+		rng.feed += _LEN
+	}
+
+	x := (rng.vec[rng.feed] + rng.vec[rng.tap]) &amp; _MASK
+	rng.vec[rng.feed] = x
+	return x
+}
+</code></pre>
+
+<h2 id="擬似乱数生成器のバリエーション">擬似乱数生成器のバリエーション</h2>
+
+<p><a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> パッケージでは以下の <a href="https://golang.org/doc/effective_go.html#interfaces_and_types" title="Effective Go - The Go Programming Language">interface</a> を持つ別の擬似乱数生成器を使うことができる。</p>
+
+<pre><code class="language-go">// A Source represents a source of uniformly-distributed
+// pseudo-random int64 values in the range [0, 1&lt;&lt;63).
+type Source interface {
+	Int63() int64
+	Seed(seed int64)
+}
+</code></pre>
+
+<p>以下に2つほど紹介する。</p>
+
+<h3 id="lcg">線形合同法</h3>
+
+<p>線形合同法（Linear Congruential Generator）は昔の擬似乱数ライブラリでよく使われていたアルゴリズムで，以下の式で表される。</p>
+
+<figure>
+<blockquote>
+\[
+X_{n+1} = (A \times X_{n} + B) \bmod M
+\]
+</blockquote>
+
+</figure>
+
+<p>定数 $A$ および $B$ の与え方により幾つかバリエーションがある。</p>
+
+<p>線形合同法のメリットは実装サイズが小さいことに限る。
+一方デメリットとしては，多次元で疎に分布する性質があり，周期も小さいため乱数を大量に発生させる必要がある科学技術シミュレーションなどには向かないと言われている。
+このためメモリサイズが限られるマイクロ・コントローラのようなものでもない限り線形合同法が使われることはなくなった。</p>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>でわざわざ線形合同法を実装しているパッケージは少ないのだが，たとえば以下のパッケージがある<sup class="footnote-ref" id="fnref:dgl"><a rel="footnote" href="#fn:dgl">1</a></sup>。</p>
+
+<ul>
+<li><a href="https://github.com/davidminor/gorand">davidminor/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation</a></li>
+</ul>
+
+<h3 id="mt">Mersenne Twister</h3>
+
+<p><a href="http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html" title="Mersenne Twister: A random number generator (since 1997/10)">Mersenne Twister</a> とは<a href="http://www.math.sci.hiroshima-u.ac.jp/~m-mat/" title="Makoto Matsumoto Home Page">松本眞</a>・西村拓士両氏によって1996年に発表された擬似乱数生成アルゴリズムである。
+他の擬似乱数生成アルゴリズムと比べて以下の特徴があるそうだ。
+（「<a href="http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/what-is-mt.html" title="What &amp; how is MT?">Mersenne Twister とは?</a>」より）</p>
+
+<ul>
+<li>従来の様々な生成法の欠点を考慮して設計されています。</li>
+<li>従来にない長周期，高次元均等分布を持ちます。（周期が $2^{19937}-1$ で<sup class="footnote-ref" id="fnref:mt1"><a rel="footnote" href="#fn:mt1">2</a></sup>、623次元超立方体の中に 均等に分布することが証明されています。）</li>
+<li>生成速度がかなり速い。（処理系にもよりますが、パイプライン処理やキャッシュメモリ のあるシステムでは、Cの標準ライブラリの <code>rand()</code> より高速なこと もあります。なお、開発当時には cokus 版は <code>rand()</code> より4倍程度高速でしたが、その後 ANSI-C の <code>rand()</code> が LCG 法から lagged-fibonacci に 変更されたこともあり、2002年現在 rand と MT の速度差はあまりありません。）</li>
+<li>メモリ効率が良い。（32ビット以上のマシン用に設計された <code>mt19937.c</code> は、 624ワードのワーキングメモリを消費するだけです。 1ワードは32ビット長とします。</li>
+</ul>
+
+<p>ちなみに <a href="http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html" title="Mersenne Twister: A random number generator (since 1997/10)">Mersenne Twister</a> の<a href="http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/license.html" title="Mersenne Twisterの商用について">オリジナル・コードは BSD ライセンスで提供</a>されている。</p>
+
+<p><a href="https://github.com/MersenneTwister-Lab" title="MersenneTwister-Lab">公式のリポジトリ</a>には C/C++ による実装のみのようだが， <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で実装している人もいるようである。</p>
+
+<ul>
+<li><a href="https://github.com/seehuhn/mt19937">seehuhn/mt19937: An implementation of Takuji Nishimura&rsquo;s and Makoto Matsumoto&rsquo;s Mersenne Twister pseudo random number generator in Go.</a></li>
+<li><a href="https://github.com/nutterts/randgen">nutterts/randgen: Pseudo Random Number Generators implementing the Go(lang) math/rand.Source Interface</a></li>
+<li><a href="https://github.com/farces/mt19937_64">farces/mt19937_64: Mersenne Twister (int64) for Go</a></li>
+<li><a href="https://github.com/cuixin/goalg">cuixin/goalg: golang algorithms</a></li>
+</ul>
+
+<h2 id="擬似乱数生成器を組み込む">擬似乱数生成器を組み込む</h2>
+
+<p>では，先ほど紹介した擬似乱数生成器を今回のコードに組み込んでみることにしよう。
+こんな感じ。</p>
+
+<pre><code class="language-go">package gencmplx
+
+import (
+	&quot;math/rand&quot;
+
+	&quot;github.com/davidminor/gorand/lcg&quot;
+	&quot;github.com/seehuhn/mt19937&quot;
+)
+
+//RNGs is kind of RNG
+type RNGs int
+
+const (
+	NULL RNGs = iota
+	GO
+	LCG
+	MT
+)
+
+//NewRndSource returns Source of random numbers
+func NewRndSource(rng RNGs, seed int64) rand.Source {
+	switch rng {
+	case LCG:
+		return lcg.NewLcg64(uint64(seed))
+	case MT:
+		mt := mt19937.New()
+		mt.Seed(seed)
+		return mt
+	default:
+		return rand.NewSource(seed)
+	}
+}
+</code></pre>
+
+<p><code>gencmplx.NewRndSource()</code> 関数で <code>rand.Source</code> オブジェクトを生成する<sup class="footnote-ref" id="fnref:pm"><a rel="footnote" href="#fn:pm">3</a></sup>。
+これを「<a href="/golang/estimate-of-pi/" title="モンテカルロ法による円周率の推定（その1）">その1</a>」で作った <code>gencmplx.New()</code> 関数に渡せばよい。</p>
+
+<p>CLI は以下のように調整してみた。</p>
+
+<pre><code class="language-text">$ go run main.go estmt --help
+Estimate of Pi with Monte Carlo method.
+
+Usage:
+  pi estmt [flags]
+
+Flags:
+  -e, --ecount int   Count of estimate (default 100)
+
+Global Flags:
+  -p, --pcount int       Count of points (default 10000)
+  -r, --rsource string   Source of RNG (GO/LCG/MT) (default &quot;GO&quot;)
+</code></pre>
+
+<p>で，それぞれの擬似乱数生成器で評価を行ってみようと思ったのだが，今回のケースに限ってはあまり違いが出ないようである。</p>
+
+<p>まずは<a href="#lcg">線形合同法</a>の場合。</p>
+
+<pre><code class="language-text">$ go run main.go estmt -e 10000 -p 100000 -r LCG &gt; estmt100k-lcg.dat
+random number generator: LCG
+minimum value: 3.12204
+maximum value: 3.16224
+average value: 3.14164
+standard deviation: 0.00524 (68.3%)
+</code></pre>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/histogram-lcg.png"><img srcset="/images/histogram-lcg.png 611w" sizes="(min-width:600px) 500px, 80vw" alt=""></a>
+
+</figure>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/qq100k-plot-lcg.png"><img srcset="/images/qq100k-plot-lcg.png 611w" sizes="(min-width:600px) 500px, 80vw" alt=""></a>
+
+</figure>
+
+<p>次は <a href="#mt">Mersenne Twister</a> の場合。</p>
+
+<pre><code class="language-text">$ go run main.go estmt -e 10000 -p 100000 -r MT &gt; estmt100k-mt.dat
+random number generator: MT
+minimum value: 3.12380
+maximum value: 3.16140
+average value: 3.14165
+standard deviation: 0.00517 (67.8%)
+</code></pre>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/histogram-mt.png"><img srcset="/images/histogram-mt.png 611w" sizes="(min-width:600px) 500px, 80vw" alt=""></a>
+
+</figure>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/qq100k-plot-mt.png"><img srcset="/images/qq100k-plot-mt.png 611w" sizes="(min-width:600px) 500px, 80vw" alt=""></a>
+
+</figure>
+
+<p>もっと多次元だったりすると変わってくるのかなぁ。</p>
+
+<h2 id="暗号技術用途の擬似乱数生成器">暗号技術用途の擬似乱数生成器</h2>
+
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>では暗号技術用途の擬似乱数として <a href="https://golang.org/pkg/crypto/rand/" title="rand - The Go Programming Language"><code>crypto/rand</code></a> パッケージが用意されている。
+これは <a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> とは互換性がない。</p>
+
+<p>暗号技術用途の擬似乱数生成器は科学技術シミュレーションやゲームで使う擬似乱数生成器とは要件が異なる。</p>
+
+<ul>
+<li><a href="https://tools.ietf.org/html/rfc4086">RFC 4086 - Randomness Requirements for Security</a> （<a href="https://www.ipa.go.jp/security/rfc/RFC4086JA.html" title="セキュリティのための乱雑性についての要件">IPA による日本語訳</a>）</li>
+</ul>
+
+<figure>
+<blockquote>
+<q>従前の観点から統計的にテストされた乱雑性は、セキュリティ用途に要求される予測困難性と同等では<strong>ありません</strong>。<br>
+例えば、（CRC Standard Mathematical Tables からのランダムテーブルのような）広く利用可能な一定のシーケンスの利用は、攻撃者に対して非常に弱いです。これを学習したり、推測する攻撃者は、容易に（過去・未来を問わず）そのシーケンス [CRC] に基づいて、すべてのセキュリティを破ることができます。他の例として、AES を 1, 2, 3 ... のような連続した整数を暗号化する一定の鍵と共に使うことは、優れた統計的乱雑性をもつが予測可能な出力を作り出します。他方、6 面のサイコロを連続して転がして、その結果の値を ASCII にエンコードすることは、実質的に予測困難なコンポーネントをもちながらも「統計的に貧弱な出力」を作り出します。それゆえ、「統計的テストの合否は、『何かが予測不可能であるか否か、あるいは、予測可能であるか否か』を表さないこと」に注意してください。</q>
+</blockquote>
+<figcaption>via <q><a href="https://www.ipa.go.jp/security/rfc/RFC4086JA.html">RFC 4086 - セキュリティのための乱雑性についての要件</a></q></figcaption>
+</figure>
+
+<p>具体的には， <a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> では乱数生成用のエントロピー源にハードウェア・デバイスを使用する。
+UNIX 系のプラットフォームでは /dev/urandom を参照する。
+Windows プラットフォームでは <a href="https://msdn.microsoft.com/ja-jp/library/windows/desktop/aa379942(v=vs.85).aspx" title="CryptGenRandom function"><code>CryptGenRandom</code></a> 関数を使うようだが，この API の内部実装は公開されていない。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="/remark/2016/03/mersenne-twister/">Mersenne Twister に関する覚え書き</a></li>
+<li><a href="http://www.pcg-random.org/">PCG, A Family of Better Random Number Generators | PCG, A Better Random Number Generator</a></li>
+</ul>
+
+<p><a href="http://text.baldanders.info/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/">暗号技術入門 第3版　秘密の国のアリス</a></dt><dd>結城 浩 </dd><dd>SBクリエイティブ 2015-08-25</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg"  alt="自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート/丸い三角関数"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート/微分を追いかけて"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg"  alt="情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート/数列の広場"  /></a> </p>
+<p class="description">SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-09-20">2015-09-20</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:dgl">ただし <a href="https://github.com/davidminor/gorand" title="davidminor/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation"><code>github.com/davidminor/gorand</code></a><code>/lcg</code> には不具合があって <code>Int63()</code> 関数で負の値を出力する場合がある。とりあえず fork 版の <a href="https://github.com/davidminor/gorand" title="spiegel-im-spiegel/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation"><code>github.com/spiegel-im-spiegel/gorand</code></a><code>/lcg</code> で修正している。 Pull request も出したけど，古いコードだし，もうメンテしてないかなぁ。
+ <a class="footnote-return" href="#fnref:dgl"><sup>[return]</sup></a></li>
+<li id="fn:mt1">$2^{19937}-1$ はメルセンヌ素数で <a href="http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html" title="Mersenne Twister: A random number generator (since 1997/10)">Mersenne Twister</a> の名前の由来になっている。 <a href="http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html" title="Mersenne Twister: A random number generator (since 1997/10)">Mersenne Twister</a> では周期サイズごとに複数の実装があるが， $2^{19937}-1$ がポピュラーな実装として広く使われているようだ。
+ <a class="footnote-return" href="#fnref:mt1"><sup>[return]</sup></a></li>
+<li id="fn:pm"><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>におけるオブジェクトの多態性については「<a href="/golang/object-oriented-programming/">Go 言語における「オブジェクト」</a>」を参考にどうぞ。
+ <a class="footnote-return" href="#fnref:pm"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/estimate-of-pi-3-gaussian/">モンテカルロ法による円周率の推定（その3 Gaussian）</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/estimate-of-pi-4-prng\/';
+    var disqus_title = 'モンテカルロ法による円周率の推定（その4 PRNG）';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/estimate-of-pi-4-prng\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-11-20</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-4-prng%2f" rel=”nofollow” target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae4%20PRNG%ef%bc%89&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-4-prng%2f" rel=”nofollow” target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-4-prng%2f&amp;title=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae4%20PRNG%ef%bc%89" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi-4-prng%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='http://gohugo.io/'>Hugo 0.17</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+

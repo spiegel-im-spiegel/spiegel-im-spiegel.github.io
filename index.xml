@@ -4,12 +4,316 @@
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/index.xml" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/index.xml/index.xml" />
 	<id>tag:text.Baldanders.info,2016-11-20:/</id>
-	<updated>2016-11-20T18:14:31+09:00</updated>
+	<updated>2016-11-20T23:33:55+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="http://gohugo.io/">Hugo 0.17</generator>
 
+	
+	<entry>
+		<title>モンテカルロ法による円周率の推定（その4 PRNG） - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi-4-prng/" />
+		<id>tag:text.Baldanders.info,2016-11-20:/golang/estimate-of-pi-4-prng/</id>
+		<published>2016-11-20T23:33:55+09:00</published>
+		<updated>2016-11-20T23:33:55+09:00</updated>
+		<summary>math/rand パッケージでは rand.Source interface を持つ別の擬似乱数生成器を使うことができる。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/&#34;&gt;モンテカルロ法による円周率の推定（その3 Gaussian）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-4-prng/&#34;&gt;モンテカルロ法による円周率の推定（その4 PRNG）&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;「モンテカルロ法による円周率の推定」もひととおり終わったので，今回は擬似乱数生成器（pseudo random number generator）の話。&lt;/p&gt;
+
+&lt;h2 id=&#34;math-rand-の擬似乱数生成器&#34;&gt;math/rand の擬似乱数生成器&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; パッケージで擬似乱数を取り扱えることは「&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34; title=&#34;モンテカルロ法による円周率の推定（その1）&#34;&gt;その1&lt;/a&gt;」で紹介した通り。
+&lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; パッケージに実装されている擬似乱数生成器は ALFG (Additive Lagged Fibonacci Generator) のバリエーションらしい。&lt;/p&gt;
+
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;
+&lt;q&gt;If I am not mistaken again, the generator is an ALFG (Additive Lagged Fibonacci Generator, thats what Wikipedia calls it). Knuth describes the algorithm in Volume 2 of The art of computer programming in section 3.2.2 (around equation 7). Both Wikipedia and Knuth state the parameter combination 607,273 as possible combination with a period length of 2^(e-1)*(2^607-1) where e is the length of the random number in bits.&lt;br&gt;
+I actually found a few references examining its properties and it seems to be a good rng so faar, but there is still seems to be a lack of mathematical background and it is fairly easy to get into trouble by not seeding properly.&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://groups.google.com/forum/#!topic/golang-nuts/RZ1G3_cxMcM&#34;&gt;[Announce] A rand package for high quality 64bit random numbers (possibly go2)&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;ラグ付フィボナッチ法は&lt;a href=&#34;#lcg&#34;&gt;線形合同法（後述）&lt;/a&gt;を改善することを目的としたものでフィボナッチ数の生成法を元にしている。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/Lagged_Fibonacci_generator&#34;&gt;Lagged Fibonacci generator - Wikipedia&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ラグ付フィボナッチ法は以下の式で表される。&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[ \begin{array}{ll}
+S_{n} \equiv S_{n-j} * S_{n-k} \pmod{m}, &amp; 0 \lt j \lt k
+\end{array} \]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;ラグ付フィボナッチ法は $*$ 演算子によってバリエーションがあるが &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; パッケージの実装では加算を使うため &lt;strong&gt;Additive&lt;/strong&gt; Lagged Fibonacci Generator ということらしい。
+ソースコードで言うとこの部分。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
+func (rng *rngSource) Int63() int64 {
+	rng.tap--
+	if rng.tap &amp;lt; 0 {
+		rng.tap += _LEN
+	}
+
+	rng.feed--
+	if rng.feed &amp;lt; 0 {
+		rng.feed += _LEN
+	}
+
+	x := (rng.vec[rng.feed] + rng.vec[rng.tap]) &amp;amp; _MASK
+	rng.vec[rng.feed] = x
+	return x
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;擬似乱数生成器のバリエーション&#34;&gt;擬似乱数生成器のバリエーション&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; パッケージでは以下の &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; を持つ別の擬似乱数生成器を使うことができる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// A Source represents a source of uniformly-distributed
+// pseudo-random int64 values in the range [0, 1&amp;lt;&amp;lt;63).
+type Source interface {
+	Int63() int64
+	Seed(seed int64)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以下に2つほど紹介する。&lt;/p&gt;
+
+&lt;h3 id=&#34;lcg&#34;&gt;線形合同法&lt;/h3&gt;
+
+&lt;p&gt;線形合同法（Linear Congruential Generator）は昔の擬似乱数ライブラリでよく使われていたアルゴリズムで，以下の式で表される。&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+\[
+X_{n+1} = (A \times X_{n} + B) \bmod M
+\]
+&lt;/blockquote&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;定数 $A$ および $B$ の与え方により幾つかバリエーションがある。&lt;/p&gt;
+
+&lt;p&gt;線形合同法のメリットは実装サイズが小さいことに限る。
+一方デメリットとしては，多次元で疎に分布する性質があり，周期も小さいため乱数を大量に発生させる必要がある科学技術シミュレーションなどには向かないと言われている。
+このためメモリサイズが限られるマイクロ・コントローラのようなものでもない限り線形合同法が使われることはなくなった。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;でわざわざ線形合同法を実装しているパッケージは少ないのだが，たとえば以下のパッケージがある&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:dgl&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:dgl&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/davidminor/gorand&#34;&gt;davidminor/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&#34;mt&#34;&gt;Mersenne Twister&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html&#34; title=&#34;Mersenne Twister: A random number generator (since 1997/10)&#34;&gt;Mersenne Twister&lt;/a&gt; とは&lt;a href=&#34;http://www.math.sci.hiroshima-u.ac.jp/~m-mat/&#34; title=&#34;Makoto Matsumoto Home Page&#34;&gt;松本眞&lt;/a&gt;・西村拓士両氏によって1996年に発表された擬似乱数生成アルゴリズムである。
+他の擬似乱数生成アルゴリズムと比べて以下の特徴があるそうだ。
+（「&lt;a href=&#34;http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/what-is-mt.html&#34; title=&#34;What &amp;amp; how is MT?&#34;&gt;Mersenne Twister とは?&lt;/a&gt;」より）&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;従来の様々な生成法の欠点を考慮して設計されています。&lt;/li&gt;
+&lt;li&gt;従来にない長周期，高次元均等分布を持ちます。（周期が $2^{19937}-1$ で&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:mt1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:mt1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;、623次元超立方体の中に 均等に分布することが証明されています。）&lt;/li&gt;
+&lt;li&gt;生成速度がかなり速い。（処理系にもよりますが、パイプライン処理やキャッシュメモリ のあるシステムでは、Cの標準ライブラリの &lt;code&gt;rand()&lt;/code&gt; より高速なこと もあります。なお、開発当時には cokus 版は &lt;code&gt;rand()&lt;/code&gt; より4倍程度高速でしたが、その後 ANSI-C の &lt;code&gt;rand()&lt;/code&gt; が LCG 法から lagged-fibonacci に 変更されたこともあり、2002年現在 rand と MT の速度差はあまりありません。）&lt;/li&gt;
+&lt;li&gt;メモリ効率が良い。（32ビット以上のマシン用に設計された &lt;code&gt;mt19937.c&lt;/code&gt; は、 624ワードのワーキングメモリを消費するだけです。 1ワードは32ビット長とします。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ちなみに &lt;a href=&#34;http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html&#34; title=&#34;Mersenne Twister: A random number generator (since 1997/10)&#34;&gt;Mersenne Twister&lt;/a&gt; の&lt;a href=&#34;http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/license.html&#34; title=&#34;Mersenne Twisterの商用について&#34;&gt;オリジナル・コードは BSD ライセンスで提供&lt;/a&gt;されている。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/MersenneTwister-Lab&#34; title=&#34;MersenneTwister-Lab&#34;&gt;公式のリポジトリ&lt;/a&gt;には C/C++ による実装のみのようだが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で実装している人もいるようである。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/seehuhn/mt19937&#34;&gt;seehuhn/mt19937: An implementation of Takuji Nishimura&amp;rsquo;s and Makoto Matsumoto&amp;rsquo;s Mersenne Twister pseudo random number generator in Go.&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/nutterts/randgen&#34;&gt;nutterts/randgen: Pseudo Random Number Generators implementing the Go(lang) math/rand.Source Interface&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/farces/mt19937_64&#34;&gt;farces/mt19937_64: Mersenne Twister (int64) for Go&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/cuixin/goalg&#34;&gt;cuixin/goalg: golang algorithms&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;擬似乱数生成器を組み込む&#34;&gt;擬似乱数生成器を組み込む&lt;/h2&gt;
+
+&lt;p&gt;では，先ほど紹介した擬似乱数生成器を今回のコードに組み込んでみることにしよう。
+こんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package gencmplx
+
+import (
+	&amp;quot;math/rand&amp;quot;
+
+	&amp;quot;github.com/davidminor/gorand/lcg&amp;quot;
+	&amp;quot;github.com/seehuhn/mt19937&amp;quot;
+)
+
+//RNGs is kind of RNG
+type RNGs int
+
+const (
+	NULL RNGs = iota
+	GO
+	LCG
+	MT
+)
+
+//NewRndSource returns Source of random numbers
+func NewRndSource(rng RNGs, seed int64) rand.Source {
+	switch rng {
+	case LCG:
+		return lcg.NewLcg64(uint64(seed))
+	case MT:
+		mt := mt19937.New()
+		mt.Seed(seed)
+		return mt
+	default:
+		return rand.NewSource(seed)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;gencmplx.NewRndSource()&lt;/code&gt; 関数で &lt;code&gt;rand.Source&lt;/code&gt; オブジェクトを生成する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:pm&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:pm&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。
+これを「&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34; title=&#34;モンテカルロ法による円周率の推定（その1）&#34;&gt;その1&lt;/a&gt;」で作った &lt;code&gt;gencmplx.New()&lt;/code&gt; 関数に渡せばよい。&lt;/p&gt;
+
+&lt;p&gt;CLI は以下のように調整してみた。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go estmt --help
+Estimate of Pi with Monte Carlo method.
+
+Usage:
+  pi estmt [flags]
+
+Flags:
+  -e, --ecount int   Count of estimate (default 100)
+
+Global Flags:
+  -p, --pcount int       Count of points (default 10000)
+  -r, --rsource string   Source of RNG (GO/LCG/MT) (default &amp;quot;GO&amp;quot;)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;で，それぞれの擬似乱数生成器で評価を行ってみようと思ったのだが，今回のケースに限ってはあまり違いが出ないようである。&lt;/p&gt;
+
+&lt;p&gt;まずは&lt;a href=&#34;#lcg&#34;&gt;線形合同法&lt;/a&gt;の場合。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go estmt -e 10000 -p 100000 -r LCG &amp;gt; estmt100k-lcg.dat
+random number generator: LCG
+minimum value: 3.12204
+maximum value: 3.16224
+average value: 3.14164
+standard deviation: 0.00524 (68.3%)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/histogram-lcg.png&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/histogram-lcg.png 611w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;
+
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/qq100k-plot-lcg.png&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/qq100k-plot-lcg.png 611w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;次は &lt;a href=&#34;#mt&#34;&gt;Mersenne Twister&lt;/a&gt; の場合。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go estmt -e 10000 -p 100000 -r MT &amp;gt; estmt100k-mt.dat
+random number generator: MT
+minimum value: 3.12380
+maximum value: 3.16140
+average value: 3.14165
+standard deviation: 0.00517 (67.8%)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/histogram-mt.png&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/histogram-mt.png 611w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;
+
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://text.baldanders.info/images/qq100k-plot-mt.png&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/qq100k-plot-mt.png 611w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;
+
+&lt;/figure&gt;
+
+&lt;p&gt;もっと多次元だったりすると変わってくるのかなぁ。&lt;/p&gt;
+
+&lt;h2 id=&#34;暗号技術用途の擬似乱数生成器&#34;&gt;暗号技術用途の擬似乱数生成器&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では暗号技術用途の擬似乱数として &lt;a href=&#34;https://golang.org/pkg/crypto/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;crypto/rand&lt;/code&gt;&lt;/a&gt; パッケージが用意されている。
+これは &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; とは互換性がない。&lt;/p&gt;
+
+&lt;p&gt;暗号技術用途の擬似乱数生成器は科学技術シミュレーションやゲームで使う擬似乱数生成器とは要件が異なる。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://tools.ietf.org/html/rfc4086&#34;&gt;RFC 4086 - Randomness Requirements for Security&lt;/a&gt; （&lt;a href=&#34;https://www.ipa.go.jp/security/rfc/RFC4086JA.html&#34; title=&#34;セキュリティのための乱雑性についての要件&#34;&gt;IPA による日本語訳&lt;/a&gt;）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;figure&gt;
+&lt;blockquote&gt;
+&lt;q&gt;従前の観点から統計的にテストされた乱雑性は、セキュリティ用途に要求される予測困難性と同等では&lt;strong&gt;ありません&lt;/strong&gt;。&lt;br&gt;
+例えば、（CRC Standard Mathematical Tables からのランダムテーブルのような）広く利用可能な一定のシーケンスの利用は、攻撃者に対して非常に弱いです。これを学習したり、推測する攻撃者は、容易に（過去・未来を問わず）そのシーケンス [CRC] に基づいて、すべてのセキュリティを破ることができます。他の例として、AES を 1, 2, 3 ... のような連続した整数を暗号化する一定の鍵と共に使うことは、優れた統計的乱雑性をもつが予測可能な出力を作り出します。他方、6 面のサイコロを連続して転がして、その結果の値を ASCII にエンコードすることは、実質的に予測困難なコンポーネントをもちながらも「統計的に貧弱な出力」を作り出します。それゆえ、「統計的テストの合否は、『何かが予測不可能であるか否か、あるいは、予測可能であるか否か』を表さないこと」に注意してください。&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://www.ipa.go.jp/security/rfc/RFC4086JA.html&#34;&gt;RFC 4086 - セキュリティのための乱雑性についての要件&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;具体的には， &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; では乱数生成用のエントロピー源にハードウェア・デバイスを使用する。
+UNIX 系のプラットフォームでは /dev/urandom を参照する。
+Windows プラットフォームでは &lt;a href=&#34;https://msdn.microsoft.com/ja-jp/library/windows/desktop/aa379942(v=vs.85).aspx&#34; title=&#34;CryptGenRandom function&#34;&gt;&lt;code&gt;CryptGenRandom&lt;/code&gt;&lt;/a&gt; 関数を使うようだが，この API の内部実装は公開されていない。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/mersenne-twister/&#34;&gt;Mersenne Twister に関する覚え書き&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.pcg-random.org/&#34;&gt;PCG, A Family of Better Random Number Generators | PCG, A Better Random Number Generator&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:dgl&#34;&gt;ただし &lt;a href=&#34;https://github.com/davidminor/gorand&#34; title=&#34;davidminor/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation&#34;&gt;&lt;code&gt;github.com/davidminor/gorand&lt;/code&gt;&lt;/a&gt;&lt;code&gt;/lcg&lt;/code&gt; には不具合があって &lt;code&gt;Int63()&lt;/code&gt; 関数で負の値を出力する場合がある。とりあえず fork 版の &lt;a href=&#34;https://github.com/davidminor/gorand&#34; title=&#34;spiegel-im-spiegel/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation&#34;&gt;&lt;code&gt;github.com/spiegel-im-spiegel/gorand&lt;/code&gt;&lt;/a&gt;&lt;code&gt;/lcg&lt;/code&gt; で修正している。 Pull request も出したけど，古いコードだし，もうメンテしてないかなぁ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:dgl&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:mt1&#34;&gt;$2^{19937}-1$ はメルセンヌ素数で &lt;a href=&#34;http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html&#34; title=&#34;Mersenne Twister: A random number generator (since 1997/10)&#34;&gt;Mersenne Twister&lt;/a&gt; の名前の由来になっている。 &lt;a href=&#34;http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/mt.html&#34; title=&#34;Mersenne Twister: A random number generator (since 1997/10)&#34;&gt;Mersenne Twister&lt;/a&gt; では周期サイズごとに複数の実装があるが， $2^{19937}-1$ がポピュラーな実装として広く使われているようだ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:mt1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:pm&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;におけるオブジェクトの多態性については「&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;」を参考にどうぞ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:pm&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>GnuPG 2.1.16 released - remark</title>
@@ -349,7 +653,7 @@ Human readable な言葉と machine readable な言葉は異なっていて当�
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/" />
 		<id>tag:text.Baldanders.info,2016-11-14:/golang/estimate-of-pi-3-gaussian/</id>
 		<published>2016-11-14T20:50:56+09:00</published>
-		<updated>2016-11-16T20:43:47+09:00</updated>
+		<updated>2016-11-20T23:32:40+09:00</updated>
 		<summary>さて，前回書いたコードを利用していよいよ円周率の推定結果を評価してみる。</summary>
 		
 			<author>
@@ -368,6 +672,7 @@ Human readable な言葉と machine readable な言葉は異なっていて当�
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/&#34;&gt;モンテカルロ法による円周率の推定（その3 Gaussian）&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-4-prng/&#34;&gt;モンテカルロ法による円周率の推定（その4 PRNG）&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 
 &lt;h2 id=&#34;推定結果の分布&#34;&gt;推定結果の分布&lt;/h2&gt;
@@ -833,7 +1138,7 @@ nullable 参照と non-null 参照の区別は，コードに「意図」を記�
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi-2-cli/" />
 		<id>tag:text.Baldanders.info,2016-11-06:/golang/estimate-of-pi-2-cli/</id>
 		<published>2016-11-06T17:57:37+09:00</published>
-		<updated>2016-11-16T20:43:47+09:00</updated>
+		<updated>2016-11-20T23:32:40+09:00</updated>
 		<summary>さっそく推定結果について評価を行いたいところだが，その前に CLI (command-line interface) を整備する。今回は spf13/cobra パッケージを使うことにする。</summary>
 		
 			<author>
@@ -852,6 +1157,7 @@ nullable 参照と non-null 参照の区別は，コードに「意図」を記�
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt; ← イマココ&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/&#34;&gt;モンテカルロ法による円周率の推定（その3 Gaussian）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-4-prng/&#34;&gt;モンテカルロ法による円周率の推定（その4 PRNG）&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 
 &lt;h2 id=&#34;コマンドライン-インタフェース&#34;&gt;コマンドライン・インタフェース&lt;/h2&gt;
@@ -1297,7 +1603,7 @@ func New(pc, ec int64) &amp;lt;-chan float64 {
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi/" />
 		<id>tag:text.Baldanders.info,2016-11-05:/golang/estimate-of-pi/</id>
 		<published>2016-11-05T23:26:29+09:00</published>
-		<updated>2016-11-16T20:43:47+09:00</updated>
+		<updated>2016-11-20T23:32:40+09:00</updated>
 		<summary>乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。</summary>
 		
 			<author>
@@ -1320,6 +1626,7 @@ func New(pc, ec int64) &amp;lt;-chan float64 {
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt; ← イマココ&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/&#34;&gt;モンテカルロ法による円周率の推定（その3 Gaussian）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-4-prng/&#34;&gt;モンテカルロ法による円周率の推定（その4 PRNG）&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 
 &lt;h2 id=&#34;モンテカルロ法による円周率の推定&#34;&gt;モンテカルロ法による円周率の推定&lt;/h2&gt;
@@ -1564,95 +1871,6 @@ n = 100000, m = 78397, 4m/n = 3.13588
 &lt;li id=&#34;fn:s&#34;&gt;&lt;code&gt;rand.Source&lt;/code&gt; は &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; として定義されていて，これを満たす &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; であれば他の擬似乱数アルゴリズムも使えるようになっている。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>“The Shadow Web” （再掲載） - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2016/11/the-shadow-web/" />
-		<id>tag:text.Baldanders.info,2016-11-05:/remark/2016/11/the-shadow-web/</id>
-		<published>2016-11-05T14:06:16+09:00</published>
-		<updated>2016-11-05T14:06:16+09:00</updated>
-		<summary>「インターネットは検閲をダメージであると解釈し，それを回避する」（John Gilmore）</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;この記事は&lt;a href=&#34;http://www.baldanders.info/&#34; title=&#34;Baldanders.info&#34;&gt;本家サイト&lt;/a&gt;で2012年に公開した「&lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000599.shtml&#34;&gt;“The Shadow Web”&lt;/a&gt;」を加筆・修正して再掲載したものです。
-なお，本文中で紹介している記事「&lt;a href=&#34;http://www.nikkei-science.com/201206_074.html&#34; title=&#34;介入されないもうひとつのウェブ | 日経サイエンス&#34;&gt;介入されないもうひとつのウェブ&lt;/a&gt;」は今年出た&lt;a href=&#34;http://www.nikkei-science.com/page/sci_book/bessatu/51212.html&#34;&gt;別冊日経サイエンス『サイバーセキュリティ』&lt;/a&gt;に再録されています。
-興味のある方は是非どうぞ。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://www.nikkei-science.com/page/magazine/201206.html&#34; title=&#34;2012年6月号 | 日経サイエンス&#34;&gt;『日経サイエンス』2012年6月号&lt;/a&gt;の「&lt;a href=&#34;http://www.nikkei-science.com/201206_074.html&#34; title=&#34;介入されないもうひとつのウェブ | 日経サイエンス&#34;&gt;介入されないもうひとつのウェブ&lt;/a&gt;」が面白そうだったので買ってみた。
-原題は “The Shadow Web” （SCIENTIFIC AMERICAN March 2012）で著者はサイエンスライターの Julian Dibbell 氏。&lt;/p&gt;
-
-&lt;p&gt;インターネットはもともと障害や（国家などによる）検閲に強いシステムとして開発されてきた。
-「インターネットは検閲をダメージであると解釈し，それを回避する」（John Gilmore）のである。
-しかし現状のインターネットはこのようには機能していない。
-昨年（2011年）1月末。市民運動で揺れるエジプトではたった5本の電話で8000万人のインターネット・アクセスが遮断された。
-中国ではもう長いこと「グレート・ファイアウォール」が稼働している。
-日本でだって無線通信業者がユーザ端末に勝手に ID を付与したりユーザの行動を追跡したり特定のサービスをブロックしたりしている。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;もし今日のインターネットが実際にこの理論に近い状態であれば，メッシュネットワークは余計ものだったろう。
-だがインターネットが当初の学術目的から踏み出して現在のような誰でも使える商業サービスになってから20年以上が経つうちに，そうした蓄積伝送の原理が果たす役割は，一貫して縮小していった。&lt;br /&gt;
-　この間，ネットワークに加わる新たなノードの圧倒的多数はISPを介してネットに接続する家庭や企業のコンピューターだった。
-ISPの接続モデルでは，利用者のコンピューターはデータの中継はしない。
-それはネットワークの端末，つまりデータの送受信だけを，常にISPのコンピューターを介して行うターミナル・ノードだ。
-言い換えれば，インターネットの爆発的な成長はネットワーク地図に行き止まりのルートを増やしただけで，新たなルートを加えることはほとんどなかった。&lt;br /&gt;
-　そしてISPなど大量の情報ルートを持つ者は，彼らがルートを提供している何百万ものノードを支配下におくこととなった。
-これらのノードは，もしISPがダウンしたり，ネットから遮断されたりすると，その障害を回避する方法がない。
-ISPはインターネットが停止しないようにするどころか，実効上は停止スイッチになってしまった。&lt;/q&gt;
-（p.77）
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://www.nikkei-science.com/201206_074.html&#34;&gt;介入されないもうひとつのウェブ&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;こうした問題に対処するために「無線メッシュネットワーク」の利用が進んでいる。
-「無線メッシュネットワーク」ではユーザのノードは「ターミナル・ノード」ではなく中継ノードとして機能する。
-このノードが増えれば増えるほどネットワークは自律的に機能し，遮断や検閲を回避できるようになる。&lt;/p&gt;
-
-&lt;p&gt;どうも日本ではメッシュネットワークはスマートグリッドの文脈で語られることが多いようである。
-しかし，メッシュネットワークの本領は，少数の ISP による中央集権型ネットワークを補完する手段，まさに “The Shadow Web” として機能しうる点にあるように思える。&lt;/p&gt;
-
-&lt;p&gt;メッシュネットワークがうまくいくかどうかは参加するユーザの規模にかかっている。
-メッシュネットワークが社会的に効果のあるレベルまで普及するには市場の15%を大幅に超える浸透率が必要になるそうだ。
-しかし実際にそこまで行くかどうかは疑問らしい。
-いっぽう為政者から見れば，現状でさえインターネットのコントロールを握ろうと躍起になってるのに，それをチャラにしてしまうような仕組みに対していい顔はしないだろう。
-少なくともメッシュネットワークの構築について何らかの介入をしてくる可能性はある。
-となれば市民運動レベルで普及を図っていくしかないということになるだろう。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;人はとかく，プライバシーの死という環境破壊によってどれだけの被害をうけるかを過小評価してしまう。
-通常の環境破壊行動，例えばゴミのポイ捨てや環境汚染が引き起こす，倍々に増えていく桁外れの被害を過小評価しがちなのとよく似ている&lt;/q&gt;
-（p.81）
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://www.nikkei-science.com/201206_074.html&#34;&gt;介入されないもうひとつのウェブ&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;個人的には，日本で考えた場合，メッシュネットワークがどの程度効果的なのかよく分からない。
-例えば災害時にネットワークを早く再構築するためにメッシュネットワークを使うというのはあるだろう（海外では既に事例がある）。
-しかし “The Shadow Web” としてのメッシュネットワークがうまくいくのかどうかは疑問がある。
-この辺は今後も情報を追いかけていきたいと思う。&lt;/p&gt;
-
-&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4532512123/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51gurnOqhiL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4532512123/baldandersinf-22/&#34;&gt;サイバーセキュリティ (別冊日経サイエンス)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;日経サイエンス編集部 &lt;/dd&gt;&lt;dd&gt;日本経済新聞出版社 2016-04-22&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;4&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4320009061/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4320009061.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;サイバーセキュリティ入門: 私たちを取り巻く光と闇 (共立スマートセレクション)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4905318416/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4905318416.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2016&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4822237656/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4822237656.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;すべてわかるセキュリティ大全2017 (日経BPムック)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B01G5SQLQC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B01G5SQLQC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;日経サイエンス2016年9月号&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4478083908/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4478083908.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;CxO(経営層)のための情報セキュリティ―――経営判断に必要な知識と心得&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4822237982/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4822237982.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;あなたのセキュリティ対応間違っています&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4339028533/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4339028533.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;実践サイバーセキュリティモニタリング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4802090927/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4802090927.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;IT管理者のための情報セキュリティガイド (NextPublishing)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4822237788/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4822237788.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;セキュリティ 最強の指南書(日経BPムック) (日経ITエンジニアスクール)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798145629/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798145629.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Webセキュリティ担当者のための脆弱性診断スタートガイド 上野宣が教える情報漏えいを防ぐ技術&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;ここ5,6年ほどのセキュリティ・プライバシー関連の記事を集めたもの。俯瞰するにはちょうどいいと思う。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-11-05&#34;&gt;2016-11-05&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt;
 </content>
 	</entry>
