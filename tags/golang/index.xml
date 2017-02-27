@@ -577,7 +577,7 @@ func main() {
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/loop-counter/" />
 		<id>tag:text.Baldanders.info,2017-01-18:/golang/loop-counter/</id>
 		<published>2017-01-18T21:45:30+09:00</published>
-		<updated>2017-01-18T21:45:30+09:00</updated>
+		<updated>2017-02-27T14:33:55+09:00</updated>
 		<summary>浮動小数点数型の変数をループカウンタにするのは止めましょうね。約束だよ！</summary>
 		
 			<author>
@@ -677,6 +677,166 @@ func main() {
 
 &lt;p&gt;ってなことになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:r&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:r&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; ので浮動小数点数型の変数をループカウンタにするのは止めましょうね。
 約束だよ！&lt;/p&gt;
+
+&lt;h2 id=&#34;math-big-パッケージ-追記&#34;&gt;math/big パッケージ（追記）&lt;/h2&gt;
+
+&lt;p&gt;浮動小数点数演算の「情報落ち」や「丸め誤差」等を緩和する方法として &lt;a href=&#34;https://golang.org/pkg/math/big/&#34; title=&#34;big - The Go Programming Language&#34;&gt;&lt;code&gt;math/big&lt;/code&gt;&lt;/a&gt; パッケージの &lt;a href=&#34;https://golang.org/pkg/math/big/#Float&#34;&gt;&lt;code&gt;Float&lt;/code&gt;&lt;/a&gt; 型を使う手がある。
+&lt;a href=&#34;https://golang.org/pkg/math/big/#Float&#34;&gt;&lt;code&gt;Float&lt;/code&gt;&lt;/a&gt; 型では有効桁数を指定できる。
+たとえば先程の 0.1 ずつカウントアップさせる処理ならこんなコードになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/big&amp;quot;
+)
+
+func main() {
+	var x, y, z big.Float //zero initialize
+	y.SetFloat64(0.1)     //53bit precision
+	x.SetPrec(64)
+	y.SetPrec(64)
+
+	for i := 0; i &amp;lt; 10; i++ {
+		z.Add(&amp;amp;x, &amp;amp;y)
+		x.Set(&amp;amp;z)
+		fmt.Printf(&amp;quot;x = %v (prec = %d bits)\n&amp;quot;, &amp;amp;x, x.Prec())
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このコードでは有効桁数を64ビットにそろえて計算している。
+これを実行するとこうなる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run big2.go
+x = 0.10000000000000000555 (prec = 64 bits)
+x = 0.2000000000000000111 (prec = 64 bits)
+x = 0.30000000000000001665 (prec = 64 bits)
+x = 0.4000000000000000222 (prec = 64 bits)
+x = 0.50000000000000002776 (prec = 64 bits)
+x = 0.6000000000000000333 (prec = 64 bits)
+x = 0.70000000000000003886 (prec = 64 bits)
+x = 0.8000000000000000444 (prec = 64 bits)
+x = 0.90000000000000004996 (prec = 64 bits)
+x = 1.0000000000000000555 (prec = 64 bits)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;もうひとつ。
+&lt;a href=&#34;https://golang.org/pkg/math/big/#Rat&#34;&gt;&lt;code&gt;Rat&lt;/code&gt;&lt;/a&gt; 型を使う手もある。
+&lt;a href=&#34;https://golang.org/pkg/math/big/#Rat&#34;&gt;&lt;code&gt;Rat&lt;/code&gt;&lt;/a&gt; 型は有理数の内部表現で値を保持するため記述によっては誤差を小さくできる。
+たとえばこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;math/big&amp;quot;
+)
+
+func main() {
+	var x, y, z big.Rat //zero initialize
+	var a, b big.Int
+	a.SetInt64(1)
+	b.SetInt64(10)
+	y.SetFrac(&amp;amp;a, &amp;amp;b)
+
+	for i := 0; i &amp;lt; 10; i++ {
+		z.Add(&amp;amp;x, &amp;amp;y)
+		x.Set(&amp;amp;z)
+		fmt.Printf(&amp;quot;x = %s (%v)\n&amp;quot;, x.FloatString(20), &amp;amp;x)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run big3.go
+x = 0.10000000000000000000 (1/10)
+x = 0.20000000000000000000 (1/5)
+x = 0.30000000000000000000 (3/10)
+x = 0.40000000000000000000 (2/5)
+x = 0.50000000000000000000 (1/2)
+x = 0.60000000000000000000 (3/5)
+x = 0.70000000000000000000 (7/10)
+x = 0.80000000000000000000 (4/5)
+x = 0.90000000000000000000 (9/10)
+x = 1.00000000000000000000 (1/1)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;decimal-型-追記&#34;&gt;Decimal 型（追記）&lt;/h2&gt;
+
+&lt;p&gt;残念ながら &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の標準パッケージには Java で言うところの &lt;a href=&#34;http://docs.oracle.com/javase/8/docs/api/java/math/BigDecimal.html&#34;&gt;BigDecimal&lt;/a&gt; に相当するものがない。
+ただし似たパッケージを提供している人はいるようだ。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/shopspring/decimal&#34; title=&#34;shopspring/decimal: Arbitrary-precision fixed-point decimal numbers in go&#34;&gt;shopspring/decimal&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;たとえばこんな感じに記述する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;github.com/shopspring/decimal&amp;quot;
+)
+
+func main() {
+	x := decimal.NewFromFloat(0)
+	y, _ := decimal.NewFromString(&amp;quot;0.1&amp;quot;)
+
+	for i := 0; i &amp;lt; 10; i++ {
+		x = x.Add(y)
+		fmt.Printf(&amp;quot;x = %s\n&amp;quot;, x.StringFixed(20))
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果はこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run big4.go
+x = 0.10000000000000000000
+x = 0.20000000000000000000
+x = 0.30000000000000000000
+x = 0.40000000000000000000
+x = 0.50000000000000000000
+x = 0.60000000000000000000
+x = 0.70000000000000000000
+x = 0.80000000000000000000
+x = 0.90000000000000000000
+x = 1.00000000000000000000
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;じゃあ試しに1を1億回足してみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+
+	&amp;quot;github.com/shopspring/decimal&amp;quot;
+)
+
+func main() {
+	x := decimal.NewFromFloat(0)
+	y, _ := decimal.NewFromString(&amp;quot;1.0&amp;quot;)
+
+	for i := 0; i &amp;lt; 100000000; i++ {
+		x = x.Add(y)
+	}
+	fmt.Printf(&amp;quot;x = %s\n&amp;quot;, x.StringFixed(20))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果はこうなる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run big4b.go
+z = 100000000.00000000000000000000
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;結構な時間がかかった。
+でも「情報落ち」もなく綺麗に1億になったようだ。&lt;/p&gt;
 
 &lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
 
