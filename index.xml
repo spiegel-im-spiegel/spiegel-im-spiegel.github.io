@@ -3,8 +3,8 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/index.xml" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/index.xml/index.xml" />
-	<id>tag:text.Baldanders.info,2017-02-26:/</id>
-	<updated>2017-02-26T15:15:23+09:00</updated>
+	<id>tag:text.Baldanders.info,2017-03-04:/</id>
+	<updated>2017-03-04T09:40:51+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
@@ -12,11 +12,211 @@
 
 	
 	<entry>
+		<title>「プレミアムフライデー」を求めるパッケージを作ってみた - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/premium-friday/" />
+		<id>tag:text.Baldanders.info,2017-03-04:/golang/premium-friday/</id>
+		<published>2017-03-04T09:40:51+09:00</published>
+		<updated>2017-03-04T09:40:51+09:00</updated>
+		<summary>もちろん息抜きである。潤いは大事。でも実用性はないと思われ。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;そういえば先月の「プレミアムフライデー」，皆様はいかがお過ごしでしたか。
+私は3時間も残業してしまいましたよ（笑）&lt;/p&gt;
+
+&lt;p&gt;ちうわけで，以下を真似して「プレミアムフライデー」を求めるパッケージを考えてみる。
+もちろん息抜きである。
+潤いは大事。
+でも実用性はないと思われ。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/neko_the_shadow/items/4ebf94a8a6d9282e7207&#34;&gt;プレミアムフライデーを求めるメソッドを作った - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/deaf_tadashi/items/963a62072338f09f12a5&#34;&gt;プレミアムフライデーを求めるメソッドを作った（Java8版） - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;まずはパッケージ分割しないでベタに書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+//GetPremiumFriday returns day of premium friday
+func GetPremiumFriday(y int, m time.Month) (int, error) {
+	//引数のチェック
+	if y &amp;lt; 2017 || (m &amp;lt; time.January &amp;amp;&amp;amp; m &amp;gt; time.December) {
+		return 0, os.ErrInvalid
+	}
+	if y == 2017 &amp;amp;&amp;amp; m &amp;lt; time.February { //2017年1月は実施前なのでエラー
+		return 0, os.ErrInvalid
+	}
+
+	//指定月末（翌月0日）で初期化する
+	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
+	if err != nil {
+		return 0, err
+	}
+	tm := time.Date(y, m+1, 0, 0, 0, 0, 0, tz)
+
+	//月末尾から1日ずつ減じて最終金曜日を探す
+	for {
+		if tm.Weekday() == time.Friday {
+			break
+		}
+		tm = tm.AddDate(0, 0, -1)
+	}
+	return tm.Day(), nil
+}
+
+func main() {
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &amp;lt; 2 {
+		fmt.Fprintln(os.Stderr, &amp;quot;年月を指定してください&amp;quot;)
+		return
+	}
+	args := make([]int, 2)
+	for i := 0; i &amp;lt; 2; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		args[i] = num
+	}
+	d, err := GetPremiumFriday(args[0], time.Month(args[1]))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Println(d)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;指定月末を求めるのに「翌月0日」で初期化するのがポイント（つか，ここしかポイントになるものがない&lt;code&gt;w&lt;/code&gt;）。
+実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run pf.go 2017 2
+24
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;期待通りの値が得られた。&lt;/p&gt;
+
+&lt;p&gt;関数1個だけなんでパッケージにするのもどうかと思うけど折角なのでパッケージ化してみた。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/pf&#34;&gt;spiegel-im-spiegel/pf: Premium Friday&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;内容は &lt;code&gt;GetPremiumFriday()&lt;/code&gt; 関数を切り出しただけ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package pf
+
+import (
+	&amp;quot;os&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+//GetPremiumFriday returns day of premium friday
+func GetPremiumFriday(y int, m time.Month) (int, error) {
+	//引数のチェック
+	if y &amp;lt; 2017 || (m &amp;lt; time.January &amp;amp;&amp;amp; m &amp;gt; time.December) {
+		return 0, os.ErrInvalid
+	}
+	if y == 2017 &amp;amp;&amp;amp; m &amp;lt; time.February { //2017年1月は実施前なのでエラー
+		return 0, os.ErrInvalid
+	}
+
+	//指定月末（翌月0日）で初期化する
+	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
+	if err != nil {
+		return 0, err
+	}
+	tm := time.Date(y, m+1, 0, 0, 0, 0, 0, tz)
+
+	//月末尾から1日ずつ減じて最終金曜日を探す
+	for {
+		if tm.Weekday() == time.Friday {
+			break
+		}
+		tm = tm.AddDate(0, 0, -1)
+	}
+	return tm.Day(), nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;したがって &lt;code&gt;main()&lt;/code&gt; 関数はこうなる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pf&amp;quot;
+)
+
+func main() {
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &amp;lt; 2 {
+		fmt.Fprintln(os.Stderr, &amp;quot;年月を指定してください&amp;quot;)
+		return
+	}
+	args := make([]int, 2)
+	for i := 0; i &amp;lt; 2; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		args[i] = num
+	}
+	d, err := pf.GetPremiumFriday(args[0], time.Month(args[1]))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Println(d)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まぁこんなもんかな。
+遊んだ遊んだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>新しい太陽系外惑星に関するブックマーク - remark</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2017/02/new-7-exoplanets/" />
 		<id>tag:text.Baldanders.info,2017-02-26:/remark/2017/02/new-7-exoplanets/</id>
 		<published>2017-02-26T15:15:23+09:00</published>
-		<updated>2017-02-26T15:15:23+09:00</updated>
+		<updated>2017-02-28T12:36:44+09:00</updated>
 		<summary>あちこちで報道されているようなので，ブックマークという形で残しておく。</summary>
 		
 			<author>
@@ -44,6 +244,10 @@
 &lt;li&gt;&lt;a href=&#34;http://www.astroarts.co.jp/article/hl/a/8976_trappist1&#34;&gt;40光年彼方に地球サイズの7惑星 - AstroArts&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://scienceportal.jst.go.jp/news/newsflash_review/newsflash/2017/02/20170224_01.html&#34;&gt;2017年2月24日ニュース「地球に似た7惑星見つかる 3つは海がある可能性」 | SciencePortal&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;http://www.space.com/35803-trappist-1-planets-alien-life.html&#34;&gt;Discovery of 7 Earth-Size Exoplanets a &amp;lsquo;Giant Leap&amp;rsquo; Forward in Alien-Life Hunt&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://ironna.jp/article/5870&#34;&gt;ＮＡＳＡ発見の新惑星が「第二の地球」になる条件はこんなにも厳しい&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://ironna.jp/article/5871&#34;&gt;「七つの地球」大発見に隠されたＮＡＳＡの思惑&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://ironna.jp/article/5874&#34;&gt;スーパー宇宙望遠鏡が「トラピスト星人」を発見する日&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://ironna.jp/article/5875&#34;&gt;新発見の惑星で生命誕生と進化を可能にする「小さな太陽」の正体&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2 id=&#34;補足&#34;&gt;補足&lt;/h2&gt;
@@ -66,7 +270,7 @@
 
 &lt;p&gt;ぶっちゃけ，ハビタブルゾーンというのは（太陽系外を含む）地球外の惑星に人類が移住する際の一応の目安として考えられたもので，これを拡大解釈して「地球外生命」存在の目安とするには根拠が薄い（実際そう主張する論文もいくつかある）。&lt;/p&gt;
 
-&lt;p&gt;ただ，地球外生命探査（Search for Extra-Terrestrial Intelligencell; SETI）の観点からは，全く手がかりなしでやみくもに「地球外生命」を探しても埒が明かないので「まずはハビタブルゾーンにある惑星から調べましょ」という考え方も多く，実際そのように活動しているところもあるようだ。&lt;/p&gt;
+&lt;p&gt;ただ，地球外生命探査（Search for Extra-Terrestrial Intelligence; SETI）の観点からは，全く手がかりなしでやみくもに「地球外生命」を探しても埒が明かないので「まずはハビタブルゾーンにある惑星から調べましょ」という考え方も多く，実際そのように活動しているところもあるようだ。&lt;/p&gt;
 
 &lt;p&gt;というわけで，ハビタブルゾーンに地球型惑星があるからといって即「地球外生命がいるかも」という話にはならないのだが，地球外の生命（できれば文明）を見つけることはある意味人類の悲願でもあるので，今後の観測に期待したいところである。
 その意味で太陽系から40光年という近傍（！）でこのような系外惑星が見つかるというのは割と凄いことなのである。&lt;/p&gt;
@@ -92,7 +296,7 @@
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2017/02/sha-1-collision/" />
 		<id>tag:text.Baldanders.info,2017-02-25:/remark/2017/02/sha-1-collision/</id>
 		<published>2017-02-25T12:38:07+09:00</published>
-		<updated>2017-02-26T14:40:38+09:00</updated>
+		<updated>2017-03-03T12:25:37+09:00</updated>
 		<summary>もうみんな SHA-1 とはオサラバしてるよね（笑）</summary>
 		
 			<author>
@@ -116,7 +320,11 @@
 &lt;li&gt;&lt;a href=&#34;http://www.itmedia.co.jp/enterprise/articles/1702/24/news067.html&#34;&gt;SHA-1衝突攻撃がついに現実に、Google発表　90日後にコード公開 - ITmedia エンタープライズ&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.mozilla.org/security/2017/02/23/the-end-of-sha-1-on-the-public-web/&#34;&gt;The end of SHA-1 on the Public Web | Mozilla Security Blog&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://japan.zdnet.com/article/35097102/&#34;&gt;グーグル、SHA-1衝突攻撃に成功&amp;ndash;同一ハッシュ値の2つのPDFも公開 - ZDNet Japan&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://mailarchive.ietf.org/arch/search/?email_list=openpgp&amp;amp;index=AjJ3BHzd2c9K2KQ3DTk9Ry_QVYM&#34;&gt;Re: [openpgp] SHA1 collision found&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://mailarchive.ietf.org/arch/msg/openpgp/AjJ3BHzd2c9K2KQ3DTk9Ry_QVYM&#34;&gt;Re: [openpgp] SHA1 collision found&lt;/a&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://mailarchive.ietf.org/arch/msg/openpgp/_uV_coJ0CYayv_2ptJMuSraJhws&#34;&gt;[openpgp] V5 Fingerprint again&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://www.slideshare.net/herumi/googlesha1&#34;&gt;GoogleのSHA-1のはなし&lt;/a&gt; : 分かりやすい解説&lt;/li&gt;
 &lt;/ul&gt;
 
@@ -745,7 +953,7 @@ func main() {
 
 &lt;p&gt;この業界に四半世紀以上も足を突っ込んでるが脳内の&lt;a href=&#34;http://text.baldanders.info/remark/2015/programming-language/&#34; title=&#34;プログラミング言語との付き合い方&#34;&gt;母国語&lt;/a&gt;が変わるという経験は初めてで，まるで転生物のラノベ作品を読むがごとく，年甲斐もなく「&lt;a href=&#34;https://nijipi.com/it-news/kemono-lang_ruby-brainfuck/&#34;&gt;わーい！ たのしー！&lt;/a&gt;」な気分でコードを眺める日々である。&lt;/p&gt;
 
-&lt;p&gt;もっとも，有り余る計算資源を持つクラウド環境ならともかくリソースの限られた RTOS (Real-Time Operating System) 環境下では息を吸うようにヒープを使いまくる &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;実装は向いてない気がするので，「これは言語のチョイスを間違えたかなぁ」とも思わないでもない。
+&lt;p&gt;もっとも，有り余る計算資源を持つクラウド環境ならともかくリソースの限られた RTOS (Real-Time Operating System) 環境下では息を吸うようにヒープを使いまくる &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;での実装は向いてない気がするので，「これは言語のチョイスを間違えたかなぁ」とも思わないでもない。
 まぁでもそれならそれで C/C++ を使えばいいので困ることでもないんだけどね。&lt;/p&gt;
 
 &lt;p&gt;でも  &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;が&lt;a href=&#34;http://text.baldanders.info/remark/2015/programming-language/&#34; title=&#34;プログラミング言語との付き合い方&#34;&gt;母国語&lt;/a&gt;になると（アセンブラに近い C 言語はともかく） C++ って本当に面倒くさい言語だったんだなぁ，と涙が出ちゃう。
@@ -1349,133 +1557,6 @@ IPA と言えば最近になってヤバい注意喚起が上がっている。&
 &lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
 &lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
 &lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>最近の天文ニュースより - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2017/02/astronomical-news-0201/" />
-		<id>tag:text.Baldanders.info,2017-02-01:/remark/2017/02/astronomical-news-0201/</id>
-		<published>2017-02-01T23:05:44+09:00</published>
-		<updated>2017-02-04T11:52:49+09:00</updated>
-		<summary>地球から流出した酸素が「地球風」に乗って月に届いている，らしい / 国際天文連合による政治声明 / 2018年の暦要項 / その他ブックマーク</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;やぁ。
-1月はあっという間に行って2月になっちゃいましたよ。&lt;/p&gt;
-
-&lt;p&gt;ところで，ここのところ天文学関連で面白いニュースがいくつかあったので以下に簡単に紹介してみる。&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;#mn&#34;&gt;地球から流出した酸素が「地球風」に乗って月に届いている，らしい&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;#iaup&#34;&gt;国際天文連合による政治声明&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;#naojc&#34;&gt;2018年の暦要項&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;#other&#34;&gt;その他ブックマーク&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&#34;mn&#34;&gt;地球から流出した酸素が「地球風」に乗って月に届いている，らしい&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.nature.com/articles/s41550-016-0026&#34;&gt;Biogenic oxygen from Earth transported to the Moon by a wind of magnetospheric ions : Nature Astronomy&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.natureasia.com/ja-jp/natastron/pr-highlights/11588&#34;&gt;月における生命の足跡 | Nature Astronomy | Nature Research&lt;/a&gt; : 論文のダイジェスト記事&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.isas.jaxa.jp/topics/000838.html&#34;&gt;地球の高層大気から流出した酸素イオンを月周回衛星「かぐや」で検出 | 宇宙科学研究所&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://sorae.jp/030201/2017_01_31_oxy.html&#34;&gt;地球大気の酸素、月まで届いていた　衛星「かぐや」データより大阪大学など発表 | sorae.jp : 宇宙（そら）へのポータルサイト&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;何故か NHK のニュースで報じられたそうで微妙に反響があるようである。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;地球上の大部分の酸素が生物圏によって生じたため、この結果は月がそのほとんどの歴史にわたり生命によって生成された物質で継続的に「汚染されていた」ことを示唆する。寺田たちは太陽風と地球風の寄与を分離することは難しいと強調するが、今回の発見は地球の古代大気が月の土に保存されている可能性を示している。&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://www.natureasia.com/ja-jp/natastron/pr-highlights/11588&#34;&gt;月における生命の足跡&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;ちうことで，今後の研究が楽しみな分野になりそうだ。&lt;/p&gt;
-
-&lt;h2 id=&#34;iaup&#34;&gt;国際天文連合による政治声明&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.iau.org/news/announcements/detail/ann17006/&#34;&gt;IAU’s reaction to the US executive order banning access from seven countries | IAU&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;IAU が珍しいことするなぁ，と思ったが&lt;/p&gt;
-
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote&gt;
-&lt;q&gt;The International Astronomical Union (IAU) is profoundly concerned by the impact the recent US executive order, and possible reactions to it from other countries, could have on international collaboration in astronomy and the mobility of scientists.&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://www.iau.org/news/announcements/detail/ann17006/&#34;&gt;IAU’s reaction to the US executive order banning access from seven countries&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;ということで「そりゃそうか」って感じ。
-たとえば大きな国際学会を開こうにも政治的理由により参加できない研究者がたくさんいるということになる。&lt;/p&gt;
-
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote&gt;
-&lt;q&gt;In 2015 the IAU held its General Assembly in Honolulu, Hawai’i, USA, which hosted more than 3000 astronomers from 74 countries all over the world, including some of the seven countries concerned by the US executive order.&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://www.iau.org/news/announcements/detail/ann17006/&#34;&gt;IAU’s reaction to the US executive order banning access from seven countries&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;トランプ大統領の派手なパフォーマンスに少なからず幻惑されてしまうのだが，よく考えたらこういうのって「いかにも共和党がやりそうなこと」なんだよね。
-特定の人たちを差別的にみなしたり科学プロジェクトを意図的に冷遇したり，ブッシュ政権時代も相当アレだった。&lt;/p&gt;
-
-&lt;p&gt;まっ，これが本当の政権交代というものである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:a&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:a&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.space.com/35575-trump-immigration-order-space-community-reaction.html&#34;&gt;Mixed Reactions in Space Community to Immigration Executive Order&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;naojc&#34;&gt;2018年の暦要項&lt;/h2&gt;
-
-&lt;p&gt;例年通り2018年の&lt;a href=&#34;http://eco.mtk.nao.ac.jp/koyomi/yoko/&#34; title=&#34;暦要項 - 国立天文台暦計算室&#34;&gt;暦要項&lt;/a&gt;が出た。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;span&gt;&lt;a href=&#34;http://eco.mtk.nao.ac.jp/koyomi/yoko/pdf/yoko2018.pdf&#34;&gt;平成30年 (2018) 暦要項&lt;sup&gt;&lt;i class=&#34;fa fa-file-pdf-o&#34;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/span&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.nao.ac.jp/news/topics/2017/20170201-rekiyoko.html&#34;&gt;平成30年（2018）暦要項を発表 | 国立天文台(NAOJ)&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;一応解説すると，日本の暦は国立天文台から毎年2月に翌年のものが発表され官報に載せられる。
-内容としては，休日や祝日，朔望月や二十四節気，日食や月食といったものを含む。&lt;/p&gt;
-
-&lt;p&gt;たとえば，いわゆる旧暦は正式には暦として認められていないが，国立天文台から発表される朔望月や二十四節気を使って旧暦を決定することができる。&lt;/p&gt;
-
-&lt;h2 id=&#34;other&#34;&gt;その他ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.ipmu.jp/ja/20170127-H0LiCOW-H0&#34;&gt;宇宙のレンズが裏付ける予想より速い宇宙の膨張 | Kavli IPMU-カブリ数物連携宇宙研究機構&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.isas.jaxa.jp/topics/000832.html&#34;&gt;太陽風の影響、太陽系最強のバリアをくぐり抜ける 〜「ひさき」、太陽風の影響が木星磁気圏の内部にまで及んでいることを証明〜 | 宇宙科学研究所&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://moonstation.jp/blog/lunarexp/hakuto/hakuto-selected-as-five-final-finalists-for-google-lunar-x-prize&#34;&gt;【一部修正】月面着陸競争のグーグル・ルナーXプライズ、日本の「ハクト」を含む最終候補5チームを発表 | 月探査情報ステーション&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.nao.ac.jp/news/science/2017/20170124-procyon.html&#34;&gt;超小型探査機が彗星の水のなぞを解明 | 国立天文台(NAOJ)&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://dot.asahi.com/aera/2017012600195.html&#34;&gt;地球外生命体は「常識」　世界最高性能「アルマ望遠鏡」が解き明かす生命の根源 (&lt;sup&gt;1&lt;/sup&gt;&amp;frasl;&lt;sub&gt;3&lt;/sub&gt;) 〈AERA〉｜dot.ドット 朝日新聞出版&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.hiroshima-u.ac.jp/news/37496&#34;&gt;【研究成果】遠方の星形成銀河でさぐる宇宙の泡構造～暗黒物質(ダークマター)の中で進化する銀河にせまる～ | 広島大学&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://subarutelescope.org/Pressrelease/2017/01/30/j_index.html&#34;&gt;観測成果 - 遠方の星形成銀河でさぐる宇宙の泡構造 - すばる望遠鏡&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.titech.ac.jp/news/2017/037319.html&#34;&gt;冥王星のクジラ模様は衛星カロンを作ったジャイアント・インパクトの痕跡だった | 東工大ニュース | 東京工業大学&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:a&#34;&gt;インターネットを通じた世論調査では件の大統領令に対して賛成側がわずかに多いという結果になったそうだ。トランプ政権はおそらくこのまま突き進むのであろう。（参考： &lt;a href=&#34;https://scrapbox.io/spiegel-branch/Age-of-Trump&#34;&gt;Age-of-Trump - Spiegel&amp;rsquo;s Branch - Scrapbox&lt;/a&gt;）
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
 &lt;/div&gt;
 </content>
 	</entry>

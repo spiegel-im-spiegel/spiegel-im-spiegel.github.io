@@ -12,6 +12,206 @@
 
 	
 	<entry>
+		<title>「プレミアムフライデー」を求めるパッケージを作ってみた - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/premium-friday/" />
+		<id>tag:text.Baldanders.info,2017-03-04:/golang/premium-friday/</id>
+		<published>2017-03-04T09:40:51+09:00</published>
+		<updated>2017-03-04T09:40:51+09:00</updated>
+		<summary>もちろん息抜きである。潤いは大事。でも実用性はないと思われ。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;そういえば先月の「プレミアムフライデー」，皆様はいかがお過ごしでしたか。
+私は3時間も残業してしまいましたよ（笑）&lt;/p&gt;
+
+&lt;p&gt;ちうわけで，以下を真似して「プレミアムフライデー」を求めるパッケージを考えてみる。
+もちろん息抜きである。
+潤いは大事。
+でも実用性はないと思われ。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/neko_the_shadow/items/4ebf94a8a6d9282e7207&#34;&gt;プレミアムフライデーを求めるメソッドを作った - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/deaf_tadashi/items/963a62072338f09f12a5&#34;&gt;プレミアムフライデーを求めるメソッドを作った（Java8版） - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;まずはパッケージ分割しないでベタに書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+//GetPremiumFriday returns day of premium friday
+func GetPremiumFriday(y int, m time.Month) (int, error) {
+	//引数のチェック
+	if y &amp;lt; 2017 || (m &amp;lt; time.January &amp;amp;&amp;amp; m &amp;gt; time.December) {
+		return 0, os.ErrInvalid
+	}
+	if y == 2017 &amp;amp;&amp;amp; m &amp;lt; time.February { //2017年1月は実施前なのでエラー
+		return 0, os.ErrInvalid
+	}
+
+	//指定月末（翌月0日）で初期化する
+	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
+	if err != nil {
+		return 0, err
+	}
+	tm := time.Date(y, m+1, 0, 0, 0, 0, 0, tz)
+
+	//月末尾から1日ずつ減じて最終金曜日を探す
+	for {
+		if tm.Weekday() == time.Friday {
+			break
+		}
+		tm = tm.AddDate(0, 0, -1)
+	}
+	return tm.Day(), nil
+}
+
+func main() {
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &amp;lt; 2 {
+		fmt.Fprintln(os.Stderr, &amp;quot;年月を指定してください&amp;quot;)
+		return
+	}
+	args := make([]int, 2)
+	for i := 0; i &amp;lt; 2; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		args[i] = num
+	}
+	d, err := GetPremiumFriday(args[0], time.Month(args[1]))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Println(d)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;指定月末を求めるのに「翌月0日」で初期化するのがポイント（つか，ここしかポイントになるものがない&lt;code&gt;w&lt;/code&gt;）。
+実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run pf.go 2017 2
+24
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;期待通りの値が得られた。&lt;/p&gt;
+
+&lt;p&gt;関数1個だけなんでパッケージにするのもどうかと思うけど折角なのでパッケージ化してみた。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/pf&#34;&gt;spiegel-im-spiegel/pf: Premium Friday&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;内容は &lt;code&gt;GetPremiumFriday()&lt;/code&gt; 関数を切り出しただけ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package pf
+
+import (
+	&amp;quot;os&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+//GetPremiumFriday returns day of premium friday
+func GetPremiumFriday(y int, m time.Month) (int, error) {
+	//引数のチェック
+	if y &amp;lt; 2017 || (m &amp;lt; time.January &amp;amp;&amp;amp; m &amp;gt; time.December) {
+		return 0, os.ErrInvalid
+	}
+	if y == 2017 &amp;amp;&amp;amp; m &amp;lt; time.February { //2017年1月は実施前なのでエラー
+		return 0, os.ErrInvalid
+	}
+
+	//指定月末（翌月0日）で初期化する
+	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
+	if err != nil {
+		return 0, err
+	}
+	tm := time.Date(y, m+1, 0, 0, 0, 0, 0, tz)
+
+	//月末尾から1日ずつ減じて最終金曜日を探す
+	for {
+		if tm.Weekday() == time.Friday {
+			break
+		}
+		tm = tm.AddDate(0, 0, -1)
+	}
+	return tm.Day(), nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;したがって &lt;code&gt;main()&lt;/code&gt; 関数はこうなる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pf&amp;quot;
+)
+
+func main() {
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &amp;lt; 2 {
+		fmt.Fprintln(os.Stderr, &amp;quot;年月を指定してください&amp;quot;)
+		return
+	}
+	args := make([]int, 2)
+	for i := 0; i &amp;lt; 2; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		args[i] = num
+	}
+	d, err := pf.GetPremiumFriday(args[0], time.Month(args[1]))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Println(d)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まぁこんなもんかな。
+遊んだ遊んだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>演算子とステートメント - golang</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/operators-and-statements/" />
 		<id>tag:text.Baldanders.info,2017-02-20:/golang/operators-and-statements/</id>
@@ -501,7 +701,7 @@ func main() {
 
 &lt;p&gt;この業界に四半世紀以上も足を突っ込んでるが脳内の&lt;a href=&#34;http://text.baldanders.info/remark/2015/programming-language/&#34; title=&#34;プログラミング言語との付き合い方&#34;&gt;母国語&lt;/a&gt;が変わるという経験は初めてで，まるで転生物のラノベ作品を読むがごとく，年甲斐もなく「&lt;a href=&#34;https://nijipi.com/it-news/kemono-lang_ruby-brainfuck/&#34;&gt;わーい！ たのしー！&lt;/a&gt;」な気分でコードを眺める日々である。&lt;/p&gt;
 
-&lt;p&gt;もっとも，有り余る計算資源を持つクラウド環境ならともかくリソースの限られた RTOS (Real-Time Operating System) 環境下では息を吸うようにヒープを使いまくる &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;実装は向いてない気がするので，「これは言語のチョイスを間違えたかなぁ」とも思わないでもない。
+&lt;p&gt;もっとも，有り余る計算資源を持つクラウド環境ならともかくリソースの限られた RTOS (Real-Time Operating System) 環境下では息を吸うようにヒープを使いまくる &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;での実装は向いてない気がするので，「これは言語のチョイスを間違えたかなぁ」とも思わないでもない。
 まぁでもそれならそれで C/C++ を使えばいいので困ることでもないんだけどね。&lt;/p&gt;
 
 &lt;p&gt;でも  &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;が&lt;a href=&#34;http://text.baldanders.info/remark/2015/programming-language/&#34; title=&#34;プログラミング言語との付き合い方&#34;&gt;母国語&lt;/a&gt;になると（アセンブラに近い C 言語はともかく） C++ って本当に面倒くさい言語だったんだなぁ，と涙が出ちゃう。
@@ -2237,283 +2437,6 @@ func New(pc, ec int64) &amp;lt;-chan float64 {
 &lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
 &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
 &lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>モンテカルロ法による円周率の推定（その1） - golang</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi/" />
-		<id>tag:text.Baldanders.info,2016-11-05:/golang/estimate-of-pi/</id>
-		<published>2016-11-05T23:26:29+09:00</published>
-		<updated>2016-11-20T23:32:40+09:00</updated>
-		<summary>乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。
-ので早速試してみる。
-ちなみに「モンテカルロ法」というのは数値計算やシミュレーションに乱数を用いる手法をさす。&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt; ← イマココ&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/&#34;&gt;モンテカルロ法による円周率の推定（その3 Gaussian）&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-4-prng/&#34;&gt;モンテカルロ法による円周率の推定（その4 PRNG）&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&#34;モンテカルロ法による円周率の推定&#34;&gt;モンテカルロ法による円周率の推定&lt;/h2&gt;
-
-&lt;p&gt;では乱数を使ってどうやって円周率を求めるのか。
-まずは以下のように原点を中心とした半径 $1$ の円を考える。
-ただしここでは第一象限のみを対象とする。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;http://text.baldanders.info/images/circle.png&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/circle.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;
-
-&lt;/figure&gt;
-
-&lt;p&gt;そして $0 \le y \le 1$ および $0 \le y \le 1$ の範囲でランダムに点をプロットしていく。
-（以下の&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34; title=&#34;File:Pi 30K.gif - Wikimedia Commons&#34;&gt;図は Wikimedia Commons のもの&lt;/a&gt;を拝借した。 &lt;a href=&#34;https://creativecommons.org/licenses/by/3.0/&#34; title=&#34;Creative Commons — Attribution 3.0 Unported — CC BY 3.0&#34;&gt;CC-BY-3.0&lt;/a&gt; で公開されている）&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34;&gt;&lt;img srcset=&#34;https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;From Wikimedia Commons&#34;&gt;&lt;/a&gt;
-&lt;figcaption&gt;&lt;a href=&#34;https://commons.wikimedia.org/wiki/File:Pi_30K.gif&#34;&gt;From Wikimedia Commons&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;全ての点 $n$ が領域内に均等にプロットされていれば，円の内側に入る点の数 $m$ は，面積比から，以下の式のようになると期待できる。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-\[
-m \simeq \frac{1}{4}{\pi}n
-\]
-&lt;/blockquote&gt;
-
-&lt;/figure&gt;
-
-&lt;p&gt;この式を $\pi$ を求める形に変形すると&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-\[
-\pi \simeq \frac{4m}{n}
-\]
-&lt;/blockquote&gt;
-
-&lt;/figure&gt;
-
-&lt;p&gt;となる。
-プロットした点が円の内側かどうかは原点からの距離で判定できる。
-すなわち&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-\[
-\sqrt{x^2 + y^2} \le 1
-\]
-&lt;/blockquote&gt;
-
-&lt;/figure&gt;
-
-&lt;p&gt;を満たしていればよい。&lt;/p&gt;
-
-&lt;h2 id=&#34;math-rand-パッケージ&#34;&gt;math/rand パッケージ&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt; にはコア・パッケージとして &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;math/rand&lt;/code&gt;&lt;/a&gt; が用意されていて，このパッケージを使って擬似乱数を発生させることができる。
-今回は $0 \le r \le 1.0$ の範囲で乱数を発生させればいいのだが，生憎そのものズバリな関数が用意されていない。
-たとえば &lt;code&gt;rand.Float64()&lt;/code&gt; が吐く値の範囲は $0 \le r \lt 1.0$ なのでそのままでは使えないのだ。&lt;/p&gt;
-
-&lt;p&gt;そこで，こんなコードを考えてみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-func main() {
-	rand.Seed(time.Now().UnixNano())
-	for i := 0; i &amp;lt; 10; i++ {
-		fmt.Println(float64(rand.Int63n(10000001)) / float64(10000000))
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;rand.Int63n(n)&lt;/code&gt; 関数は $0 \le i \lt n$ の範囲で整数を吐く。
-$n=10,000,001$ なら $0 \le i \le 10,000,000$ の範囲になる。
-これを $10,000,000$ で割って $0 \le r \le 1.0$ の範囲の乱数を作るのである。&lt;/p&gt;
-
-&lt;p&gt;実際には2次元座標なので複素数（&lt;a href=&#34;https://golang.org/ref/spec#Complex_numbers&#34; title=&#34;Manipulating complex numbers&#34;&gt;complex&lt;/a&gt;）表現にして&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;math/cmplx&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-)
-
-func main() {
-	rand.Seed(time.Now().UnixNano())
-	for i := 0; i &amp;lt; 10; i++ {
-		c := complex(float64(rand.Int63n(10000001))/float64(10000000), float64(rand.Int63n(10000001))/float64(10000000))
-		fmt.Printf(&amp;quot;%v (%v)\n&amp;quot;, c, cmplx.Abs(c))
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;とすればよい。
-ちなみに &lt;code&gt;cmplx.Abs()&lt;/code&gt; 関数は複素数の絶対値を取るもので， $\sqrt{x^2 + y^2}$ と同じである。&lt;/p&gt;
-
-&lt;p&gt;では，以上を踏まえてランダムな点を生成する &lt;code&gt;gencmplx&lt;/code&gt; パッケージを作ってみよう。
-&lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; と &lt;a href=&#34;http://golang.org/ref/spec#Go_statements&#34;&gt;goroutine&lt;/a&gt; を使ってこんな感じにするかな。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package gencmplx
-
-import &amp;quot;math/rand&amp;quot;
-
-//New returns generator of random complex number
-func New(s rand.Source, count int64) &amp;lt;-chan complex128 {
-	ch := make(chan complex128)
-	r := rand.New(s)
-	go func(r *rand.Rand, count int64) {
-		for i := int64(0); i &amp;lt; count; i++ {
-			ch &amp;lt;- complex(float64(r.Int63n(10000001))/float64(10000000), float64(r.Int63n(10000001))/float64(10000000))
-		}
-		close(ch)
-	}(r, count)
-	return ch
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;後々のことを考えて，乱数の &lt;code&gt;rand.Source&lt;/code&gt;&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:s&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:s&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; と生成する点の個数は引数で指定するようにした。&lt;/p&gt;
-
-&lt;p&gt;いっぽう， &lt;code&gt;gencmplx&lt;/code&gt; パッケージの呼び出し側はこんな感じになる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
-)
-
-func main() {
-	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(10000))
-	for p := range c {
-		fmt.Printf(&amp;quot;%v\t%v\n&amp;quot;, real(p), imag(p))
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;ここでは少なめに1万個の点を生成している。
-&lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; &lt;code&gt;c&lt;/code&gt; からの値の取り出しは for-range 構文を使うと記述がシンプルになり &lt;code&gt;c&lt;/code&gt; が &lt;code&gt;close()&lt;/code&gt; するまでループしてくれる。&lt;/p&gt;
-
-&lt;p&gt;早速これを動かしてみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go &amp;gt; plot-1.dat
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これで1万個の点を &lt;code&gt;plot-1.dat&lt;/code&gt; に格納したことになる。
-&lt;code&gt;plot-1.dat&lt;/code&gt; を &lt;a href=&#34;http://www.gnuplot.info/&#34; title=&#34;gnuplot homepage&#34;&gt;gnuplot&lt;/a&gt; に食わせてみるとこんな感じ。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;img srcset=&#34;http://text.baldanders.info/images/random-plot-1.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;
-
-&lt;/figure&gt;
-
-&lt;p&gt;うーん。
-均等？ なのかなぁ。
-まぁ，この辺の評価については「&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/&#34; title=&#34;モンテカルロ法による円周率の推定（その3 Gaussian）&#34;&gt;その3&lt;/a&gt;」以降で。&lt;/p&gt;
-
-&lt;p&gt;最後に，生成した点の集合から円周率を推定するところまでやってみよう。
-&lt;code&gt;main()&lt;/code&gt; 関数はこのように変える。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;math/cmplx&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
-)
-
-func main() {
-	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(100000))
-	n := int64(0) // total
-	m := int64(0) // plot in circle
-	for p := range c {
-		n++
-		if cmplx.Abs(p) &amp;lt;= float64(1) {
-			m++
-		}
-	}
-	fmt.Printf(&amp;quot;n = %v, m = %v, 4m/n = %v\n&amp;quot;, n, m, float64(4*m)/float64(n))
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;点の数は10万個まで増やしている。
-実行結果は&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main2.go
-n = 100000, m = 78397, 4m/n = 3.13588
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;と，まぁそれっぽい値が出てきた。&lt;/p&gt;
-
-&lt;p&gt;今回はここまで。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://ruby.kyoto-wu.ac.jp/info-com/NumericalModels/RandomProcess/montecarlo.html&#34;&gt;モンテカルロ法入門&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/intelfike/items/039eccffd422321ec6dd&#34;&gt;golang complex(複素数)型を使う - Qiita&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/intelfike/items/f92f5c9ff2e515e16d47&#34;&gt;golang complex(複素数)型の計算をする - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.cse.kyoto-su.ac.jp/~oomoto/lecture/program/gnuplot/gnuplot.html&#34;&gt;GNUPLOTを用いたグラフ作成&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-
-&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1FO/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/416jAxVU4NL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1FO/baldandersinf-22/&#34;&gt;数学ガール／乱択アルゴリズム&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ株式会社 2014-02-14&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1D6/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1D6.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／ゲーデルの不完全性定理&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1CM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1CM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／フェルマーの最終定理&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00L0PDMK4.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール／ガロア理論&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00EYXMA9I/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00EYXMA9I.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガール&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMIQ/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00L0PDMIQ.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／式とグラフ&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34; &gt;工学ガール，リサちゃん登場！&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#34;#maker&#34; class=&#34;reviewer&#34;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-04-19&#34;&gt;2015/04/19&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34;&gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:s&#34;&gt;&lt;code&gt;rand.Source&lt;/code&gt; は &lt;a href=&#34;https://golang.org/doc/effective_go.html#interfaces_and_types&#34; title=&#34;Effective Go - The Go Programming Language&#34;&gt;interface&lt;/a&gt; として定義されていて，これを満たす &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; であれば他の擬似乱数アルゴリズムも使えるようになっている。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
 &lt;/div&gt;
 </content>
 	</entry>
