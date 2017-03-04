@@ -12,6 +12,206 @@
 
 	
 	<entry>
+		<title>「プレミアムフライデー」を求めるパッケージを作ってみた - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/premium-friday/" />
+		<id>tag:text.Baldanders.info,2017-03-04:/golang/premium-friday/</id>
+		<published>2017-03-04T09:40:51+09:00</published>
+		<updated>2017-03-04T09:40:51+09:00</updated>
+		<summary>もちろん息抜きである。潤いは大事。でも実用性はないと思われ。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;そういえば先月の「プレミアムフライデー」，皆様はいかがお過ごしでしたか。
+私は3時間も残業してしまいましたよ（笑）&lt;/p&gt;
+
+&lt;p&gt;ちうわけで，以下を真似して「プレミアムフライデー」を求めるパッケージを考えてみる。
+もちろん息抜きである。
+潤いは大事。
+でも実用性はないと思われ。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/neko_the_shadow/items/4ebf94a8a6d9282e7207&#34;&gt;プレミアムフライデーを求めるメソッドを作った - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/deaf_tadashi/items/963a62072338f09f12a5&#34;&gt;プレミアムフライデーを求めるメソッドを作った（Java8版） - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;まずはパッケージ分割しないでベタに書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+//GetPremiumFriday returns day of premium friday
+func GetPremiumFriday(y int, m time.Month) (int, error) {
+	//引数のチェック
+	if y &amp;lt; 2017 || (m &amp;lt; time.January &amp;amp;&amp;amp; m &amp;gt; time.December) {
+		return 0, os.ErrInvalid
+	}
+	if y == 2017 &amp;amp;&amp;amp; m &amp;lt; time.February { //2017年1月は実施前なのでエラー
+		return 0, os.ErrInvalid
+	}
+
+	//指定月末（翌月0日）で初期化する
+	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
+	if err != nil {
+		return 0, err
+	}
+	tm := time.Date(y, m+1, 0, 0, 0, 0, 0, tz)
+
+	//月末尾から1日ずつ減じて最終金曜日を探す
+	for {
+		if tm.Weekday() == time.Friday {
+			break
+		}
+		tm = tm.AddDate(0, 0, -1)
+	}
+	return tm.Day(), nil
+}
+
+func main() {
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &amp;lt; 2 {
+		fmt.Fprintln(os.Stderr, &amp;quot;年月を指定してください&amp;quot;)
+		return
+	}
+	args := make([]int, 2)
+	for i := 0; i &amp;lt; 2; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		args[i] = num
+	}
+	d, err := GetPremiumFriday(args[0], time.Month(args[1]))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Println(d)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;指定月末を求めるのに「翌月0日」で初期化するのがポイント（つか，ここしかポイントになるものがない&lt;code&gt;w&lt;/code&gt;）。
+実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run pf.go 2017 2
+24
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;期待通りの値が得られた。&lt;/p&gt;
+
+&lt;p&gt;関数1個だけなんでパッケージにするのもどうかと思うけど折角なのでパッケージ化してみた。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/pf&#34;&gt;spiegel-im-spiegel/pf: Premium Friday&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;内容は &lt;code&gt;GetPremiumFriday()&lt;/code&gt; 関数を切り出しただけ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package pf
+
+import (
+	&amp;quot;os&amp;quot;
+	&amp;quot;time&amp;quot;
+)
+
+//GetPremiumFriday returns day of premium friday
+func GetPremiumFriday(y int, m time.Month) (int, error) {
+	//引数のチェック
+	if y &amp;lt; 2017 || (m &amp;lt; time.January &amp;amp;&amp;amp; m &amp;gt; time.December) {
+		return 0, os.ErrInvalid
+	}
+	if y == 2017 &amp;amp;&amp;amp; m &amp;lt; time.February { //2017年1月は実施前なのでエラー
+		return 0, os.ErrInvalid
+	}
+
+	//指定月末（翌月0日）で初期化する
+	tz, err := time.LoadLocation(&amp;quot;Asia/Tokyo&amp;quot;)
+	if err != nil {
+		return 0, err
+	}
+	tm := time.Date(y, m+1, 0, 0, 0, 0, 0, tz)
+
+	//月末尾から1日ずつ減じて最終金曜日を探す
+	for {
+		if tm.Weekday() == time.Friday {
+			break
+		}
+		tm = tm.AddDate(0, 0, -1)
+	}
+	return tm.Day(), nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;したがって &lt;code&gt;main()&lt;/code&gt; 関数はこうなる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;flag&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;strconv&amp;quot;
+	&amp;quot;time&amp;quot;
+
+	&amp;quot;github.com/spiegel-im-spiegel/pf&amp;quot;
+)
+
+func main() {
+	flag.Parse()
+	argsStr := flag.Args()
+	if len(argsStr) &amp;lt; 2 {
+		fmt.Fprintln(os.Stderr, &amp;quot;年月を指定してください&amp;quot;)
+		return
+	}
+	args := make([]int, 2)
+	for i := 0; i &amp;lt; 2; i++ {
+		num, err := strconv.Atoi(argsStr[i])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		args[i] = num
+	}
+	d, err := pf.GetPremiumFriday(args[0], time.Month(args[1]))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Println(d)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まぁこんなもんかな。
+遊んだ遊んだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
 		<title>演算子とステートメント - golang</title>
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/operators-and-statements/" />
 		<id>tag:text.Baldanders.info,2017-02-20:/golang/operators-and-statements/</id>
@@ -1478,101 +1678,6 @@ C++ 11 でだいぶ変わったしね。
 &lt;ol&gt;
 &lt;li id=&#34;fn:a&#34;&gt;多文化主義というのはもともとリベラルの考え方だと何かに書いてあった。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>『数学ガールの秘密ノート／場合の数』はプログラマの必読書だ！ - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2016/07/math-girls-combinatorics/" />
-		<id>tag:text.Baldanders.info,2016-07-23:/remark/2016/07/math-girls-combinatorics/</id>
-		<published>2016-07-23T20:00:02+09:00</published>
-		<updated>2016-12-05T17:10:50+09:00</updated>
-		<summary>よし。こうしよう。算数や数学に興味のあるお子さんは『数学ガールの秘密ノート／場合の数』と『いかにして問題をとくか』で読書感想文（とついでに夏休みの自由研究）を書きなさい。これができたら今年の夏はずうっと Pokémon GO してて構わない。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">&lt;p&gt;今回は最初から Kindle で購入したのだが何となく先延ばしにしていた。
-「数学ガール」シリーズは通勤のスキマ時間とかではなく，ちゃんと時間を作って一気に読みたかったのだ。
-でもこう忙しくちゃねぇ。
-おぢさんはもっと気楽に生きたいのに。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a data-flickr-embed=&#34;true&#34; href=&#34;https://www.flickr.com/photos/spiegel/28345047646/&#34;&gt;&lt;img srcset=&#34;https://c7.staticflickr.com/9/8043/28345047646_424ca88ef5.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;paperwhite で「数学ガール」&#34;&gt;&lt;/a&gt;
-&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/28345047646/&#34;&gt;paperwhite で「数学ガール」&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/mathgirl-note-vector/&#34; title=&#34;『数学ガールの秘密ノート／ベクトルの真実』で遊ぶ&#34;&gt;「ベクトルの真実」は個人的にミルカさんの回&lt;/a&gt;だったけど，今回は「僕」の回だね。
-「僕」の暴走を押さえこむテトラちゃんとミルカさん。
-そして Lazy Susan 大活躍（笑）&lt;/p&gt;
-
-&lt;p&gt;途中まで読んでようやく気がついたんだけど，これって『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00H372H40/baldandersinf-22/&#34; title=&#34;Amazon.co.jp: プログラマの数学 電子書籍: 結城 浩: Kindleストア&#34;&gt;プログラマの数学&lt;/a&gt;』ぢゃん。
-本棚から引っ張りだして見たら第5章がそのものずばり「順列・組み合わせ」だった。
-10年以上前に買った本とはいえ忘れていたとはオイラも歳をとったもんだぜ。
-Kindle で買い直して読み返そうかな。&lt;/p&gt;
-
-&lt;p&gt;いつもは&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;「数学ガールの秘密ノート」シリーズは数学成分多めで中学生以上を対象にしているが，小学生高学年なら頑張れば理解できるはず&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;と説明しているが（「&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B01EL08HVS/baldandersinf-22/&#34; title=&#34;Amazon.co.jp: 数学ガールの秘密ノート／場合の数 電子書籍: 結城 浩: Kindleストア&#34;&gt;場合の数&lt;/a&gt;」もそうなのだが），今回は声を大にして言おう。&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;プログラマ（志望者も含む）は全員『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B01EL08HVS/baldandersinf-22/&#34; title=&#34;Amazon.co.jp: 数学ガールの秘密ノート／場合の数 電子書籍: 結城 浩: Kindleストア&#34;&gt;数学ガールの秘密ノート／場合の数&lt;/a&gt;』を読め！&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;そして「&lt;a href=&#34;http://text.baldanders.info/remark/2016/06/19-stories/#ed&#34;&gt;小学生に「プログラミング教育」をさせる&lt;/a&gt;」などとキチガイじみた提案をするなら学級文庫&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:cl&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:cl&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; に「数学ガールの秘密ノート」シリーズを全巻揃えてみせろ。
-話はそれからだ。&lt;/p&gt;
-
-&lt;p&gt;前に&lt;/p&gt;
-
-&lt;blockquote&gt;
-&lt;p&gt;ちなみに「人工知能」の台頭を意識しているのなら，なおさら「プログラミング教育」は不要である。 なぜなら「問題を解決する仕事」はこれからどんどん機械が奪っていくから。 そうなった時に望まれる人材は「問題を解決できる人」ではなく「正しい問いを立てられる人」である。 親や学校教師に言われた通りのことしかできない子どもは，大人社会の中では機械以下の底辺でしか生きられなくなる。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;と&lt;a href=&#34;http://text.baldanders.info/remark/2016/06/19-stories/#ed&#34;&gt;書いた&lt;/a&gt;が，今回の「&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B01EL08HVS/baldandersinf-22/&#34; title=&#34;Amazon.co.jp: 数学ガールの秘密ノート／場合の数 電子書籍: 結城 浩: Kindleストア&#34;&gt;場合の数&lt;/a&gt;」ではポリアの『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621045938/baldandersinf-22/&#34; title=&#34;いかにして問題をとくか : G. ポリア, G. Polya, 柿内 賢信 : 本 : Amazon&#34;&gt;いかにして問題をとくか&lt;/a&gt;』を教科書に「問いの立て方」について議論している。分からないことや知りたいことについて「正しく問いを立てる」ことができれば，その問題は半分解けたも同然だということをこの本は示している。&lt;/p&gt;
-
-&lt;p&gt;よし。
-こうしよう。
-算数や数学に興味のあるお子さんは『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B01EL08HVS/baldandersinf-22/&#34; title=&#34;Amazon.co.jp: 数学ガールの秘密ノート／場合の数 電子書籍: 結城 浩: Kindleストア&#34;&gt;数学ガールの秘密ノート／場合の数&lt;/a&gt;』と『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621045938/baldandersinf-22/&#34; title=&#34;いかにして問題をとくか : G. ポリア, G. Polya, 柿内 賢信 : 本 : Amazon&#34;&gt;いかにして問題をとくか&lt;/a&gt;』で読書感想文（とついでに夏休みの自由研究）を書きなさい。
-これができたら今年の夏はずうっと &lt;a href=&#34;http://www.pokemongo.jp/&#34; title=&#34;『Pokémon GO』公式サイト&#34;&gt;Pokémon GO&lt;/a&gt; してて構わない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:g&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:g&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;（笑）&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://codeiq.jp/magazine/2015/12/34755/&#34;&gt;『数学ガール』とプログラミングの関係｜CodeIQ MAGAZINE&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B01EL08HVS/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/41gorf%2BfNaL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B01EL08HVS/baldandersinf-22/&#34;&gt;数学ガールの秘密ノート／場合の数&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2016-04-19&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B018VE46YW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B018VE46YW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／ベクトルの真実&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／数列の広場&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMJ0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00L0PDMJ0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／整数で遊ぼう&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;このシリーズの今回巻はプログラマ必読書である。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-23&#34;&gt;2016-07-23&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797329734/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51xj-xFKUXL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797329734/baldandersinf-22/&#34;&gt;プログラマの数学&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;ソフトバンククリエイティブ 2005-03-24&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;4&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274067556/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274067556.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラマのための論理パズル 難題を突破する論理思考トレーニング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873116694/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873116694.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;アルゴリズムパズル ―プログラマのための数学パズル入門&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4048869558/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4048869558.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラマの考え方がおもしろいほど身につく本 問題解決能力を鍛えよう!&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/479803925X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/479803925X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラムはこうして作られるプログラマの頭の中をのぞいてみよう&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/479814245X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/479814245X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラマ脳を鍛える数学パズル シンプルで高速なコードが書けるようになる70問&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;プログラマ必修の教科書（笑）&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-05-17&#34;&gt;2016-05-17&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621045938/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51XGP8AFX2L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621045938/baldandersinf-22/&#34;&gt;いかにして問題をとくか&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;G. ポリア 柿内 賢信 &lt;/dd&gt;&lt;dd&gt;丸善 1975-04-01&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;4&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621085298/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4621085298.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;いかにして問題をとくか・実践活用編&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4061497863/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4061497863.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学的思考法―説明力を鍛えるヒント  講談社現代新書&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/462108819X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/462108819X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学×思考=ざっくりと  いかにして問題をとくか&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797375698/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797375698.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4185086180/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4185086180.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;授業研究に学ぶ高校新数学科の在り方&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34; &gt;数学書。というか問いの立てかたやものの考え方についての指南書。のようなものかな。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#34;#maker&#34; class=&#34;reviewer&#34;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2014-09-26&#34;&gt;2014/09/26&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34;&gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:cl&#34;&gt;私の子供の頃はこう呼ばれていた。英語で言うと「クラスライブラリ」（少しウソw）
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:cl&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:g&#34;&gt;学校側の出す宿題なんてどうせ「塹壕掘り」なんだから，最初の1週間で終わらせられるでしょ。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:g&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
