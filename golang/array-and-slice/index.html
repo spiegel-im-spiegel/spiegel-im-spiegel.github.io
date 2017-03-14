@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.19" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>配列と Slice — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="配列と slice との関係について。あくまでも私のための覚書である。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,programming,slice">
+<link rel='prev' href='http://text.baldanders.info/golang/premium-friday/' title='「プレミアムフライデー」を求めるパッケージを作ってみた' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>配列と Slice — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/golang">golang</a> #<a href="/tags/programming">programming</a> #<a href="/tags/slice">slice</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/array-and-slice/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>以下の記事を見て思わず膝を打った。</p>
+
+<ul>
+<li><a href="http://qiita.com/seihmd/items/d9bc98a4f4f606ecaef7">Goのarrayとsliceを理解するときがきた - Qiita</a></li>
+</ul>
+
+<p>なるほど！ こういう風に説明すればいいのか。
+というわけで，私も便乗してみる。
+あくまでも私のための覚え書である。</p>
+
+<h2 id="配列は常に-値-である">配列は常に「値」である</h2>
+
+<p>まずはこんなコードを書いてみる。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&quot;ary = %p\n&quot;, &amp;ary)
+	for i := 0; i &lt; len(ary); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;ary[i], ary[i])
+	}
+}
+</code></pre>
+
+<p><code>[4]int8</code> が「型」であることを意識してもらうために敢えて <code>Array4</code> という型を宣言している。
+実行結果は以下の通り。</p>
+
+<pre><code class="language-text">ary = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+</code></pre>
+
+<p>まぁ分かりやすいよね。
+今度はダンプ表示部分を別関数にしてみる。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func dump(ary Array4) {
+	fmt.Printf(&quot;ary(dump) = %p\n&quot;, &amp;ary)
+	for i := 0; i &lt; len(ary); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;ary[i], ary[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&quot;ary(org) = %p\n&quot;, &amp;ary)
+	dump(ary)
+}
+</code></pre>
+
+<p>このコードの実行結果は以下の通り。</p>
+
+<pre><code class="language-text">ary(org) = 0x1040a124
+ary(dump) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+</code></pre>
+
+<p><code>dump()</code> 関数の引数として渡される配列がオリジナルのものと異なることが分かるだろう。
+<a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>では関数の引数は原則として「値渡し（call by value）」であるため，配列を渡す場合でも配列のコピーを作って渡すことになる。
+配列を値渡しではなく「参照渡し（call by reference）」にしたい場合はポインタを使う。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func dump(ary *Array4) {
+	fmt.Printf(&quot;ary(dump) = %p\n&quot;, ary)
+	for i := 0; i &lt; len(ary); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;ary[i], ary[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&quot;ary(org) = %p\n&quot;, &amp;ary)
+	dump(&amp;ary)
+}
+</code></pre>
+
+<p>結果は以下の通り。</p>
+
+<pre><code class="language-text">ary(org) = 0x1040a124
+ary(dump) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+</code></pre>
+
+<h2 id="slice-は配列への参照である">Slice は配列への参照である</h2>
+
+<p>次は配列を <a href="http://golang.org/ref/spec#Slice_types">slice</a> に置き換えてみよう。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+func dump(slc []int8) {
+	fmt.Printf(&quot;slc(dump) = %p\n&quot;, slc)
+	for i := 0; i &lt; len(slc); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	slc := []int8{0, 1, 2, 3}
+	fmt.Printf(&quot;slc(org) = %p\n&quot;, slc)
+	dump(slc)
+}
+</code></pre>
+
+<p>配列の場合の記述の違いが分かるだろうか。
+この場合 <code>slc</code> には配列 <code>{0, 1, 2, 3}</code> へのポインタがセットされる。
+したがって <code>dump()</code> 関数の引数には（見かけ上）配列 <code>{0, 1, 2, 3}</code> への参照がセットされていることになる。</p>
+
+<pre><code class="language-text">slc(org) = 0x1040a124
+slc(dump) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+</code></pre>
+
+<p>では応用として今度はこんなコードを考えてみよう。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func dumpA(ary Array4) {
+	fmt.Printf(&quot;ary(dumpA) = %p\n&quot;, &amp;ary)
+	for i := 0; i &lt; len(ary); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;ary[i], ary[i])
+	}
+}
+
+func dumpS(slc []int8) {
+	fmt.Printf(&quot;slc(dumpS) = %p\n&quot;, slc)
+	for i := 0; i &lt; len(slc); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&quot;ary(org) = %p\n&quot;, &amp;ary)
+	dumpA(ary)
+	slc := ary[:]
+	dumpS(slc)
+}
+</code></pre>
+
+<p><code>slc := ary[:]</code> で配列 <code>ary</code> が <a href="http://golang.org/ref/spec#Slice_types">slice</a> <code>slc</code> にキャストされているのがポイントである。
+実行結果は以下の通り。</p>
+
+<pre><code class="language-text">ary(org) = 0x1040a124
+ary(dumpA) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+slc(dumpS) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+</code></pre>
+
+<p>配列 <code>ary</code> のオリジナルのポインタ値がそのまま <code>slc</code> の値になっているのが分かると思う。
+この「<a href="http://golang.org/ref/spec#Slice_types">slice</a> は配列への参照である」ということを踏まえると，こんな面白いコードも書ける。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func dumpA(ary Array4) {
+	fmt.Printf(&quot;ary(dumpA) = %p\n&quot;, &amp;ary)
+	for i := 0; i &lt; len(ary); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;ary[i], ary[i])
+	}
+}
+
+func dumpS(slc []int8) {
+	fmt.Printf(&quot;pointer(dumpS) = %p\n&quot;, slc)
+	fmt.Printf(&quot;size(dumpS) = %v\n&quot;, len(slc))
+	fmt.Printf(&quot;capacity(dumpS) = %v\n&quot;, cap(slc))
+	for i := 0; i &lt; len(slc); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&quot;ary(org) = %p\n&quot;, &amp;ary)
+	dumpA(ary)
+	slc1 := ary[0:2]
+	dumpS(slc1)
+	slc2 := slc1[0:4]
+	dumpS(slc2)
+}
+</code></pre>
+
+<p>サイズ 2 の <code>slc1</code> からサイズ4の <code>slc2</code> を取得しているのがポイント。
+このコードの実行結果は以下の通り。</p>
+
+<pre><code class="language-text">ary(org) = 0x1040a124
+ary(dumpA) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a124
+size(dumpS) = 2
+capacity(dumpS) = 4
+0x1040a124: 0
+0x1040a125: 1
+pointer(dumpS) = 0x1040a124
+size(dumpS) = 4
+capacity(dumpS) = 4
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+</code></pre>
+
+<p>実は <a href="http://golang.org/ref/spec#Slice_types">slice</a> は配列に対してポインタとサイズと容量の3つの属性を持つオブジェクトである。
+上述のコードでは配列 <code>ary</code> を反映し， <code>slc1</code> の容量が4となるため <code>slc2</code> ではサイズ4の <a href="http://golang.org/ref/spec#Slice_types">slice</a> が作れるわけだ。</p>
+
+<p>たとえば <code>slc1 := ary[2:4]</code> と書き換えると</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func dumpA(ary Array4) {
+	fmt.Printf(&quot;ary(dumpA) = %p\n&quot;, &amp;ary)
+	for i := 0; i &lt; len(ary); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;ary[i], ary[i])
+	}
+}
+
+func dumpS(slc []int8) {
+	fmt.Printf(&quot;pointer(dumpS) = %p\n&quot;, slc)
+	fmt.Printf(&quot;size(dumpS) = %v\n&quot;, len(slc))
+	fmt.Printf(&quot;capacity(dumpS) = %v\n&quot;, cap(slc))
+	for i := 0; i &lt; len(slc); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&quot;ary(org) = %p\n&quot;, &amp;ary)
+	dumpA(ary)
+	slc1 := ary[2:4]
+	dumpS(slc1)
+	slc2 := slc1[0:4]
+	dumpS(slc2)
+}
+</code></pre>
+
+<p><code>slc1</code> の容量が変わるため，以下のように実行時 panic になる。</p>
+
+<pre><code class="language-text">ary(org) = 0x1040a124
+ary(dumpA) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a126
+size(dumpS) = 2
+capacity(dumpS) = 2
+0x1040a126: 2
+0x1040a127: 3
+panic: runtime error: slice bounds out of range
+</code></pre>
+
+<p>このように配列と <a href="http://golang.org/ref/spec#Slice_types">slice</a> の関係が分かると <code>append()</code> 関数の挙動も理解しやすくなる。</p>
+
+<p>ところで先ほど <a href="http://golang.org/ref/spec#Slice_types">slice</a> は「ポインタとサイズと容量の3つの属性を持つオブジェクト」と書いた。
+つまり厳密に言えば，関数の引数に <a href="http://golang.org/ref/spec#Slice_types">slice</a> をセットするということは「ポインタとサイズと容量の3つの属性を持つオブジェクト」を値渡しでセットしているということになる。
+たとえば以下のようなコードを考える。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func dumpS(slc []int8) {
+	fmt.Printf(&quot;pointer(dumpS) = %p\n&quot;, slc)
+	fmt.Printf(&quot;size(dumpS) = %v\n&quot;, len(slc))
+	fmt.Printf(&quot;capacity(dumpS) = %v\n&quot;, cap(slc))
+	for i := 0; i &lt; len(slc); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;slc[i], slc[i])
+	}
+}
+
+func addS(slc []int8, e int8) {
+	slc = append(slc, e)
+	dumpS(slc)
+}
+
+func main() {
+	slc := make([]int8, 4, 8)
+	slc[0] = 0
+	slc[1] = 1
+	slc[2] = 2
+	slc[3] = 3
+	dumpS(slc)
+	addS(slc, 4)
+	dumpS(slc)
+	slc2 := slc[0:5]
+	dumpS(slc2)
+}
+</code></pre>
+
+<p>杜撰なコードではあるが，サイズ4容量8の配列に5番目の要素を <code>append()</code> しても内部の配列そのものは更新されないため動きとしては問題ないように見える。
+しかし実際には以下のような実行結果になる。</p>
+
+<pre><code class="language-text">pointer(dumpS) = 0x1040a128
+size(dumpS) = 4
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a128
+size(dumpS) = 5
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+0x1040a12c: 4
+pointer(dumpS) = 0x1040a128
+size(dumpS) = 4
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a128
+size(dumpS) = 5
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+0x1040a12c: 4
+</code></pre>
+
+<p>つまり <code>addS()</code> 関数に渡す <code>slc</code> は値渡しなので <code>addS()</code> 関数内で <code>slc</code> のサイズが変わっても関数の呼び出し元には反映されないことになる（配列自体には値がセットされている）。
+<code>append()</code> 関数実行後は必ず状態が変わるため正しく <a href="http://golang.org/ref/spec#Slice_types">slice</a> の「値」を更新する必要がある。</p>
+
+<h2 id="配列の複製">配列の複製</h2>
+
+<p>配列を明示的に複製して使いたい場合がある。
+<a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>では配列の複製はとても簡単である。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+type Array4 [4]int8
+
+func dump(ary *Array4) {
+	fmt.Printf(&quot;ary(dump) = %p\n&quot;, ary)
+	for i := 0; i &lt; len(ary); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;ary[i], ary[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	var ary2 Array4
+	fmt.Printf(&quot;ary(org) = %p\n&quot;, &amp;ary)
+	dump(&amp;ary)
+	ary2 = ary
+	dump(&amp;ary2)
+    if ary == ary2 {
+		fmt.Println(&quot;ary == ary2&quot;)
+	} else {
+		fmt.Println(&quot;ary != ary2&quot;)
+	}
+}
+</code></pre>
+
+<p>実行結果は以下の通り。</p>
+
+<pre><code class="language-text">ary(org) = 0x1040a124
+ary(dump) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+ary(dump) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+ary == ary2
+</code></pre>
+
+<p><code>ary</code> と <code>ary2</code> が同じ内容の異なるインスタンスであることが分かると思う。
+また配列同士の比較も同じ型であれば単純である。
+たとえば <code>[3]int8</code> と <code>[4]int8</code> は異なる型と見なされるため単純比較はできない。</p>
+
+<p>一方， <a href="http://golang.org/ref/spec#Slice_types">slice</a> の複製が欲しい場合は <code>copy()</code> 関数を使う。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;reflect&quot;
+)
+
+type Array4 [4]int8
+
+func dumpS(slc []int8) {
+	fmt.Printf(&quot;pointer(dumpS) = %p\n&quot;, slc)
+	fmt.Printf(&quot;size(dumpS) = %v\n&quot;, len(slc))
+	fmt.Printf(&quot;capacity(dumpS) = %v\n&quot;, cap(slc))
+	for i := 0; i &lt; len(slc); i++ {
+		fmt.Printf(&quot;%p: %v\n&quot;, &amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	slc1 := []int8{0, 1, 2, 3}
+	dumpS(slc1)
+	slc2 := make([]int8, len(slc1), cap(slc1))
+	copy(slc2, slc1)
+	dumpS(slc2)
+	if reflect.DeepEqual(slc1, slc2) {
+		fmt.Println(&quot;slc1 == slc2&quot;)
+	} else {
+		fmt.Println(&quot;slc1 != slc2&quot;)
+	}
+}
+</code></pre>
+
+<p>コピー先の <code>slc2</code> について <code>make()</code> 関数であらかじめサイズと容量を確保しておくのがポイント。
+実行結果は以下の通り。</p>
+
+<pre><code class="language-text">pointer(dumpS) = 0x1040a124
+size(dumpS) = 4
+capacity(dumpS) = 4
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+pointer(dumpS) = 0x1040a144
+size(dumpS) = 4
+capacity(dumpS) = 4
+0x1040a144: 0
+0x1040a145: 1
+0x1040a146: 2
+0x1040a147: 3
+slc1 == slc2
+</code></pre>
+
+<p><a href="http://golang.org/ref/spec#Slice_types">slice</a> 同士を比較するのも単純ではないが， <a href="https://golang.org/pkg/reflect/" title="reflect - The Go Programming Language"><code>reflect</code></a>.<code>DeepEqual()</code> 関数が使える。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="https://blog.golang.org/go-slices-usage-and-internals">Go Slices: usage and internals - The Go Blog</a></li>
+<li><a href="https://blog.golang.org/slices">Arrays, slices (and strings): The mechanics of &lsquo;append&rsquo; - The Go Blog</a></li>
+<li><a href="http://jxck.hatenablog.com/entry/golang-slice-internals2">Go のスライスでハマッたところ - Block Rockin’ Codes</a></li>
+<li><a href="http://qiita.com/mattn/items/176459728ff4f854b165">golang で string を []byte にキャストしてもメモリコピーが走らない方法を考えてみる - Qiita</a> : ネタ記事</li>
+<li><a href="/golang/function-and-pointer/">関数とポインタ</a></li>
+</ul>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/premium-friday/">「プレミアムフライデー」を求めるパッケージを作ってみた</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/golang\/array-and-slice\/';
+    var disqus_title = '配列と Slice';
+    var disqus_url = 'http:\/\/text.baldanders.info\/golang\/array-and-slice\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-03-15</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2farray-and-slice%2f" rel=”nofollow” target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=%e9%85%8d%e5%88%97%e3%81%a8%20Slice&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2farray-and-slice%2f" rel=”nofollow” target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2farray-and-slice%2f&amp;title=%e9%85%8d%e5%88%97%e3%81%a8%20Slice" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2farray-and-slice%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.19</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
+

@@ -8,8 +8,534 @@
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
-	<generator uri="http://gohugo.io/">Hugo 0.19</generator>
+	<generator uri="https://gohugo.io/">Hugo 0.19</generator>
 
+	
+	<entry>
+		<title>配列と Slice - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/array-and-slice/" />
+		<id>tag:text.Baldanders.info,2017-03-15:/golang/array-and-slice/</id>
+		<published>2017-03-15T00:31:48+09:00</published>
+		<updated>2017-03-15T00:31:48+09:00</updated>
+		<summary>配列と slice との関係について。あくまでも私のための覚書である。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;以下の記事を見て思わず膝を打った。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/seihmd/items/d9bc98a4f4f606ecaef7&#34;&gt;Goのarrayとsliceを理解するときがきた - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;なるほど！ こういう風に説明すればいいのか。
+というわけで，私も便乗してみる。
+あくまでも私のための覚え書である。&lt;/p&gt;
+
+&lt;h2 id=&#34;配列は常に-値-である&#34;&gt;配列は常に「値」である&lt;/h2&gt;
+
+&lt;p&gt;まずはこんなコードを書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&amp;quot;ary = %p\n&amp;quot;, &amp;amp;ary)
+	for i := 0; i &amp;lt; len(ary); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;ary[i], ary[i])
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;[4]int8&lt;/code&gt; が「型」であることを意識してもらうために敢えて &lt;code&gt;Array4&lt;/code&gt; という型を宣言している。
+実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;ary = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まぁ分かりやすいよね。
+今度はダンプ表示部分を別関数にしてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func dump(ary Array4) {
+	fmt.Printf(&amp;quot;ary(dump) = %p\n&amp;quot;, &amp;amp;ary)
+	for i := 0; i &amp;lt; len(ary); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;ary[i], ary[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&amp;quot;ary(org) = %p\n&amp;quot;, &amp;amp;ary)
+	dump(ary)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このコードの実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;ary(org) = 0x1040a124
+ary(dump) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;dump()&lt;/code&gt; 関数の引数として渡される配列がオリジナルのものと異なることが分かるだろう。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では関数の引数は原則として「値渡し（call by value）」であるため，配列を渡す場合でも配列のコピーを作って渡すことになる。
+配列を値渡しではなく「参照渡し（call by reference）」にしたい場合はポインタを使う。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func dump(ary *Array4) {
+	fmt.Printf(&amp;quot;ary(dump) = %p\n&amp;quot;, ary)
+	for i := 0; i &amp;lt; len(ary); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;ary[i], ary[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&amp;quot;ary(org) = %p\n&amp;quot;, &amp;amp;ary)
+	dump(&amp;amp;ary)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;ary(org) = 0x1040a124
+ary(dump) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;slice-は配列への参照である&#34;&gt;Slice は配列への参照である&lt;/h2&gt;
+
+&lt;p&gt;次は配列を &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; に置き換えてみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func dump(slc []int8) {
+	fmt.Printf(&amp;quot;slc(dump) = %p\n&amp;quot;, slc)
+	for i := 0; i &amp;lt; len(slc); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	slc := []int8{0, 1, 2, 3}
+	fmt.Printf(&amp;quot;slc(org) = %p\n&amp;quot;, slc)
+	dump(slc)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;配列の場合の記述の違いが分かるだろうか。
+この場合 &lt;code&gt;slc&lt;/code&gt; には配列 &lt;code&gt;{0, 1, 2, 3}&lt;/code&gt; へのポインタがセットされる。
+したがって &lt;code&gt;dump()&lt;/code&gt; 関数の引数には（見かけ上）配列 &lt;code&gt;{0, 1, 2, 3}&lt;/code&gt; への参照がセットされていることになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;slc(org) = 0x1040a124
+slc(dump) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;では応用として今度はこんなコードを考えてみよう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func dumpA(ary Array4) {
+	fmt.Printf(&amp;quot;ary(dumpA) = %p\n&amp;quot;, &amp;amp;ary)
+	for i := 0; i &amp;lt; len(ary); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;ary[i], ary[i])
+	}
+}
+
+func dumpS(slc []int8) {
+	fmt.Printf(&amp;quot;slc(dumpS) = %p\n&amp;quot;, slc)
+	for i := 0; i &amp;lt; len(slc); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&amp;quot;ary(org) = %p\n&amp;quot;, &amp;amp;ary)
+	dumpA(ary)
+	slc := ary[:]
+	dumpS(slc)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;slc := ary[:]&lt;/code&gt; で配列 &lt;code&gt;ary&lt;/code&gt; が &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; &lt;code&gt;slc&lt;/code&gt; にキャストされているのがポイントである。
+実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;ary(org) = 0x1040a124
+ary(dumpA) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+slc(dumpS) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;配列 &lt;code&gt;ary&lt;/code&gt; のオリジナルのポインタ値がそのまま &lt;code&gt;slc&lt;/code&gt; の値になっているのが分かると思う。
+この「&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; は配列への参照である」ということを踏まえると，こんな面白いコードも書ける。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func dumpA(ary Array4) {
+	fmt.Printf(&amp;quot;ary(dumpA) = %p\n&amp;quot;, &amp;amp;ary)
+	for i := 0; i &amp;lt; len(ary); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;ary[i], ary[i])
+	}
+}
+
+func dumpS(slc []int8) {
+	fmt.Printf(&amp;quot;pointer(dumpS) = %p\n&amp;quot;, slc)
+	fmt.Printf(&amp;quot;size(dumpS) = %v\n&amp;quot;, len(slc))
+	fmt.Printf(&amp;quot;capacity(dumpS) = %v\n&amp;quot;, cap(slc))
+	for i := 0; i &amp;lt; len(slc); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&amp;quot;ary(org) = %p\n&amp;quot;, &amp;amp;ary)
+	dumpA(ary)
+	slc1 := ary[0:2]
+	dumpS(slc1)
+	slc2 := slc1[0:4]
+	dumpS(slc2)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;サイズ 2 の &lt;code&gt;slc1&lt;/code&gt; からサイズ4の &lt;code&gt;slc2&lt;/code&gt; を取得しているのがポイント。
+このコードの実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;ary(org) = 0x1040a124
+ary(dumpA) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a124
+size(dumpS) = 2
+capacity(dumpS) = 4
+0x1040a124: 0
+0x1040a125: 1
+pointer(dumpS) = 0x1040a124
+size(dumpS) = 4
+capacity(dumpS) = 4
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実は &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; は配列に対してポインタとサイズと容量の3つの属性を持つオブジェクトである。
+上述のコードでは配列 &lt;code&gt;ary&lt;/code&gt; を反映し， &lt;code&gt;slc1&lt;/code&gt; の容量が4となるため &lt;code&gt;slc2&lt;/code&gt; ではサイズ4の &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; が作れるわけだ。&lt;/p&gt;
+
+&lt;p&gt;たとえば &lt;code&gt;slc1 := ary[2:4]&lt;/code&gt; と書き換えると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func dumpA(ary Array4) {
+	fmt.Printf(&amp;quot;ary(dumpA) = %p\n&amp;quot;, &amp;amp;ary)
+	for i := 0; i &amp;lt; len(ary); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;ary[i], ary[i])
+	}
+}
+
+func dumpS(slc []int8) {
+	fmt.Printf(&amp;quot;pointer(dumpS) = %p\n&amp;quot;, slc)
+	fmt.Printf(&amp;quot;size(dumpS) = %v\n&amp;quot;, len(slc))
+	fmt.Printf(&amp;quot;capacity(dumpS) = %v\n&amp;quot;, cap(slc))
+	for i := 0; i &amp;lt; len(slc); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	fmt.Printf(&amp;quot;ary(org) = %p\n&amp;quot;, &amp;amp;ary)
+	dumpA(ary)
+	slc1 := ary[2:4]
+	dumpS(slc1)
+	slc2 := slc1[0:4]
+	dumpS(slc2)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;slc1&lt;/code&gt; の容量が変わるため，以下のように実行時 panic になる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;ary(org) = 0x1040a124
+ary(dumpA) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a126
+size(dumpS) = 2
+capacity(dumpS) = 2
+0x1040a126: 2
+0x1040a127: 3
+panic: runtime error: slice bounds out of range
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このように配列と &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; の関係が分かると &lt;code&gt;append()&lt;/code&gt; 関数の挙動も理解しやすくなる。&lt;/p&gt;
+
+&lt;p&gt;ところで先ほど &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; は「ポインタとサイズと容量の3つの属性を持つオブジェクト」と書いた。
+つまり厳密に言えば，関数の引数に &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; をセットするということは「ポインタとサイズと容量の3つの属性を持つオブジェクト」を値渡しでセットしているということになる。
+たとえば以下のようなコードを考える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func dumpS(slc []int8) {
+	fmt.Printf(&amp;quot;pointer(dumpS) = %p\n&amp;quot;, slc)
+	fmt.Printf(&amp;quot;size(dumpS) = %v\n&amp;quot;, len(slc))
+	fmt.Printf(&amp;quot;capacity(dumpS) = %v\n&amp;quot;, cap(slc))
+	for i := 0; i &amp;lt; len(slc); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;slc[i], slc[i])
+	}
+}
+
+func addS(slc []int8, e int8) {
+	slc = append(slc, e)
+	dumpS(slc)
+}
+
+func main() {
+	slc := make([]int8, 4, 8)
+	slc[0] = 0
+	slc[1] = 1
+	slc[2] = 2
+	slc[3] = 3
+	dumpS(slc)
+	addS(slc, 4)
+	dumpS(slc)
+	slc2 := slc[0:5]
+	dumpS(slc2)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;杜撰なコードではあるが，サイズ4容量8の配列に5番目の要素を &lt;code&gt;append()&lt;/code&gt; しても内部の配列そのものは更新されないため動きとしては問題ないように見える。
+しかし実際には以下のような実行結果になる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;pointer(dumpS) = 0x1040a128
+size(dumpS) = 4
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a128
+size(dumpS) = 5
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+0x1040a12c: 4
+pointer(dumpS) = 0x1040a128
+size(dumpS) = 4
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+pointer(dumpS) = 0x1040a128
+size(dumpS) = 5
+capacity(dumpS) = 8
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+0x1040a12c: 4
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;つまり &lt;code&gt;addS()&lt;/code&gt; 関数に渡す &lt;code&gt;slc&lt;/code&gt; は値渡しなので &lt;code&gt;addS()&lt;/code&gt; 関数内で &lt;code&gt;slc&lt;/code&gt; のサイズが変わっても関数の呼び出し元には反映されないことになる（配列自体には値がセットされている）。
+&lt;code&gt;append()&lt;/code&gt; 関数実行後は必ず状態が変わるため正しく &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; の「値」を更新する必要がある。&lt;/p&gt;
+
+&lt;h2 id=&#34;配列の複製&#34;&gt;配列の複製&lt;/h2&gt;
+
+&lt;p&gt;配列を明示的に複製して使いたい場合がある。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では配列の複製はとても簡単である。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Array4 [4]int8
+
+func dump(ary *Array4) {
+	fmt.Printf(&amp;quot;ary(dump) = %p\n&amp;quot;, ary)
+	for i := 0; i &amp;lt; len(ary); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;ary[i], ary[i])
+	}
+}
+
+func main() {
+	ary := Array4{0, 1, 2, 3}
+	var ary2 Array4
+	fmt.Printf(&amp;quot;ary(org) = %p\n&amp;quot;, &amp;amp;ary)
+	dump(&amp;amp;ary)
+	ary2 = ary
+	dump(&amp;amp;ary2)
+    if ary == ary2 {
+		fmt.Println(&amp;quot;ary == ary2&amp;quot;)
+	} else {
+		fmt.Println(&amp;quot;ary != ary2&amp;quot;)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;ary(org) = 0x1040a124
+ary(dump) = 0x1040a124
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+ary(dump) = 0x1040a128
+0x1040a128: 0
+0x1040a129: 1
+0x1040a12a: 2
+0x1040a12b: 3
+ary == ary2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;ary&lt;/code&gt; と &lt;code&gt;ary2&lt;/code&gt; が同じ内容の異なるインスタンスであることが分かると思う。
+また配列同士の比較も同じ型であれば単純である。
+たとえば &lt;code&gt;[3]int8&lt;/code&gt; と &lt;code&gt;[4]int8&lt;/code&gt; は異なる型と見なされるため単純比較はできない。&lt;/p&gt;
+
+&lt;p&gt;一方， &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; の複製が欲しい場合は &lt;code&gt;copy()&lt;/code&gt; 関数を使う。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;reflect&amp;quot;
+)
+
+type Array4 [4]int8
+
+func dumpS(slc []int8) {
+	fmt.Printf(&amp;quot;pointer(dumpS) = %p\n&amp;quot;, slc)
+	fmt.Printf(&amp;quot;size(dumpS) = %v\n&amp;quot;, len(slc))
+	fmt.Printf(&amp;quot;capacity(dumpS) = %v\n&amp;quot;, cap(slc))
+	for i := 0; i &amp;lt; len(slc); i++ {
+		fmt.Printf(&amp;quot;%p: %v\n&amp;quot;, &amp;amp;slc[i], slc[i])
+	}
+}
+
+func main() {
+	slc1 := []int8{0, 1, 2, 3}
+	dumpS(slc1)
+	slc2 := make([]int8, len(slc1), cap(slc1))
+	copy(slc2, slc1)
+	dumpS(slc2)
+	if reflect.DeepEqual(slc1, slc2) {
+		fmt.Println(&amp;quot;slc1 == slc2&amp;quot;)
+	} else {
+		fmt.Println(&amp;quot;slc1 != slc2&amp;quot;)
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;コピー先の &lt;code&gt;slc2&lt;/code&gt; について &lt;code&gt;make()&lt;/code&gt; 関数であらかじめサイズと容量を確保しておくのがポイント。
+実行結果は以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;pointer(dumpS) = 0x1040a124
+size(dumpS) = 4
+capacity(dumpS) = 4
+0x1040a124: 0
+0x1040a125: 1
+0x1040a126: 2
+0x1040a127: 3
+pointer(dumpS) = 0x1040a144
+size(dumpS) = 4
+capacity(dumpS) = 4
+0x1040a144: 0
+0x1040a145: 1
+0x1040a146: 2
+0x1040a147: 3
+slc1 == slc2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; 同士を比較するのも単純ではないが， &lt;a href=&#34;https://golang.org/pkg/reflect/&#34; title=&#34;reflect - The Go Programming Language&#34;&gt;&lt;code&gt;reflect&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;DeepEqual()&lt;/code&gt; 関数が使える。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/go-slices-usage-and-internals&#34;&gt;Go Slices: usage and internals - The Go Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/slices&#34;&gt;Arrays, slices (and strings): The mechanics of &amp;lsquo;append&amp;rsquo; - The Go Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://jxck.hatenablog.com/entry/golang-slice-internals2&#34;&gt;Go のスライスでハマッたところ - Block Rockin’ Codes&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/mattn/items/176459728ff4f854b165&#34;&gt;golang で string を []byte にキャストしてもメモリコピーが走らない方法を考えてみる - Qiita&lt;/a&gt; : ネタ記事&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/function-and-pointer/&#34;&gt;関数とポインタ&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>「プレミアムフライデー」を求めるパッケージを作ってみた - golang</title>
@@ -1572,114 +2098,6 @@ setupProgram(dart, 0);
 &lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621045938/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51XGP8AFX2L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621045938/baldandersinf-22/&#34;&gt;いかにして問題をとくか&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;G. ポリア 柿内 賢信 &lt;/dd&gt;&lt;dd&gt;丸善 1975-04-01&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;4&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621085298/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4621085298.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;いかにして問題をとくか・実践活用編&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4061497863/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4061497863.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学的思考法―説明力を鍛えるヒント  講談社現代新書&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/462108819X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/462108819X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学×思考=ざっくりと  いかにして問題をとくか&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797375698/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797375698.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4185086180/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4185086180.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;授業研究に学ぶ高校新数学科の在り方&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
 &lt;p class=&#34;description&#34; &gt;数学書。というか問いの立てかたやものの考え方についての指南書。のようなものかな。&lt;/p&gt;
 &lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#34;#maker&#34; class=&#34;reviewer&#34;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2014-09-26&#34;&gt;2014/09/26&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34;&gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>「シルバー・ウィーク」スペシャル： C&#43;&#43; 再勉強中。 - remark</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2016/09/22-stories/" />
-		<id>tag:text.Baldanders.info,2016-09-22:/remark/2016/09/22-stories/</id>
-		<published>2016-09-22T16:50:46+09:00</published>
-		<updated>2016-09-22T19:59:48+09:00</updated>
-		<summary>C&#43;&#43; 再勉強中。 / alt-right ??? / その他の気になる記事</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;いや，私は普通にカレンダー通りですけどね。
-今日は仕事してる人も多いみたいだし。&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;#cpp&#34;&gt;C++ 再勉強中。&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;#ar&#34;&gt;alt-right ???&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;#other&#34;&gt;その他の気になる記事&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&#34;cpp&#34;&gt;C++ 再勉強中。&lt;/h2&gt;
-
-&lt;p&gt;昨年出た『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117364/baldandersinf-22/&#34; title=&#34;Effective Modern C++ ―C++11/14プログラムを進化させる42項目 : Scott Meyers, 千住 治郎 : 本 : Amazon.co.jp&#34;&gt;Effective Modern C++&lt;/a&gt;』をようやく読み始めてる。
-C++ 11 でだいぶ変わったしね。
-読書感想はまた後日。&lt;/p&gt;
-
-&lt;p&gt;他にもこの辺は読んでおかないと。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.ipa.go.jp/sec/publish/tn10-003.html&#34;&gt;SEC BOOKS：ESCR C++：組込みソフトウェア開発向けコーディング作法ガイド［C++言語版］：IPA 独立行政法人 情報処理推進機構&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.ipa.go.jp/sec/publish/tn13-001.html&#34;&gt;SEC BOOKS：ESCR Ver.2.0：【改訂版】組込みソフトウェア開発向け コーディング作法ガイド［C言語版］Ver.2.0：IPA 独立行政法人 情報処理推進機構&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.slideshare.net/herumi/cc-66035712&#34;&gt;C/C++プログラマのための開発ツール&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://postd.cc/code-behaving-differently-in-c90-c99-c11-c98-and-c11/&#34;&gt;C90, C99, C11, C++98, C++11で異なる動作をするコード | プログラミング | POSTD&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/&#34;&gt;Go 言語の勉強&lt;/a&gt;は今のところはアソビ半分だが，こっちはうまく仕事に結びつくといいですなぁ。&lt;/p&gt;
-
-&lt;h2 id=&#34;ar&#34;&gt;alt-right ???&lt;/h2&gt;
-
-&lt;p&gt;最近よく聞くようになったが実は結構前から言われているらしい。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://wired.jp/2016/09/03/alter-right-wing/&#34;&gt;覆面ブロガーの告白、そして「オルタナ右翼」とは何なのか｜WIRED.jp&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.mhatta.org/wp/blog/2016/09/12/identitarianism-as-racism-2-0/&#34;&gt;レイシズム2.0としてのアイデンティタリアニズム | mhatta&amp;rsquo;s mumbo jumbo&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.mhatta.org/wp/blog/2016/09/22/alt-right-depicted/&#34;&gt;オルタナ右翼の図解 | mhatta&amp;rsquo;s mumbo jumbo&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;しかし，このご時世に右とか左とかいう色分けはあまり意味が無い気がする。
-ぱっと見た感じ Identitarianism ってのはジョック・ヤングの『&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4903127044/baldandersinf-22/&#34; title=&#34;排除型社会―後期近代における犯罪・雇用・差異 : ジョック ヤング, Jock Young, 青木 秀男, 伊藤 泰郎, 岸 政彦, 村澤 真保呂 : 本 : Amazon&#34;&gt;排除型社会&lt;/a&gt;』に出てくる「多文化主義&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:a&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:a&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; 的エポケー」の変奏に過ぎないように思える。
-でもって「多文化主義的エポケー」は文化的な袋小路であって未来に何も生み出さないんだよね。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;しかし、現在のように都市生活が多様化し、グローバル化したマスメディアが毎日のように多種多様な文化を垂れ流す状況では、もはや自然的エポケーは通用しなくなっている。こうした困難に対処する態度こそ、私が「多文化主義的エポケー」と呼んでいるものである。つまり、自然的エポケーの特徴である「懐疑の一時停止（あるいは〈括弧〉にいれる）」を、いわば多元化することである。この場合、それぞれの文化は、他の文化からみずからを区別するために、独自の排他的領域という〈括弧〉のなかに閉じこもろうとする。それはちょうど、それぞれの集団が、リスクを最小化するために、保険統計的計算にもとづいて物質的・経済的バリアを張り巡らせようとするのと同じである。&lt;/q&gt;（p.251）
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4903127044/baldandersinf-22/&#34;&gt;排除型社会&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;多文化主義のおかげで、人々は自分たちの選択を相対化しなくても、規範の相対性を受け入れることができるようになるわけである。……多文化主義における異文化への距離の取り方（「尊重」とか「寛容」という言葉でごまかしているが）が異文化への不安をつくりだす可能性は十分にある。というのも、それは戦後の包摂型社会に代えて、排除型の飛び地が点在する世界をつくりだすからである。……かつて近代主義が求めたのは、開放的で、「脱埋め込み」的で、両義的で、断片化された世界をつくりだすことであった。それは自己とライフスタイルを自由に選択し、創造することが可能な世界だった。しかし、多文化主義はそのような世界を消し去ろうとする――つまり、一方で多様性を認めながら、他方では行為者から選択の自由を奪おうとするのである。&lt;/q&gt;（p.259）
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4903127044/baldandersinf-22/&#34;&gt;排除型社会&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;h2 id=&#34;other&#34;&gt;その他の気になる記事&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://postd.cc/draft-payment-system-in-erlang/&#34;&gt;「Erlangを使用して、効率的な決済システムを構築するには？」 | プログラミング | POSTD&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://wirelesswire.jp/2016/08/55823/&#34;&gt;もうすぐ絶滅するという開かれたウェブについて - WirelessWire News（ワイヤレスワイヤーニュース）&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://d.hatena.ne.jp/yomoyomo/20160911/algorithmfda&#34;&gt;やはり我々には「アルゴリズムの監査機関」が必要なのか？ - YAMDAS現更新履歴&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117364/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51ng4usMVYL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117364/baldandersinf-22/&#34;&gt;Effective Modern C++ ―C++11/14プログラムを進化させる42項目&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Scott Meyers 千住 治郎 &lt;/dd&gt;&lt;dd&gt;オライリージャパン 2015-09-18&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;4&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4048694243/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4048694243.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;C++11/14 コア言語&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797375957/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797375957.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラミング言語C++第4版&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621066099/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4621066099.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Effective C++ 第3版 (ADDISON-WESLEY PROFESSIONAL COMPUTI)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797384778/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797384778.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;C++のエッセンス&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4048930516/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4048930516.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;C++によるプログラミングの原則と実践&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797376686/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797376686.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;C++テンプレートテクニック 第2版&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4844338900/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4844338900.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Game Programming Patterns ソフトウェア開発の問題解決メニュー (impress top gear)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117569/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117569.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Effective Python ―Pythonプログラムを改良する59項目&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4774174084/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4774174084.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;改訂新版　C++ポケットリファレンス&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4862462928/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4862462928.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Computer Graphics Gems JP 2015 - コンピュータグラフィックス技術の最前線 -&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;C++ 再勉強中。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-09-22&#34;&gt;2016-09-22&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4903127044/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/417iD4x5N%2BL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4903127044/baldandersinf-22/&#34;&gt;排除型社会―後期近代における犯罪・雇用・差異&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;ジョック ヤング Jock Young &lt;/dd&gt;&lt;dd&gt;洛北出版 2007-03&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4791764331/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4791764331.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;後期近代の眩暈―排除から過剰包摂へ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4255008515/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4255008515.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;断片的なものの社会学&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4796700439/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4796700439.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スティグマの社会学―烙印を押されたアイデンティティ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4791764242/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4791764242.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;新しい貧困 労働消費主義ニュープア&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4062881357/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4062881357.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;弱者の居場所がない社会――貧困・格差と社会的包摂 (講談社現代新書)&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000410.shtml&#34;&gt;感想はこちら&lt;/a&gt;。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-15&#34;&gt;2015-09-15&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:a&#34;&gt;多文化主義というのはもともとリベラルの考え方だと何かに書いてあった。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
 &lt;/div&gt;
 </content>
 	</entry>
