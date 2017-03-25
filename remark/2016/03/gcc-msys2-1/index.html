@@ -54,7 +54,7 @@
 
 <main>
 <article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
-<div><strong><a href="/remark">しっぽのさきっちょ</a>: 2016-03-01 付</strong> （2016-04-23 更新）</div>
+<div><strong><a href="/remark">しっぽのさきっちょ</a>: 2016-03-01 付</strong> （2017-03-24 更新）</div>
 <h1 itemprop='name'>MSYS2 による gcc 開発環境の構築 ― MSYS2 のインストールから初期化処理まで</h1>
 <nav class="tags">
 <div><a href="/tags">Tags</a>: #<a href="/tags/gcc">gcc</a> #<a href="/tags/msys2">msys2</a> #<a href="/tags/tools">tools</a></div>
@@ -99,7 +99,7 @@
 
 <h2 id="msys2-のインストール">MSYS2 のインストール</h2>
 
-<p>では早速 64bit 版インストーラ（今回は <code>msys2-x86_64-20160205.exe</code> を使用）でインストールを行ってみる。</p>
+<p>では早速 64bit 版インストーラ（今回は <code>msys2-x86_64-20161025.exe</code> を使用）でインストールを行ってみる。</p>
 
 <figure style='margin:0 auto;text-align:center;'>
 <a data-flickr-embed="true" href="https://www.flickr.com/photos/spiegel/25210363812/"><img srcset="https://farm2.staticflickr.com/1462/25210363812_7cd554cc78.jpg 500w" sizes="(min-width:600px) 500px, 80vw" alt="MSYS2 Installing (1)"></a>
@@ -134,15 +134,26 @@
 
 <h3 id="msys2-起動モード">MSYS2 起動モード</h3>
 
-<p><a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> の起動バッチには以下の3つがある（64bit 版をインストールした場合）</p>
+<p><a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> には3つの起動モジュールがある（64bit 版をインストールした場合）。</p>
 
 <ul>
-<li><code>mingw32_shell.bat</code></li>
-<li><code>mingw64_shell.bat</code></li>
-<li><code>msys2_shell.bat</code></li>
+<li><code>mingw32.exe</code></li>
+<li><code>mingw64.exe</code></li>
+<li><code>msys2.exe</code></li>
 </ul>
 
-<p>中身はターミナルエミュレータ（既定で <a href="https://mintty.github.io/" title="Mintty — Cygwin Terminal emulator">mintty</a>）の場所を探して起動するだけだが，環境変数 <code>MSYSTEM</code> にそれぞれ以下の値をセットしている</p>
+<p>またそれぞれに ini ファイルが用意されている。
+たとえば <code>msys2.exe</code> であればこんな感じ。</p>
+
+<pre><code class="language-ini">#MSYS=winsymlinks:nativestrict
+#MSYS=error_start:mingw64/bin/qtcreator.exe|-debug|&lt;process-id&gt;
+#CHERE_INVOKING=1
+#MSYS2_PATH_TYPE=inherit
+MSYSTEM=MSYS
+</code></pre>
+
+<p>どうやら ini ファイルの内容をそのまま環境変数として渡しているようだ。
+このうち <code>MSYSTEM</code> に注目すると以下のようになっている。</p>
 
 <table>
 <thead>
@@ -154,63 +165,76 @@
 
 <tbody>
 <tr>
-<td align="left"><code>mingw32_shell.bat</code></td>
+<td align="left"><code>mingw32.exe</code></td>
 <td align="left"><code>MINGW32</code></td>
 </tr>
 
 <tr>
-<td align="left"><code>mingw64_shell.bat</code></td>
+<td align="left"><code>mingw64.exe</code></td>
 <td align="left"><code>MINGW64</code></td>
 </tr>
 
 <tr>
-<td align="left"><code>msys2_shell.bat</code></td>
+<td align="left"><code>msys2.exe</code></td>
 <td align="left"><code>MSYS</code></td>
 </tr>
 </tbody>
 </table>
 
-<p>環境変数 <code>MSYSTEM</code> は <code>/etc/profile</code> 内で参照される。</p>
+<p><code>MSYSTEM</code> は <code>/etc/profile</code> 内で参照される。
+以下に <code>/etc/profile</code> の一部を引用する。</p>
 
 <pre><code class="language-bash">MSYS2_PATH=&quot;/usr/local/bin:/usr/bin:/bin&quot;
-MANPATH=&quot;/usr/local/man:/usr/share/man:/usr/man:/share/man:${MANPATH}&quot;
-INFOPATH=&quot;/usr/local/info:/usr/share/info:/usr/info:/share/info:${INFOPATH}&quot;
-MINGW_MOUNT_POINT=
-if [ -n &quot;$MSYSTEM&quot; ]
-then
-  case &quot;$MSYSTEM&quot; in
-    MINGW32)
-      MINGW_MOUNT_POINT=/mingw32
-      PATH=&quot;${MINGW_MOUNT_POINT}/bin:${MSYS2_PATH}:${PATH}&quot;
-      PKG_CONFIG_PATH=&quot;${MINGW_MOUNT_POINT}/lib/pkgconfig:${MINGW_MOUNT_POINT}/share/pkgconfig&quot;
-      ACLOCAL_PATH=&quot;${MINGW_MOUNT_POINT}/share/aclocal:/usr/share/aclocal&quot;
-      MANPATH=&quot;${MINGW_MOUNT_POINT}/share/man:${MANPATH}&quot;
+MANPATH='/usr/local/man:/usr/share/man:/usr/man:/share/man'
+INFOPATH='/usr/local/info:/usr/share/info:/usr/info:/share/info'
+
+case &quot;${MSYS2_PATH_TYPE:-minimal}&quot; in
+  strict)
+    # Do not inherit any path configuration, and allow for full customization
+    # of external path. This is supposed to be used in special cases such as
+    # debugging without need to change this file, but not daily usage.
+    unset ORIGINAL_PATH
     ;;
-    MINGW64)
-      MINGW_MOUNT_POINT=/mingw64
-      PATH=&quot;${MINGW_MOUNT_POINT}/bin:${MSYS2_PATH}:${PATH}&quot;
-      PKG_CONFIG_PATH=&quot;${MINGW_MOUNT_POINT}/lib/pkgconfig:${MINGW_MOUNT_POINT}/share/pkgconfig&quot;
-      ACLOCAL_PATH=&quot;${MINGW_MOUNT_POINT}/share/aclocal:/usr/share/aclocal&quot;
-      MANPATH=&quot;${MINGW_MOUNT_POINT}/share/man:${MANPATH}&quot;
+  inherit)
+    # Inherit previous path. Note that this will make all of the Windows path
+    # available in current shell, with possible interference in project builds.
+    ORIGINAL_PATH=&quot;${ORIGINAL_PATH:-${PATH}}&quot;
     ;;
-    MSYS)
-      PATH=&quot;${MSYS2_PATH}:/opt/bin:${PATH}&quot;
-      PKG_CONFIG_PATH=&quot;/usr/lib/pkgconfig:/usr/share/pkgconfig:/lib/pkgconfig&quot;
-    ;;
-    *)
-      PATH=&quot;${MSYS2_PATH}:${PATH}&quot;
-    ;;
-  esac
-else
-  PATH=&quot;${MSYS2_PATH}:${PATH}&quot;
-fi
+  *)
+    # Do not inherit any path configuration but configure a default Windows path
+    # suitable for normal usage with minimal external interference.
+    WIN_ROOT=&quot;$(PATH=${MSYS2_PATH} cygpath -Wu)&quot;
+    ORIGINAL_PATH=&quot;${WIN_ROOT}/System32:${WIN_ROOT}:${WIN_ROOT}/System32/Wbem:${WIN_ROOT}/System32/WindowsPowerShell/v1.0/&quot;
+esac
+
+unset MINGW_MOUNT_POINT
+source '/etc/msystem'
+case &quot;${MSYSTEM}&quot; in
+MINGW32)
+  MINGW_MOUNT_POINT=&quot;${MINGW_PREFIX}&quot;
+  PATH=&quot;${MINGW_MOUNT_POINT}/bin:${MSYS2_PATH}${ORIGINAL_PATH:+:${ORIGINAL_PATH}}&quot;
+  PKG_CONFIG_PATH=&quot;${MINGW_MOUNT_POINT}/lib/pkgconfig:${MINGW_MOUNT_POINT}/share/pkgconfig&quot;
+  ACLOCAL_PATH=&quot;${MINGW_MOUNT_POINT}/share/aclocal:/usr/share/aclocal&quot;
+  MANPATH=&quot;${MINGW_MOUNT_POINT}/share/man:${MANPATH}&quot;
+  ;;
+MINGW64)
+  MINGW_MOUNT_POINT=&quot;${MINGW_PREFIX}&quot;
+  PATH=&quot;${MINGW_MOUNT_POINT}/bin:${MSYS2_PATH}${ORIGINAL_PATH:+:${ORIGINAL_PATH}}&quot;
+  PKG_CONFIG_PATH=&quot;${MINGW_MOUNT_POINT}/lib/pkgconfig:${MINGW_MOUNT_POINT}/share/pkgconfig&quot;
+  ACLOCAL_PATH=&quot;${MINGW_MOUNT_POINT}/share/aclocal:/usr/share/aclocal&quot;
+  MANPATH=&quot;${MINGW_MOUNT_POINT}/share/man:${MANPATH}&quot;
+  ;;
+*)
+  PATH=&quot;${MSYS2_PATH}:/opt/bin${ORIGINAL_PATH:+:${ORIGINAL_PATH}}&quot;
+  PKG_CONFIG_PATH=&quot;/usr/lib/pkgconfig:/usr/share/pkgconfig:/lib/pkgconfig&quot;
+esac
 </code></pre>
 
 <p><code>MINGW32</code> または <code>MINGW64</code> の場合は，新たに <code>/mingw32</code> または <code>/mingw64</code> がパス等に追加されているのがお分かりだろうか。</p>
 
 <h3 id="conemu-から-msys2-bash-を起動する">ConEmu から MSYS2 bash を起動する</h3>
 
-<p>以上から，環境変数 <code>MSYSTEM</code> を適切に設定すれば <a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> の起動バッチを介さずに shell を起動しても構わないことが分かる。
+<p>以上から，環境変数 <code>MSYSTEM</code> を適切に設定すれば <a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> の起動モジュールを介さずに shell を起動しても構わないことが分かる。
 ここでは <a href="https://conemu.github.io/" title="ConEmu - Handy Windows Terminal">ConEmu</a> から <a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> の bash を起動することを考える。
 以下のように Tasks 設定で <a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> の bash を起動するシーケンスを設定すればよい。</p>
 
@@ -221,32 +245,17 @@ fi
 
 <p>起動シーケンスは以下のとおり。</p>
 
-<pre><code class="language-text">set MSYSTEM=MSYS &amp; C:\msys64\usr\bin\bash.exe --login -i
+<pre><code class="language-text">set MSYSTEM=MSYS &amp; chcp 65001 &amp; C:\msys64\usr\bin\bash.exe --login -i -new_console:C:&quot;C:\msys64\msys2.ico&quot;
 </code></pre>
 
-<p>前半で環境変数を設定し，後半で実際に bash を呼び出している。</p>
-
-<h3 id="環境変数-path-のチューニング">環境変数 PATH のチューニング</h3>
-
-<p>Windows の環境変数は <a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> にも引き継がれる。
-<code>PATH</code> も同様。
-ただし Windows の <code>PATH</code> 上のアプリケーションを <a href="http://msys2.github.io/" title="MSYS2 installer">MSYS2</a> 上で動いてほしくない場合もある。
-この場合は起動時に <code>PATH</code> を書き換える。
-先ほどの <a href="https://conemu.github.io/" title="ConEmu - Handy Windows Terminal">ConEmu</a> の起動シーケンスなら</p>
-
-<pre><code class="language-text">set PATH=%SystemRoot%System32 &amp; set MSYSTEM=MSYS &amp; C:\msys64\usr\bin\bash.exe --login -i
-</code></pre>
-
-<p>でいいだろう。
-Windows 上の特定のツールを使いたい場合はフルパスまたはその alias で指定するほうがスマートである。</p>
+<p>前半で環境変数とコードページ（65001 は UTF-8）を設定し，後半で実際に bash を呼び出している。</p>
 
 <h2 id="初期設定">初期設定</h2>
 
 <p>では本題に戻ろう。
-<code>msys2_shell.bat</code> または環境変数 <code>MSYSTEM</code> に <code>MSYS</code> をセットして shell を起動し，まずはコア・パッケージを最新のものに更新する。</p>
+<code>msys2.exe</code> または環境変数 <code>MSYSTEM</code> に <code>MSYS</code> をセットして shell を起動し，まずはコア・パッケージを最新のものに更新する。</p>
 
-<pre><code class="language-text">$ update-core
-==&gt; Update package databases...
+<pre><code class="language-text">$ pacman -Syu
 :: パッケージデータベースの同期中...
  mingw32                                              232.6 KiB   720K/s 00:00 [##################] 100%
  mingw32.sig                                           96.0   B  93.8K/s 00:00 [##################] 100%
@@ -291,7 +300,7 @@ Please close this window.
 
 <p>おや。
 ツールが更新された。
-<code>update-core</code> で更新があった場合，いったん shell を閉じて起動し直す。
+<code>pacman -Syu</code> で更新があった場合，いったん shell を閉じて起動し直す。
 このとき <code>exit</code> コマンドで終了するのではなく，強制終了する。</p>
 
 <p>Shell を再起動したら他のインストール済みのパッケージを更新しよう。</p>
@@ -506,7 +515,7 @@ sub   4096R/576CF231 2014-09-28
 		</div>
 		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
 			
-				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-03-01</time> (revised in <time property='dc:modified'>2016-04-23</time>).
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2016-03-01</time> (revised in <time property='dc:modified'>2017-03-24</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
 
