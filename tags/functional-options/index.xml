@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cc="http://web.resource.org/cc/">
+	<title>Functional Options - text.Baldanders.info</title>
+	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/functional-options/index.xml" />
+	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/functional-options/index.xml/index.xml" />
+	<id>tag:text.Baldanders.info,0001-01-01:/</id>
+	<updated>0001-01-01T00:00:00+00:00</updated>
+	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
+	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
+	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
+	<generator uri="https://gohugo.io/">Hugo 0.19</generator>
+
+	
+	<entry>
+		<title>インスタンスの生成と Functional Options パターン - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/functional-options-pattern/" />
+		<id>tag:text.Baldanders.info,2017-04-04:/golang/functional-options-pattern/</id>
+		<published>2017-04-04T01:01:59+09:00</published>
+		<updated>2017-04-04T01:01:59+09:00</updated>
+		<summary>今回も自分用の覚え書きとして書いておく。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;「&lt;a href=&#34;http://qiita.com/weloan/items/56f1c7792088b5ede136&#34;&gt;Go言語のFunctional Option Pattern - Qiita&lt;/a&gt;」を参考にして今回も自分用の覚え書きとして書いておく。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;には C++ や Java 等にある class 宣言がない。
+つまりインスタンス（instance）生成時の構築子（constructor）もない。
+ではどうやってインスタンスを生成するのか。&lt;/p&gt;
+
+&lt;p&gt;たとえば以下のような型を考える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package ui
+
+import (
+	&amp;quot;io&amp;quot;
+)
+
+// UI is Command line user interface
+type UI struct {
+	reader      io.Reader
+	writer      io.Writer
+	errorWriter io.Writer
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;ui.UI&lt;/code&gt; 型のインスタンスを生成するにはいくつかの方法がある。&lt;/p&gt;
+
+&lt;p&gt;まずは &lt;code&gt;new()&lt;/code&gt; 関数を使う方法。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;u := new(ui.UI)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;new()&lt;/code&gt; 関数でインスタンスを生成する場合は必ずゼロ値で初期化される。
+&lt;code&gt;ui.UI&lt;/code&gt; の場合は &lt;code&gt;reader&lt;/code&gt;, &lt;code&gt;writer&lt;/code&gt;, &lt;code&gt;errorWriter&lt;/code&gt; の各フィールドには nil がセットされる。
+しかし &lt;a href=&#34;https://golang.org/pkg/io/&#34; title=&#34;io - The Go Programming Language&#34;&gt;&lt;code&gt;io&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Reader&lt;/code&gt; および &lt;a href=&#34;https://golang.org/pkg/io/&#34; title=&#34;io - The Go Programming Language&#34;&gt;&lt;code&gt;io&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Writer&lt;/code&gt; は nil のまま使用すると panic になるため何らかの初期値を与える必要がある。&lt;/p&gt;
+
+&lt;p&gt;2番目は複合リテラル（composite literals）で記述する方法。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;u := UI{reader: os.Stdin, writer: os.Stdout, errorWriter: os.Stderr}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;この方法であれば各フィールドに初期値を与えることができる。
+ただしフィールドがパッケージ &lt;code&gt;ui&lt;/code&gt; の外からは不可視の場合は（普通そうだよね）この手は使えない。&lt;/p&gt;
+
+&lt;p&gt;そこで，3番目の方法として構築子に相当する関数を考える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package ui
+
+import (
+	&amp;quot;bytes&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;io/ioutil&amp;quot;
+)
+
+// UI is Command line user interface
+type UI struct {
+	reader      io.Reader
+	writer      io.Writer
+	errorWriter io.Writer
+}
+
+// New returns a new UI instance
+func New(r io.Reader, w, e io.Writer) *UI {
+	if r == nil {
+		r = ioutil.NopCloser(bytes.NewReader(nil))
+	}
+	if w == nil {
+		w = ioutil.Discard
+	}
+	if e == nil {
+		e = ioutil.Discard
+	}
+	return &amp;amp;UI{reader: r, writer: w, errorWriter: e}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;こうすれば&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;u := ui.New(os.Stdin, os.Stdout, os.Stderr)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と記述することでパッケージ外でも初期化済みのインスタンスを生成できる。
+また&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;u := ui.New(nil, nil, nil)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と無効な値（nil）を引数に指定した場合でもフィールドには（nil ではなく）安全な値がセットされる。&lt;/p&gt;
+
+&lt;p&gt;この方法の問題点は引数に必ず何らかの値をセットしなければならないことだ。
+たとえば &lt;code&gt;errorWriter&lt;/code&gt; は既定では使わないことが分かっていてもインスタンス生成時には&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;u := ui.New(os.Stdin, os.Stdout, nil)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;などとしなければならない。
+また&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// NewWithoutErr returns a new UI instance
+func NewWithoutErr(r io.Reader, w io.Writer) *UI {
+	return New(r, w, nil)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;などと構築子を別途増やす手もあるが，それではフィールドの数が増えると関数の管理が煩雑になってしまう。&lt;/p&gt;
+
+&lt;p&gt;そこで4番目の方法。
+構築子の引数に初期値をセットするのではなく，初期化関数をセットするのである。
+この初期化関数の型を&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;type Option func(*UI)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と定義する。
+すると構築子は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Option is function value of functional options
+type Option func(*UI)
+
+// New returns a new UI instance
+func New(opts ...Option) *UI {
+	u := &amp;amp;UI{reader: ioutil.NopCloser(bytes.NewReader(nil)), writer: ioutil.Discard, errorWriter: ioutil.Discard}
+	for _, opt := range opts {
+		opt(u)
+	}
+	return u
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と記述することができる。&lt;/p&gt;
+
+&lt;p&gt;さらにフィールドごとに &lt;code&gt;Option&lt;/code&gt; 関数を返す関数も定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;//Reader returns function value of Option
+func Reader(r io.Reader) Option {
+    return func(u *UI) {
+        if u == nil {
+            u.reader = ioutil.NopCloser(bytes.NewReader(nil))
+        } else {
+            u.reader = r
+        }
+
+    }
+}
+
+//Writer returns function value of Option
+func Writer(w io.Writer) Option {
+    return func(u *UI) {
+        if u == nil {
+            u.writer = ioutil.Discard
+        } else {
+            u.writer = w
+        }
+    }
+}
+
+//ErrorWriter returns function value of Option
+func ErrorWriter(e io.Writer) Option {
+    return func(u *UI) {
+        if u == nil {
+            u.errorWriter = ioutil.Discard
+        } else {
+            u.errorWriter = e
+        }
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;こうしておけばインスタンス生成時の記述は&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;u := ui.New(ui.Reader(os.Stdin), ui.Writer(os.Stdout))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;などと初期化の必要なフィールドのみ引数で指定することができる。
+このような記述パターンを “Functional Options&amp;rdquo; と呼ぶようである。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://commandcenter.blogspot.jp/2014/01/self-referential-functions-and-design.html&#34;&gt;command center: Self-referential functions and the design of options&lt;/a&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis&#34;&gt;Functional options for friendly APIs | Dave Cheney&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+</feed>
