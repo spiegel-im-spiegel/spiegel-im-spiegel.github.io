@@ -102,7 +102,7 @@ type UI struct {
 </code></pre>
 
 <p>この方法であれば各フィールドに初期値を与えることができる。
-ただしフィールドがパッケージ <code>ui</code> の外からは不可視の場合は（普通そうだよね）この手は使えない。</p>
+ただしフィールドがパッケージの外からは不可視の場合は（普通そうするよね）この手は使えない。</p>
 
 <p>そこで，3番目の方法として構築子に相当する関数を考える。</p>
 
@@ -149,7 +149,7 @@ func New(r io.Reader, w, e io.Writer) *UI {
 
 <p>と無効な値（nil）を引数に指定した場合でもフィールドには（nil ではなく）安全な値がセットされる。</p>
 
-<p>この方法の問題点は引数に必ず何らかの値をセットしなければならないことだ。
+<p>この方法の問題点は引数に必ず何らかの値をセットしなければならないことだ（<a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>にはデフォルト引数（default argument）のような仕組みはない）。
 たとえば <code>errorWriter</code> は既定では使わないことが分かっていてもインスタンス生成時には</p>
 
 <pre><code class="language-go">u := ui.New(os.Stdin, os.Stdout, nil)
@@ -164,16 +164,17 @@ func NewWithoutErr(r io.Reader, w io.Writer) *UI {
 }
 </code></pre>
 
-<p>などと構築子を別途増やす手もあるが，それではフィールドの数が増えると関数の管理が煩雑になってしまう。</p>
+<p>などと構築子を別途増やす手もあるが，それでは有効なフィールドの組み合わせが増えると関数の管理が煩雑になってしまう。</p>
 
 <p>そこで4番目の方法。
 構築子の引数に初期値をセットするのではなく，初期化関数をセットするのである。
 この初期化関数の型を</p>
 
-<pre><code class="language-go">type Option func(*UI)
+<pre><code class="language-go">//Option is function value of functional options
+type Option func(*UI)
 </code></pre>
 
-<p>と定義する。
+<p>と定義する<sup class="footnote-ref" id="fnref:srf"><a rel="footnote" href="#fn:srf">1</a></sup>。
 すると構築子は</p>
 
 <pre><code class="language-go">//Option is function value of functional options
@@ -191,9 +192,9 @@ func New(opts ...Option) *UI {
 
 <p>と記述することができる。</p>
 
-<p>さらにフィールドごとに <code>Option</code> 関数を返す関数も定義する。</p>
+<p>さらにフィールドごとに <code>Option</code> 関数を返す関数も定義する（これらの関数を用意することで <code>ui</code> パッケージを利用するユーザから関数閉包（closure）を隠蔽できる）。</p>
 
-<pre><code class="language-go">//Reader returns function value of Option
+<pre><code class="language-go">//Reader returns closure as type Option
 func Reader(r io.Reader) Option {
     return func(u *UI) {
         if r != nil {
@@ -203,7 +204,7 @@ func Reader(r io.Reader) Option {
     }
 }
 
-//Writer returns function value of Option
+//Writer returns closure as type Option
 func Writer(w io.Writer) Option {
     return func(u *UI) {
         if w != nil {
@@ -212,7 +213,7 @@ func Writer(w io.Writer) Option {
     }
 }
 
-//ErrorWriter returns function value of Option
+//ErrorWriter returns closure as type Option
 func ErrorWriter(e io.Writer) Option {
     return func(u *UI) {
         if e != nil {
@@ -227,8 +228,8 @@ func ErrorWriter(e io.Writer) Option {
 <pre><code class="language-go">u := ui.New(ui.Reader(os.Stdin), ui.Writer(os.Stdout))
 </code></pre>
 
-<p>などと初期化の必要なフィールドのみ引数で指定することができる。
-このような記述パターンを “Functional Options&rdquo; と呼ぶようである。</p>
+<p>などと初期化の必要なフィールドのみ引数で指定でき，かつコードの見た目も分かりやすくできる。
+このようなプログラミング・パターンを “Functional Options&rdquo; と呼ぶようである。</p>
 
 <h2 id="ブックマーク">ブックマーク</h2>
 
@@ -238,6 +239,8 @@ func ErrorWriter(e io.Writer) Option {
 <li><p><a href="https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis">Functional options for friendly APIs | Dave Cheney</a></p></li>
 
 <li><p><a href="/golang/object-oriented-programming/">Go 言語における「オブジェクト」</a></p></li>
+
+<li><p><a href="https://github.com/spiegel-im-spiegel/gocli">spiegel-im-spiegel/gocli: Command line interface</a> : 本記事と全く同じではないが， Functional Options パターンの実装例を作ってみた</p></li>
 </ul>
 
 <h2 id="参考図書">参考図書</h2>
@@ -245,6 +248,15 @@ func ErrorWriter(e io.Writer) Option {
 <div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
 <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
 <p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:srf">これを自己参照関数（self-referential function）と呼ぶそうだ。 “<a href="https://commandcenter.blogspot.jp/2014/01/self-referential-functions-and-design.html" title="command center: Self-referential functions and the design of options">Self-referential functions and the design of options</a>” には自己参照関数の様々なバリエーションが紹介されている。この記事ではもっとも簡単な構造のみ紹介している。
+ <a class="footnote-return" href="#fnref:srf"><sup>[return]</sup></a></li>
+</ol>
 </div>
 
 </section>
