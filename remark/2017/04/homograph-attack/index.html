@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.20.5" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/highlightjs/styles/github.css">
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML&amp;locale=ja"></script>
+<script>
+  MathJax.Hub.Config({
+    TeX: {
+      extensions: ["autoload-all.js"],
+      equationNumbers: { autoNumber: "all" }
+    },
+    tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+    },
+    "HTML-CSS": {
+      matchFontHeight: false,
+      preferredFont: null,
+      webFont: "TeX"
+    },
+    displayAlign: "left",
+    displayIndent: "2em"
+  });
+</script>
+<title>Punycode によるホモグラフ攻撃例とその回避 — しっぽのさきっちょ | text.Baldanders.info</title>
+<meta name="description" content="この手の攻撃の回避法だが， Chrome についてはバージョン 58 以降であれば対応済みである。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="security,risk,web,unicode,punycode">
+<link rel='prev' href='http://text.baldanders.info/remark/2017/04/regist-dose-not-exist/' title='“regist” という単語は存在しない' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<div><strong><a href="/remark">しっぽのさきっちょ</a>: 2017-04-25 付</strong></div>
+<h1 itemprop='name'>Punycode によるホモグラフ攻撃例とその回避</h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/punycode">punycode</a> #<a href="/tags/risk">risk</a> #<a href="/tags/security">security</a> #<a href="/tags/unicode">unicode</a> #<a href="/tags/web">web</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2017/04/homograph-attack/index.html">History</a></div>
+</nav>
+
+<section><div>
+<div style="float:right;margin-left:0.5rem;margin-bottom:0.5rem;padding-left:0.5rem;padding-bottom:0.5rem;">
+<a href="http://www.baldanders.info/spiegel/log2/000820.shtml" title="Stop Fast Track TPP — Baldanders.info"><img src="http://www.baldanders.info/images/noextension.png" alt="no extension" width="165" height="50" /></a>
+</div>
+
+
+<ul>
+<li><a href="https://www.xudongz.com/blog/2017/idn-phishing/">Phishing with Unicode Domains - Xudong Zheng</a></li>
+</ul>
+
+<p>たとえば，以下の <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コードで2つの “apple&rdquo; を考える（元ネタは<a href="https://play.golang.org/p/BzJVWN78pA" title="The Go Playground">ここ</a>）。</p>
+
+<pre><code class="language-go">package main
+
+import &quot;fmt&quot;
+
+func main() {
+	for _, value := range &quot;apple&quot; {
+		fmt.Printf(&quot;%#U\n&quot;, value)
+	}
+	fmt.Println()
+	for _, value := range &quot;аррӏе&quot; {
+		fmt.Printf(&quot;%#U\n&quot;, value)
+	}
+}
+</code></pre>
+
+<p>見た目では分かりにくいかもしれないが，最初の “apple&rdquo; は US ASCII で2番目の “аррӏе&rdquo; はキリル文字なんだそうだ。
+このコードの結果は以下の通り。</p>
+
+<pre><code class="language-text">U+0061 'a'
+U+0070 'p'
+U+0070 'p'
+U+006C 'l'
+U+0065 'e'
+
+U+0430 'а'
+U+0440 'р'
+U+0440 'р'
+U+04CF 'ӏ'
+U+0435 'е'
+</code></pre>
+
+<p>現在，国際化ドメイン名（Internationalized Domain Name; IDN）については <code>xn--</code> から始まる <a href="https://en.wikipedia.org/wiki/Punycode" title="Punycode - Wikipedia">punycode</a> を使った表記が認められている。
+更に <a href="https://en.wikipedia.org/wiki/Punycode" title="Punycode - Wikipedia">punycode</a> を使った「ホモグラフ攻撃（homograph attack）」については以前から議論があり，少なくとも複数の言語の文字が混在する場合はブラウザ側で Unicode 文字による表記がキャンセルされる。
+たとえば <code>xn-pple-43d.com</code> は Unicode 表記では <code>аpple.com</code> （先頭の а がキリル文字）だが， Chrome や Firefox といった主要ブラウザでは <a href="https://en.wikipedia.org/wiki/Punycode" title="Punycode - Wikipedia">punycode</a> のまま <code>xn-pple-43d.com</code> と表記される（試さないように）。</p>
+
+<p>しかし複数言語が混在しない場合，つまり最初に挙げたキリル文字だけの “аррӏе&rdquo; のような場合にはこの制約は効かない。
+その言語による真っ当な名前なのかホモグラフ攻撃なのか見分けがつかないからである。
+たとえば <code>xn--80ak6aa92e.com</code> は <code>аррӏе.com</code> だが “аррӏе&rdquo; の部分は全てキリル文字なので主要ブラウザでも <code>аррӏе.com</code> と表示される。</p>
+
+<p>PoC として <a href="https://www.xn--80ak6aa92e.com/">https://www.xn--80ak6aa92e.com/</a> が用意されているので，皆さんが使っているブラウザで（証明書の詳細情報も含めて）ドメイン名がどう表示されるか確認して欲しい。</p>
+
+<p>さて，この手の攻撃の回避法だが， Chrome についてはバージョン 58 以降であれば <code>xn--80ak6aa92e.com</code> も <a href="https://en.wikipedia.org/wiki/Punycode" title="Punycode - Wikipedia">punycode</a> 表記になる。
+どういうロジックなのかは不明<sup class="footnote-ref" id="fnref:idn"><a rel="footnote" href="#fn:idn">1</a></sup>。
+Firefox については，設定の <code>network.IDN_show_punycode</code> 項目<sup class="footnote-ref" id="fnref:cfg"><a rel="footnote" href="#fn:cfg">2</a></sup> を true にすれば強制的に <a href="https://en.wikipedia.org/wiki/Punycode" title="Punycode - Wikipedia">punycode</a> 表記になる。</p>
+
+<p>個人的には国際化ドメイン名は要らんのじゃないかと思うのだが，どうなんだろうねぇ。
+果てしなく紛らわしい。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="https://arstechnica.com/security/2017/04/chrome-firefox-and-opera-users-beware-this-isnt-the-apple-com-you-want/">Chrome, Firefox, and Opera users beware: This isn’t the apple.com you want | Ars Technica</a></li>
+
+<li><p><a href="https://securingtomorrow.mcafee.com/business/neutralize-threats/chrome-and-firefox-adding-protection-against-this-nasty-phishing-trick/">Chrome And Firefox Adding Protection Against This Nasty Phishing Trick | McAfee Blogs</a></p></li>
+
+<li><p><a href="https://bugs.chromium.org/p/chromium/issues/detail?id=683314">683314 - Security: Whole-script confusable domain label spoofing (Cyrillic) - chromium - Monorail</a></p></li>
+
+<li><p><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=1332714">1332714 - IDN Phishing using whole-script confusables on Windows and Linux</a></p></li>
+
+<li><p><a href="http://forest.watch.impress.co.jp/docs/news/1055935.html">「Google Chrome 58」が正式版に ～“Indexed DB 2.0”対応と29件の脆弱性修正 - 窓の杜</a></p></li>
+
+<li><p><a href="https://eset-info.canon-its.jp/malware_info/special/detail/151001.html">本物と偽物の区別がつかないホモグラフ攻撃 | マルウェア情報局</a></p></li>
+
+<li><p><a href="http://punycode.jp/">日本語JPドメイン名のPunycode変換・逆変換 - 日本語.jp</a></p></li>
+</ul>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:idn">たとえば Chrome 58 でも「情報処理試験.jp（xn&ndash;n9q36mh1hnxuksz7wt.jp）」はちゃんと Unicode 表記になる。
+ <a class="footnote-return" href="#fnref:idn"><sup>[return]</sup></a></li>
+<li id="fn:cfg"><code>about:config</code> から設定する。 “punycode&rdquo; で検索すれば一発で出てくる。
+ <a class="footnote-return" href="#fnref:cfg"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2017/04/regist-dose-not-exist/">“regist” という単語は存在しない</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script type="text/javascript" src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="hhttp://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_shortname = 'textbaldandersinfo';
+    var disqus_identifier = 'http:\/\/text.baldanders.info\/remark\/2017\/04\/homograph-attack\/';
+    var disqus_title = 'Punycode によるホモグラフ攻撃例とその回避';
+    var disqus_url = 'http:\/\/text.baldanders.info\/remark\/2017\/04\/homograph-attack\/';
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-04-25</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fremark%2f2017%2f04%2fhomograph-attack%2f" rel=”nofollow” target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Punycode%20%e3%81%ab%e3%82%88%e3%82%8b%e3%83%9b%e3%83%a2%e3%82%b0%e3%83%a9%e3%83%95%e6%94%bb%e6%92%83%e4%be%8b%e3%81%a8%e3%81%9d%e3%81%ae%e5%9b%9e%e9%81%bf&amp;url=http%3a%2f%2ftext.baldanders.info%2fremark%2f2017%2f04%2fhomograph-attack%2f" rel=”nofollow” target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fremark%2f2017%2f04%2fhomograph-attack%2f&amp;title=Punycode%20%e3%81%ab%e3%82%88%e3%82%8b%e3%83%9b%e3%83%a2%e3%82%b0%e3%83%a9%e3%83%95%e6%94%bb%e6%92%83%e4%be%8b%e3%81%a8%e3%81%9d%e3%81%ae%e5%9b%9e%e9%81%bf" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fremark%2f2017%2f04%2fhomograph-attack%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.20.5</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+
+</div>
+<script src="/highlightjs/highlight.pack.js"></script>
+<script>
+  hljs.configure({
+    tabReplace: "    ",	
+  });
+  hljs.initHighlightingOnLoad();
+</script>
+
+</body>
+</html>
