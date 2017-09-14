@@ -1,15 +1,171 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:cc="http://web.resource.org/cc/">
-	<title>Design - text.Baldanders.info</title>
-	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/design/" />
-	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/design/index.xml" />
-	<id>tag:text.Baldanders.info,2017-03-11:/tags</id>
-	<updated>2017-03-11T14:55:06+09:00</updated>
+	<title>Refactoring - text.Baldanders.info</title>
+	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/refactoring/" />
+	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/refactoring/index.xml" />
+	<id>tag:text.Baldanders.info,2017-09-14:/tags</id>
+	<updated>2017-09-14T10:01:49+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="https://gohugo.io/">Hugo 0.27.1</generator>
 
+	
+	<entry>
+		<title>Go 1.9 と Type Alias - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/go-1_9-and-type-alias/" />
+		<id>tag:text.Baldanders.info,2017-09-14:/golang/go-1_9-and-type-alias/</id>
+		<published>2017-09-14T10:01:49+09:00</published>
+		<updated>2017-09-14T10:01:49+09:00</updated>
+		<summary>なんで type alias なんて妙ちきりんな言語仕様が追加されたかというと，実はこれ，リファクタリングの為に設けられたのである。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;遅ればせながらの記事で申し訳ないが Go 1.9 がリリースされた。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/go1.9&#34;&gt;Go 1.9 is released - The Go Blog&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://golang.org/doc/go1.9&#34;&gt;Go 1.9 Release Notes - The Go Programming Language&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;詳しい内容は&lt;a href=&#34;https://golang.org/doc/go1.9&#34; title=&#34;Go 1.9 Release Notes - The Go Programming Language&#34;&gt;リリースノート&lt;/a&gt;を見ていただくとして，今回の目玉は &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; alias 機能だろう。&lt;/p&gt;
+
+&lt;p&gt;まず &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; キーワードを使った簡単な足し算を書いてみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+)
+
+type Num1 int
+
+func (n1 Num1) Add(n2 Num1) Num1 {
+	return n1 + n2
+}
+
+func main() {
+	n1 := Num1(1)
+	n2 := Num1(2)
+	fmt.Println(n1.Add(n2))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実行結果は 3 と出力されるはずである。
+ここで “&lt;code&gt;type Num2 Num1&lt;/code&gt;&amp;rdquo; と記述を追加し，この型を使って足し算を行ってみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+)
+
+type Num1 int
+
+func (n1 Num1) Add(n2 Num1) Num1 {
+	return n1 + n2
+}
+
+type Num2 Num1
+
+func main() {
+	n1 := Num2(1)
+	n2 := Num2(2)
+	fmt.Println(n1.Add(n2))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;これを実行しようとすると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;n1.Add undefined (type Num2 has no field or method Add)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とコンパイルエラーになる。
+何故か。
+&lt;code&gt;Num1&lt;/code&gt; と &lt;code&gt;Num2&lt;/code&gt; は異なる型だからだ。
+型 &lt;code&gt;Num1&lt;/code&gt; に紐付いている関数 &lt;code&gt;Add()&lt;/code&gt; は，型 &lt;code&gt;Num2&lt;/code&gt; には紐付かない。
+継承されないわけだ（キャストはできる）。&lt;/p&gt;
+
+&lt;p&gt;では今度は “&lt;code&gt;type Num2 = Num1&lt;/code&gt;&amp;rdquo; と記述を変更してみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;fmt&amp;quot;
+)
+
+type Num1 int
+
+func (n1 Num1) Add(n2 Num1) Num1 {
+	return n1 + n2
+}
+
+type Num2 = Num1
+
+func main() {
+	n1 := Num2(1)
+	n2 := Num2(2)
+	fmt.Println(n1.Add(n2))
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;今度はコンパイルエラーにならず 3 と出力される。
+この “&lt;code&gt;type Num2 = Num1&lt;/code&gt;&amp;rdquo; という構文が &lt;a href=&#34;https://golang.org/ref/spec#Properties_of_types_and_values&#34; title=&#34;Properties of types and values&#34;&gt;type&lt;/a&gt; alias を指し，この記述によって &lt;code&gt;Num1&lt;/code&gt; と &lt;code&gt;Num2&lt;/code&gt; は &lt;strong&gt;全く同じ型&lt;/strong&gt; として扱われる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:a1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:a1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;なんでこんな妙ちきりんな言語仕様が追加されたかというと，実はこれ，リファクタリングの為に設けられたのである。&lt;/p&gt;
+
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;
+&lt;q&gt;Go now supports type aliases to support gradual code repair while moving a type between packages.
+The type alias design document and an article on refactoring cover the problem in detail.&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://golang.org/doc/go1.9&#34;&gt;Go 1.9 Release Notes&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;もともと &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;はリファクタリングを厚遇する言語と言える。
+たとえば &lt;a href=&#34;https://en.wikipedia.org/wiki/Duck_typing&#34; title=&#34;Duck typing - Wikipedia&#34;&gt;duck typing&lt;/a&gt; などはその最たる例だろう。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2017/03/generics-vs-duck-typing/&#34;&gt;きみは Generics がとくいなフレンズなんだね，または「制約は構造を生む」&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;まぁ，あまり積極的に使う機能ではないかもしれないが，こういうこともできると覚えておくといいだろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://qiita.com/weloan/items/8abbb4003cfa1031a9e9&#34;&gt;go言語1.9で追加予定の新機能 型エイリアス - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1EU/baldandersinf-22/&#34;&gt;&lt;img src=&#34;https://images-fe.ssl-images-amazon.com/images/I/41GPVATQiZL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1EU/baldandersinf-22/&#34;&gt;Java言語で学ぶリファクタリング入門&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2007-01-26&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8ATHGW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8ATHGW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;増補改訂版 Java言語で学ぶデザインパターン入門&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1BS/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1BS.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;増補改訂版 Java言語で学ぶデザインパターン入門 マルチスレッド編&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B073F45B97/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B073F45B97.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／積分を見つめて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00H372H40/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00H372H40.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラマの数学&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1AO/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1AO.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Java言語プログラミングレッスン 第3版（下）　オブジェクト指向を始めよう&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B072JVPFL4/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B072JVPFL4.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;JavaScript関数型プログラミング 複雑性を抑える発想と実践法を学ぶ impress top gearシリーズ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B071V7MY82/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B071V7MY82.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プリンシプル オブ プログラミング 3年目までに身につけたい 一生役立つ101の原理原則&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1A4/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00I8AT1A4.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Java言語プログラミングレッスン 第3版（上）　Java言語を始めよう&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0185E10ZQ/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0185E10ZQ.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;実践Javaコーディング作法&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート／微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;結城浩さんによる「リファクタリング本」。意外に Java 以外でも使える優れもの。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2017-09-14&#34;&gt;2017-09-14&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:a1&#34;&gt;全く同じ型なので継承関係はなく，別名定義した型に独自に関数を紐付けることはできない。ちなみに別パッケージの型に対しても別名定義が可能である： &lt;code&gt;type Time = time.Time&lt;/code&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:a1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>きみは Generics がとくいなフレンズなんだね，または「制約は構造を生む」 - remark</title>
