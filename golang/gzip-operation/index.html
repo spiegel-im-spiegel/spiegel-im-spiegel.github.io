@@ -105,8 +105,8 @@
 
 <p>ゆえに関数をこう書き換える。</p>
 
-<pre><code class="language-go">func makeGzip(w io.Writer, content []byte) error {
-	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+<pre><code class="language-go">func makeGzip(dst io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(dst, gzip.BestCompression)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@
 }
 </code></pre>
 
-<p>つまり圧縮データの書き込む先である <code>Writer</code> を引数で指定するのである。
+<p>つまり圧縮データの書き込み先である <code>Writer</code> を引数で指定するのである。
 これなら生成した <a href="https://golang.org/pkg/compress/gzip/" title="gzip - The Go Programming Language"><code>gzip</code></a>.<code>Writer.Close()</code> 関数を問題なく <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">defer</a> で指定できる。</p>
 
 <p>これを踏まえて完全なコードは以下のようになる。</p>
@@ -133,8 +133,8 @@ import (
 	&quot;os&quot;
 )
 
-func makeGzip(w io.Writer, content []byte) error {
-	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+func makeGzip(dst io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(dst, gzip.BestCompression)
 	if err != nil {
 		return err
 	}
@@ -167,8 +167,50 @@ func main() {
 もちろん書き込み先を <a href="https://golang.org/pkg/bytes/" title="bytes - The Go Programming Language"><code>bytes</code></a>.<code>Buffer</code> に置き換えることもできる。
 このようにインスタンスの生存期間を意識することで <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の得意なパターンに嵌めることが容易になる。</p>
 
+<p>ついでに対となる読み込み処理のコードも示しておこう。</p>
+
+<pre><code class="language-go">package main
+
+import (
+	&quot;bytes&quot;
+	&quot;compress/gzip&quot;
+	&quot;fmt&quot;
+	&quot;io&quot;
+	&quot;os&quot;
+)
+
+func readGzip(dst io.Writer, src io.Reader) error {
+	zr, err := gzip.NewReader(src)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+
+	io.Copy(dst, zr)
+
+	return nil
+}
+
+func main() {
+	file, err := os.Open(&quot;test.txt.gz&quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	buf := new(bytes.Buffer)
+
+	if err := readGzip(buf, file); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	buf.WriteTo(os.Stdout)
+}
+</code></pre>
+
 <p>ところで，ファイル操作では生のデータを直接 gzip 圧縮するシチュエーションは少なく，大抵は tar と組み合わせることになる。
-そこで tar と組み合わせ，指定フォルダ下の複数ファイルを gzip 圧縮するコードを以下に示しておく。</p>
+そこで tar と組み合わせ，指定フォルダ下の複数ファイルを gzip 圧縮するコードも以下に示しておく。</p>
 
 <pre><code class="language-go">package main
 
@@ -182,8 +224,8 @@ import (
 	&quot;path/filepath&quot;
 )
 
-func makeTarGzip(w io.Writer, rt string) error {
-	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+func makeTarGzip(dst io.Writer, rt string) error {
+	zw, err := gzip.NewWriterLevel(dst, gzip.BestCompression)
 	if err != nil {
 		return err
 	}

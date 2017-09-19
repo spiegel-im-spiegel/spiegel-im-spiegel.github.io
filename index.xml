@@ -16,7 +16,7 @@
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/gzip-operation/" />
 		<id>tag:text.Baldanders.info,2017-09-19:/golang/gzip-operation/</id>
 		<published>2017-09-19T17:31:49+09:00</published>
-		<updated>2017-09-20T06:56:01+09:00</updated>
+		<updated>2017-09-20T08:06:47+09:00</updated>
 		<summary>このようにインスタンスの生存期間を意識することで Go 言語の得意なパターンに嵌めることが容易になる。</summary>
 		
 			<author>
@@ -70,8 +70,8 @@
 
 &lt;p&gt;ゆえに関数をこう書き換える。&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(w io.Writer, content []byte) error {
-	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(dst io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(dst, gzip.BestCompression)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@
 }
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;つまり圧縮データの書き込む先である &lt;code&gt;Writer&lt;/code&gt; を引数で指定するのである。
+&lt;p&gt;つまり圧縮データの書き込み先である &lt;code&gt;Writer&lt;/code&gt; を引数で指定するのである。
 これなら生成した &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Writer.Close()&lt;/code&gt; 関数を問題なく &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; で指定できる。&lt;/p&gt;
 
 &lt;p&gt;これを踏まえて完全なコードは以下のようになる。&lt;/p&gt;
@@ -98,8 +98,8 @@ import (
 	&amp;quot;os&amp;quot;
 )
 
-func makeGzip(w io.Writer, content []byte) error {
-	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+func makeGzip(dst io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(dst, gzip.BestCompression)
 	if err != nil {
 		return err
 	}
@@ -132,8 +132,50 @@ func main() {
 もちろん書き込み先を &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer&lt;/code&gt; に置き換えることもできる。
 このようにインスタンスの生存期間を意識することで &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の得意なパターンに嵌めることが容易になる。&lt;/p&gt;
 
+&lt;p&gt;ついでに対となる読み込み処理のコードも示しておこう。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;bytes&amp;quot;
+	&amp;quot;compress/gzip&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;os&amp;quot;
+)
+
+func readGzip(dst io.Writer, src io.Reader) error {
+	zr, err := gzip.NewReader(src)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+
+	io.Copy(dst, zr)
+
+	return nil
+}
+
+func main() {
+	file, err := os.Open(&amp;quot;test.txt.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	buf := new(bytes.Buffer)
+
+	if err := readGzip(buf, file); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	buf.WriteTo(os.Stdout)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
 &lt;p&gt;ところで，ファイル操作では生のデータを直接 gzip 圧縮するシチュエーションは少なく，大抵は tar と組み合わせることになる。
-そこで tar と組み合わせ，指定フォルダ下の複数ファイルを gzip 圧縮するコードを以下に示しておく。&lt;/p&gt;
+そこで tar と組み合わせ，指定フォルダ下の複数ファイルを gzip 圧縮するコードも以下に示しておく。&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
 
@@ -147,8 +189,8 @@ import (
 	&amp;quot;path/filepath&amp;quot;
 )
 
-func makeTarGzip(w io.Writer, rt string) error {
-	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+func makeTarGzip(dst io.Writer, rt string) error {
+	zw, err := gzip.NewWriterLevel(dst, gzip.BestCompression)
 	if err != nil {
 		return err
 	}
