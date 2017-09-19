@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cc="http://web.resource.org/cc/">
+	<title>Gzip - text.Baldanders.info</title>
+	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/gzip/" />
+	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/gzip/index.xml" />
+	<id>tag:text.Baldanders.info,2017-09-19:/tags</id>
+	<updated>2017-09-19T17:31:49+09:00</updated>
+	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
+	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
+	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
+	<generator uri="https://gohugo.io/">Hugo 0.27.1</generator>
+
+	
+	<entry>
+		<title>Gzip 操作について覚え書き - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/gzip-operation/" />
+		<id>tag:text.Baldanders.info,2017-09-19:/golang/gzip-operation/</id>
+		<published>2017-09-19T17:31:49+09:00</published>
+		<updated>2017-09-19T17:31:49+09:00</updated>
+		<summary>このようにインスタンスの生存期間を意識することで Go 言語の得意なパターンに嵌めることが容易になる。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34;&gt;gzip のやり方 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;この記事を見て「んん？」となったので，覚え書きとして &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt; について紹介する。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34; title=&#34;gzip のやり方 - Qiita&#34;&gt;リンク先の記事&lt;/a&gt;で挙げられているコードは以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(body string) []byte {
+  var b bytes.Buffer
+  gw := gzip.NewWriter(&amp;amp;b)
+  _, err := gw.Write([]byte(body)); if err != nil {
+    ...
+  }
+  gw.Flush()
+  gw.Close()
+  return b.Bytes()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ここで &lt;code&gt;gw.Close()&lt;/code&gt; 関数を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; 指定すると返ってくるバイト列が不完全なデータになってしまう，という話。
+これは，&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34; title=&#34;gzip のやり方 - Qiita&#34;&gt;リンク先の記事&lt;/a&gt;で指摘されている通り， &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Close()&lt;/code&gt; 関数で gzip のフッタデータをフラッシュしているからである。&lt;/p&gt;
+
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;
+&lt;q&gt;Close closes the Writer by flushing any unwritten data to the underlying io.Writer and writing the GZIP footer. It does not close the underlying io.Writer.&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34;&gt;gzip - The Go Programming Language&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;つまり &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; で指定した関数は return 後に駆動するため &lt;code&gt;b.Bytes()&lt;/code&gt; 関数を呼び出した時点ではまだ不完全なデータということになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:b1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:b1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;ここでちょっと考える。&lt;/p&gt;
+
+&lt;p&gt;関数の再利用性を考えるのなら，関数内でバッファを生成してバッファ処理の結果を返すのはあまり筋がよろしくない。
+また圧縮データを書き込む先はメモリバッファじゃなくてファイルかもしれない。&lt;/p&gt;
+
+&lt;p&gt;ゆえに関数をこう書き換える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(w io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	if _, err := zw.Write(content); err != nil {
+		return err
+	}
+	return nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;つまり圧縮データの書き込む先である &lt;code&gt;Writer&lt;/code&gt; を引数で指定するのである。
+これなら生成した &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Writer&lt;/code&gt; の &lt;code&gt;Close()&lt;/code&gt; 関数を問題なく &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; で指定できる。&lt;/p&gt;
+
+&lt;p&gt;これを踏まえて完全なコードは以下のようになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;compress/gzip&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;os&amp;quot;
+)
+
+func makeGzip(w io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	if _, err := zw.Write(content); err != nil {
+		return err
+	}
+	return nil
+}
+
+func main() {
+	content := []byte(&amp;quot;Hello world\n&amp;quot;)
+
+	file, err := os.Create(&amp;quot;test.txt.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	if err := makeGzip(file, content); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このコードでは圧縮データの書き込む先をファイルにしている。
+もちろん書き込み先を &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer&lt;/code&gt; に置き換えることもできる。
+このようにインスタンスの生存期間を意識することで &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の得意なパターンに嵌めることが容易になる。&lt;/p&gt;
+
+&lt;p&gt;ところで，特にファイル操作では，生のデータを直接 gzip 圧縮するシチュエーションは少なく，大抵は tar と組み合わせることになる。
+そこで tar と組み合わせ，指定フォルダ下の複数ファイルを gzip 圧縮するコードを以下に示しておく。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;archive/tar&amp;quot;
+	&amp;quot;compress/gzip&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;io/ioutil&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;path/filepath&amp;quot;
+)
+
+func makeTarGzip(w io.Writer) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	tw := tar.NewWriter(zw)
+	defer tw.Close()
+
+	filepath.Walk(&amp;quot;./&amp;quot;, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		fmt.Println(path)
+
+		hd, e := tar.FileInfoHeader(info, &amp;quot;&amp;quot;)
+		if e != nil {
+			return e
+		}
+		content, e := ioutil.ReadFile(path)
+		if e != nil {
+			return e
+		}
+
+		if e := tw.WriteHeader(hd); e != nil {
+			return e
+		}
+		if _, e := tw.Write(content); e != nil {
+			return e
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	file, err := os.Create(&amp;quot;test.tar.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	if err := makeTarGzip(file); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/kroton/items/431e6dad9e5e4dbc44cf&#34;&gt;「連結されたgzipを1行ずつ見る」をgolangでやったらハマった - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:b1&#34;&gt;この挙動から分かるとおり， &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer.Bytes()&lt;/code&gt; 関数は，バッファの内容をそのまま返しているのではなく，内容のコピーを返している。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:b1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+</feed>

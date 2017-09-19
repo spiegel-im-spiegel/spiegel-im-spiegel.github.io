@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:cc="http://web.resource.org/cc/">
-	<title>Panic - text.Baldanders.info</title>
-	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/panic/" />
-	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/panic/index.xml" />
-	<id>tag:text.Baldanders.info,2016-02-13:/tags</id>
-	<updated>2016-02-13T14:48:05+09:00</updated>
+	<title>Defer - text.Baldanders.info</title>
+	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/defer/" />
+	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/defer/index.xml" />
+	<id>tag:text.Baldanders.info,2017-09-19:/tags</id>
+	<updated>2017-09-19T17:31:49+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
@@ -12,12 +12,12 @@
 
 	
 	<entry>
-		<title>スタック追跡とパニック・ハンドリング - golang</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/stack-trace-and-panic-handling/" />
-		<id>tag:text.Baldanders.info,2016-02-13:/golang/stack-trace-and-panic-handling/</id>
-		<published>2016-02-13T14:48:05+09:00</published>
-		<updated>2016-11-21T20:48:03+09:00</updated>
-		<summary>panic 時の出力をカスタマイズすることを考える。スタック情報を取得するには， panic を recover で捕まえた上で runtime.Caller() 関数を使う。</summary>
+		<title>Gzip 操作について覚え書き - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/gzip-operation/" />
+		<id>tag:text.Baldanders.info,2017-09-19:/golang/gzip-operation/</id>
+		<published>2017-09-19T17:31:49+09:00</published>
+		<updated>2017-09-19T17:31:49+09:00</updated>
+		<summary>このようにインスタンスの生存期間を意識することで Go 言語の得意なパターンに嵌めることが容易になる。</summary>
 		
 			<author>
 				<name>Spiegel</name>
@@ -31,126 +31,719 @@
 		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
 		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
 
-&lt;p&gt;今回は軽めの小ネタで。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34;&gt;gzip のやり方 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
 
-&lt;p&gt;「&lt;a href=&#34;http://text.baldanders.info/golang/error-handling/&#34;&gt;エラー・ハンドリングについて&lt;/a&gt;」でも少し説明したが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では回復不能のエラー（ゼロ除算やメモリ不足など）が発生した場合には &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; を投げる仕様になっている。
-たとえば以下のコードでは&lt;/p&gt;
+&lt;p&gt;この記事を見て「んん？」となったので，覚え書きとして &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt; について紹介する。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34; title=&#34;gzip のやり方 - Qiita&#34;&gt;リンク先の記事&lt;/a&gt;で挙げられているコードは以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(body string) []byte {
+  var b bytes.Buffer
+  gw := gzip.NewWriter(&amp;amp;b)
+  _, err := gw.Write([]byte(body)); if err != nil {
+    ...
+  }
+  gw.Flush()
+  gw.Close()
+  return b.Bytes()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ここで &lt;code&gt;gw.Close()&lt;/code&gt; 関数を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; 指定すると返ってくるバイト列が不完全なデータになってしまう，という話。
+これは，&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34; title=&#34;gzip のやり方 - Qiita&#34;&gt;リンク先の記事&lt;/a&gt;で指摘されている通り， &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Close()&lt;/code&gt; 関数で gzip のフッタデータをフラッシュしているからである。&lt;/p&gt;
+
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;
+&lt;q&gt;Close closes the Writer by flushing any unwritten data to the underlying io.Writer and writing the GZIP footer. It does not close the underlying io.Writer.&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34;&gt;gzip - The Go Programming Language&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;つまり &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; で指定した関数は return 後に駆動するため &lt;code&gt;b.Bytes()&lt;/code&gt; 関数を呼び出した時点ではまだ不完全なデータということになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:b1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:b1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;ここでちょっと考える。&lt;/p&gt;
+
+&lt;p&gt;関数の再利用性を考えるのなら，関数内でバッファを生成してバッファ処理の結果を返すのはあまり筋がよろしくない。
+また圧縮データを書き込む先はメモリバッファじゃなくてファイルかもしれない。&lt;/p&gt;
+
+&lt;p&gt;ゆえに関数をこう書き換える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(w io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	if _, err := zw.Write(content); err != nil {
+		return err
+	}
+	return nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;つまり圧縮データの書き込む先である &lt;code&gt;Writer&lt;/code&gt; を引数で指定するのである。
+これなら生成した &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Writer&lt;/code&gt; の &lt;code&gt;Close()&lt;/code&gt; 関数を問題なく &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; で指定できる。&lt;/p&gt;
+
+&lt;p&gt;これを踏まえて完全なコードは以下のようになる。&lt;/p&gt;
 
 &lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
 
 import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-)
-
-func main() {
-	os.Exit(run())
-}
-
-func run() int {
-	f()
-	return 0
-}
-
-func f() {
-	numbers := []int{0, 1, 2}
-	fmt.Println(numbers[3]) //panic!
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;以下のスタック情報が標準エラー出力に表示される&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:s&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:s&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
-（&lt;a href=&#34;https://play.golang.org/&#34;&gt;The Go Playground&lt;/a&gt; での実行結果）&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;panic: runtime error: index out of range
-
-goroutine 1 [running]:
-main.f()
-	/tmp/sandbox269685094/main.go:19 +0x160
-main.run(0x20300, 0x104000e0)
-	/tmp/sandbox269685094/main.go:13 +0x20
-main.main()
-	/tmp/sandbox269685094/main.go:9 +0x20
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;まぁ必要な情報はあるのでこれでも構わないのだが，ファイル名がフルパスで表示されるのがアレな感じである。
-また出力先が標準エラー出力で固定されているのも面白くない。&lt;/p&gt;
-
-&lt;p&gt;そこで &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; 時の出力をカスタマイズすることを考える。
-スタック情報を取得するには， &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;recover&lt;/a&gt; で捕まえた上で &lt;a href=&#34;https://golang.org/pkg/runtime/&#34; title=&#34;runtime - The Go Programming Language&#34;&gt;&lt;code&gt;runtime&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Caller()&lt;/code&gt; 関数を使う。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
+	&amp;quot;compress/gzip&amp;quot;
 	&amp;quot;fmt&amp;quot;
 	&amp;quot;io&amp;quot;
 	&amp;quot;os&amp;quot;
-	&amp;quot;runtime&amp;quot;
 )
 
-func main() {
-	os.Exit(run(os.Stderr))
-}
-
-func run(log io.Writer) (exit int) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(log, &amp;quot;Panic: %v\n&amp;quot;, r)
-			for depth := 0; ; depth++ {
-				pc, src, line, ok := runtime.Caller(depth)
-				if !ok {
-					break
-				}
-				fmt.Fprintf(log, &amp;quot; -&amp;gt; %d: %s: %s(%d)\n&amp;quot;, depth, runtime.FuncForPC(pc).Name(), src, line)
-			}
-			exit = 1
-		}
-	}()
-
-	f()
-    exit = 0
-    return
-}
-
-func f() {
-	numbers := []int{0, 1, 2}
-	fmt.Println(numbers[3]) //panic!
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これで出力は&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;Panic: runtime error: index out of range
- -&amp;gt; 0: main.run.func1: /tmp/sandbox562252505/main.go(19)
- -&amp;gt; 1: runtime.call16: /usr/local/go/src/runtime/asm_amd64p32.s(390)
- -&amp;gt; 2: runtime.gopanic: /usr/local/go/src/runtime/panic.go(423)
- -&amp;gt; 3: runtime.panicindex: /usr/local/go/src/runtime/panic.go(12)
- -&amp;gt; 4: main.f: /tmp/sandbox562252505/main.go(36)
- -&amp;gt; 5: main.run: /tmp/sandbox562252505/main.go(29)
- -&amp;gt; 6: main.main: /tmp/sandbox562252505/main.go(11)
- -&amp;gt; 7: runtime.main: /usr/local/go/src/runtime/proc.go(111)
- -&amp;gt; 8: runtime.goexit: /usr/local/go/src/runtime/asm_amd64p32.s(1133)
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;となる。
-ファイル名を出力したくないなら for 文の中を&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;for depth := 0; ; depth++ {
-	pc, _, line, ok := runtime.Caller(depth)
-	if !ok {
-		break
+func makeGzip(w io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
 	}
-	fmt.Fprintf(log, &amp;quot; -&amp;gt; %d: %s: (%d)\n&amp;quot;, depth, runtime.FuncForPC(pc).Name(), line)
+	defer zw.Close()
+
+	if _, err := zw.Write(content); err != nil {
+		return err
+	}
+	return nil
+}
+
+func main() {
+	content := []byte(&amp;quot;Hello world\n&amp;quot;)
+
+	file, err := os.Create(&amp;quot;test.txt.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	if err := makeGzip(file, content); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 }
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;p&gt;とする手もある。
-コードを書いてる人はスタック追跡情報とファイルの行番号があれば大体あたりをつけられるので，これだけでもありがたい。&lt;/p&gt;
+&lt;p&gt;このコードでは圧縮データの書き込む先をファイルにしている。
+もちろん書き込み先を &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer&lt;/code&gt; に置き換えることもできる。
+このようにインスタンスの生存期間を意識することで &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の得意なパターンに嵌めることが容易になる。&lt;/p&gt;
+
+&lt;p&gt;ところで，特にファイル操作では，生のデータを直接 gzip 圧縮するシチュエーションは少なく，大抵は tar と組み合わせることになる。
+そこで tar と組み合わせ，指定フォルダ下の複数ファイルを gzip 圧縮するコードを以下に示しておく。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;archive/tar&amp;quot;
+	&amp;quot;compress/gzip&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;io/ioutil&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;path/filepath&amp;quot;
+)
+
+func makeTarGzip(w io.Writer) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	tw := tar.NewWriter(zw)
+	defer tw.Close()
+
+	filepath.Walk(&amp;quot;./&amp;quot;, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		fmt.Println(path)
+
+		hd, e := tar.FileInfoHeader(info, &amp;quot;&amp;quot;)
+		if e != nil {
+			return e
+		}
+		content, e := ioutil.ReadFile(path)
+		if e != nil {
+			return e
+		}
+
+		if e := tw.WriteHeader(hd); e != nil {
+			return e
+		}
+		if _, e := tw.Write(content); e != nil {
+			return e
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	file, err := os.Create(&amp;quot;test.tar.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	if err := makeTarGzip(file); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
 
 &lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://sgykfjsm.github.io/blog/2016/01/20/golang-function-tracing/&#34;&gt;Goでfunctionが実行された順番を追いかける - sgykfjsm.github.com&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/kitsuyui/items/d03a9de90330d8c275c8&#34;&gt;Go のバイナリには -ldflags &amp;lsquo;-w -s&amp;rsquo; でコンパイルしてもたくさんパスが埋め込まれていた - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/kroton/items/431e6dad9e5e4dbc44cf&#34;&gt;「連結されたgzipを1行ずつ見る」をgolangでやったらハマった - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:b1&#34;&gt;この挙動から分かるとおり， &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer.Bytes()&lt;/code&gt; 関数は，バッファの内容をそのまま返しているのではなく，内容のコピーを返している。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:b1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>関数とポインタ - golang</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/function-and-pointer/" />
+		<id>tag:text.Baldanders.info,2016-03-29:/golang/function-and-pointer/</id>
+		<published>2016-03-29T22:16:41+09:00</published>
+		<updated>2017-09-19T17:22:39+09:00</updated>
+		<summary>Go 言語の引数は基本的に「値渡し（call by value）」である。「参照渡し（call by reference）」にしたい場合はポインタを使う。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;いまさらな内容なのだが覚え書きとして記しておく。&lt;/p&gt;
+
+&lt;h2 id=&#34;go-言語における-calling-sequence&#34;&gt;Go 言語における Calling Sequence&lt;/h2&gt;
+
+&lt;p&gt;まずは簡単な足し算の関数を定義してみる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func add(x int, y int) int {
+	return x + y
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;add&lt;/code&gt; に続く括弧内が引数を定義していて，括弧の後ろの &lt;code&gt;int&lt;/code&gt; は返り値の型&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:t&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:t&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; を示している。
+&lt;code&gt;add()&lt;/code&gt; 関数を呼び出すには以下のように記述する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func add(x int, y int) int {
+	return x + y
+}
+
+func main() {
+	ans := add(42, 13)
+	fmt.Println(ans)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;x&lt;/code&gt; と &lt;code&gt;y&lt;/code&gt; は同じ int 型なので以下のように記述することもできる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func add(x, y int) int {
+	return x + y
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;返り値を組（tuple）で定義することもできる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func split(sum int) (int, int) {
+	x = sum * 4 / 9
+	y = sum - x
+	return x, y
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;また返り値は以下のように名前をつけることもできる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func add(x, y int) (ans int) {
+	ans = x + y
+	return
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;最後の &lt;code&gt;return&lt;/code&gt; がないとコンパイル・エラーになるので注意。
+この書き方は &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; 構文と組み合わせるときに威力を発揮する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	err := r()
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(&amp;quot;Normal End.&amp;quot;)
+	}
+}
+
+func r() (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf(&amp;quot;Recovered from: %v&amp;quot;, rec)
+		}
+	}()
+
+	f()
+	err = nil
+	return
+}
+
+func f() {
+	panic(&amp;quot;Panic!&amp;quot;)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このコード&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:p&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:p&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; では &lt;code&gt;r()&lt;/code&gt; 関数内で &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; を捕まえ， 返り値の &lt;code&gt;err&lt;/code&gt; に値をセットしなおしている。&lt;/p&gt;
+
+&lt;h3 id=&#34;go-言語の引数は-値渡し&#34;&gt;Go 言語の引数は「値渡し」&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の引数は基本的に「値渡し（call by value）」である。
+たとえば先程の足し算を&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func add(x, y int) int {
+	x += y
+	return x
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;と定義した場合でも&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func add(x, y int) int {
+	x += y
+	return x
+}
+
+func main() {
+    x := 42
+    y := 13
+	ans := add(x, y)
+	fmt.Printf(&amp;quot;%d + %d = %d\n&amp;quot;, x, y, ans) //output: 42 + 13 = 55
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;呼び出し元で &lt;code&gt;add()&lt;/code&gt; 関数の引数に渡した instance は関数実行後も変化しない。
+このため「値渡し」は thread safe なコードに向いている。
+たとえば value object を構成する際には関連する関数は「値渡し」のほうが安全である。
+ただし関数呼び出し時に instance の値が常にコピーされるため&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:copy&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:copy&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;，サイズの大きな instance の場合は呼び出し時のコストが高くなる。&lt;/p&gt;
+
+&lt;p&gt;引数を「参照渡し（call by reference）」にしたい場合はポインタを使う。
+つまり instance のポインタ値を渡すのである。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func add(x, y *int) int {
+	*x += *y
+	return *x
+}
+
+func main() {
+	x := 42
+	y := 13
+	ans := add(&amp;amp;x, &amp;amp;y)
+	fmt.Printf(&amp;quot;%d + %d = %d\n&amp;quot;, x, y, ans) //output: 55 + 13 = 55
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このコードでは &lt;code&gt;add()&lt;/code&gt; 関数実行後の &lt;code&gt;x&lt;/code&gt; の値が変更されている。
+内部状態を持つ instance を引数に指定する場合は参照渡しにする必要がある。
+しかし引数を参照渡しにすると関数実行が thread safe でなくなる可能性がある。
+また引数の値が nil の場合も考慮する必要がある。&lt;/p&gt;
+
+&lt;p&gt;ちなみに &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では通常の方法ではポインタ演算ができない。
+たとえば，ついうっかり&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func add(x, y *int) int {
+	x += y
+	return *x
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とか書いてしまっても&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;invalid operation: x += y (operator + not defined on pointer)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とコンパイル・エラーになる。
+したがって通常は「&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のポインタは nullable 参照&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:nr&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:nr&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; と同じ」と考えてよい。&lt;/p&gt;
+
+&lt;p&gt;ちなみにポインタ演算が必要な場合は &lt;a href=&#34;https://golang.org/pkg/unsafe/&#34; title=&#34;unsafe - The Go Programming Language&#34;&gt;&lt;code&gt;unsafe&lt;/code&gt;&lt;/a&gt; パッケージを使う。&lt;/p&gt;
+
+&lt;h3 id=&#34;slice-map-channel-は-参照渡し-として振る舞う&#34;&gt;Slice, Map, Channel は「参照渡し」として振る舞う&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Map_types&#34;&gt;map&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; は組み込み型だが内部状態を持つ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:make&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:make&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。
+これらの型の instance を引数に渡す場合は「参照渡し」として振る舞う&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:slc&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:slc&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func setItem(ary map[int]int, index, item int) {
+	ary[index] = item
+}
+
+func main() {
+    ary := map[int]int{0: 0}
+	fmt.Println(ary) //output: map[0:0]
+	setItem(ary, 0, 1)
+	fmt.Println(ary) //output: map[0:1]
+	setItem(ary, 10, 10)
+	fmt.Println(ary) //output: map[0:1 10:10]
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ただし固定の配列や &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:str&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:str&#34;&gt;7&lt;/a&gt;&lt;/sup&gt; の instance は「値」として振る舞うため&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:n&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:n&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;，引数に指定した場合も「値渡し」になる。
+&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; とは挙動が異なるためテキトーなコードを書いていると混乱しやすい。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func setItem(ary [4]int, index, item int) {
+	ary[index] = item
+}
+
+func main() {
+	ary := [4]int{0, 1, 2, 3}
+	fmt.Println(ary) //output: [0 1 2 3]
+	setItem(ary, 1, 10)
+	fmt.Println(ary) //output: [0 1 2 3]
+	ary[2] = 200
+	fmt.Println(ary) //output: [0 1 200 3]
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;固定配列や &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型を「参照渡し」にしたい場合はやはりポインタ値を渡す。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func setItem(ary *[4]int, index, item int) {
+	(*ary)[index] = item
+}
+
+func main() {
+	ary := [4]int{0, 1, 2, 3}
+	fmt.Println(ary) //output: [0 1 2 3]
+	setItem(&amp;amp;ary, 1, 10)
+	fmt.Println(ary) //output: [0 10 2 3]
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実際には &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型の instance は「不変（immutable）」なので「参照渡し」が必要な局面はほとんど無いと思われる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:s&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:s&#34;&gt;9&lt;/a&gt;&lt;/sup&gt;。
+固定配列は不変ではないが，配列を操作するのであれば固定配列ではなく &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; のほうが扱いやすい。
+たとえば上のコードでは &lt;code&gt;slc := ary[:]&lt;/code&gt; といった感じにキャストするか最初から &lt;code&gt;ary := []int{0, 1, 2, 3}&lt;/code&gt; と初期化すれば &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; として扱える。&lt;/p&gt;
+
+&lt;h2 id=&#34;method-receiver&#34;&gt;Method Receiver&lt;/h2&gt;
+
+&lt;p&gt;ある型に関数を関連付ける場合は method receiver を使う。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) Add(dv Vertex) Vertex {
+	v.X += dv.X
+	v.Y += dv.Y
+	return v
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;(v Vertex)&lt;/code&gt; の部分が method receiver である。
+&lt;code&gt;Add()&lt;/code&gt; 関数を呼び出すには以下のように記述する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X = &amp;quot;, v.X, &amp;quot;, Y = &amp;quot;, v.Y)
+}
+
+func (v Vertex) Add(dv Vertex) Vertex {
+	v.X += dv.X
+	v.Y += dv.Y
+	return v
+}
+
+func main() {
+	v := Vertex{X: 1, Y: 2}
+	vv := v.Add(Vertex{X: 3, Y: 4})
+	fmt.Println(v)  //output: X = 1, Y = 2
+	fmt.Println(vv) //output: X = 4, Y = 6
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;関数の calling sequence としては &lt;code&gt;v.Add(dv)&lt;/code&gt; と &lt;code&gt;Vertex.Add(v, dv)&lt;/code&gt; は等価である。
+つまり &lt;code&gt;v&lt;/code&gt; は &lt;code&gt;Add()&lt;/code&gt; 関数の0番目の引数として振る舞い，「値渡し」でセットされる。&lt;/p&gt;
+
+&lt;p&gt;Method receiver の型をポインタ型にすれば「参照渡し」にできる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X = &amp;quot;, v.X, &amp;quot;, Y = &amp;quot;, v.Y)
+}
+
+func (v *Vertex) Add(dv Vertex) {
+	if v == nil {
+		return
+	}
+	v.X += dv.X
+	v.Y += dv.Y
+}
+
+func main() {
+	v := &amp;amp;Vertex{X: 1, Y: 2}
+	v.Add(Vertex{X: 3, Y: 4})
+	fmt.Println(v) //output: X = 4, Y = 6
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;この場合も calling sequence としては &lt;code&gt;v.Add(dv)&lt;/code&gt; と &lt;code&gt;(*Vertex).Add(v, dv)&lt;/code&gt; は等価である。&lt;/p&gt;
+
+&lt;h3 id=&#34;method-receiver-の暗黙的変換&#34;&gt;Method Receiver の暗黙的変換&lt;/h3&gt;
+
+&lt;p&gt;Method receiver を「値渡し」にした場合，呼び出し元の instance がポインタ型であっても暗黙的に「値渡し」に変換される。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X = &amp;quot;, v.X, &amp;quot;, Y = &amp;quot;, v.Y)
+}
+
+func (v Vertex) Add(dv Vertex) Vertex {
+	v.X += dv.X
+	v.Y += dv.Y
+	return v
+}
+
+func main() {
+	v := &amp;amp;Vertex{X: 1, Y: 2} //pointer
+	vv := v.Add(Vertex{X: 3, Y: 4})
+	fmt.Println(v)  //output: X = 1, Y = 2
+	fmt.Println(vv) //output: X = 4, Y = 6
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Method receiver を「参照渡し」にした場合も暗黙的に「参照渡し」に変換される。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X = &amp;quot;, v.X, &amp;quot;, Y = &amp;quot;, v.Y)
+}
+
+func (v *Vertex) Add(dv Vertex) {
+	if v == nil {
+		return
+	}
+	v.X += dv.X
+	v.Y += dv.Y
+}
+
+func main() {
+	v := Vertex{X: 1, Y: 2} //not pointer
+	v.Add(Vertex{X: 3, Y: 4})
+	fmt.Println(v) //output: X = 4, Y = 6
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&#34;method-receiver-の値が-nil-の場合&#34;&gt;Method Receiver の値が nil の場合&lt;/h3&gt;
+
+&lt;p&gt;Method receiver の値が nil の場合はどうなるか。
+まずは「値渡し」の場合。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X = &amp;quot;, v.X, &amp;quot;, Y = &amp;quot;, v.Y)
+}
+
+func (v Vertex) Add(dv Vertex) Vertex {
+	v.X += dv.X
+	v.Y += dv.Y
+	return v
+}
+
+func main() {
+	v := (*Vertex)(nil) //nil
+	vv := v.Add(Vertex{X: 3, Y: 4})
+	fmt.Println(v)
+	fmt.Println(vv)
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;この場合は &lt;code&gt;Add()&lt;/code&gt; 関数呼び出し時に &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; になる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;panic: runtime error: invalid memory address or nil pointer dereference
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;まぁこれは分かりやすいよね。
+では「参照渡し」の場合はどうなるか。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+type Vertex struct {
+	X int
+	Y int
+}
+
+func (v Vertex) String() string {
+	return fmt.Sprint(&amp;quot;X = &amp;quot;, v.X, &amp;quot;, Y = &amp;quot;, v.Y)
+}
+
+func (v *Vertex) Add(dv Vertex) {
+	if v == nil {
+		return
+	}
+	v.X += dv.X
+	v.Y += dv.Y
+}
+
+func main() {
+	v := (*Vertex)(nil) //nil
+	v.Add(Vertex{X: 3, Y: 4})
+	fmt.Println(v) //output: &amp;lt;nil&amp;gt;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;実は &lt;code&gt;Add()&lt;/code&gt; 関数呼び出し時点では &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; にはならない。
+上のコードでは &lt;code&gt;v&lt;/code&gt; に nil が渡される。
+したがって &lt;code&gt;Add()&lt;/code&gt; 関数内の条件文を削除すると&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func (v *Vertex) Add(dv Vertex) {
+	v.X += dv.X
+	v.Y += dv.Y
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;v&lt;/code&gt; 内の要素を参照としたところで &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; になる。
+Method receiver を「参照渡し」にする場合は nil 値に注意する必要がある。&lt;/p&gt;
+
+&lt;h2 id=&#34;for-range-構文も-値渡し&#34;&gt;for-range 構文も「値渡し」&lt;/h2&gt;
+
+&lt;p&gt;余談だが for-range 構文も「値渡し」（つまりコピーが発生する）なので注意が必要である。
+たとえば以下のコードで&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	ary := []int{0, 1, 2, 3}
+	fmt.Println(ary) //output: [0 1 2 3]
+	for _, item := range ary {
+		item += 10
+	}
+	fmt.Println(ary) //output: [0 1 2 3]
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;for-range 構文内の &lt;code&gt;item&lt;/code&gt; は &lt;code&gt;ary&lt;/code&gt; 内の要素を指すのではなく要素のコピーである。
+したがって &lt;code&gt;item&lt;/code&gt; を操作しても &lt;code&gt;ary&lt;/code&gt; には影響しない。
+&lt;code&gt;ary&lt;/code&gt; 内の要素を操作するのであれば素朴に&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import &amp;quot;fmt&amp;quot;
+
+func main() {
+	ary := []int{0, 1, 2, 3}
+	fmt.Println(ary) //output: [0 1 2 3]
+	for i := 0; i &amp;lt; len(ary); i++ {
+		ary[i] += 10
+	}
+	fmt.Println(ary) //output: [10 11 12 13]
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;とするしかない。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://skatsuta.github.io/2015/12/29/value-receiver-pointer-receiver/&#34;&gt;Go 言語の値レシーバとポインタレシーバ | Step by Step&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
@@ -159,7 +752,23 @@ func f() {
 &lt;hr /&gt;
 
 &lt;ol&gt;
-&lt;li id=&#34;fn:s&#34;&gt;ちなみにこの情報は &lt;code&gt;-s&lt;/code&gt; のリンクオプション（ビルド時に &lt;code&gt;-ldflags &amp;quot;-s&amp;quot;&lt;/code&gt; と指定する）でデバッグ用のシンボル情報を削除しても表示されるようだ。
+&lt;li id=&#34;fn:t&#34;&gt;型については「&lt;a href=&#34;http://text.baldanders.info/golang/object-oriented-programming/&#34;&gt;Go 言語における「オブジェクト」&lt;/a&gt;」を参照のこと。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:t&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:p&#34;&gt;このコードについては「&lt;a href=&#34;http://text.baldanders.info/golang/error-handling/&#34;&gt;エラー・ハンドリングについて&lt;/a&gt;」で解説している。ちなみに &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;panic&lt;/a&gt; を潰して error を返すのはエラー・ハンドリングとしてはいいやり方ではない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:p&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:copy&#34;&gt;値がどこにコピーされるかは型によって異なる。 &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 以外の基本型は値がスタックに積まれる。 &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; および基本型以外はヒープ領域に値がコピーされそのポインタがスタックに積まれる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:copy&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:nr&#34;&gt;nullable 参照は「null を許容する参照」くらいの意味。 &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;なら nil 値。 &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;は「null 安全（null safty）」ではないので null 参照（＝無効な参照）の始末について instance を参照する側が責務を負うことになる。（参考： &lt;a href=&#34;http://text.baldanders.info/remark/2016/11/null-safety/&#34;&gt;「null 安全」について&lt;/a&gt;）
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:nr&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:make&#34;&gt;&lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Map_types&#34;&gt;map&lt;/a&gt;, &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; は内部状態を持つため &lt;code&gt;new()&lt;/code&gt; 関数ではなく &lt;code&gt;make()&lt;/code&gt; 関数で instance を生成する。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:make&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:slc&#34;&gt;このうち &lt;a href=&#34;http://golang.org/ref/spec#Slice_types&#34;&gt;slice&lt;/a&gt; については特殊な振る舞いをする。詳しくは「&lt;a href=&#34;http://text.baldanders.info/golang/array-and-slice/&#34;&gt;配列と Slice&lt;/a&gt;」を参照のこと。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:slc&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:str&#34;&gt;&lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型の実体は &lt;code&gt;[]byte&lt;/code&gt; 型である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:str&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:n&#34;&gt;たとえば固定の配列や &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型の instance は nil 値を持たない。 &lt;a href=&#34;http://golang.org/ref/spec#String_types&#34;&gt;string&lt;/a&gt; 型のゼロ値は空文字列である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:n&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:s&#34;&gt;このような需要としては文字列操作で「NULL 状態」が必要な場合であろう。たとえば DBMS にアクセスする場合は NULL 状態を扱う必要がある。なお &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のコア・パッケージには &lt;a href=&#34;https://golang.org/pkg/database/sql/&#34; title=&#34;sql - The Go Programming Language&#34;&gt;&lt;code&gt;database/sql&lt;/code&gt;&lt;/a&gt; があり &lt;code&gt;NullString&lt;/code&gt; を使うことにより NULL 状態を扱える。このように NULL 状態を扱う必要がある場合は，直にポインタ操作するのではなく，何らかの value object を用意してカプセル化するほうが安全である。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:s&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;

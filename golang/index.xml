@@ -3,13 +3,228 @@
 	<title>プログラミング言語 Go — text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/golang/index.xml" />
-	<id>tag:text.Baldanders.info,2017-09-14:/hugo</id>
-	<updated>2017-09-14T10:01:49+09:00</updated>
+	<id>tag:text.Baldanders.info,2017-09-19:/hugo</id>
+	<updated>2017-09-19T17:31:49+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="https://gohugo.io/">Hugo 0.27.1</generator>
 
+	
+	<entry>
+		<title>Gzip 操作について覚え書き — プログラミング言語 Go</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/gzip-operation/" />
+		<id>tag:text.Baldanders.info,2017-09-19:/golang/gzip-operation/</id>
+		<published>2017-09-19T17:31:49+09:00</published>
+		<updated>2017-09-19T17:31:49+09:00</updated>
+		<summary>このようにインスタンスの生存期間を意識することで Go 言語の得意なパターンに嵌めることが容易になる。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34;&gt;gzip のやり方 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;この記事を見て「んん？」となったので，覚え書きとして &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt; について紹介する。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34; title=&#34;gzip のやり方 - Qiita&#34;&gt;リンク先の記事&lt;/a&gt;で挙げられているコードは以下の通り。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(body string) []byte {
+  var b bytes.Buffer
+  gw := gzip.NewWriter(&amp;amp;b)
+  _, err := gw.Write([]byte(body)); if err != nil {
+    ...
+  }
+  gw.Flush()
+  gw.Close()
+  return b.Bytes()
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ここで &lt;code&gt;gw.Close()&lt;/code&gt; 関数を &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; 指定すると返ってくるバイト列が不完全なデータになってしまう，という話。
+これは，&lt;a href=&#34;http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811&#34; title=&#34;gzip のやり方 - Qiita&#34;&gt;リンク先の記事&lt;/a&gt;で指摘されている通り， &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Close()&lt;/code&gt; 関数で gzip のフッタデータをフラッシュしているからである。&lt;/p&gt;
+
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;
+&lt;q&gt;Close closes the Writer by flushing any unwritten data to the underlying io.Writer and writing the GZIP footer. It does not close the underlying io.Writer.&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34;&gt;gzip - The Go Programming Language&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;つまり &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; で指定した関数は return 後に駆動するため &lt;code&gt;b.Bytes()&lt;/code&gt; 関数を呼び出した時点ではまだ不完全なデータということになる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:b1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:b1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;ここでちょっと考える。&lt;/p&gt;
+
+&lt;p&gt;関数の再利用性を考えるのなら，関数内でバッファを生成してバッファ処理の結果を返すのはあまり筋がよろしくない。
+また圧縮データを書き込む先はメモリバッファじゃなくてファイルかもしれない。&lt;/p&gt;
+
+&lt;p&gt;ゆえに関数をこう書き換える。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(w io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	if _, err := zw.Write(content); err != nil {
+		return err
+	}
+	return nil
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;つまり圧縮データの書き込む先である &lt;code&gt;Writer&lt;/code&gt; を引数で指定するのである。
+これなら生成した &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Writer&lt;/code&gt; の &lt;code&gt;Close()&lt;/code&gt; 関数を問題なく &lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; で指定できる。&lt;/p&gt;
+
+&lt;p&gt;これを踏まえて完全なコードは以下のようになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;compress/gzip&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;os&amp;quot;
+)
+
+func makeGzip(w io.Writer, content []byte) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	if _, err := zw.Write(content); err != nil {
+		return err
+	}
+	return nil
+}
+
+func main() {
+	content := []byte(&amp;quot;Hello world\n&amp;quot;)
+
+	file, err := os.Create(&amp;quot;test.txt.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	if err := makeGzip(file, content); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このコードでは圧縮データの書き込む先をファイルにしている。
+もちろん書き込み先を &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer&lt;/code&gt; に置き換えることもできる。
+このようにインスタンスの生存期間を意識することで &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の得意なパターンに嵌めることが容易になる。&lt;/p&gt;
+
+&lt;p&gt;ところで，特にファイル操作では，生のデータを直接 gzip 圧縮するシチュエーションは少なく，大抵は tar と組み合わせることになる。
+そこで tar と組み合わせ，指定フォルダ下の複数ファイルを gzip 圧縮するコードを以下に示しておく。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;archive/tar&amp;quot;
+	&amp;quot;compress/gzip&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;io&amp;quot;
+	&amp;quot;io/ioutil&amp;quot;
+	&amp;quot;os&amp;quot;
+	&amp;quot;path/filepath&amp;quot;
+)
+
+func makeTarGzip(w io.Writer) error {
+	zw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+
+	tw := tar.NewWriter(zw)
+	defer tw.Close()
+
+	filepath.Walk(&amp;quot;./&amp;quot;, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		fmt.Println(path)
+
+		hd, e := tar.FileInfoHeader(info, &amp;quot;&amp;quot;)
+		if e != nil {
+			return e
+		}
+		content, e := ioutil.ReadFile(path)
+		if e != nil {
+			return e
+		}
+
+		if e := tw.WriteHeader(hd); e != nil {
+			return e
+		}
+		if _, e := tw.Write(content); e != nil {
+			return e
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	file, err := os.Create(&amp;quot;test.tar.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	if err := makeTarGzip(file); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/kroton/items/431e6dad9e5e4dbc44cf&#34;&gt;「連結されたgzipを1行ずつ見る」をgolangでやったらハマった - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:b1&#34;&gt;この挙動から分かるとおり， &lt;a href=&#34;https://golang.org/pkg/bytes/&#34; title=&#34;bytes - The Go Programming Language&#34;&gt;&lt;code&gt;bytes&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;Buffer.Bytes()&lt;/code&gt; 関数は，バッファの内容をそのまま返しているのではなく，内容のコピーを返している。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:b1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>Go 1.9 と Type Alias — プログラミング言語 Go</title>
@@ -2923,471 +3138,6 @@ standard deviation: 0.01654 (68.0%)
 &lt;li id=&#34;fn:const&#34;&gt;余談だが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;では untyped な定数を設定できる。型が評価されるのは，処理の中でその定数が使われた時点となる。数値の精度も使用時点で評価されるため，定義では大きい桁数の値を設定しても問題ない。（参考： &lt;a href=&#34;http://qiita.com/hkurokawa/items/a4d402d3182dff387674&#34;&gt;Go の定数の話 - Qiita&lt;/a&gt;）
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:const&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>モンテカルロ法による円周率の推定（その2 CLI） — プログラミング言語 Go</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/estimate-of-pi-2-cli/" />
-		<id>tag:text.Baldanders.info,2016-11-06:/golang/estimate-of-pi-2-cli/</id>
-		<published>2016-11-06T17:57:37+09:00</published>
-		<updated>2017-01-16T09:42:12+09:00</updated>
-		<summary>さっそく推定結果について評価を行いたいところだが，その前に CLI (command-line interface) を整備する。今回は spf13/cobra パッケージを使うことにする。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="golang" label="golang" scheme="http://text.baldanders.info/golang" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34;&gt;モンテカルロ法による円周率の推定（その1）&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-2-cli/&#34;&gt;モンテカルロ法による円周率の推定（その2 CLI）&lt;/a&gt; ← イマココ&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-3-gaussian/&#34;&gt;モンテカルロ法による円周率の推定（その3 Gaussian）&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi-4-prng/&#34;&gt;モンテカルロ法による円周率の推定（その4 PRNG）&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&#34;コマンドライン-インタフェース&#34;&gt;コマンドライン・インタフェース&lt;/h2&gt;
-
-&lt;p&gt;さっそく推定結果について評価を行いたいところだが，その前に CLI (command-line interface) を整備する。
-どういうことかというと，&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34; title=&#34;モンテカルロ法による円周率の推定（その1）&#34;&gt;前回&lt;/a&gt;作った2つの &lt;code&gt;main()&lt;/code&gt; 関数の処理&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
-)
-
-func main() {
-	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(10000))
-	for p := range c {
-		fmt.Printf(&amp;quot;%v\t%v\n&amp;quot;, real(p), imag(p))
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;math/cmplx&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
-)
-
-func main() {
-	c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), int64(100000))
-	n := int64(0) // total
-	m := int64(0) // plot in circle
-	for p := range c {
-		n++
-		if cmplx.Abs(p) &amp;lt;= float64(1) {
-			m++
-		}
-	}
-	fmt.Printf(&amp;quot;n = %v, m = %v, 4m/n = %v\n&amp;quot;, n, m, float64(4*m)/float64(n))
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これをひとつの CLI で呼び出せるよう統合してしまおうというわけ。&lt;/p&gt;
-
-&lt;p&gt;CLI については以前に解説した。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/golang/cli-and-facade-pattern/&#34;&gt;コマンドライン・インタフェースとファサード・パターン&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;このときは &lt;a href=&#34;https://github.com/mitchellh/cli&#34; title=&#34;mitchellh/cli&#34;&gt;&lt;code&gt;mitchellh/cli&lt;/code&gt;&lt;/a&gt; を紹介したが，今回は &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; を使うことにする。&lt;/p&gt;
-
-&lt;h3 id=&#34;spf13-cobra-パッケージ&#34;&gt;spf13/cobra パッケージ&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; パッケージの作者 &lt;a href=&#34;https://github.com/spf13&#34;&gt;spf13 (Steve Francia)&lt;/a&gt; さんは &lt;a href=&#34;https://www.linkedin.com/in/stevefrancia&#34; title=&#34;Steven Francia | LinkedIn&#34;&gt;Docker の中の人&lt;/a&gt;で &lt;a href=&#34;https://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; の作者としても有名な方。
-もちろん &lt;a href=&#34;https://gohugo.io/&#34; title=&#34;Hugo :: A fast and modern static website engine&#34;&gt;Hugo&lt;/a&gt; の CLI にも &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; が使われている。&lt;/p&gt;
-
-&lt;p&gt;さらにありがたいことに &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; にはテンプレートコードを出力する CLI も用意されている。
-インストールは &lt;code&gt;go get&lt;/code&gt; コマンドで行う。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go get -v github.com/spf13/cobra/cobra
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これで &lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; パッケージ本体と CLI がインストールされる。
-テンプレートコードの生成は以下のコマンドを叩く。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ cobra init github.com/spiegel-im-spiegel/pi
-Your Cobra application is ready at
-C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi
-Give it a try by going there and running `go run main.go`
-Add commands to it by running `cobra add [cmdname]`
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;既にパッケージ用のフォルダが作られている場合は，そのフォルダまで降りて&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ cobra init .
-Your Cobra application is ready at
-C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi
-Give it a try by going there and running `go run main.go`
-Add commands to it by running `cobra add [cmdname]`
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;でもよい。&lt;/p&gt;
-
-&lt;p&gt;この時点で &lt;code&gt;main.go&lt;/code&gt; と &lt;code&gt;cmd/root.go&lt;/code&gt; のふたつが生成される。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Copyright © 2016 NAME HERE &amp;lt;EMAIL ADDRESS&amp;gt;
-//
-// Licensed under the Apache License, Version 2.0 (the &amp;quot;License&amp;quot;);
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an &amp;quot;AS IS&amp;quot; BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package main
-
-import &amp;quot;github.com/spiegel-im-spiegel/pi/cmd&amp;quot;
-
-func main() {
-	cmd.Execute()
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Copyright © 2016 NAME HERE &amp;lt;EMAIL ADDRESS&amp;gt;
-//
-// Licensed under the Apache License, Version 2.0 (the &amp;quot;License&amp;quot;);
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an &amp;quot;AS IS&amp;quot; BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package cmd
-
-import (
-	&amp;quot;fmt&amp;quot;
-	&amp;quot;os&amp;quot;
-
-	&amp;quot;github.com/spf13/cobra&amp;quot;
-	&amp;quot;github.com/spf13/viper&amp;quot;
-)
-
-var cfgFile string
-
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &amp;amp;cobra.Command{
-	Use:   &amp;quot;pi&amp;quot;,
-	Short: &amp;quot;A brief description of your application&amp;quot;,
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-// Uncomment the following line if your bare application
-// has an action associated with it:
-//	Run: func(cmd *cobra.Command, args []string) { },
-}
-
-// Execute adds all child commands to the root command sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-}
-
-func init() {
-	cobra.OnInitialize(initConfig)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports Persistent Flags, which, if defined here,
-	// will be global for your application.
-
-	RootCmd.PersistentFlags().StringVar(&amp;amp;cfgFile, &amp;quot;config&amp;quot;, &amp;quot;&amp;quot;, &amp;quot;config file (default is $HOME/.pi.yaml)&amp;quot;)
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	RootCmd.Flags().BoolP(&amp;quot;toggle&amp;quot;, &amp;quot;t&amp;quot;, false, &amp;quot;Help message for toggle&amp;quot;)
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != &amp;quot;&amp;quot; { // enable ability to specify config file via flag
-		viper.SetConfigFile(cfgFile)
-	}
-
-	viper.SetConfigName(&amp;quot;.pi&amp;quot;) // name of config file (without extension)
-	viper.AddConfigPath(&amp;quot;$HOME&amp;quot;)  // adding home directory as first search path
-	viper.AutomaticEnv()          // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println(&amp;quot;Using config file:&amp;quot;, viper.ConfigFileUsed())
-	}
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;この状態でいきなり動かしてみる。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go
-A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;code&gt;RootCmd&lt;/code&gt; で定義した説明が表示されているのがわかると思う。&lt;/p&gt;
-
-&lt;p&gt;次にサブコマンドを定義する。
-名前は &lt;code&gt;plot&lt;/code&gt; と &lt;code&gt;estmt&lt;/code&gt; としようか。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ cobra add plot
-plot created at C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi\cmd\plot.go
-
-$ cobra add estmt
-estmt created at C:\workspace\pi\src\github.com\spiegel-im-spiegel\pi\cmd\estmt.go
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;これで &lt;code&gt;cmd/plot.go&lt;/code&gt; と &lt;code&gt;cmd/estmt.go&lt;/code&gt; のふたつが生成された。
-&lt;code&gt;cmd/plot.go&lt;/code&gt; の中身を見てみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;// Copyright Â© 2016 NAME HERE &amp;lt;EMAIL ADDRESS&amp;gt;
-//
-// Licensed under the Apache License, Version 2.0 (the &amp;quot;License&amp;quot;);
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an &amp;quot;AS IS&amp;quot; BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package cmd
-
-import (
-	&amp;quot;fmt&amp;quot;
-
-	&amp;quot;github.com/spf13/cobra&amp;quot;
-)
-
-// plotCmd represents the plot command
-var plotCmd = &amp;amp;cobra.Command{
-	Use:   &amp;quot;plot&amp;quot;,
-	Short: &amp;quot;A brief description of your command&amp;quot;,
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
-		fmt.Println(&amp;quot;plot called&amp;quot;)
-	},
-}
-
-func init() {
-	RootCmd.AddCommand(plotCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// plotCmd.PersistentFlags().String(&amp;quot;foo&amp;quot;, &amp;quot;&amp;quot;, &amp;quot;A help for foo&amp;quot;)
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// plotCmd.Flags().BoolP(&amp;quot;toggle&amp;quot;, &amp;quot;t&amp;quot;, false, &amp;quot;Help message for toggle&amp;quot;)
-
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/spf13/cobra&#34; title=&#34;spf13/cobra: A Commander for modern Go CLI interactions&#34;&gt;&lt;code&gt;spf13/cobra&lt;/code&gt;&lt;/a&gt; パッケージで特徴的なのは，サブコマンドを追加する際に &lt;code&gt;cmd/root.go&lt;/code&gt; を変更する必要が無いことである。
-サブコマンドの組み込みは &lt;code&gt;cmd&lt;/code&gt; パッケージ内の各ファイルに定義されている &lt;code&gt;init()&lt;/code&gt; 関数によって &lt;code&gt;main()&lt;/code&gt; 起動前に行われる。&lt;/p&gt;
-
-&lt;p&gt;この状態で動かしてみよう。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go
-A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.
-
-Usage:
-  pi [command]
-
-Available Commands:
-  estmt       A brief description of your command
-  plot        A brief description of your command
-
-Flags:
-      --config string   config file (default is $HOME/.pi.yaml)
-  -t, --toggle          Help message for toggle
-
-Use &amp;quot;pi [command] --help&amp;quot; for more information about a command.
-
-$ go run main.go plot --help
-A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.
-
-Usage:
-  pi plot [flags]
-
-Global Flags:
-      --config string   config file (default is $HOME/.pi.yaml)
-
-$ go run main.go plot
-plot called
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;問題なくサブコマンドが組み込まれていることがわかる。&lt;/p&gt;
-
-&lt;h2 id=&#34;cli-の作成&#34;&gt;CLI の作成&lt;/h2&gt;
-
-&lt;p&gt;では，生成されたテンプレートをベースに機能を組み込んでいく。 &amp;hellip;というわけで，出来上がりが以下の repository にある。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/pi&#34;&gt;spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;フォルダ構成は以下の通り。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;github.com/spiegel-im-spiegel/pi
-|   .editorconfig
-|   .gitignore
-|   glide.lock
-|   glide.yaml
-|   LICENSE
-|   main.go
-|   README.md
-|
-+---cmd
-|       estmt.go
-|       plot.go
-|       root.go
-|
-+---estmt
-|       estmt.go
-|
-+---gencmplx
-|       gencmplx.go
-|
-+---genpi
-|       genpi.go
-|
-\---plot
-        plot.go
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;そして各パッケージの構成は以下のようになっている。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;http://text.baldanders.info/images/estimate-of-pi.svg&#34;&gt;&lt;img srcset=&#34;http://text.baldanders.info/images/estimate-of-pi.svg 640w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;パッケージ構成&#34;&gt;&lt;/a&gt;
-&lt;figcaption&gt;&lt;a href=&#34;http://text.baldanders.info/images/estimate-of-pi.svg&#34;&gt;パッケージ構成&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/estimate-of-pi/&#34; title=&#34;モンテカルロ法による円周率の推定（その1）&#34;&gt;前回&lt;/a&gt;と変わったところは &lt;code&gt;genpi&lt;/code&gt; パッケージを追加したことだろうか。
-こんな感じ。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package genpi
-
-import (
-	&amp;quot;math/cmplx&amp;quot;
-	&amp;quot;math/rand&amp;quot;
-	&amp;quot;time&amp;quot;
-
-	&amp;quot;github.com/spiegel-im-spiegel/pi/gencmplx&amp;quot;
-)
-
-//New returns generator of Pi
-func New(pc, ec int64) &amp;lt;-chan float64 {
-	ch := make(chan float64)
-	pcf := float64(pc)
-	go func(pc, ec int64) {
-		for i := int64(0); i &amp;lt; ec; i++ {
-			c := gencmplx.New(rand.NewSource(time.Now().UnixNano()), pc)
-			m := int64(0) // plot in circle
-			for p := range c {
-				if cmplx.Abs(p) &amp;lt;= float64(1) {
-					m++
-				}
-			}
-			ch &amp;lt;- float64(4*m) / pcf
-		}
-		close(ch)
-	}(pc, ec)
-
-	return ch
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;指定した回数だけ推定処理を行い，結果を &lt;a href=&#34;http://golang.org/ref/spec#Channel_types&#34;&gt;channel&lt;/a&gt; &lt;code&gt;ch&lt;/code&gt; に渡している。
-たとえば100,000個の点から円周率を推定する処理を10回したければ&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-text&#34;&gt;$ go run main.go estmt -e 10 -p 100000
-3.14576
-3.1422
-3.13716
-3.14648
-3.14852
-3.13952
-3.14824
-3.13828
-3.14532
-3.14312
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;とすればよい。&lt;/p&gt;
-
-&lt;p&gt;これでようやく評価のための準備が整った。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://lab.flama.co.jp/archives/1536/&#34;&gt;GolangでCLIの場合にcobraを使うことにした件 | FLAMA技術Blog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/astronoka/items/aa2f271d280863cedf5e&#34;&gt;packageに複数のinitがあるときの挙動 - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/golang/bookmark/&#34;&gt;Go 言語に関するブックマーク集はこちら&lt;/a&gt;。&lt;/p&gt;
-
-&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
-
-&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
-&lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
-&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt;
 </content>
 	</entry>
