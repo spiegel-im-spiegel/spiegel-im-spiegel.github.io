@@ -386,7 +386,7 @@ Home: ********
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/gzip-operation/" />
 		<id>tag:text.Baldanders.info,2017-09-19:/golang/gzip-operation/</id>
 		<published>2017-09-19T17:31:49+09:00</published>
-		<updated>2017-09-20T08:06:47+09:00</updated>
+		<updated>2017-09-22T16:37:42+09:00</updated>
 		<summary>このようにインスタンスの生存期間を意識することで Go 言語の得意なパターンに嵌めることが容易になる。</summary>
 		
 			<author>
@@ -611,10 +611,82 @@ func main() {
 }
 &lt;/code&gt;&lt;/pre&gt;
 
+&lt;h2 id=&#34;追記-別解あります&#34;&gt;【追記】別解あります&lt;/h2&gt;
+
+&lt;p&gt;実は最初の &lt;code&gt;makeGzip()&lt;/code&gt; には別解がある。
+要するに &lt;a href=&#34;https://golang.org/pkg/compress/gzip/&#34; title=&#34;gzip - The Go Programming Language&#34;&gt;&lt;code&gt;gzip&lt;/code&gt;&lt;/a&gt; 処理部分を関数スコープで囲ってしまえばいいのだ。
+実際にはこんな感じ。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;func makeGzip(body []byte) ([]byte, error) {
+	var b bytes.Buffer
+	err := func() error {
+		gw := gzip.NewWriter(&amp;amp;b)
+		defer gw.Close()
+
+		if _, err := gw.Write(body); err != nil {
+			return err
+		}
+		return nil
+	}()
+	return b.Bytes(), err
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;完全なコードはこんな感じになる。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-go&#34;&gt;package main
+
+import (
+	&amp;quot;bytes&amp;quot;
+	&amp;quot;compress/gzip&amp;quot;
+	&amp;quot;fmt&amp;quot;
+	&amp;quot;os&amp;quot;
+)
+
+func makeGzip(body []byte) ([]byte, error) {
+	var b bytes.Buffer
+	err := func() error {
+		gw := gzip.NewWriter(&amp;amp;b)
+		defer gw.Close()
+
+		if _, err := gw.Write(body); err != nil {
+			return err
+		}
+		return nil
+	}()
+	return b.Bytes(), err
+}
+
+func main() {
+	content := []byte(&amp;quot;Hello world\n&amp;quot;)
+
+	file, err := os.Create(&amp;quot;test.txt.gz&amp;quot;)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	defer file.Close()
+
+	z, err := makeGzip(content)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if _, err := file.Write(z); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;このように（&lt;a href=&#34;http://blog.golang.org/defer-panic-and-recover&#34; title=&#34;Defer, Panic, and Recover - The Go Blog&#34;&gt;defer&lt;/a&gt; を含む）一連の処理を関数スコープで囲うやり方は，条件分野や繰り返し処理の中で役に立つこともあるだろう。&lt;/p&gt;
+
 &lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
 
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;http://qiita.com/kroton/items/431e6dad9e5e4dbc44cf&#34;&gt;「連結されたgzipを1行ずつ見る」をgolangでやったらハマった - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://mattn.kaoriya.net/software/lang/go/20151212021608.htm&#34;&gt;Big Sky :: golang では for ループの中で defer してはいけない。&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
