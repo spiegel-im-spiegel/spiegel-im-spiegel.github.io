@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.29" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/css/chroma-styles.css">
+
+<title>Glide から Dep への移行を検討する — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="つまり「依存関係（Vendoring）管理ツールとしては dep を推奨するけど移行できない人のために当面はサポートを続けるよ（でも将来は分からん）」という解釈でいいのだろうか。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,engineering,vendoring,package,tools,glide,dep,nyagos,lua">
+<link rel='prev' href='http://text.baldanders.info/golang/fill-in-digits/' title='指定桁の数字列の先頭をゼロで埋める遊び' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>Glide から Dep への移行を検討する — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/dep">dep</a> #<a href="/tags/engineering">engineering</a> #<a href="/tags/glide">glide</a> #<a href="/tags/golang">golang</a> #<a href="/tags/lua">lua</a> #<a href="/tags/nyagos">nyagos</a> #<a href="/tags/package">package</a> #<a href="/tags/tools">tools</a> #<a href="/tags/vendoring">vendoring</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/consider-switching-from-glide-to-dep/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>（この記事は <a href="https://qiita.com/spiegel-im-spiegel/items/e931ad1a7565d02d179e">Qiita とのマルチポスト</a>です。
+まぁ，向こうは草稿版だけど）</p>
+
+<p>久しぶりに <a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> を使おうと最新版（<a href="https://github.com/Masterminds/glide/releases/tag/v0.13.0" title="Release 0.13.0 · Masterminds/glide">0.13.0</a>）を見に行ったら “Consider switching to <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a>” とか書いてあるじゃない。</p>
+
+<figure lang="en">
+<blockquote>
+<q>Glide is used by a great number of projects and will continue to get support for some time.
+But, the near future is likely in dep.
+dep can handle importing Glide config files.
+Please consider trying dep on your project or converting to dep.</q>
+</blockquote>
+<figcaption>via <q><a href="https://github.com/Masterminds/glide/releases/tag/v0.13.0">Release 0.13.0</a></q></figcaption>
+</figure>
+
+<p>まじすか。</p>
+
+<p>つまり「依存関係（Vendoring）管理ツールとしては <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> を推奨するけど移行できない人のために当面はサポートを続けるよ（でも将来は分からん）」という解釈でいいのだろうか。</p>
+
+<p><a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> は <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>開発プロジェクトの公式ツールで，2017年の始めくらいに日本でも話題になったような気がするが。私は <a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> で完全に満足していたのでスルーしていた。
+こんなことになるなんて。
+ならもう <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> に移行するしかないぢゃん。</p>
+
+<p>とはいえ，いきなり本番環境に投入するのは怖いので，なにか適当なテストケースはないか，と自分のリポジトリを漁ってたら丁度いいのがあったよ。</p>
+
+<ul>
+<li><a href="https://github.com/spiegel-im-spiegel/pi">spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.</a></li>
+</ul>
+
+<p>これって<a href="http://text.baldanders.info/golang/estimate-of-pi/">モンテカルロ法で遊んでた</a>ときに作ったものだ。
+最悪ぶっ壊れてもいいので，これ使って試してみるか。</p>
+
+<h2 id="dep-の取得"><a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> の取得</h2>
+
+<p>まず <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> の取得から始めないとだが，リポジトリ自体は <code>go get</code> コマンドで取得できる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ go get -v github.com/golang/dep</span></code></pre>
+</div>
+<p>これをこのままインストールしてもいいのだが</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ go install -v github.com/golang/dep/cmd/dep</span></code></pre>
+</div>
+<p><a href="https://github.com/golang/dep/releases" title="Releases · golang/dep">リリースページ</a>にビルド済みのモジュールが置かれているので，ありがたくこれを使わせてもらおう。</p>
+
+<p>最新版（現時点で <a href="https://github.com/golang/dep/releases/tag/v0.3.1" title="Release v0.3.1 · golang/dep">v0.3.1</a>）には Windows 用のモジュール <code>dep-windows-amd64</code> もある。
+Windows ユーザは何のファイルかと思うかもしれないが，実はこれ実行ファイルなので， <code>dep.exe</code> にリネームしてそのまま使える。</p>
+
+<p>万が一があっては困るのでモジュールの SHA256 ハッシュ値を確認しておく（こういうのこそ OpenPGP を使ってくれないものか）。
+Windows ユーザには（<code>sha256sum</code> といった）標準ツールがないのが痛いのだが， <a href="http://www.7-zip.org/">7-Zip</a> があるなら，これを使ってハッシュ値を確認できる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ 7z.exe h -scrcSHA256 dep-windows-amd64
+</span><span class="s1f40">
+</span><span class="s1f40">7-Zip [64] 16.04 : Copyright (c) 1999-2016 Igor Pavlov : 2016-10-04
+</span><span class="s1f40">
+</span><span class="s1f40">Scanning
+</span><span class="s1f40">1 file, 7696896 bytes (7517 KiB)
+</span><span class="s1f40">
+</span><span class="s1f40">SHA256                                                                    Size  Name
+</span><span class="s1f40">---------------------------------------------------------------- -------------  ------------
+</span><span class="s1f40">D4BF3EC10B1808CAB883C6AB2901C396CF463E684FDA350199E93E31806C194A       7696896  dep-windows-amd64
+</span><span class="s1f40">---------------------------------------------------------------- -------------  ------------
+</span><span class="s1f40">D4BF3EC10B1808CAB883C6AB2901C396CF463E684FDA350199E93E31806C194A       7696896
+</span><span class="s1f40">
+</span><span class="s1f40">Size: 7696896
+</span><span class="s1f40">
+</span><span class="s1f40">SHA256 for data:              D4BF3EC10B1808CAB883C6AB2901C396CF463E684FDA350199E93E31806C194A
+</span><span class="s1f40">
+</span><span class="s1f40">Everything is Ok</span></code></pre>
+</div>
+<p>これを <code>dep-windows-amd64.sha256</code> に記載されている値と比較する。
+改竄されてなければ同じ値になるはずである。
+目視は辛いのでテキストエディタ等の検索機能を使えばいいだろう。</p>
+
+<div class="box">
+<p><a href="http://www.nyaos.org/index.cgi?p=NYAGOS" title="NYAOS.ORG - NYAGOS">NYAGOS</a> を使っている人なら <code>.nyagos</code> ファイルに</p>
+<div class="highlight"><pre class="chroma"><code class="language-lua" data-lang="lua"><span class="s7d0">alias</span><span class="s1f40"> </span><span class="s1388">{</span><span class="s1f40">
+</span><span class="s1f40">    </span><span class="s7d0">sha1sum</span><span class="sfa0">=</span><span class="sc1c">&#39;%COMSPEC% /c </span><span class="sc25">\&#34;</span><span class="sc1c">%PROGRAMFILES%/7-Zip/7z.exe</span><span class="sc25">\&#34;</span><span class="sc1c"> h -scrcSHA1 $*&#39;</span><span class="s1388">,</span><span class="s1f40">
+</span><span class="s1f40">    </span><span class="s7d0">sha256sum</span><span class="sfa0">=</span><span class="sc1c">&#39;%COMSPEC% /c </span><span class="sc25">\&#34;</span><span class="sc1c">%PROGRAMFILES%/7-Zip/7z.exe</span><span class="sc25">\&#34;</span><span class="sc1c"> h -scrcSHA256 $*&#39;</span><span class="s1388">,</span><span class="s1f40">
+</span><span class="s1f40"></span><span class="s1388">}</span></code></pre>
+</div>
+<p>とか記述しておけば</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ sha256sum dep-windows-amd64</span></code></pre>
+</div>
+<p>で同じ結果が得られる。
+改竄の有無を確認するためにファイルのハッシュ値を調べることはよくあるので準備しておくとよい。</p>
+
+</div>
+
+<p>実行モジュールの動作確認もしておく。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep
+</span><span class="s1f40">dep is a tool for managing dependencies for Go projects
+</span><span class="s1f40">
+</span><span class="s1f40">Usage: dep &lt;command&gt;
+</span><span class="s1f40">
+</span><span class="s1f40">Commands:
+</span><span class="s1f40">
+</span><span class="s1f40">  init     Initialize a new project with manifest and lock files
+</span><span class="s1f40">  status   Report the status of the project&#39;s dependencies
+</span><span class="s1f40">  ensure   Ensure a dependency is safely vendored in the project
+</span><span class="s1f40">  prune    Prune the vendor tree of unused packages
+</span><span class="s1f40">  version  Show the dep version information
+</span><span class="s1f40">
+</span><span class="s1f40">Examples:
+</span><span class="s1f40">  dep init                               set up a new project
+</span><span class="s1f40">  dep ensure                             install the project&#39;s dependencies
+</span><span class="s1f40">  dep ensure -update                     update the locked versions of all dependencies
+</span><span class="s1f40">  dep ensure -add github.com/pkg/errors  add a dependency to the project
+</span><span class="s1f40">
+</span><span class="s1f40">Use &#34;dep help [command]&#34; for more information about a command.
+</span><span class="s1f40">
+</span><span class="s1f40">$ dep version
+</span><span class="s1f40">dep:
+</span><span class="s1f40"> version     : v0.3.1
+</span><span class="s1f40"> build date  : 2017-09-19
+</span><span class="s1f40"> git hash    : 83789e2
+</span><span class="s1f40"> go version  : go1.9
+</span><span class="s1f40"> go compiler : gc
+</span><span class="s1f40"> platform    : windows/amd64</span></code></pre>
+</div>
+<h2 id="glide-から-dep-への移行"><a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> から <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> への移行</h2>
+
+<p>お試し用の <a href="https://github.com/spiegel-im-spiegel/pi" title="spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.">spiegel-im-spiegel/pi</a> をビルド可能な適当な場所に置く。</p>
+
+<p>このパッケージの <code>glide.yaml</code> はこんな感じになっている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml"><span class="s1f40">package: github.com/spiegel-im-spiegel/pi
+</span><span class="s1f40">import:
+</span><span class="s1f40">- package: github.com/spiegel-im-spiegel/gocli
+</span><span class="s1f40">- package: github.com/spf13/cobra
+</span><span class="s1f40">- package: github.com/pkg/errors
+</span><span class="s1f40">- package: github.com/seehuhn/mt19937
+</span><span class="s1f40">- package: github.com/davidminor/gorand
+</span><span class="s1f40">- package: github.com/davidminor/uint128</span></code></pre>
+</div>
+<p>また <code>glide.lock</code> はこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml"><span class="s1f40">hash: d570123d6231810c51dd17e415673df221fb2dec7ef6ab45cd34093002a87cbb
+</span><span class="s1f40">updated: 2016-11-16T17:28:38.2997832+09:00
+</span><span class="s1f40">imports:
+</span><span class="s1f40">- name: github.com/davidminor/gorand
+</span><span class="s1f40">  version: 189780b8053a44a111339a4248394fd844c1da40
+</span><span class="s1f40">  subpackages:
+</span><span class="s1f40">  - lcg
+</span><span class="s1f40">- name: github.com/davidminor/uint128
+</span><span class="s1f40">  version: 5745f1bf80414e0ad2670e85d6aece8c58031def
+</span><span class="s1f40">- name: github.com/inconshreveable/mousetrap
+</span><span class="s1f40">  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+</span><span class="s1f40">- name: github.com/pkg/errors
+</span><span class="s1f40">  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+</span><span class="s1f40">- name: github.com/seehuhn/mt19937
+</span><span class="s1f40">  version: 98c0ea580d2f3c5a171acf4d4f15321b72209d08
+</span><span class="s1f40">- name: github.com/spf13/cobra
+</span><span class="s1f40">  version: 6b74a60562f5c1c920299b8f02d153e16f4897fc
+</span><span class="s1f40">- name: github.com/spf13/pflag
+</span><span class="s1f40">  version: 5ccb023bc27df288a957c5e994cd44fd19619465
+</span><span class="s1f40">- name: github.com/spiegel-im-spiegel/gocli
+</span><span class="s1f40">  version: 5929f04fb8e4a19ac29fdf658866f9441f339cd9
+</span><span class="s1f40">testImports: []</span></code></pre>
+</div>
+<p>この状態で <code>dep init</code> コマンドを実行する。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep init
+</span><span class="s1f40">Importing configuration from glide. These are only initial constraints, and are further refined during the solve process.
+</span><span class="s1f40">Detected glide configuration files...
+</span><span class="s1f40">Converting from glide.yaml and glide.lock...
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/spiegel-im-spiegel/gocli
+</span><span class="s1f40">  Trying v0.3.0 (5929f04) as initial lock for imported dep github.com/spiegel-im-spiegel/gocli
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/spf13/cobra
+</span><span class="s1f40">  Trying * (6b74a60) as initial lock for imported dep github.com/spf13/cobra
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/pkg/errors
+</span><span class="s1f40">  Trying * (248dadf) as initial lock for imported dep github.com/pkg/errors
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/seehuhn/mt19937
+</span><span class="s1f40">  Trying master (98c0ea5) as initial lock for imported dep github.com/seehuhn/mt19937
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/davidminor/gorand
+</span><span class="s1f40">  Trying * (189780b) as initial lock for imported dep github.com/davidminor/gorand
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/davidminor/uint128
+</span><span class="s1f40">  Trying master (5745f1b) as initial lock for imported dep github.com/davidminor/uint128
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/inconshreveable/mousetrap
+</span><span class="s1f40">  Trying v1.0 (76626ae) as initial lock for imported dep github.com/inconshreveable/mousetrap
+</span><span class="s1f40">  Using * as initial constraint for imported dep github.com/spf13/pflag
+</span><span class="s1f40">  Trying * (5ccb023) as initial lock for imported dep github.com/spf13/pflag</span></code></pre>
+</div>
+<p>実は <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> パッケージの最新版は v0.4.0 だが， <code>glide.lock</code> の内容を読み取って，ちゃんと v0.3.0 のものを取ってきているようだ。
+偉いぞ！</p>
+
+<p><code>dep init</code> コマンドにより <code>Gopkg.toml</code> および <code>Gopkg.lock</code> の2つのファイルと <code>vendor/</code> フォルダが作成される。
+このうち <code>Gopkg.toml</code> の内容は以下の通り。</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="s1f40">[[constraint]]
+</span><span class="s1f40">  name = &#34;github.com/davidminor/gorand&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[constraint]]
+</span><span class="s1f40">  name = &#34;github.com/pkg/errors&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[constraint]]
+</span><span class="s1f40">  name = &#34;github.com/seehuhn/mt19937&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[constraint]]
+</span><span class="s1f40">  name = &#34;github.com/spf13/cobra&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[constraint]]
+</span><span class="s1f40">  name = &#34;github.com/spiegel-im-spiegel/gocli&#34;</span></code></pre>
+</div>
+<p>そして <code>Gopkg.lock</code> の内容は以下の通りだ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="s1f40">[[projects]]
+</span><span class="s1f40">  name = &#34;github.com/davidminor/gorand&#34;
+</span><span class="s1f40">  packages = [&#34;lcg&#34;]
+</span><span class="s1f40">  revision = &#34;189780b8053a44a111339a4248394fd844c1da40&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[projects]]
+</span><span class="s1f40">  branch = &#34;master&#34;
+</span><span class="s1f40">  name = &#34;github.com/davidminor/uint128&#34;
+</span><span class="s1f40">  packages = [&#34;.&#34;]
+</span><span class="s1f40">  revision = &#34;5745f1bf80414e0ad2670e85d6aece8c58031def&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[projects]]
+</span><span class="s1f40">  name = &#34;github.com/inconshreveable/mousetrap&#34;
+</span><span class="s1f40">  packages = [&#34;.&#34;]
+</span><span class="s1f40">  revision = &#34;76626ae9c91c4f2a10f34cad8ce83ea42c93bb75&#34;
+</span><span class="s1f40">  version = &#34;v1.0&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[projects]]
+</span><span class="s1f40">  name = &#34;github.com/pkg/errors&#34;
+</span><span class="s1f40">  packages = [&#34;.&#34;]
+</span><span class="s1f40">  revision = &#34;248dadf4e9068a0b3e79f02ed0a610d935de5302&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[projects]]
+</span><span class="s1f40">  branch = &#34;master&#34;
+</span><span class="s1f40">  name = &#34;github.com/seehuhn/mt19937&#34;
+</span><span class="s1f40">  packages = [&#34;.&#34;]
+</span><span class="s1f40">  revision = &#34;98c0ea580d2f3c5a171acf4d4f15321b72209d08&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[projects]]
+</span><span class="s1f40">  name = &#34;github.com/spf13/cobra&#34;
+</span><span class="s1f40">  packages = [&#34;.&#34;]
+</span><span class="s1f40">  revision = &#34;6b74a60562f5c1c920299b8f02d153e16f4897fc&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[projects]]
+</span><span class="s1f40">  name = &#34;github.com/spf13/pflag&#34;
+</span><span class="s1f40">  packages = [&#34;.&#34;]
+</span><span class="s1f40">  revision = &#34;5ccb023bc27df288a957c5e994cd44fd19619465&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[[projects]]
+</span><span class="s1f40">  name = &#34;github.com/spiegel-im-spiegel/gocli&#34;
+</span><span class="s1f40">  packages = [&#34;.&#34;]
+</span><span class="s1f40">  revision = &#34;5929f04fb8e4a19ac29fdf658866f9441f339cd9&#34;
+</span><span class="s1f40">  version = &#34;v0.3.0&#34;
+</span><span class="s1f40">
+</span><span class="s1f40">[solve-meta]
+</span><span class="s1f40">  analyzer-name = &#34;dep&#34;
+</span><span class="s1f40">  analyzer-version = 1
+</span><span class="s1f40">  inputs-digest = &#34;4a7cc1799d386351173ccdf8266d22ebe2971ce7ba417395a0b63ca267ea9267&#34;
+</span><span class="s1f40">  solver-name = &#34;gps-cdcl&#34;
+</span><span class="s1f40">  solver-version = 1</span></code></pre>
+</div>
+<p><code>glide.lock</code> と <code>Gopkg.lock</code> の内容がきちんとマッチしているのが分かると思う。
+念のため <code>dep status</code> も見ておこう。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep status
+</span><span class="s1f40">PROJECT                               CONSTRAINT  VERSION        REVISION  LATEST   PKGS USED
+</span><span class="s1f40">github.com/davidminor/gorand          *                          189780b            1
+</span><span class="s1f40">github.com/davidminor/uint128         *           branch master  5745f1b   5745f1b  1
+</span><span class="s1f40">github.com/inconshreveable/mousetrap  *           v1.0           76626ae   76626ae  1
+</span><span class="s1f40">github.com/pkg/errors                 *                          248dadf            1
+</span><span class="s1f40">github.com/seehuhn/mt19937            *           branch master  98c0ea5   98c0ea5  1
+</span><span class="s1f40">github.com/spf13/cobra                *                          6b74a60            1
+</span><span class="s1f40">github.com/spf13/pflag                *                          5ccb023            1
+</span><span class="s1f40">github.com/spiegel-im-spiegel/gocli   *           v0.3.0         5929f04   ce636bb  1</span></code></pre>
+</div>
+<p>ビルドもちゃんと通る。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ go build -v .
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/spiegel-im-spiegel/gocli
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/pflag
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/inconshreveable/mousetrap
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/davidminor/uint128
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/seehuhn/mt19937
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/pkg/errors
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/davidminor/gorand/lcg
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/gencmplx
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/qq
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/genpi
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/plot
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/estmt
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/cobra
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi/cmd
+</span><span class="s1f40">github.com/spiegel-im-spiegel/pi</span></code></pre>
+</div>
+<p>というわけで， <code>glide.yaml</code> と <code>glide.lock</code> が正しい状態で残っていれば問題なく <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> に移行できそうだ。</p>
+
+<h2 id="依存関係の管理">依存関係の管理</h2>
+
+<p>ところで，この状態で <code>dep ensure</code> コマンドを実行すると</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep ensure -v
+</span><span class="s1f40">Gopkg.lock was already in sync with imports and Gopkg.toml
+</span><span class="s1f40">(1/8) Wrote github.com/seehuhn/mt19937@master
+</span><span class="s1f40">(2/8) Wrote github.com/spf13/pflag@5ccb023bc27df288a957c5e994cd44fd19619465
+</span><span class="s1f40">(3/8) Wrote github.com/davidminor/gorand@189780b8053a44a111339a4248394fd844c1da40
+</span><span class="s1f40">(4/8) Wrote github.com/inconshreveable/mousetrap@v1.0
+</span><span class="s1f40">(5/8) Wrote github.com/davidminor/uint128@master
+</span><span class="s1f40">(6/8) Wrote github.com/spiegel-im-spiegel/gocli@v0.3.0
+</span><span class="s1f40">(7/8) Wrote github.com/spf13/cobra@6b74a60562f5c1c920299b8f02d153e16f4897fc
+</span><span class="s1f40">(8/8) Wrote github.com/pkg/errors@248dadf4e9068a0b3e79f02ed0a610d935de5302</span></code></pre>
+</div>
+<p>という感じで <code>Gopkg.lock</code> ファイルも特に更新されないが，いったん <code>vendor/</code> フォルダを削除して（またはリネームして）同じことをすると</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep ensure -v
+</span><span class="s1f40">Root project is &#34;github.com/spiegel-im-spiegel/pi&#34;
+</span><span class="s1f40"> 19 transitively valid internal packages
+</span><span class="s1f40"> 12 external packages imported from 10 projects
+</span><span class="s1f40">
+</span><span class="s1f40">...
+</span><span class="s1f40">
+</span><span class="s1f40">(1/22) Wrote github.com/mitchellh/mapstructure@master
+</span><span class="s1f40">(2/22) Wrote github.com/davidminor/gorand@189780b8053a44a111339a4248394fd844c1da40
+</span><span class="s1f40">(3/22) Wrote gopkg.in/yaml.v2@v2
+</span><span class="s1f40">(4/22) Wrote github.com/davidminor/uint128@master
+</span><span class="s1f40">(5/22) Wrote github.com/fsnotify/fsnotify@v1.4.2
+</span><span class="s1f40">(6/22) Wrote github.com/magiconair/properties@v1.7.3
+</span><span class="s1f40">(7/22) Wrote github.com/spf13/cobra@6b74a60562f5c1c920299b8f02d153e16f4897fc
+</span><span class="s1f40">(8/22) Wrote github.com/pkg/errors@248dadf4e9068a0b3e79f02ed0a610d935de5302
+</span><span class="s1f40">(9/22) Wrote github.com/seehuhn/mt19937@master
+</span><span class="s1f40">(10/22) Wrote github.com/pelletier/go-toml@v1.0.1
+</span><span class="s1f40">(11/22) Wrote github.com/spf13/afero@master
+</span><span class="s1f40">(12/22) Wrote github.com/cpuguy83/go-md2man@v1.0.7
+</span><span class="s1f40">(13/22) Wrote github.com/spf13/cast@v1.1.0
+</span><span class="s1f40">(14/22) Wrote github.com/hashicorp/hcl@master
+</span><span class="s1f40">(15/22) Wrote github.com/spf13/jwalterweatherman@master
+</span><span class="s1f40">(16/22) Wrote github.com/spf13/pflag@5ccb023bc27df288a957c5e994cd44fd19619465
+</span><span class="s1f40">(17/22) Wrote github.com/spf13/viper@v1.0.0
+</span><span class="s1f40">(18/22) Wrote github.com/spiegel-im-spiegel/gocli@v0.3.0
+</span><span class="s1f40">(19/22) Wrote github.com/russross/blackfriday@v1.5
+</span><span class="s1f40">(20/22) Wrote golang.org/x/sys@master
+</span><span class="s1f40">(21/22) Wrote github.com/inconshreveable/mousetrap@v1.0
+</span><span class="s1f40">(22/22) Wrote golang.org/x/text@master</span></code></pre>
+</div>
+<p>（途中の表示を省いている。ご容赦）</p>
+
+<p>と「え？ それ要らんやろ」ってなパッケージまで読み込んでくる。
+うーん。
+どうやら使わないサブパッケージまで依存関係を追跡してるみたい。</p>
+
+<p>そこで <code>Gopkg.toml</code> に以下の記述を加えて余計なパッケージを読み込ませないようにした。</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="s1f40">ignored = [
+</span><span class="s1f40">  &#34;github.com/cpuguy83/go-md2man/md2man&#34;,
+</span><span class="s1f40">  &#34;github.com/russross/blackfriday&#34;,
+</span><span class="s1f40">  &#34;github.com/spf13/cobra/doc&#34;,
+</span><span class="s1f40">  &#34;github.com/spf13/cobra/cobra/cmd&#34;,
+</span><span class="s1f40">  &#34;github.com/spf13/viper&#34;,
+</span><span class="s1f40">]</span></code></pre>
+</div>
+<p>ついでに <code>Gopkg.toml</code> で <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> パッケージのバージョンを明記する。</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="s1f40">[[constraint]]
+</span><span class="s1f40">  name = &#34;github.com/spiegel-im-spiegel/gocli&#34;
+</span><span class="s1f40">  version = &#34;0.3.0&#34;</span></code></pre>
+</div>
+<p>これでもう一度 <code>dep ensure</code> コマンドを実行すると</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep ensure -v
+</span><span class="s1f40">Root project is &#34;github.com/spiegel-im-spiegel/pi&#34;
+</span><span class="s1f40"> 19 transitively valid internal packages
+</span><span class="s1f40"> 8 external packages imported from 8 projects
+</span><span class="s1f40">
+</span><span class="s1f40">...
+</span><span class="s1f40">
+</span><span class="s1f40">(1/8) Wrote github.com/inconshreveable/mousetrap@v1.0
+</span><span class="s1f40">(2/8) Wrote github.com/davidminor/gorand@189780b8053a44a111339a4248394fd844c1da40
+</span><span class="s1f40">(3/8) Wrote github.com/spiegel-im-spiegel/gocli@v0.3.0
+</span><span class="s1f40">(4/8) Wrote github.com/seehuhn/mt19937@master
+</span><span class="s1f40">(5/8) Wrote github.com/spf13/cobra@6b74a60562f5c1c920299b8f02d153e16f4897fc
+</span><span class="s1f40">(6/8) Wrote github.com/pkg/errors@248dadf4e9068a0b3e79f02ed0a610d935de5302
+</span><span class="s1f40">(7/8) Wrote github.com/davidminor/uint128@master
+</span><span class="s1f40">(8/8) Wrote github.com/spf13/pflag@5ccb023bc27df288a957c5e994cd44fd19619465</span></code></pre>
+</div>
+<p>となり <code>dep status</code> コマンドの実行結果も</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep status
+</span><span class="s1f40">PROJECT                               CONSTRAINT  VERSION        REVISION  LATEST   PKGS USED
+</span><span class="s1f40">github.com/davidminor/gorand          *                          189780b            1
+</span><span class="s1f40">github.com/davidminor/uint128         *           branch master  5745f1b   5745f1b  1
+</span><span class="s1f40">github.com/inconshreveable/mousetrap  *           v1.0           76626ae   76626ae  1
+</span><span class="s1f40">github.com/pkg/errors                 *                          248dadf            1
+</span><span class="s1f40">github.com/seehuhn/mt19937            *           branch master  98c0ea5   98c0ea5  1
+</span><span class="s1f40">github.com/spf13/cobra                *                          6b74a60            1
+</span><span class="s1f40">github.com/spf13/pflag                *                          5ccb023            1
+</span><span class="s1f40">github.com/spiegel-im-spiegel/gocli   ^0.3.0      v0.3.0         5929f04   5929f04  1</span></code></pre>
+</div>
+<p>と元に戻った。
+不要なサブパッケージを排除するのはちょっと面倒くさそうである。</p>
+
+<p>ちなみに <code>Gopkg.toml</code> のバージョン指定は “<a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a>” に従っている。
+具体的には “<a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a>” の <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>実装である <a href="https://github.com/Masterminds/semver" title="Masterminds/semver: Work with Semantic Versions in Go">Masterminds/semver</a> パッケージを参照するとよい。</p>
+
+<h2 id="依存関係の視覚化">依存関係の視覚化</h2>
+
+<p><code>dep status</code> コマンドには結果を DOT 言語で吐き出すオプションがあるようだ。
+<a href="http://www.graphviz.org/" title="Graphviz | Graphviz - Graph Visualization Software">Graphviz</a> があれば，この出力結果を画像データに変換できる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"><span class="s1f40">$ dep status -dot | dot -Tpng -o pi-dependency.png</span></code></pre>
+</div>
+<p>結果はこんな感じ。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="/images/pi-dependency.png"><img srcset="/images/pi-dependency.png 1428w" sizes="(min-width:600px) 500px, 80vw" alt="pi-dependency.png"></a>
+<figcaption><a href="/images/pi-dependency.png">pi-dependency.png</a></figcaption>
+</figure>
+
+<p>ブラボー！</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="https://dev.classmethod.jp/go/dep/">Goオフィシャルチーム作成の依存関係管理ツール dep を試してみた ｜ Developers.IO</a></li>
+
+<li><p><a href="https://mattn.kaoriya.net/software/lang/go/20170125023240.htm">Big Sky :: golang オフィシャル謹製のパッケージ依存解決ツール「dep」</a></p></li>
+
+<li><p><a href="/golang/gopath-pollution/">GOPATH 汚染問題</a></p></li>
+
+<li><p><a href="/golang/package-visualization-tool/">パッケージの依存状況の視覚化</a></p></li>
+</ul>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/fill-in-digits/">指定桁の数字列の先頭をゼロで埋める遊び</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="http://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-10-10</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2fconsider-switching-from-glide-to-dep%2f" target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Glide%20%e3%81%8b%e3%82%89%20Dep%20%e3%81%b8%e3%81%ae%e7%a7%bb%e8%a1%8c%e3%82%92%e6%a4%9c%e8%a8%8e%e3%81%99%e3%82%8b+from+@spiegel_2007&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fconsider-switching-from-glide-to-dep%2f" target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fconsider-switching-from-glide-to-dep%2f&amp;title=Glide%20%e3%81%8b%e3%82%89%20Dep%20%e3%81%b8%e3%81%ae%e7%a7%bb%e8%a1%8c%e3%82%92%e6%a4%9c%e8%a8%8e%e3%81%99%e3%82%8b" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fconsider-switching-from-glide-to-dep%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.29</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+
+</div>
+
+
+</body>
+</html>
+
