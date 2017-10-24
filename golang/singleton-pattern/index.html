@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.30.2" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/css/chroma-styles.css">
+
+<title>Go 言語における Singleton Pattern — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="はっきり言って「Singleton なめんな！」ですよ。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,programming,singleton,init,sync,goroutine">
+<link rel='prev' href='http://text.baldanders.info/golang/consider-switching-from-glide-to-dep/' title='Glide から Dep への移行を検討する' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>Go 言語における Singleton Pattern — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/golang">golang</a> #<a href="/tags/goroutine">goroutine</a> #<a href="/tags/init">init</a> #<a href="/tags/programming">programming</a> #<a href="/tags/singleton">singleton</a> #<a href="/tags/sync">sync</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/singleton-pattern/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>今回は小ネタでお送りします。</p>
+
+<p>いや，ネットでね，<a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>での Singleton 実装をこんな感じに書く人をやたら見かけるのだが</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">//Hello class
+</span><span class="c1"></span><span class="kd">type</span> <span class="nx">Hello</span> <span class="kd">struct</span><span class="p">{}</span>
+
+<span class="kd">var</span> <span class="nx">instance</span> <span class="o">*</span><span class="nx">Hello</span>
+
+<span class="c1">//GetInstance returns singleton instance
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">GetInstance</span><span class="p">()</span> <span class="o">*</span><span class="nx">Hello</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">instance</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">instance</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Hello</span><span class="p">{}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="nx">instance</span>
+<span class="p">}</span></code></pre></div>
+<p>はっきり言って <strong>Singleton なめんな！</strong> ですよ。</p>
+
+<p>そうそう。
+プログラマで Singleton Pattern を知らない人はいないと思うけど，一応解説しておくと， Singleton Pattern というのは，あるクラスに対してプログラム全体でインスタンスがひとつだけ生成されるよう制限するプログラミング・パターンである。
+たとえば，外部と通信を行う entity class なんかはインスタンスがぼこぼこできて各々勝手に処理をされると困るわけで， singleton インスタンスの内部で同期をとっていく必要があるわけ。</p>
+
+<p>という説明からも分かると思うけど「<strong>スレッドセーフでない singleton 実装に存在意義はない</strong>」のである。
+ちなみに結城浩さんの<a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1BS/baldandersinf-22/" title="増補改訂版 Java言語で学ぶデザインパターン入門 マルチスレッド編 | 結城 浩 | コンピュータ・IT | Kindleストア | Amazon">デザパタ本</a>にあるサンプルコードも以下のようになっている（こっちは Java での記述だけど<sup class="footnote-ref" id="fnref:java1"><a rel="footnote" href="#fn:java1">1</a></sup>）。</p>
+<div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="kn">import</span> <span class="nn">java.util.Date</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">MySystem</span> <span class="o">{</span>
+    <span class="kd">private</span> <span class="kd">static</span> <span class="n">MySystem</span> <span class="n">instance</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+    <span class="kd">private</span> <span class="n">Date</span> <span class="n">date</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Date</span><span class="o">();</span>
+    <span class="kd">private</span> <span class="nf">MySystem</span><span class="o">()</span> <span class="o">{</span>
+    <span class="o">}</span>
+    <span class="kd">public</span> <span class="n">Date</span> <span class="nf">getDate</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">date</span><span class="o">;</span>
+    <span class="o">}</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">synchronized</span> <span class="n">MySystem</span> <span class="nf">getInstance</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">instance</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">instance</span> <span class="o">=</span> <span class="k">new</span> <span class="n">MySystem</span><span class="o">();</span>
+        <span class="o">}</span>
+        <span class="k">return</span> <span class="n">instance</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+<p><code>static</code> で <code>synchronized</code> なのがポイントね。
+つまり，実際にインスタンスを生成する処理では何らかの手段でスレッドセーフであることが保証されてないといけない。
+最初の <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>のパターンが何故ダメなのかは実際に動くコードを書いてみれば分かる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s">&#34;fmt&#34;</span>
+    <span class="s">&#34;time&#34;</span>
+<span class="p">)</span>
+
+<span class="c1">//Hello class
+</span><span class="c1"></span><span class="kd">type</span> <span class="nx">Hello</span> <span class="kd">struct</span><span class="p">{}</span>
+
+<span class="kd">func</span> <span class="p">(</span><span class="nx">h</span> <span class="o">*</span><span class="nx">Hello</span><span class="p">)</span> <span class="nx">String</span><span class="p">()</span> <span class="kt">string</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="s">&#34;Hello&#34;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">instance</span> <span class="o">*</span><span class="nx">Hello</span>
+
+<span class="c1">//GetInstance returns singleton instance
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">GetInstance</span><span class="p">()</span> <span class="o">*</span><span class="nx">Hello</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">instance</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&#34;new instance&#34;</span><span class="p">)</span>
+        <span class="nx">time</span><span class="p">.</span><span class="nx">Sleep</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span> <span class="c1">//delay 1sec
+</span><span class="c1"></span>        <span class="nx">instance</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Hello</span><span class="p">{}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="nx">instance</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">ch</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="kd">interface</span><span class="p">{})</span>
+    <span class="k">go</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="s">&#34;Alice&#34;</span><span class="p">)</span>
+    <span class="k">go</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="s">&#34;Bob&#34;</span><span class="p">)</span>
+    <span class="k">go</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="s">&#34;Chris&#34;</span><span class="p">)</span>
+    <span class="o">&lt;-</span><span class="nx">ch</span>
+    <span class="o">&lt;-</span><span class="nx">ch</span>
+    <span class="o">&lt;-</span><span class="nx">ch</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span> <span class="kd">chan</span><span class="o">&lt;-</span> <span class="kd">interface</span><span class="p">{},</span> <span class="nx">person</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">hello</span> <span class="o">:=</span> <span class="nx">GetInstance</span><span class="p">()</span>
+    <span class="nx">ch</span> <span class="o">&lt;-</span> <span class="nx">hello</span> <span class="c1">//blocking
+</span><span class="c1"></span>    <span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">hello</span><span class="p">,</span> <span class="nx">person</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
+<p>簡単に説明すると，まず <code>GetInstance()</code> 関数内部で初期化処理時間を演出するために１秒間の delay を発生させている。
+<code>run()</code> 関数内で <a href="http://golang.org/ref/spec#Channel_types" title="The Go Programming Language Specification - The Go Programming Language">channel</a> <code>ch</code> にインスタンスを食わせているのはブロッキングのため。
+別に何を食わせてもいいのだが，手近に <code>GetInstance()</code> 関数で取得したインスタンスがあるので，それを食わせている。
+<code>main()</code> 関数では <code>run()</code> 関数を <a href="http://golang.org/ref/spec#Go_statements" title="The Go Programming Language Specification - The Go Programming Language">goroutine</a> で3連続起動したあと， <code>&lt;-ch</code> でブロックを解除している。</p>
+
+<p><a href="https://play.golang.org/p/cL-RMmS2ev">実行結果</a>は以下の通り。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">new instance
+new instance
+new instance
+Hello Alice
+Hello Chris
+Hello Bob</code></pre></div>
+<p>並行処理下の3つの <code>run()</code> 関数に対してインスタンスが3つ生成されてしまっているのが分かると思う。</p>
+
+<p>ではどう書けばいいのか。
+一番簡単なのは <a href="https://golang.org/ref/spec#Variables" title="The Go Programming Language Specification - The Go Programming Language">var</a> 宣言時に初期化してしまうことである。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">var</span> <span class="nx">instance</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Hello</span><span class="p">{}</span>
+
+<span class="c1">//GetInstance returns singleton instance
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">GetInstance</span><span class="p">()</span> <span class="o">*</span><span class="nx">Hello</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">instance</span>
+<span class="p">}</span></code></pre></div>
+<p>次に簡単なのは <a href="https://golang.org/doc/effective_go.html#init" title="Effective Go - The Go Programming Language"><code>init()</code></a> 関数を使うことである。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">var</span> <span class="nx">instance</span> <span class="o">*</span><span class="nx">Hello</span>
+
+<span class="kd">func</span> <span class="nx">init</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">//create instance and initialize
+</span><span class="c1"></span>    <span class="nx">instance</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Hello</span><span class="p">{}</span>
+<span class="p">}</span></code></pre></div>
+<p><a href="https://golang.org/doc/effective_go.html#init" title="Effective Go - The Go Programming Language"><code>init()</code></a> 関数は少し特殊な関数で，<code>main()</code> 関数がキックされる前，パッケージ内の <a href="https://golang.org/ref/spec#Variables" title="The Go Programming Language Specification - The Go Programming Language">var</a> 宣言時の初期化の後に呼ばれる。
+ひとつのパッケージ内またはひとつのファイル内にいくつも <a href="https://golang.org/doc/effective_go.html#init" title="Effective Go - The Go Programming Language"><code>init()</code></a> 関数を設置できるのが特徴なのだが，どういう順番に起動するかは言語仕様として明記されていないため<sup class="footnote-ref" id="fnref:init1"><a rel="footnote" href="#fn:init1">2</a></sup>，パッケージ内の複数の <a href="https://golang.org/doc/effective_go.html#init" title="Effective Go - The Go Programming Language"><code>init()</code></a> 関数同士が依存また干渉するような書き方は避けるべきだろう。</p>
+
+<p><code>main()</code> 関数がキックされるまではメイン以外の <a href="http://golang.org/ref/spec#Go_statements" title="The Go Programming Language Specification - The Go Programming Language">goroutine</a> は（生成は可能だが）起動されないことが保証されているため，記述がスレッドセーフか否か気にする必要はない。
+言い方を変えると，何らかの同期を伴う初期化処理の場合はこの方法では記述できないことになる。</p>
+
+<p>「どうしても <code>GetInstance()</code> 関数内で同期をとりたいんじゃ」という場合は&hellip; たとえば <a href="https://golang.org/pkg/sync/" title="sync - The Go Programming Language"><code>sync</code></a> パッケージを使うとかだろうか。
+Singleton Pattern におあつらえ向きの <a href="https://golang.org/pkg/sync/" title="sync - The Go Programming Language"><code>sync</code></a>.<code>Once</code> というのがある。
+最初に挙げた例を流用するならこんな感じだろうか。</p>
+
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">//Hello class
+</span><span class="c1"></span><span class="kd">type</span> <span class="nx">Hello</span> <span class="kd">struct</span><span class="p">{}</span>
+
+<span class="kd">var</span> <span class="nx">instance</span> <span class="o">*</span><span class="nx">Hello</span>
+<span class="hl"><span class="kd">var</span> <span class="nx">once</span> <span class="nx">sync</span><span class="p">.</span><span class="nx">Once</span>
+</span>
+<span class="c1">//GetInstance returns singleton instance
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">GetInstance</span><span class="p">()</span> <span class="o">*</span><span class="nx">Hello</span> <span class="p">{</span>
+<span class="hl">    <span class="nx">once</span><span class="p">.</span><span class="nx">Do</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="hl">        <span class="nx">instance</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Hello</span><span class="p">{}</span>
+</span><span class="hl">    <span class="p">})</span>
+</span>    <span class="k">return</span> <span class="nx">instance</span>
+<span class="p">}</span></code></pre></div>
+
+<p>以下のコードで実際に動かして検証してみよう。</p>
+
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s">&#34;fmt&#34;</span>
+    <span class="s">&#34;sync&#34;</span>
+    <span class="s">&#34;time&#34;</span>
+<span class="p">)</span>
+
+<span class="c1">//Hello class
+</span><span class="c1"></span><span class="kd">type</span> <span class="nx">Hello</span> <span class="kd">struct</span><span class="p">{}</span>
+
+<span class="kd">func</span> <span class="p">(</span><span class="nx">h</span> <span class="o">*</span><span class="nx">Hello</span><span class="p">)</span> <span class="nx">String</span><span class="p">()</span> <span class="kt">string</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="s">&#34;Hello&#34;</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">instance</span> <span class="o">*</span><span class="nx">Hello</span>
+<span class="hl"><span class="kd">var</span> <span class="nx">once</span> <span class="nx">sync</span><span class="p">.</span><span class="nx">Once</span>
+</span>
+<span class="c1">//GetInstance returns singleton instance
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">GetInstance</span><span class="p">()</span> <span class="o">*</span><span class="nx">Hello</span> <span class="p">{</span>
+<span class="hl">    <span class="nx">once</span><span class="p">.</span><span class="nx">Do</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="hl">        <span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&#34;new instance&#34;</span><span class="p">)</span>
+</span><span class="hl">        <span class="nx">time</span><span class="p">.</span><span class="nx">Sleep</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span> <span class="c1">//delay 1sec
+</span></span><span class="hl"><span class="c1"></span>        <span class="nx">instance</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Hello</span><span class="p">{}</span>
+</span><span class="hl">    <span class="p">})</span>
+</span>    <span class="k">return</span> <span class="nx">instance</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">ch</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="kd">interface</span><span class="p">{})</span>
+    <span class="k">go</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="s">&#34;Alice&#34;</span><span class="p">)</span>
+    <span class="k">go</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="s">&#34;Bob&#34;</span><span class="p">)</span>
+    <span class="k">go</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span><span class="p">,</span> <span class="s">&#34;Chris&#34;</span><span class="p">)</span>
+    <span class="o">&lt;-</span><span class="nx">ch</span>
+    <span class="o">&lt;-</span><span class="nx">ch</span>
+    <span class="o">&lt;-</span><span class="nx">ch</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">run</span><span class="p">(</span><span class="nx">ch</span> <span class="kd">chan</span><span class="o">&lt;-</span> <span class="kd">interface</span><span class="p">{},</span> <span class="nx">person</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">hello</span> <span class="o">:=</span> <span class="nx">GetInstance</span><span class="p">()</span>
+    <span class="nx">ch</span> <span class="o">&lt;-</span> <span class="nx">hello</span> <span class="c1">//blocking
+</span><span class="c1"></span>    <span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">hello</span><span class="p">,</span> <span class="nx">person</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
+
+<p><a href="https://play.golang.org/p/8ODOeffoyF">実行結果</a>は以下の通り。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">new instance
+Hello Chris
+Hello Alice
+Hello Bob</code></pre></div>
+<p>ちゃんと singleton として動作していることが分かる。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="http://ascii.jp/elem/000/001/235/1235262/">GASCII.jp：Goならわかるシステムプログラミング</a>
+
+<ul>
+<li><a href="http://ascii.jp/elem/000/001/480/1480872/">ASCII.jp：Go言語と並列処理（2）｜Goならわかるシステムプログラミング</a></li>
+</ul></li>
+<li><a href="https://qiita.com/ruiu/items/54f0dbdec0d48082a5b1">Goでスレッド（goroutine）セーフなプログラムを書くために必ず注意しなければいけない点 - Qiita</a></li>
+</ul>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1EU/baldandersinf-22/"><img src="https://images-fe.ssl-images-amazon.com/images/I/41GPVATQiZL._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1EU/baldandersinf-22/">Java言語で学ぶリファクタリング入門</a></dt><dd>結城 浩 </dd><dd>SBクリエイティブ 2007-01-26</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1BS/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8AT1BS.09._SCTHUMBZZZ_.jpg"  alt="増補改訂版 Java言語で学ぶデザインパターン入門 マルチスレッド編"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8ATHGW/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8ATHGW.09._SCTHUMBZZZ_.jpg"  alt="増補改訂版 Java言語で学ぶデザインパターン入門"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B073F45B97/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B073F45B97.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート／積分を見つめて"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00H372H40/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00H372H40.09._SCTHUMBZZZ_.jpg"  alt="プログラマの数学"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1AO/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8AT1AO.09._SCTHUMBZZZ_.jpg"  alt="Java言語プログラミングレッスン 第3版（下）　オブジェクト指向を始めよう"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B0185E10ZQ/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B0185E10ZQ.09._SCTHUMBZZZ_.jpg"  alt="実践Javaコーディング作法"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B071V7MY82/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B071V7MY82.09._SCTHUMBZZZ_.jpg"  alt="プリンシプル オブ プログラミング 3年目までに身につけたい 一生役立つ101の原理原則"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート／微分を追いかけて"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00L0PDMK4.09._SCTHUMBZZZ_.jpg"  alt="数学ガール／ガロア理論"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1A4/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8AT1A4.09._SCTHUMBZZZ_.jpg"  alt="Java言語プログラミングレッスン 第3版（上）　Java言語を始めよう"  /></a> </p>
+<p class="description">結城浩さんによる通称「デザパタ本」。 Java 以外でも使える優れもの。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2017-10-24">2017-10-24</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1BS/baldandersinf-22/"><img src="https://images-fe.ssl-images-amazon.com/images/I/41uoMp5etSL._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1BS/baldandersinf-22/">増補改訂版 Java言語で学ぶデザインパターン入門 マルチスレッド編</a></dt><dd>結城 浩 </dd><dd>SBクリエイティブ 2004-06-18</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8ATHGW/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8ATHGW.09._SCTHUMBZZZ_.jpg"  alt="増補改訂版 Java言語で学ぶデザインパターン入門"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1EU/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00I8AT1EU.09._SCTHUMBZZZ_.jpg"  alt="Java言語で学ぶリファクタリング入門"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B073F45B97/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B073F45B97.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート／積分を見つめて"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B076BY4VJH/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B076BY4VJH.09._SCTHUMBZZZ_.jpg"  alt="アプリケーションアーキテクチャ設計パターン"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B06Y114CHD/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B06Y114CHD.09._SCTHUMBZZZ_.jpg"  alt="C言語による スーパーLinuxプログラミング　Cライブラリの活用と実装・開発テクニック"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00H372H40/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00H372H40.09._SCTHUMBZZZ_.jpg"  alt="プログラマの数学"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00L0PDMK4.09._SCTHUMBZZZ_.jpg"  alt="数学ガール／ガロア理論"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート／微分を追いかけて"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート／数列の広場"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMJ0/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/B00L0PDMJ0.09._SCTHUMBZZZ_.jpg"  alt="数学ガールの秘密ノート／整数で遊ぼう"  /></a> </p>
+<p class="description">結城浩さんによる通称「デザパタ本」のマルチスレッド編。 Java 以外でも使える優れもの。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2017-10-24">2017-10-24</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:java1">このコードのパターンは Singleton Pattern を説明するにはよく出来ているしちゃんと動く（ココ重要）が，同期コストが高いため，実際にはあまり使われない。 Java における Singleton Pattern には様々な実装例があるので探してみるといいだろう。ちなみに Java 使いではなくとも結城浩さんの<a href="http://www.amazon.co.jp/exec/obidos/ASIN/B00I8AT1BS/baldandersinf-22/" title="増補改訂版 Java言語で学ぶデザインパターン入門 マルチスレッド編 | 結城 浩 | コンピュータ・IT | Kindleストア | Amazon">デザパタ本</a>は買って読んでおくことを強くお勧めする。 Java 使いの方から見ると古いバージョンで書かれたコードなのが難点だが，紙の本で買うとサンプルコード入りのディスクが付いてくるので若干お得？
+ <a class="footnote-return" href="#fnref:java1"><sup>[return]</sup></a></li>
+<li id="fn:init1">どうもソースファイルのファイル名が影響するらしい。つまりファイル名を工夫すれば <a href="https://golang.org/doc/effective_go.html#init" title="Effective Go - The Go Programming Language"><code>init()</code></a> 関数の呼び出し順を制御できる，という噂。
+ <a class="footnote-return" href="#fnref:init1"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/consider-switching-from-glide-to-dep/">Glide から Dep への移行を検討する</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="http://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-10-24</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2fsingleton-pattern%2f" target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Go%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%20Singleton%20Pattern+from+@spiegel_2007&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fsingleton-pattern%2f" target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fsingleton-pattern%2f&amp;title=Go%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%20Singleton%20Pattern" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fsingleton-pattern%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.30.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+
+</div>
+
+
+</body>
+</html>
+
