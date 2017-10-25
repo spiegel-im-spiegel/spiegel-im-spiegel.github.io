@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.30.2" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/css/chroma-styles.css">
+
+<title>Codic API を利用するパッケージを作ってみた — プログラミング言語 Go | text.Baldanders.info</title>
+<meta name="description" content="spf13/viper を使ってみたかったのだ。">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,programming,package,api,curl,language,cli">
+<link rel='prev' href='http://text.baldanders.info/golang/singleton-pattern/' title='Go 言語における Singleton Pattern' />
+
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>Codic API を利用するパッケージを作ってみた — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/api">api</a> #<a href="/tags/cli">cli</a> #<a href="/tags/curl">curl</a> #<a href="/tags/golang">golang</a> #<a href="/tags/language">language</a> #<a href="/tags/package">package</a> #<a href="/tags/programming">programming</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/codic-api/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>つい最近まで知らなかっ等のだが <a href="https://codic.jp/" title="プログラマーのためのネーミング辞書 | codic">codic</a> というサービスがあるらしい。</p>
+
+<ul>
+<li><a href="https://codic.jp/">プログラマーのためのネーミング辞書 | codic</a></li>
+</ul>
+
+<p>簡単に言うと日本語の「名前」を英語に変換してくれるサービスなのだが，プログラマ向けに変数名やメソッド名として使いやすいよう提案してくれる優れものである。
+まさに<a href="/remark/2017/10/programmin-language-in-english/" title="プログラミング言語の暗黙ルール">英語不得手な私</a>のためにあるようなサービスじゃないか！ 何故今までこのサービスに辿り着けなかったのか <code>orz</code></p>
+
+<p>Web 画面はこんな感じ。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="https://www.flickr.com/photos/spiegel/37176009973/"><img srcset="https://farm5.staticflickr.com/4459/37176009973_5026b4c303.jpg 500w" sizes="(min-width:600px) 500px, 80vw" alt="codic service"></a>
+<figcaption><a href="https://www.flickr.com/photos/spiegel/37176009973/">codic service</a></figcaption>
+</figure>
+
+<p>あの時このサービスのことを知っていたら<a href="/remark/2017/04/regist-dose-not-exist/" title="“regist” という単語は存在しない">メソッド名に <code>regist</code></a> とか付けようとして赤っ恥をかかなくて済んだのに。
+とほほ。</p>
+
+<p>というわけで早速サインアップしましたよ。
+GitHub のアカウントでもサインアップできるのが素敵（最終確認にメールアドレスを要求されるけど）。</p>
+
+<p>で， <a href="https://codic.jp/" title="プログラマーのためのネーミング辞書 | codic">codic</a> では API を公開しているようだ。</p>
+
+<ul>
+<li><a href="https://codic.jp/docs/api">API | codic</a></li>
+</ul>
+
+<p>で，これを使うための <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>パッケージも既に見られるんだけど</p>
+
+<ul>
+<li><a href="https://github.com/codic-project/Codic_cli">codic-project/Codic_cli</a></li>
+<li><a href="https://github.com/39e/go-codic">39e/go-codic</a></li>
+</ul>
+
+<p>CLI しか用意されてない，っていうか何で GET で取ろうとするんだよ！ というわけで自作することにした。</p>
+
+<p>→ 自作しました。</p>
+
+<ul>
+<li><a href="https://github.com/spiegel-im-spiegel/gocodic">spiegel-im-spiegel/gocodic: codic の API を利用するための Go 言語パッケージ</a></li>
+</ul>
+
+<p>すみません。
+勢いで作ったのでテストを書いてません。
+そのうちなんとかします。
+日本語圏向けのサービスなんだから <a href="https://github.com/spiegel-im-spiegel/gocodic/blob/master/README.md" title="gocodic/README.md at master · spiegel-im-spiegel/gocodic">README</a> もガッツリ日本語でいいよね（笑）</p>
+
+<h2 id="curl-で-api-を確認する">Curl で API を確認する</h2>
+
+<p>RESTfull API なんだから <a href="http://curl.haxx.se/" title="curl and libcurl">curl</a> で説明してくれよ，と思う私は贅沢なのでしょうか。</p>
+
+<ul>
+<li><a href="https://shibukawa.github.io/curl_as_dsl/">cURL as DSL — cURL as DSL 1.0 documentation</a></li>
+<li><a href="http://blog.shibu.jp/article/115602749.html">Shibu&rsquo;s Diary: cURL as DSLとは何だったのか。あるいは細かすぎて伝わらないcURL as DSL。</a></li>
+</ul>
+
+<p>とりあえず，<a href="https://codic.jp/docs/api/engine/translate">翻訳用の API</a> は <a href="http://curl.haxx.se/" title="curl and libcurl">curl</a> を使うと以下のように記述できる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">curl &#34;https://api.codic.jp/v1/engine/translate.json&#34; -H &#34;Authorization: Bearer YOUR_ACCESS_TOKEN&#34; -F &#34;text=hello&#34; -F &#34;casing=camel&#34;</code></pre></div>
+<p><code>text=hello</code> って日本語やないやないかい！ というのはとりあえずスルーしていただいて，これを <a href="https://shibukawa.github.io/curl_as_dsl/" title="cURL as DSL — cURL as DSL 1.0 documentation">cURL as DSL</a> で <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コードに変換すると以下のようになる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s">&#34;bytes&#34;</span>
+    <span class="s">&#34;io/ioutil&#34;</span>
+    <span class="s">&#34;log&#34;</span>
+    <span class="s">&#34;mime/multipart&#34;</span>
+    <span class="s">&#34;net/http&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+
+    <span class="nx">client</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">http</span><span class="p">.</span><span class="nx">Client</span><span class="p">{}</span>
+    <span class="kd">var</span> <span class="nx">buffer</span> <span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span>
+    <span class="nx">writer</span> <span class="o">:=</span> <span class="nx">multipart</span><span class="p">.</span><span class="nx">NewWriter</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">buffer</span><span class="p">)</span>
+    <span class="nx">writer</span><span class="p">.</span><span class="nx">WriteField</span><span class="p">(</span><span class="s">&#34;text&#34;</span><span class="p">,</span> <span class="s">&#34;hello&#34;</span><span class="p">)</span>
+    <span class="nx">writer</span><span class="p">.</span><span class="nx">WriteField</span><span class="p">(</span><span class="s">&#34;casing&#34;</span><span class="p">,</span> <span class="s">&#34;camel&#34;</span><span class="p">)</span>
+    <span class="nx">writer</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+
+    <span class="nx">request</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">http</span><span class="p">.</span><span class="nx">NewRequest</span><span class="p">(</span><span class="s">&#34;POST&#34;</span><span class="p">,</span> <span class="s">&#34;https://api.codic.jp/v1/engine/translate.json&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">buffer</span><span class="p">)</span>
+    <span class="nx">request</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nx">Add</span><span class="p">(</span><span class="s">&#34;Authorization&#34;</span><span class="p">,</span> <span class="s">&#34;Bearer YOUR_ACCESS_TOKEN&#34;</span><span class="p">)</span>
+    <span class="nx">request</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nx">Add</span><span class="p">(</span><span class="s">&#34;Content-Type&#34;</span><span class="p">,</span> <span class="s">&#34;multipart/form-data; boundary=&#34;</span><span class="o">+</span><span class="nx">writer</span><span class="p">.</span><span class="nx">Boundary</span><span class="p">())</span>
+
+    <span class="nx">resp</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">client</span><span class="p">.</span><span class="nx">Do</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">defer</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Body</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+    <span class="nx">body</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ioutil</span><span class="p">.</span><span class="nx">ReadAll</span><span class="p">(</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Body</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="nx">log</span><span class="p">.</span><span class="nx">Print</span><span class="p">(</span><span class="nb">string</span><span class="p">(</span><span class="nx">body</span><span class="p">))</span>
+<span class="p">}</span></code></pre></div>
+<p>これが雛形で出発点である。
+<code>YOUR_ACCESS_TOKEN</code> に正しいアクセス・トークン（<a href="https://codic.jp/" title="プログラマーのためのネーミング辞書 | codic">codic</a> にサインアップするともらえる）をセットすればちゃんと動く。
+動くコードってのは大事だよね。</p>
+
+<p>最終的にどうなったかは <a href="https://github.com/spiegel-im-spiegel/gocodic/blob/master/README.md" title="gocodic/README.md at master · spiegel-im-spiegel/gocodic">README</a> を見ていただきたい。</p>
+
+<h2 id="spf13-viper-を使ってみたかったのだ">spf13/viper を使ってみたかったのだ</h2>
+
+<p>外部パッケージは <a href="/golang/consider-switching-from-glide-to-dep/" title="Glide から Dep への移行を検討する">dep で管理</a>することにした。
+こんな感じである。</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+  <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spf13/cobra&#34;</span>
+  <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span>
+
+<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+  <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spf13/viper&#34;</span>
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;^1.0.0&#34;</span>
+
+<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+  <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;^0.4.0&#34;</span>
+
+<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+  <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/pkg/errors&#34;</span>
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;^0.8.0&#34;</span></code></pre></div>
+<p><a href="https://github.com/pkg/errors" title="pkg/errors: Simple error handling primitives">pkg/errors</a> パッケージ以外は CLI (Command-Line Interface) 用のパッケージである。
+この中でも今回は特に <a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> を使ってみたかったのだ。
+だって毎回アクセス・トークンをコマンドラインに書く訳にはいかないでしょ。
+呼び出しバッチやスクリプトに書くとか以ての外だし。</p>
+
+<p><a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> は設定ファイルにアクセスするためのパッケージで，特に <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> との相性がいいのが特徴である。
+というか同じ作者なのだが。
+<a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> の使い方は以前紹介したので，そちらを参考にして欲しい。</p>
+
+<ul>
+<li><a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a></li>
+</ul>
+
+<p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> が生成してくれる <code>cmd/root.go</code> に <a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> 初期化のコードがある。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">// initConfig reads in config file and ENV variables if set.
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">initConfig</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">cfgFile</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+        <span class="c1">// Use config file from the flag.
+</span><span class="c1"></span>        <span class="nx">viper</span><span class="p">.</span><span class="nx">SetConfigFile</span><span class="p">(</span><span class="nx">cfgFile</span><span class="p">)</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="c1">// Find home directory.
+</span><span class="c1"></span>        <span class="nx">home</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">homedir</span><span class="p">.</span><span class="nx">Dir</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+            <span class="nx">fmt</span><span class="p">.</span><span class="nx">Print</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+            <span class="nx">os</span><span class="p">.</span><span class="nx">Exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="p">}</span>
+
+        <span class="c1">// Search config in home directory with name &#34;.gocodic&#34; (without extension).
+</span><span class="c1"></span>        <span class="nx">viper</span><span class="p">.</span><span class="nx">AddConfigPath</span><span class="p">(</span><span class="nx">home</span><span class="p">)</span>
+        <span class="nx">viper</span><span class="p">.</span><span class="nx">SetConfigName</span><span class="p">(</span><span class="s">&#34;.gocodic&#34;</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="nx">viper</span><span class="p">.</span><span class="nx">AutomaticEnv</span><span class="p">()</span> <span class="c1">// read in environment variables that match
+</span><span class="c1"></span>
+    <span class="c1">// If a config file is found, read it in.
+</span><span class="c1"></span>    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">viper</span><span class="p">.</span><span class="nx">ReadInConfig</span><span class="p">();</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">fmt</span><span class="p">.</span><span class="nx">Print</span><span class="p">(</span><span class="s">&#34;Using config file:&#34;</span><span class="p">,</span> <span class="nx">viper</span><span class="p">.</span><span class="nx">ConfigFileUsed</span><span class="p">())</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></div>
+<p>この関数は <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> が生成した <code>cmd</code> パッケージの <code>init()</code> 関数内で呼び出される。
+このまま弄らなくても問題ないが，個人的にはエラーを標準出力に出してるのが気に入らなかったので少し変えている。</p>
+
+<p>その後， <a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> で読み込む設定項目を記述していくのだが</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">rootCmd</span><span class="p">.</span><span class="nx">PersistentFlags</span><span class="p">().</span><span class="nx">StringVar</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">cfgFile</span><span class="p">,</span> <span class="s">&#34;config&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;config file (default is $HOME/.gocodic.yaml)&#34;</span><span class="p">)</span>
+<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">PersistentFlags</span><span class="p">().</span><span class="nx">BoolP</span><span class="p">(</span><span class="s">&#34;json&#34;</span><span class="p">,</span> <span class="s">&#34;j&#34;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="s">&#34;output by JSON format (raw data)&#34;</span><span class="p">)</span>
+<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">PersistentFlags</span><span class="p">().</span><span class="nx">StringP</span><span class="p">(</span><span class="s">&#34;token&#34;</span><span class="p">,</span> <span class="s">&#34;t&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;access token of codic.jp&#34;</span><span class="p">)</span>
+<span class="nx">viper</span><span class="p">.</span><span class="nx">BindPFlag</span><span class="p">(</span><span class="s">&#34;json&#34;</span><span class="p">,</span> <span class="nx">rootCmd</span><span class="p">.</span><span class="nx">PersistentFlags</span><span class="p">().</span><span class="nx">Lookup</span><span class="p">(</span><span class="s">&#34;json&#34;</span><span class="p">))</span>
+<span class="nx">viper</span><span class="p">.</span><span class="nx">BindPFlag</span><span class="p">(</span><span class="s">&#34;token&#34;</span><span class="p">,</span> <span class="nx">rootCmd</span><span class="p">.</span><span class="nx">PersistentFlags</span><span class="p">().</span><span class="nx">Lookup</span><span class="p">(</span><span class="s">&#34;token&#34;</span><span class="p">))</span></code></pre></div>
+<p>こんな感じで <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> 側のフラグ（厳密には <a href="https://github.com/spf13/pflag" title="spf13/pflag: Drop-in replacement for Go's flag package, implementing POSIX/GNU-style --flags.">spf13/pflag</a>）と <a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> をバインドしてしまう。
+これで <code>cmd</code> パッケージ側からはフラグ情報を透過的に扱える。
+フラグ情報を取り出す場合には</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">jsonFlag</span> <span class="o">:=</span> <span class="nx">viper</span><span class="p">.</span><span class="nx">GetBool</span><span class="p">(</span><span class="s">&#34;json&#34;</span><span class="p">)</span>
+<span class="nx">token</span> <span class="o">:=</span> <span class="nx">viper</span><span class="p">.</span><span class="nx">GetString</span><span class="p">(</span><span class="s">&#34;token&#34;</span><span class="p">)</span></code></pre></div>
+<p>などとすればよい。
+分かれば簡単。</p>
+
+<h2 id="ところで">ところで</h2>
+
+<p><a href="http://blog.codic.jp/">2016年4月からブログが更新されてない</a>けど，そのうちサービスが止まるなんてないよね？
+<a href="https://twitter.com/codic_project">Twitter アカウントは生きてる</a>みたいだし。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="http://niisi.hatenablog.jp/entry/2016/08/17/171000">【codic】プログラマ必見！もう変数名や関数名に困らない！プログラマのためのネーミングツールを紹介 - プログラミング向上雑記</a></li>
+<li><a href="https://nelog.jp/codic">関数や変数のネーミングに悩んだら「codic」に日本語名を入力するとある程度解決するかも</a></li>
+</ul>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/singleton-pattern/">Go 言語における Singleton Pattern</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style scoped>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="http://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style scoped>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-10-25</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcodic-api%2f" target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Codic%20API%20%e3%82%92%e5%88%a9%e7%94%a8%e3%81%99%e3%82%8b%e3%83%91%e3%83%83%e3%82%b1%e3%83%bc%e3%82%b8%e3%82%92%e4%bd%9c%e3%81%a3%e3%81%a6%e3%81%bf%e3%81%9f+from+@spiegel_2007&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcodic-api%2f" target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcodic-api%2f&amp;title=Codic%20API%20%e3%82%92%e5%88%a9%e7%94%a8%e3%81%99%e3%82%8b%e3%83%91%e3%83%83%e3%82%b1%e3%83%bc%e3%82%b8%e3%82%92%e4%bd%9c%e3%81%a3%e3%81%a6%e3%81%bf%e3%81%9f" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcodic-api%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.30.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+
+</div>
+
+
+</body>
+</html>
+
