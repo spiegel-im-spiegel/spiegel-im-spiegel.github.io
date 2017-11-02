@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.30.2" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/css/chroma-styles.css">
+
+<link rel="canonical" href="http://text.baldanders.info/golang/cross-compiling-in-travis-ci-with-goreleaser/">
+<title>Travis CI でクロス・コンパイル（GoReleaser 編） — プログラミング言語 Go | text.Baldanders.info</title>
+<meta property="og:title" content="Travis CI でクロス・コンパイル（GoReleaser 編） — プログラミング言語 Go | text.Baldanders.info">
+<meta name="description" content="クロス・コンパイルと GitHub への deploy をまとめてやってくれる GoReleaser というツールがあるらしい。">
+<meta property="og:description" content="クロス・コンパイルと GitHub への deploy をまとめてやってくれる GoReleaser というツールがあるらしい。">
+<meta property="og:image" content="http://text.baldanders.info/images/attention/go-code.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang,cross-compile,continuous-integration,github,travis-ci">
+<link rel='prev' href='http://text.baldanders.info/golang/calculating-hash-value/' title='Hash 値を計算するパッケージを作ってみた' />
+</head>
+<body>
+
+<div id='container'>
+<header>
+<div id="sitetitle"><a href="http://text.baldanders.info/">text.Baldanders.info</a> <a href='/index.xml' title='Feed'><i class='fa fa-rss'></i></a></div>
+<p>帰ってきた「しっぽのさきっちょ」</p>
+</header>
+
+
+<main>
+<article itemscope itemtype='http://schema.org/BlogPosting' itemref='maker'>
+<h1 itemprop='name'>Travis CI でクロス・コンパイル（GoReleaser 編） — <a href="/golang">プログラミング言語 Go</a></h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/continuous-integration">continuous-integration</a> #<a href="/tags/cross-compile">cross-compile</a> #<a href="/tags/github">github</a> #<a href="/tags/golang">golang</a> #<a href="/tags/travis-ci">travis-ci</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/cross-compiling-in-travis-ci-with-goreleaser/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>以前「<a href="/golang/cross-compiling-in-travis-ci/">Travis CI でクロス・コンパイル</a>」で <a href="https://github.com/mitchellh/gox" title="mitchellh/gox: A dead simple, no frills Go cross compile tool">mitchellh/gox</a> を使ったクロス・コンパイルと <a href="https://github.com/tcnksm/ghr" title="tcnksm/ghr: Create Github Release and upload artifacts in parallel">tcnksm/ghr</a> を使った <a href="https://github.com/" title="GitHub">GitHub</a> への deploy 手順を紹介したが，これらをまとめてやってくれる <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> というツールがあるらしい。</p>
+
+<ul>
+<li><a href="https://goreleaser.com/">GoReleaser | Deliver Go binaries as fast and easily as possible</a></li>
+<li><a href="https://github.com/goreleaser/goreleaser">goreleaser/goreleaser: Deliver Go binaries as fast and easily as possible</a></li>
+</ul>
+
+<p>すでにあるプロジェクトで試すのはどうかと思ったので，まずは以下のデモ用のリポジトリを作って試してみることにした。</p>
+
+<ul>
+<li><a href="https://github.com/spiegel-im-spiegel/reldemo">spiegel-im-spiegel/reldemo</a></li>
+</ul>
+
+<p>ちなみに中身は，このまえ<a href="https://qiita.com/spiegel-im-spiegel/items/272c1b8c01eb287059e0">ついカッとなって</a>作った <a href="https://github.com/spiegel-im-spiegel/godump">spiegel-im-spiegel/godump</a> のコードを流用している。
+おおっ，役に立ったじゃないか（笑）</p>
+
+<h2 id="goreleaser-の導入"><a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> の導入</h2>
+
+<p>当然ながら <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> 自身は <a href="https://github.com/" title="GitHub">GitHub</a> 上でバイナリを配布しているので，そちらを使うのが手っ取り早い。</p>
+
+<ul>
+<li><a href="https://github.com/goreleaser/goreleaser/releases/latest">Releases · goreleaser/goreleaser</a></li>
+</ul>
+
+<p>ヘルプを見るとこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ goreleaser help
+NAME:
+   goreleaser - Deliver Go binaries as fast and easily as possible
+
+USAGE:
+   goreleaser.exe [global options] command [command options] [arguments...]
+
+VERSION:
+   0.35.5, commit 11fee22a2edf211caec98f2bee97576d3160bdb7, built at 2017-10-25T11:49:23Z
+
+COMMANDS:
+     init, i  generate .goreleaser.yml
+     help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --config FILE, --file FILE, -c FILE, -f FILE  Load configuration from FILE (default: &#34;.goreleaser.yml&#34;)
+   --release-notes FILE                          Load custom release notes from a markdown FILE
+   --skip-validate                               Skip all the validations against the release
+   --skip-publish                                Skip all publishing pipes of the release
+   --snapshot                                    Generate an unversioned snapshot release
+   --rm-dist                                     Remove ./dist before building
+   --parallelism value, -p value                 Amount of builds launch in parallel (default: 4)
+   --debug                                       Enable debug mode
+   --help, -h                                    show help
+   --version, -v                                 print the version</code></pre></div>
+<p><a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> では <code>.goreleaser.yml</code> ファイルでビルドや deploy を制御しているようだ。
+<code>goreleaser init</code> コマンドで雛形を生成してくれるみたいなので試してみる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ goreleaser init
+   • config created; please edit accordingly to your needs file=.goreleaser.yml</code></pre></div>
+<p>作成された <code>.goreleaser.yml</code> の中身はこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">project_name<span class="p">:</span><span class="w"> </span>reldemo<span class="w">
+</span><span class="w"></span>release<span class="p">:</span><span class="w">
+</span><span class="w">  </span>github<span class="p">:</span><span class="w">
+</span><span class="w">    </span>owner<span class="p">:</span><span class="w"> </span>spiegel-im-spiegel<span class="w">
+</span><span class="w">    </span>name<span class="p">:</span><span class="w"> </span>reldemo<span class="w">
+</span><span class="w">  </span>name_template<span class="p">:</span><span class="w"> </span><span class="s1">&#39;{{.Tag}}&#39;</span><span class="w">
+</span><span class="w"></span>brew<span class="p">:</span><span class="w">
+</span><span class="w">  </span>commit_author<span class="p">:</span><span class="w">
+</span><span class="w">    </span>name<span class="p">:</span><span class="w"> </span>goreleaserbot<span class="w">
+</span><span class="w">    </span>email<span class="p">:</span><span class="w"> </span>goreleaser@carlosbecker.com<span class="w">
+</span><span class="w">  </span>install<span class="p">:</span><span class="w"> </span>bin.install<span class="w"> </span><span class="s2">&#34;reldemo&#34;</span><span class="w">
+</span><span class="w"></span>builds<span class="p">:</span><span class="w">
+</span><span class="w"></span>-<span class="w"> </span>goos<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>linux<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>darwin<span class="w">
+</span><span class="w">  </span>goarch<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>amd<span class="m">64</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span><span class="s2">&#34;386&#34;</span><span class="w">
+</span><span class="w">  </span>goarm<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span><span class="s2">&#34;6&#34;</span><span class="w">
+</span><span class="w">  </span>main<span class="p">:</span><span class="w"> </span>.<span class="w">
+</span><span class="w">  </span>ldflags<span class="p">:</span><span class="w"> </span>-s<span class="w"> </span>-w<span class="w"> </span>-X<span class="w"> </span>main.version={{.Version}}<span class="w"> </span>-X<span class="w"> </span>main.commit={{.Commit}}<span class="w"> </span>-X<span class="w"> </span>main.date={{.Date}}<span class="w">
+</span><span class="w">  </span>binary<span class="p">:</span><span class="w"> </span>reldemo<span class="w">
+</span><span class="w"></span>archive<span class="p">:</span><span class="w">
+</span><span class="w">  </span>format<span class="p">:</span><span class="w"> </span>tar.gz<span class="w">
+</span><span class="w">  </span>name_template<span class="p">:</span><span class="w"> </span><span class="s1">&#39;{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{
+</span><span class="s1">    .Arm }}{{ end }}&#39;</span><span class="w">
+</span><span class="w">  </span>files<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>licence*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>LICENCE*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>license*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>LICENSE*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>readme*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>README*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>changelog*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>CHANGELOG*<span class="w">
+</span><span class="w"></span>snapshot<span class="p">:</span><span class="w">
+</span><span class="w">  </span>name_template<span class="p">:</span><span class="w"> </span>SNAPSHOT-{{<span class="w"> </span>.Commit<span class="w"> </span>}}<span class="w">
+</span><span class="w"></span>checksum<span class="p">:</span><span class="w">
+</span><span class="w">  </span>name_template<span class="p">:</span><span class="w"> </span><span class="s1">&#39;{{ .ProjectName }}_{{ .Version }}_checksums.txt&#39;</span></code></pre></div>
+<p>これをベースにアレンジしていくわけだ。</p>
+
+<h2 id="設定ファイルの調整とクロス-コンパイル">設定ファイルの調整とクロス・コンパイル</h2>
+
+<p>さて，修正した <code>.goreleaser.yml</code> がこれ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">project_name<span class="p">:</span><span class="w"> </span>reldemo<span class="w">
+</span><span class="w"></span>release<span class="p">:</span><span class="w">
+</span><span class="w">  </span>github<span class="p">:</span><span class="w">
+</span><span class="w">    </span>owner<span class="p">:</span><span class="w"> </span>spiegel-im-spiegel<span class="w">
+</span><span class="w">    </span>name<span class="p">:</span><span class="w"> </span>reldemo<span class="w">
+</span><span class="w">
+</span><span class="w"></span>builds<span class="p">:</span><span class="w">
+</span><span class="w"></span>-<span class="w"> </span>goos<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>linux<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>darwin<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>windows<span class="w">
+</span><span class="w">  </span>goarch<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>amd<span class="m">64</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span><span class="s2">&#34;386&#34;</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>arm<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>arm<span class="m">64</span><span class="w">
+</span><span class="w">  </span>goarm<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span><span class="s2">&#34;6&#34;</span><span class="w">
+</span><span class="w">  </span>main<span class="p">:</span><span class="w"> </span>./cli/reldemo/<span class="w">
+</span><span class="w">  </span>ldflags<span class="p">:</span><span class="w"> </span>-s<span class="w"> </span>-w<span class="w"> </span>-X<span class="w"> </span>github.com/spiegel-im-spiegel/reldemo/cli/reldemo/facade.Version={{<span class="w"> </span>.Version<span class="w"> </span>}}<span class="w">
+</span><span class="w">  </span>binary<span class="p">:</span><span class="w"> </span>reldemo<span class="w">
+</span><span class="w">
+</span><span class="w"></span>archive<span class="p">:</span><span class="w">
+</span><span class="w">  </span>format<span class="p">:</span><span class="w"> </span>tar.gz<span class="w">
+</span><span class="w">  </span>format_overrides<span class="p">:</span><span class="w">
+</span><span class="w">    </span>-<span class="w"> </span>goos<span class="p">:</span><span class="w"> </span>windows<span class="w">
+</span><span class="w">      </span>format<span class="p">:</span><span class="w"> </span>zip<span class="w">
+</span><span class="w">  </span>name_template<span class="p">:</span><span class="w"> </span><span class="s1">&#39;{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}&#39;</span><span class="w">
+</span><span class="w">  </span>replacements<span class="p">:</span><span class="w">
+</span><span class="w">    </span>amd<span class="m">64</span><span class="p">:</span><span class="w"> </span>64bit<span class="w">
+</span><span class="w">    </span><span class="m">386</span><span class="p">:</span><span class="w"> </span>32bit<span class="w">
+</span><span class="w">    </span>arm<span class="p">:</span><span class="w"> </span>ARM<span class="w">
+</span><span class="w">    </span>arm<span class="m">64</span><span class="p">:</span><span class="w"> </span>ARM<span class="m">64</span><span class="w">
+</span><span class="w">    </span>darwin<span class="p">:</span><span class="w"> </span>macOS<span class="w">
+</span><span class="w">    </span>linux<span class="p">:</span><span class="w"> </span>Linux<span class="w">
+</span><span class="w">    </span>windows<span class="p">:</span><span class="w"> </span>Windows<span class="w">
+</span><span class="w">  </span>files<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>LICENSE*<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>README*<span class="w">
+</span><span class="w">
+</span><span class="w"></span>snapshot<span class="p">:</span><span class="w">
+</span><span class="w">  </span>name_template<span class="p">:</span><span class="w"> </span>SNAPSHOT-{{<span class="w"> </span>.Commit<span class="w"> </span>}}<span class="w">
+</span><span class="w">
+</span><span class="w"></span>checksum<span class="p">:</span><span class="w">
+</span><span class="w">  </span>name_template<span class="p">:</span><span class="w"> </span><span class="s1">&#39;{{ .ProjectName }}_{{ .Version }}_checksums.txt&#39;</span></code></pre></div>
+<p>主な変更点は以下の通り。</p>
+
+<ul>
+<li><code>brew</code> 項目はバッサリ捨てた</li>
+<li>コンパイル対象の OS に Windows を加えた。更にアーキテクチャに ARM を加えた</li>
+<li><code>ldflags</code> を現状のものに合わせた</li>
+<li>圧縮フォーマットで Windows の場合は zip 圧縮にした。また名前の置き換えも行った</li>
+</ul>
+
+<p>これで実際にビルドを行ってみる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ goreleaser --snapshot --skip-publish
+   • running goreleaser 0.35.5
+   • loading config file       file=.goreleaser.yml
+   • publishing disabled in snapshot mode
+   • SETTING DEFAULTS
+   • GETTING AND VALIDATING GIT STATE
+   • releasing v0.0.9, commit 6b96405452b3b9af8817157629fce00acb81564e
+   • GENERATING CHANGELOG
+   • skipped                   reason=not available for snapshots
+   • LOADING ENVIRONMENT VARIABLES
+   • skipped                   reason=publishing is disabled
+   • CHECKING ./DIST
+   • BUILDING BINARIES
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARM64\reldemo
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_32bit\reldemo
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_64bit\reldemo
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARMv6\reldemo
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_64bit\reldemo
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_32bit\reldemo
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_64bit\reldemo.exe
+   • building                  binary=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_32bit\reldemo.exe
+   • CREATING ARCHIVES
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARM64.tar.gz
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_32bit.tar.gz
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_64bit.tar.gz
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_32bit.tar.gz
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARMv6.tar.gz
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_64bit.zip
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_32bit.zip
+   • creating                  archive=dist\reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_64bit.tar.gz
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_64bit.tar.gz
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_64bit.zip
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_32bit.zip
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_32bit.tar.gz
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARM64.tar.gz
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARMv6.tar.gz
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_32bit.tar.gz
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_64bit.tar.gz
+   • CREATING LINUX PACKAGES WITH FPM
+   • skipped                   reason=no output formats configured
+   • CREATING LINUX PACKAGES WITH SNAPCRAFT
+   • skipped                   reason=no summary nor description were provided
+   • CALCULATING CHECKSUMS
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_64bit.tar.gz
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_32bit.tar.gz
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_64bit.tar.gz
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARMv6.tar.gz
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_64bit.zip
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Windows_32bit.zip
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_Linux_ARM64.tar.gz
+   • checksumming              file=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_macOS_32bit.tar.gz
+   • new release artifact      artifact=reldemo_SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e_checksums.txt
+   • CREATING DOCKER IMAGES
+   • skipped                   reason=docker section is not configured
+   • RELEASING TO GITHUB
+   • skipped                   reason=--skip-publish is set
+   • CREATING HOMEBREW FORMULA
+   • skipped                   reason=--skip-publish is set
+   • SUCCESS!</code></pre></div>
+<p>これでビルドと（<code>README.md</code> や <code>LICENSE</code> ファイルを同梱した）圧縮ファイルの生成までできた。
+fpm とか snapcraft とか Homebrew とか Docker イメージとか設定がないのでスキップしてるけど，今回はスルーの方向で。</p>
+
+<p>あだバージョンタグを打ってないので <code>--snapshot</code> で。
+また現時点では <a href="https://github.com/" title="GitHub">GitHub</a> に deploy して欲しくないので <code>--skip-publish</code> にしている。
+OS とアーキテクチャの組み合わせで出来ないものはビルドされないのが分かるだろうか。</p>
+
+<p>実際に生成された実行モジュールを起動してみると</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ reldemo -h
+Usage:
+  reldemo [flags] [binary file]
+
+Flags:
+  -h, --help          help for reldemo
+  -n, --name string   value name (default &#34;dumpList&#34;)
+  -v, --vaersion      output version
+
+$ reldemo -v
+reldemo SNAPSHOT-6b96405452b3b9af8817157629fce00acb81564e</code></pre></div>
+<p>という感じでバージョン番号にスナップショット情報が入っているのがわかると思う。</p>
+
+<p>なお <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> でビルドする際は全てのファイルがコミットされている必要がある。
+したがって <code>.goreleaser.yml</code> ファイルの調整に手こずるとコミット履歴がアレなことになる。</p>
+
+<h2 id="travis-ci-との連携と-github-への-deploy"><a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> との連携と <a href="https://github.com/" title="GitHub">GitHub</a> への Deploy</h2>
+
+<p>「<a href="/golang/cross-compiling-in-travis-ci/">Travis CI でクロス・コンパイル</a>」でも書いたが <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> から <a href="https://github.com/" title="GitHub">GitHub</a> へ Deploy するためには <a href="https://github.com/" title="GitHub">GitHub</a> のアクセス・トークンを取得して <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> の環境変数としてセットする必要がある。</p>
+
+<p><a href="https://github.com/" title="GitHub">GitHub</a> のアクセス・トークンは &ldquo;Settings” の “Developer settings” ＞ &ldquo;Personal access tokens” のページで取得できる。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a data-flickr-embed="true" href="https://www.flickr.com/photos/spiegel/24367702843/"><img src="https://farm2.staticflickr.com/1626/24367702843_e72366313f.jpg" srcset="https://farm2.staticflickr.com/1626/24367702843_e72366313f.jpg 500w" sizes="(min-width:600px) 500px, 80vw" alt="Get access token in GitHub"></a>
+<figcaption><a href="https://www.flickr.com/photos/spiegel/24367702843/">Get access token in GitHub</a></figcaption>
+</figure>
+
+<p>repo の権限のみを付けること。
+この access token を <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> で参照するには， &ldquo;Settings” の &ldquo;Environment Variables” でセットすればよい。
+Build log にこの access token が表示されないようにすること。</p>
+
+<p>今回の <code>.travis.yml</code> の内容はこんな感じ。`</p>
+<div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">language<span class="p">:</span><span class="w"> </span>go<span class="w">
+</span><span class="w">
+</span><span class="w"></span>go<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span><span class="m">1.9</span>.<span class="m">2</span><span class="w">
+</span><span class="w">
+</span><span class="w"></span>install<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>go<span class="w"> </span>get<span class="w"> </span>-u<span class="w"> </span>github.com/golang/dep/...<span class="w">
+</span><span class="w">
+</span><span class="w"></span>script<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>$GOPATH/bin/dep<span class="w"> </span>ensure<span class="w"> </span>-v<span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>go<span class="w"> </span>test<span class="w"> </span>-v<span class="w"> </span>./...<span class="w">
+</span><span class="w">
+</span><span class="w"></span>after_success<span class="p">:</span><span class="w">
+</span><span class="w">  </span>-<span class="w"> </span>test<span class="w"> </span>-n<span class="w"> </span><span class="s2">&#34;$TRAVIS_TAG&#34;</span><span class="w"> </span>&amp;&amp;<span class="w"> </span>curl<span class="w"> </span>-sL<span class="w"> </span>https<span class="p">:</span>//git.io/goreleaser<span class="w"> </span><span class="sd">| bash</span></code></pre></div>
+<p>最後の行が <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> 起動に関する記述である。
+タグが打たれている場合は <code>$TRAVIS_TAG</code> にタグの値が入る。
+したがってタグがない場合は <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> は起動しない。</p>
+
+<p><code>https://git.io/goreleaser</code> は短縮 URL で，中身は <a href="https://github.com/goreleaser/get" title="goreleaser/get: Get the latest goreleaser binary">goreleaser/get</a> の <code>get</code> ファイルでシェル・スクリプトになっている。
+こんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-bash" data-lang="bash"><span class="cp">#!/bin/sh
+</span><span class="cp"></span><span class="nb">set</span> -e
+
+<span class="nv">TAR_FILE</span><span class="o">=</span><span class="s2">&#34;/tmp/goreleaser.tar.gz&#34;</span>
+<span class="nv">RELEASES_URL</span><span class="o">=</span><span class="s2">&#34;https://github.com/goreleaser/goreleaser/releases&#34;</span>
+<span class="nb">test</span> -z <span class="s2">&#34;</span><span class="nv">$TMPDIR</span><span class="s2">&#34;</span> <span class="o">&amp;&amp;</span> <span class="nv">TMPDIR</span><span class="o">=</span><span class="s2">&#34;</span><span class="k">$(</span>mktemp -d<span class="k">)</span><span class="s2">&#34;</span>
+
+last_version<span class="o">()</span> <span class="o">{</span>
+  curl -sL -o /dev/null -w %<span class="o">{</span>url_effective<span class="o">}</span> <span class="s2">&#34;</span><span class="nv">$RELEASES_URL</span><span class="s2">/latest&#34;</span> <span class="p">|</span> 
+    rev <span class="p">|</span> 
+    cut -f1 -d<span class="s1">&#39;/&#39;</span><span class="p">|</span> 
+    rev
+<span class="o">}</span>
+
+download<span class="o">()</span> <span class="o">{</span>
+  <span class="nb">test</span> -z <span class="s2">&#34;</span><span class="nv">$VERSION</span><span class="s2">&#34;</span> <span class="o">&amp;&amp;</span> <span class="nv">VERSION</span><span class="o">=</span><span class="s2">&#34;</span><span class="k">$(</span>last_version<span class="k">)</span><span class="s2">&#34;</span>
+  <span class="nb">test</span> -z <span class="s2">&#34;</span><span class="nv">$VERSION</span><span class="s2">&#34;</span> <span class="o">&amp;&amp;</span> <span class="o">{</span>
+    <span class="nb">echo</span> <span class="s2">&#34;Unable to get goreleaser version.&#34;</span> &gt;<span class="p">&amp;</span><span class="m">2</span>
+    <span class="nb">exit</span> <span class="m">1</span>
+  <span class="o">}</span>
+  rm -f <span class="s2">&#34;</span><span class="nv">$TAR_FILE</span><span class="s2">&#34;</span>
+  curl -s -L -o <span class="s2">&#34;</span><span class="nv">$TAR_FILE</span><span class="s2">&#34;</span> <span class="se">\
+</span><span class="se"></span>    <span class="s2">&#34;</span><span class="nv">$RELEASES_URL</span><span class="s2">/download/</span><span class="nv">$VERSION</span><span class="s2">/goreleaser_</span><span class="k">$(</span>uname -s<span class="k">)</span><span class="s2">_</span><span class="k">$(</span>uname -m<span class="k">)</span><span class="s2">.tar.gz&#34;</span>
+<span class="o">}</span>
+
+download
+tar -xf <span class="s2">&#34;</span><span class="nv">$TAR_FILE</span><span class="s2">&#34;</span> -C <span class="s2">&#34;</span><span class="nv">$TMPDIR</span><span class="s2">&#34;</span>
+<span class="s2">&#34;</span><span class="si">${</span><span class="nv">TMPDIR</span><span class="si">}</span><span class="s2">/goreleaser&#34;</span> <span class="s2">&#34;</span><span class="nv">$@</span><span class="s2">&#34;</span></code></pre></div>
+<p>要するに <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> の最新バージョンを取ってきて実行しているだけである。</p>
+
+<p>これで全ての準備が整ったので，コミットして origin/master にマージし，タグを討つ。
+しばらくして <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> 側の処理が終われば <a href="https://github.com/spiegel-im-spiegel/reldemo/releases" title="Releases · spiegel-im-spiegel/reldemo">Releases</a> ページに反映される。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<a href="https://www.flickr.com/photos/spiegel/26327727169/"><img src="https://farm5.staticflickr.com/4477/26327727169_039d07e64d.jpg" srcset="https://farm5.staticflickr.com/4477/26327727169_039d07e64d.jpg 500w" sizes="(min-width:600px) 500px, 80vw" alt="Release page in GitHub"></a>
+<figcaption><a href="https://www.flickr.com/photos/spiegel/26327727169/">Release page in GitHub</a></figcaption>
+</figure>
+
+<p>Changelog も <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> が生成している。
+コミット・ログを元に生成しているので，ログがショボいと，上の図のように， Changelog もショボくなる。
+まぁ，最悪は手直しすればいいんだけどね<sup class="footnote-ref" id="fnref:cl1"><a rel="footnote" href="#fn:cl1">1</a></sup>。</p>
+
+<p>こんなところかな。</p>
+
+<p><code>.goreleaser.yml</code> が自分の気に入るように調整していく作業は悩ましいが，一度出来てしまえば他プロジェクトでも使い回しがし易いと思う。そうなればリリース管理はかなり楽になるはずである。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="http://rnitame.hatenablog.com/entry/automate-golang-binary-distribution">goreleaser と Travis CI で Golang のバイナリ配布を自動化する - /storage/tummy.log</a></li>
+<li><a href="https://qiita.com/suin/items/d643a0ccb6270e8e3734">Go言語: ビルド時にバージョン情報を埋め込みたい - Qiita</a></li>
+<li><a href="http://blog.shibayu36.org/entry/2017/10/04/193000">goreleaserを使ってGoで書いたツールのバイナリをGithub Releasesで配布する - $shibayu36-&gt;blog;</a></li>
+<li><a href="http://sue445.hatenablog.com/entry/2017/01/30/214345">Travis CIでdepを使う - くりにっき</a></li>
+</ul>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:cl1">特定の単語を含むログをフィルタリングする設定も <code>.goreleaser.yml</code> でできる。
+ <a class="footnote-return" href="#fnref:cl1"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/calculating-hash-value/">Hash 値を計算するパッケージを作ってみた</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="http://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-11-02</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcross-compiling-in-travis-ci-with-goreleaser%2f" target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Travis%20CI%20%e3%81%a7%e3%82%af%e3%83%ad%e3%82%b9%e3%83%bb%e3%82%b3%e3%83%b3%e3%83%91%e3%82%a4%e3%83%ab%ef%bc%88GoReleaser%20%e7%b7%a8%ef%bc%89+from+@spiegel_2007&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcross-compiling-in-travis-ci-with-goreleaser%2f" target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcross-compiling-in-travis-ci-with-goreleaser%2f&amp;title=Travis%20CI%20%e3%81%a7%e3%82%af%e3%83%ad%e3%82%b9%e3%83%bb%e3%82%b3%e3%83%b3%e3%83%91%e3%82%a4%e3%83%ab%ef%bc%88GoReleaser%20%e7%b7%a8%ef%bc%89" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcross-compiling-in-travis-ci-with-goreleaser%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.30.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+
+</div>
+
+
+</body>
+</html>
