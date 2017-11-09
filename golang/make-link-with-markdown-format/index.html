@@ -94,18 +94,21 @@ Flags:
       --log string     output log
   -s, --style string   link style (default &#34;markdown&#34;)
   -v, --version        output version of mklink</code></pre></div>
+<p>リンクの形式が markdown だけなのはアレなので <code>-s</code> オプションで選べるようにした。
+今のところ <code>markdown</code>, <code>wiki</code>, <code>html</code>, <code>csv</code> の4つに対応している。</p>
+
 <p><code>-i</code> オプションを付けると対話モードになる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ mklink -i
-Press Ctrl+C to stop
+Input &#39;q&#39; or &#39;quit&#39; to stop
 mklink&gt; https://git.io/vFR5M
 [GitHub - spiegel-im-spiegel/mklink: Make Link with Markdown Format](https://github.com/spiegel-im-spiegel/mklink)
 mklink&gt;</code></pre></div>
 <p>作成したリンクを標準出力に出力すると同時にクリップボードにもコピーする。
 いやぁ，これめっさ便利だわ。</p>
 
-<h2 id="goquery">goquery</h2>
+<h2 id="web-scraping">Web Scraping</h2>
 
-<p>URL からページのタイトルを取得するには HTML の解析を行うスクレイピング（Web scraping）機能が必要だが，好都合なことに <a href="https://github.com/PuerkitoBio/goquery" title="PuerkitoBio/goquery: A little like that j-thing, only in Go.">PuerkitoBio/goquery</a> というパッケージが公開されている。</p>
+<p>URL からページのタイトルを取得するには HTML の解析を行うスクレイピング（Web scraping）機能が必要だが，好都合なことに <a href="https://github.com/PuerkitoBio/goquery" title="PuerkitoBio/goquery: A little like that j-thing, only in Go.">PuerkitoBio/goquery</a> という便利なパッケージが公開されている。</p>
 
 <ul>
 <li><a href="https://github.com/PuerkitoBio/goquery">PuerkitoBio/goquery: A little like that j-thing, only in Go.</a></li>
@@ -115,25 +118,25 @@ mklink&gt;</code></pre></div>
 今回は <code>&lt;head&gt;</code> 要素からタイトルと説明（description）を抜き出すだけだが，こんな感じに記述できる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">//New returns new Link instance
 </span><span class="c1"></span><span class="kd">func</span> <span class="nx">New</span><span class="p">(</span><span class="nx">url</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="o">*</span><span class="nx">Link</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
-	<span class="nx">link</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">Link</span><span class="p">{</span><span class="nx">URL</span><span class="p">:</span> <span class="nx">url</span><span class="p">}</span>
-	<span class="nx">doc</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">goquery</span><span class="p">.</span><span class="nx">NewDocument</span><span class="p">(</span><span class="nx">url</span><span class="p">)</span>
-	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-		<span class="k">return</span> <span class="nx">link</span><span class="p">,</span> <span class="nx">err</span>
-	<span class="p">}</span>
-	<span class="nx">link</span><span class="p">.</span><span class="nx">Location</span> <span class="p">=</span> <span class="nx">doc</span><span class="p">.</span><span class="nx">Url</span><span class="p">.</span><span class="nx">String</span><span class="p">()</span>
+    <span class="nx">link</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">Link</span><span class="p">{</span><span class="nx">URL</span><span class="p">:</span> <span class="nx">strings</span><span class="p">.</span><span class="nx">Trim</span><span class="p">(</span><span class="nx">url</span><span class="p">,</span> <span class="s">&#34;\t \n&#34;</span><span class="p">)}</span>
+    <span class="nx">doc</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">goquery</span><span class="p">.</span><span class="nx">NewDocument</span><span class="p">(</span><span class="nx">link</span><span class="p">.</span><span class="nx">URL</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">link</span><span class="p">,</span> <span class="nx">err</span>
+    <span class="p">}</span>
+    <span class="nx">link</span><span class="p">.</span><span class="nx">Location</span> <span class="p">=</span> <span class="nx">doc</span><span class="p">.</span><span class="nx">Url</span><span class="p">.</span><span class="nx">String</span><span class="p">()</span>
 
-	<span class="nx">doc</span><span class="p">.</span><span class="nx">Find</span><span class="p">(</span><span class="s">&#34;head&#34;</span><span class="p">).</span><span class="nx">Each</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">_</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">s</span> <span class="o">*</span><span class="nx">goquery</span><span class="p">.</span><span class="nx">Selection</span><span class="p">)</span> <span class="p">{</span>
-		<span class="nx">s</span><span class="p">.</span><span class="nx">Find</span><span class="p">(</span><span class="s">&#34;title&#34;</span><span class="p">).</span><span class="nx">Each</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">_</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">s</span> <span class="o">*</span><span class="nx">goquery</span><span class="p">.</span><span class="nx">Selection</span><span class="p">)</span> <span class="p">{</span>
-			<span class="nx">link</span><span class="p">.</span><span class="nx">Title</span> <span class="p">=</span> <span class="nx">s</span><span class="p">.</span><span class="nx">Text</span><span class="p">()</span>
-		<span class="p">})</span>
-		<span class="nx">s</span><span class="p">.</span><span class="nx">Find</span><span class="p">(</span><span class="s">&#34;meta[name=&#39;description&#39;]&#34;</span><span class="p">).</span><span class="nx">Each</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">_</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">s</span> <span class="o">*</span><span class="nx">goquery</span><span class="p">.</span><span class="nx">Selection</span><span class="p">)</span> <span class="p">{</span>
-			<span class="k">if</span> <span class="nx">v</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">s</span><span class="p">.</span><span class="nx">Attr</span><span class="p">(</span><span class="s">&#34;content&#34;</span><span class="p">);</span> <span class="nx">ok</span> <span class="p">{</span>
-				<span class="nx">link</span><span class="p">.</span><span class="nx">Description</span> <span class="p">=</span> <span class="nx">v</span>
-			<span class="p">}</span>
-		<span class="p">})</span>
-	<span class="p">})</span>
+    <span class="nx">doc</span><span class="p">.</span><span class="nx">Find</span><span class="p">(</span><span class="s">&#34;head&#34;</span><span class="p">).</span><span class="nx">Each</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">_</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">s</span> <span class="o">*</span><span class="nx">goquery</span><span class="p">.</span><span class="nx">Selection</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">s</span><span class="p">.</span><span class="nx">Find</span><span class="p">(</span><span class="s">&#34;title&#34;</span><span class="p">).</span><span class="nx">Each</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">_</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">s</span> <span class="o">*</span><span class="nx">goquery</span><span class="p">.</span><span class="nx">Selection</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nx">link</span><span class="p">.</span><span class="nx">Title</span> <span class="p">=</span> <span class="nx">strings</span><span class="p">.</span><span class="nx">Trim</span><span class="p">(</span><span class="nx">s</span><span class="p">.</span><span class="nx">Text</span><span class="p">(),</span> <span class="s">&#34;\t \n&#34;</span><span class="p">)</span>
+        <span class="p">})</span>
+        <span class="nx">s</span><span class="p">.</span><span class="nx">Find</span><span class="p">(</span><span class="s">&#34;meta[name=&#39;description&#39;]&#34;</span><span class="p">).</span><span class="nx">Each</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">_</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">s</span> <span class="o">*</span><span class="nx">goquery</span><span class="p">.</span><span class="nx">Selection</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="nx">v</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">s</span><span class="p">.</span><span class="nx">Attr</span><span class="p">(</span><span class="s">&#34;content&#34;</span><span class="p">);</span> <span class="nx">ok</span> <span class="p">{</span>
+                <span class="nx">link</span><span class="p">.</span><span class="nx">Description</span> <span class="p">=</span> <span class="nx">strings</span><span class="p">.</span><span class="nx">Trim</span><span class="p">(</span><span class="nx">v</span><span class="p">,</span> <span class="s">&#34;\t \n&#34;</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="p">})</span>
+    <span class="p">})</span>
 
-	<span class="k">return</span> <span class="nx">link</span><span class="p">,</span> <span class="kc">nil</span>
+    <span class="k">return</span> <span class="nx">link</span><span class="p">,</span> <span class="kc">nil</span>
 <span class="p">}</span></code></pre></div>
 <p>ね， jQuery ぽいでしょ。
 まさか，この期に及んで jQuery （ぽいもの）を触ることになるとは思わなかったぜ。
@@ -144,26 +147,31 @@ jQuery の本は納戸に仕舞っちゃったんだけどなぁ。</p>
 <p><a href="https://github.com/spiegel-im-spiegel/mklink" title="spiegel-im-spiegel/mklink: Make Link with Markdown Format">mklink</a> はパイプでも動作する。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ echo https://git.io/vFR5M | mklink
 [GitHub - spiegel-im-spiegel/mklink: Make Link with Markdown Format](https://github.com/spiegel-im-spiegel/mklink)</code></pre></div>
-<p>この時にうっかり <code>-i</code> オプションを付けて（パイプのつもりが）対話モードになっては困るので標準入力がターミナルかどうかを判定するロジックを入れている。</p>
-
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="hl"><span class="k">if</span> <span class="nx">isatty</span><span class="p">.</span><span class="nx">IsTerminal</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">.</span><span class="nx">Fd</span><span class="p">())</span> <span class="p">{</span>
-</span>    <span class="k">if</span> <span class="nx">interactiveFlag</span> <span class="p">{</span>
-        <span class="nx">interactive</span><span class="p">.</span><span class="nx">New</span><span class="p">(</span><span class="nx">style</span><span class="p">,</span> <span class="nx">log</span><span class="p">).</span><span class="nx">Run</span><span class="p">()</span>
+<p>この時にうっかり <code>-i</code> オプションを付けて（パイプのつもりが）対話モードになっては困るので標準入出力がターミナルかどうかを判定するロジックを入れている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nx">isTerminal</span><span class="p">()</span> <span class="kt">bool</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">!</span><span class="nx">isatty</span><span class="p">.</span><span class="nx">IsTerminal</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">.</span><span class="nx">Fd</span><span class="p">())</span> <span class="o">&amp;&amp;</span> <span class="p">!</span><span class="nx">isatty</span><span class="p">.</span><span class="nx">IsCygwinTerminal</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">.</span><span class="nx">Fd</span><span class="p">())</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="kc">false</span>
     <span class="p">}</span>
-    <span class="k">return</span> <span class="kc">nil</span>
+    <span class="k">if</span> <span class="p">!</span><span class="nx">isatty</span><span class="p">.</span><span class="nx">IsTerminal</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">.</span><span class="nx">Fd</span><span class="p">())</span> <span class="o">&amp;&amp;</span> <span class="p">!</span><span class="nx">isatty</span><span class="p">.</span><span class="nx">IsCygwinTerminal</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">.</span><span class="nx">Fd</span><span class="p">())</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="kc">false</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="kc">true</span>
 <span class="p">}</span></code></pre></div>
-
-<p>この機能は <a href="https://github.com/mattn/go-isatty">mattn/go-isatty</a> パッケージで実現している<sup class="footnote-ref" id="fnref:ssh1"><a rel="footnote" href="#fn:ssh1">1</a></sup>。</p>
+<p>この機能は <a href="https://github.com/mattn/go-isatty">mattn/go-isatty</a> パッケージで実装した<sup class="footnote-ref" id="fnref:ssh1"><a rel="footnote" href="#fn:ssh1">1</a></sup>。</p>
 
 <h2 id="クリップボードの操作">クリップボードの操作</h2>
 
 <p>クリップボードの操作といっても今回は書き込みだけだが <a href="https://github.com/atotto/clipboard" title="atotto/clipboard: clipboard for golang">atotto/clipboard</a> を使って実装している。</p>
 
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">r</span> <span class="o">:=</span> <span class="nx">lnk</span><span class="p">.</span><span class="nx">Encode</span><span class="p">(</span><span class="nx">c</span><span class="p">.</span><span class="nx">linkStyle</span><span class="p">)</span>
-<span class="nx">buf</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
-<span class="nx">io</span><span class="p">.</span><span class="nx">Copy</span><span class="p">(</span><span class="nx">c</span><span class="p">.</span><span class="nx">writer</span><span class="p">,</span> <span class="nx">io</span><span class="p">.</span><span class="nx">TeeReader</span><span class="p">(</span><span class="nx">r</span><span class="p">,</span> <span class="nx">buf</span><span class="p">))</span>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">buf</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
+<span class="nx">io</span><span class="p">.</span><span class="nx">Copy</span><span class="p">(</span><span class="nx">c</span><span class="p">.</span><span class="nx">writer</span><span class="p">,</span> <span class="nx">io</span><span class="p">.</span><span class="nx">TeeReader</span><span class="p">(</span><span class="nx">lnk</span><span class="p">.</span><span class="nx">Encode</span><span class="p">(</span><span class="nx">c</span><span class="p">.</span><span class="nx">linkStyle</span><span class="p">),</span> <span class="nx">buf</span><span class="p">))</span>
 <span class="nx">strLink</span> <span class="o">:=</span> <span class="nx">buf</span><span class="p">.</span><span class="nx">String</span><span class="p">()</span>
-<span class="hl"><span class="nx">clipboard</span><span class="p">.</span><span class="nx">WriteAll</span><span class="p">(</span><span class="nx">strLink</span><span class="p">)</span></span></code></pre></div>
+<span class="k">if</span> <span class="nx">c</span><span class="p">.</span><span class="nx">clipbrdFlag</span> <span class="p">{</span>
+<span class="hl">    <span class="nx">clipboard</span><span class="p">.</span><span class="nx">WriteAll</span><span class="p">(</span><span class="nx">strLink</span><span class="p">)</span>
+</span><span class="p">}</span>
+<span class="k">if</span> <span class="nx">c</span><span class="p">.</span><span class="nx">log</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprint</span><span class="p">(</span><span class="nx">c</span><span class="p">.</span><span class="nx">log</span><span class="p">,</span> <span class="nx">strLink</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
 
 <p>Windows 環境では問題なく動作しているが，他の OS ではどうなのかよく分からない。</p>
 
@@ -249,7 +257,7 @@ jQuery の本は納戸に仕舞っちゃったんだけどなぁ。</p>
 		</div>
 		<div class="userinfo-info" id="maker" itemprop='author' itemscope itemtype='http://schema.org/Person'>
 			
-				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-11-08</time>.
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName" itemprop='name'>Spiegel</a> in <time property='dc:dateCopyrighted'>2017-11-08</time> (revised in <time property='dc:modified'>2017-11-09</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
 
