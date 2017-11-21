@@ -4,12 +4,844 @@
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/remark/index.xml" />
 	<id>tag:text.Baldanders.info,2017-11-21:/hugo</id>
-	<updated>2017-11-21T17:30:50+09:00</updated>
+	<updated>2017-11-21T22:34:52+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="https://gohugo.io/">Hugo 0.31</generator>
 
+	
+	<entry>
+		<title>OpenPGP 鍵管理に関する考察 — しっぽのさきっちょ</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2017/11/openpgp-key-management/" />
+		<id>tag:text.Baldanders.info,2017-11-21:/remark/2017/11/openpgp-key-management/</id>
+		<published>2017-11-21T22:34:52+09:00</published>
+		<updated>2017-11-21T22:34:52+09:00</updated>
+		<summary>OpenPGP 鍵の管理について考えてみるテスト。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;たまたま以下の記事を見かけたのだが&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/moutend/items/5c22d6e57a74845578f6&#34;&gt;gpg (GNU Privacy Guard)の使い方 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このやり方も良さそうだけど，もう少し簡単に運用できないか考えてみる。
+なお &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理は目的別にアドホック（ad hoc）な運用も可能なので「これ！」という正解はない。
+自分にあったやり方を考えるのも面白いと思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;openpgp-の信用モデル&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の信用モデル&lt;/h2&gt;
+
+&lt;p&gt;鍵の管理について考える前に &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の信用モデルについておさらいしておこう。&lt;/p&gt;
+
+&lt;p&gt;最初の登場人物は Alice と Bob。
+2人はそれぞれ &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵を持っていて，これを使って秘密のやり取りをしようと考えている。
+持っている鍵が信用できることを証明するために，お互い相手の公開鍵に自身の鍵で電子署名を施した。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Bob-- Digital Sign --&gt;Alice
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;鍵に施されている電子署名を確認することでコンテンツに対する暗号文や電子署名が正しい鍵で行われていることが証明できるわけだ。
+これが &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の基本。
+公開鍵への電子署名を使って peer-to-peer で信頼関係を結ぶ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:ksp1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:ksp1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;ここで3人目の人物 Chris に登場してもらおう。
+Bob と Chris は面識があり既にお互いの公開鍵で電子署名を交わしている。
+しかし Alice と Chris は面識がなく電子署名を交わす機会がないとする。
+Alice から見て Chris の鍵は信用できるだろうか？&lt;/p&gt;
+
+&lt;p&gt;（念のために言うと，ここで言う「信用」は「あなたは人として信用できる」の信用ではなく「この鍵は正しく本人のものであると信用できる」の信用である）&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+  Chris[&#34;Chris&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Alice-. trust? .-&gt;Chris
+  Bob-- Digital Sign --&gt;Alice
+  Bob-- Digital Sign --&gt;Chris
+  Chris-- Digital Sign --&gt;Bob
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;まず Alice から見て直接電子署名を交わした Bob の鍵が信用できるのは明らかである。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+ graph LR
+   Alice[&#34;Alice&#39;s Public Key&#34;]
+   Bob[&#34;Bob&#39;s Public Key&#34;]
+   Chris[&#34;Chris&#39;s Public Key&#34;]
+
+   Alice-- Digital Sign --&gt;Bob
+   Alice-. trust .-&gt;Bob
+   Bob-- Digital Sign --&gt;Alice
+   Bob-- Digital Sign --&gt;Chris
+   Chris-- Digital Sign --&gt;Bob
+
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;Alice は Chris の公開鍵に信用できる Bob の公開鍵による電子署名を見つけたため， Bob の公開鍵と同じく Chris の公開鍵も有効であると見なすことができる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+  Chris[&#34;Chris&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Alice-. validate! .-&gt;Chris
+  Alice-. trust .-&gt;Bob
+  Bob-- Digital Sign --&gt;Alice
+  Bob-- Digital Sign --&gt;Chris
+  Chris-- Digital Sign --&gt;Bob
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;これが &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の代表的な信用モデル “web of trust” の基本的な考え方である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:tm1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:tm1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+このことから &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理ににおいて「信用できる鍵」の条件は&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;多くの電子署名（とできれば信用）が集まっていること&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;だと分かる。
+更にこのことから派生的に&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;同じ鍵が永続的に使われ続けていること&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;も「信用できる鍵」の条件となる。
+何故なら，鍵が頻繁に変わるとその度に電子署名をやり直すことになり，鍵に署名（＝信用）が集まりにくくなるからである。&lt;/p&gt;
+
+&lt;h2 id=&#34;openpgp-の鍵管理&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理&lt;/h2&gt;
+
+&lt;p&gt;以上を踏まえて &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵の管理について考えてみよう。&lt;/p&gt;
+
+&lt;h3 id=&#34;ひとつの鍵で運用する場合&#34;&gt;ひとつの鍵で運用する場合&lt;/h3&gt;
+
+&lt;p&gt;一番簡単なケースで，ひとつの &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵で全てをまかなう場合を考える。
+たとえば，ふだん暗号化ツールなんて全然使わないけど git commit に電子署名するためだけに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を使いたい，など。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の代表的な実装である &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の最新バージョンでは，以下のように，鍵の作成処理が（昔と比べて）大幅に簡略化されている。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --gen-key
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+gpg: keybox&amp;#39;C:/Users/username/AppData/Roaming/gnupg/pubring.kbx&amp;#39;が作成されました
+注意: 全機能の鍵生成には &amp;#34;gpg --full-generate-key&amp;#34; を使います。
+
+GnuPGはあなたの鍵を識別するためにユーザIDを構成する必要があります。
+
+本名: Alice
+電子メール・アドレス: alice@examle.com
+次のユーザIDを選択しました:
+    &amp;#34;Alice &amp;lt;alice@examle.com&amp;gt;&amp;#34;
+
+名前(N)、電子メール(E)の変更、またはOK(O)か終了(Q)? o
+たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+成器に十分なエントロピーを供給する機会を与えることができます。
+
+たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+成器に十分なエントロピーを供給する機会を与えることができます。
+gpg: C:/Users/username/AppData/Roaming/gnupg/trustdb.gpg: 信用データベースができました
+gpg: 鍵9E5A7D3B1F249DF9を究極的に信用するよう記録しました
+gpg: ディレクトリ&amp;#39;C:/Users/username/AppData/Roaming/gnupg/openpgp-revocs.d&amp;#39;が作成されました
+gpg: 失効証明書を &amp;#39;C:/Users/username/AppData/Roaming/gnupg/openpgp-revocs.d\FAAD28B393CAA55FCA6791149E5A7D3B1F249DF9.rev&amp;#39; に保管しました。
+公開鍵と秘密鍵を作成し、署名しました。
+
+pub   rsa2048 2017-11-20 [SC] [有効期限: 2019-11-20]
+      FAAD28B393CAA55FCA6791149E5A7D3B1F249DF9
+uid                      Alice &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-20 [E] [有効期限: 2019-11-20]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;--gen-key&lt;/code&gt; オプションで鍵作成モードを起動&lt;/li&gt;
+&lt;li&gt;本名，電子メール・アドレス，コメントを指定して &lt;code&gt;o&lt;/code&gt; で確定&lt;/li&gt;
+&lt;li&gt;パスフレーズを設定（Pinentry で2回入力）&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;こんな感じで「本名」と「電子メール・アドレス」とパスフレーズの入力だけで生成できるよぷになった&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gk1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:gk1&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。
+ただし，このままでは有効期限が当日のままなので &lt;code&gt;--edit-key&lt;/code&gt; オプションで修正する必要がある。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --edit-key alice
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+gpg: 信用データベースの検査
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 0f, 1u
+gpg: 次回の信用データベース検査は、2019-11-20です
+秘密鍵が利用できます。
+
+sec  rsa2048/9E5A7D3B1F249DF9
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: SC
+     信用: 究極          有効性: 究極
+ssb  rsa2048/B4E4E1C7747239A2
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: E
+[  究極  ] (1). Alice &amp;lt;alice@examle.com&amp;gt;
+
+gpg&amp;gt; key 0
+
+sec  rsa2048/9E5A7D3B1F249DF9
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: SC
+     信用: 究極          有効性: 究極
+ssb  rsa2048/B4E4E1C7747239A2
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: E
+[  究極  ] (1). Alice &amp;lt;alice@examle.com&amp;gt;
+
+gpg&amp;gt; expire
+主鍵の有効期限を変更します。
+鍵の有効期限を指定してください。
+         0 = 鍵は無期限
+      &amp;lt;n&amp;gt;  = 鍵は n 日間で期限切れ
+      &amp;lt;n&amp;gt;w = 鍵は n 週間で期限切れ
+      &amp;lt;n&amp;gt;m = 鍵は n か月間で期限切れ
+      &amp;lt;n&amp;gt;y = 鍵は n 年間で期限切れ
+鍵の有効期間は? (0)0
+鍵の有効期間は? (0)は無期限です
+これで正しいですか? (y/N) y
+
+sec  rsa2048/9E5A7D3B1F249DF9
+     作成: 2017-11-20  有効期限: 無期限      利用法: SC
+     信用: 究極          有効性: 究極
+ssb  rsa2048/B4E4E1C7747239A2
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: E
+[  究極  ] (1). Alice &amp;lt;alice@examle.com&amp;gt;
+
+gpg&amp;gt; key 1
+
+sec  rsa2048/9E5A7D3B1F249DF9
+     作成: 2017-11-20  有効期限: 無期限      利用法: SC
+     信用: 究極          有効性: 究極
+ssb* rsa2048/B4E4E1C7747239A2
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: E
+[  究極  ] (1). Alice &amp;lt;alice@examle.com&amp;gt;
+
+gpg&amp;gt; expire
+副鍵の有効期限を変更します。
+鍵の有効期限を指定してください。
+         0 = 鍵は無期限
+      &amp;lt;n&amp;gt;  = 鍵は n 日間で期限切れ
+      &amp;lt;n&amp;gt;w = 鍵は n 週間で期限切れ
+      &amp;lt;n&amp;gt;m = 鍵は n か月間で期限切れ
+      &amp;lt;n&amp;gt;y = 鍵は n 年間で期限切れ
+鍵の有効期間は? (0)0
+鍵の有効期間は? (0)は無期限です
+これで正しいですか? (y/N) y
+
+sec  rsa2048/9E5A7D3B1F249DF9
+     作成: 2017-11-20  有効期限: 無期限      利用法: SC
+     信用: 究極          有効性: 究極
+ssb* rsa2048/B4E4E1C7747239A2
+     作成: 2017-11-20  有効期限: 無期限      利用法: E
+[  究極  ] (1). Alice &amp;lt;alice@examle.com&amp;gt;
+
+gpg&amp;gt; save&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;操作手順としては&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;--edit-key&lt;/code&gt; オプションで編集モードを起動&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;key 0&lt;/code&gt; コマンドで主鍵を選択&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;expire&lt;/code&gt; コマンドで有効期限の設定モードにする&lt;/li&gt;
+&lt;li&gt;無期限（= &lt;code&gt;0&lt;/code&gt;）を指定して &lt;code&gt;y&lt;/code&gt; で確定&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;key 1&lt;/code&gt; コマンドで副鍵を選択&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;expire&lt;/code&gt; コマンドで有効期限の設定モードにする&lt;/li&gt;
+&lt;li&gt;無期限（= &lt;code&gt;0&lt;/code&gt;）を指定して &lt;code&gt;y&lt;/code&gt; で確定&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;save&lt;/code&gt; コマンドで保存と終了&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;となっている&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:k1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:k1&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;これでRSA/2048ビット，無期限の鍵の生成が完了した。
+公開鍵を配布するには&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export -a alice &amp;gt; alice-key.asc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;として &lt;code&gt;alice-key.asc&lt;/code&gt; を直接配布するか&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --keyserver keys.gnupg.net --send-key alice&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;として鍵サーバ（ここでは &lt;a href=&#34;http://keys.gnupg.net/&#34;&gt;&lt;code&gt;keys.gnupg.net&lt;/code&gt;&lt;/a&gt;）にアップロードすればいい。&lt;/p&gt;
+
+&lt;p&gt;注意する点としてはパスフレーズと失効証明書を紛失・漏洩しないよう管理することであろう。
+できれば失効証明書は普段使う PC や携帯端末とは別に管理しておくのが望ましい。
+ちなみに &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; ではパスフレーズは何処にも保存されないので，パスフレーズを忘れてしまうと全くリカバリできなくなる（だからといってパスフレーズを設定しないというのは通常運用ではあり得ないが）。&lt;/p&gt;
+
+&lt;p&gt;ノートPCや携帯端末には常に紛失・盗難のリスクが付きまとうが，予防に注力しすぎて現実的でない対策を執るよりも，これはもう「起こり得ること」として「事後」がスムーズに行われるようバックアップ等の準備しておくほうが賢明である。&lt;/p&gt;
+
+&lt;h4 id=&#34;鍵の失効&#34;&gt;鍵の失効&lt;/h4&gt;
+
+&lt;p&gt;秘密鍵が漏洩するなどして鍵の失効が必要になった場合には，鍵生成時に作られた失効証明書を使って失効処理を行う。
+失効証明書の中身はこんな感じになっている。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cd C:/Users/username/AppData/Roaming/gnupg/openpgp-revocs.d
+
+$ cat FAAD28B393CAA55FCA6791149E5A7D3B1F249DF9.rev
+これは失効証明書でこちらのOpenPGP鍵に対するものです:
+
+pub   rsa2048 2017-11-20 [SC] [有効期限: 2019-11-20]
+      FAAD28B393CAA55FCA6791149E5A7D3B1F249DF9
+uid          Alice &amp;lt;alice@examle.com&amp;gt;
+
+失効証明書は &amp;#34;殺すスイッチ&amp;#34; のようなもので、鍵がそれ以上使えない
+ように公に宣言するものです。一度発行されると、そのような失効証明書は
+撤回することはできません。
+
+秘密鍵のコンプロマイズや紛失の場合、これを使ってこの鍵を失効させます。
+しかし、秘密鍵がまだアクセス可能である場合、新しい失効証明書を生成し、
+失効の理由をつける方がよいでしょう。詳細は、GnuPGマニュアルのgpgコマン
+ド &amp;#34;--generate-revocation&amp;#34;の記述をご覧ください。
+
+このファイルを誤って使うのを避けるため、以下ではコロンが5つのダッシュ
+の前に挿入されます。この失効証明書をインポートして公開する前に、テク
+スト・エディタでこのコロンを削除してください。
+
+:-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: This is a revocation certificate
+
+iQE2BCABCAAgFiEE+q0os5PKpV/KZ5EUnlp9Ox8knfkFAloSt6YCHQAACgkQnlp9
+Ox8knflrFwf/Xzb7CPOMO5uZph2QoEJDzo34plliJ+GB/kpmubzZ/jf5CSTZfKUF
+OeioKwgYzduKV4UorZDe3BUV0GwnzzVlDR9xu2E/WV/J621NtPmqbyIU7Q6iYoKd
+3UiZc/P4vR5JSjgTJD4fryTIIeTZNAGng37/kFjVhwAUyvzyEdi+eFCMz13LiZAk
+XFMCdSHEifGWJnI6LJkt1rpnUAaSoLjQIuwVtpw1ZyI5oob8chFTGZkrNQ0XURlP
+vNBcD8kMA/e0pJguDinpNnBcaBPWuKpJllu0nl54oD1x2qykNH8ApWIWUpsM9eXL
+v4LDSpTyA2kmLH+L05DyWoiwfgE4rz7JeA==
+=pj4U
+-----END PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;実際に使う場合は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;:-----BEGIN PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;の先頭のコロンを削除して使う。
+失効処理を行うには &lt;code&gt;--import&lt;/code&gt; オプションで失効証明書を読み込めばよい。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import FAAD28B393CAA55FCA6791149E5A7D3B1F249DF9.rev
+gpg: 鍵9E5A7D3B1F249DF9:&amp;#34;Alice &amp;lt;alice@examle.com&amp;gt;&amp;#34;失効証明書をインポートしました
+gpg:           処理数の合計: 1
+gpg:         新しい鍵の失効: 1
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 0f, 1u&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで先程作成した鍵は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-20 [SC] [失効: 2017-11-20]
+      FAAD28B393CAA55FCA6791149E5A7D3B1F249DF9
+uid           [  失効  ] Alice &amp;lt;alice@examle.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;となり失効したことが分かる。
+&lt;strong&gt;失効した公開鍵を配布するのを忘れずに！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h3 id=&#34;ひとつの鍵に複数のユーザidを付与する場合&#34;&gt;ひとつの鍵に複数のユーザIDを付与する場合&lt;/h3&gt;
+
+&lt;p&gt;ユーザIDというのは鍵の名前 “&lt;code&gt;Alice &amp;lt;alice@examle.com&amp;gt;&lt;/code&gt;” の部分である。&lt;/p&gt;
+
+&lt;p&gt;たとえば，以下の鍵があったとき&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-20 [SC] [有効期限: 2019-11-20]
+      8DF6263068D826D5691E2D85E86157A2B2117F02
+uid           [  究極  ] Alice &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-20 [E] [有効期限: 2019-11-20]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これに新しいユーザID “&lt;code&gt;Alice &amp;lt;alice@examle2.com&amp;gt;&lt;/code&gt;” を付加するには&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --edit-key alice
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+秘密鍵が利用できます。
+
+sec  rsa2048/E86157A2B2117F02
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: SC
+     信用: 究極          有効性: 究極
+ssb  rsa2048/D1565C702022D41D
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: E
+[  究極  ] (1). Alice &amp;lt;alice@examle.com&amp;gt;
+
+gpg&amp;gt; adduid
+本名: Alice
+電子メール・アドレス: alice@examle2.com
+コメント: second
+次のユーザIDを選択しました:
+    &amp;#34;Alice (second) &amp;lt;alice@examle2.com&amp;gt;&amp;#34;
+
+名前(N)、コメント(C)、電子メール(E)の変更、またはOK(O)か終了(Q)? o
+
+sec  rsa2048/E86157A2B2117F02
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: SC
+     信用: 究極          有効性: 究極
+ssb  rsa2048/D1565C702022D41D
+     作成: 2017-11-20  有効期限: 2019-11-20  利用法: E
+[  究極  ] (1)  Alice &amp;lt;alice@examle.com&amp;gt;
+[  不明  ] (2). Alice (second) &amp;lt;alice@examle2.com&amp;gt;
+
+gpg&amp;gt; save&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;--edit-key&lt;/code&gt; オプションで編集モードを起動&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;adduid&lt;/code&gt; コマンドでユーザID追加モードにする&lt;/li&gt;
+&lt;li&gt;本名，電子メール・アドレス，コメントを指定して &lt;code&gt;o&lt;/code&gt; で確定&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;save&lt;/code&gt; コマンドで保存と終了&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;とする。
+これで新しいユーザIDが付加された。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-20 [SC] [有効期限: 2019-11-20]
+      8DF6263068D826D5691E2D85E86157A2B2117F02
+uid           [  究極  ] Alice (second) &amp;lt;alice@examle2.com&amp;gt;
+uid           [  究極  ] Alice &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-20 [E] [有効期限: 2019-11-20]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ちなみに，この鍵を &lt;a href=&#34;http://www.mew.org/~kazu/proj/pgpdump/&#34; title=&#34;pgpdump&#34;&gt;pgpdump&lt;/a&gt; にかけると以下のようになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export -a alice | pgpdump -u
+Old: Public Key Packet(tag 6)(269 bytes)
+        Ver 4 - new
+        Public key creation time - Mon Nov 20 12:23:12 UTC 2017
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        RSA n(2048 bits) - ...
+        RSA e(17 bits) - ...
+Old: User ID Packet(tag 13)(24 bytes)
+        User ID - Alice &amp;lt;alice@examle.com&amp;gt;
+Old: Signature Packet(tag 2)(340 bytes)
+        Ver 4 - new
+        Sig type - Positive certification of a User ID and Public Key packet(0x13).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - 8d f6 26 30 68 d8 26 d5 69 1e 2d 85 e8 61 57 a2 b2 11 7f 02
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Mon Nov 20 12:23:12 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to certify other keys
+                Flag - This key may be used to sign data
+        Hashed Sub: key expiration time(sub 9)(4 bytes)
+                Time - Wed Nov 20 12:23:12 UTC 2019
+        Hashed Sub: preferred symmetric algorithms(sub 11)(4 bytes)
+                Sym alg - AES with 256-bit key(sym 9)
+                Sym alg - AES with 192-bit key(sym 8)
+                Sym alg - AES with 128-bit key(sym 7)
+                Sym alg - Triple-DES(sym 2)
+        Hashed Sub: preferred hash algorithms(sub 21)(5 bytes)
+                Hash alg - SHA256(hash 8)
+                Hash alg - SHA384(hash 9)
+                Hash alg - SHA512(hash 10)
+                Hash alg - SHA224(hash 11)
+                Hash alg - SHA1(hash 2)
+        Hashed Sub: preferred compression algorithms(sub 22)(3 bytes)
+                Comp alg - ZLIB &amp;lt;RFC1950&amp;gt;(comp 2)
+                Comp alg - BZip2(comp 3)
+                Comp alg - ZIP &amp;lt;RFC1951&amp;gt;(comp 1)
+        Hashed Sub: features(sub 30)(1 bytes)
+                Flag - Modification detection (packets 18 and 19)
+        Hashed Sub: key server preferences(sub 23)(1 bytes)
+                Flag - No-modify
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0xE86157A2B2117F02
+        Hash left 2 bytes - 44 0d
+        RSA m^d mod n(2048 bits) - ...
+                -&amp;gt; PKCS-1
+Old: User ID Packet(tag 13)(34 bytes)
+        User ID - Alice (second) &amp;lt;alice@examle2.com&amp;gt;
+Old: Signature Packet(tag 2)(340 bytes)
+        Ver 4 - new
+        Sig type - Positive certification of a User ID and Public Key packet(0x13).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - 8d f6 26 30 68 d8 26 d5 69 1e 2d 85 e8 61 57 a2 b2 11 7f 02
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Mon Nov 20 12:26:49 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to certify other keys
+                Flag - This key may be used to sign data
+        Hashed Sub: key expiration time(sub 9)(4 bytes)
+                Time - Wed Nov 20 12:23:12 UTC 2019
+        Hashed Sub: preferred symmetric algorithms(sub 11)(4 bytes)
+                Sym alg - AES with 256-bit key(sym 9)
+                Sym alg - AES with 192-bit key(sym 8)
+                Sym alg - AES with 128-bit key(sym 7)
+                Sym alg - Triple-DES(sym 2)
+        Hashed Sub: preferred hash algorithms(sub 21)(5 bytes)
+                Hash alg - SHA256(hash 8)
+                Hash alg - SHA384(hash 9)
+                Hash alg - SHA512(hash 10)
+                Hash alg - SHA224(hash 11)
+                Hash alg - SHA1(hash 2)
+        Hashed Sub: preferred compression algorithms(sub 22)(3 bytes)
+                Comp alg - ZLIB &amp;lt;RFC1950&amp;gt;(comp 2)
+                Comp alg - BZip2(comp 3)
+                Comp alg - ZIP &amp;lt;RFC1951&amp;gt;(comp 1)
+        Hashed Sub: features(sub 30)(1 bytes)
+                Flag - Modification detection (packets 18 and 19)
+        Hashed Sub: key server preferences(sub 23)(1 bytes)
+                Flag - No-modify
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0xE86157A2B2117F02
+        Hash left 2 bytes - 28 ee
+        RSA m^d mod n(2046 bits) - ...
+                -&amp;gt; PKCS-1
+Old: Public Subkey Packet(tag 14)(269 bytes)
+        Ver 4 - new
+        Public key creation time - Mon Nov 20 12:23:12 UTC 2017
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        RSA n(2048 bits) - ...
+        RSA e(17 bits) - ...
+Old: Signature Packet(tag 2)(316 bytes)
+        Ver 4 - new
+        Sig type - Subkey Binding Signature(0x18).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - 8d f6 26 30 68 d8 26 d5 69 1e 2d 85 e8 61 57 a2 b2 11 7f 02
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Mon Nov 20 12:23:12 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to encrypt communications
+                Flag - This key may be used to encrypt storage
+        Hashed Sub: key expiration time(sub 9)(4 bytes)
+                Time - Wed Nov 20 12:23:12 UTC 2019
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0xE86157A2B2117F02
+        Hash left 2 bytes - 05 a3
+        RSA m^d mod n(2047 bits) - ...
+                -&amp;gt; PKCS-1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ユーザID毎に電子署名（自己署名）が付与されているのがお分かりだろうか。&lt;/p&gt;
+
+&lt;p&gt;ひとつの鍵に複数のユーザIDを付与することに関しては昔から賛否あるのだが，手段が提供されていることは覚えておいて損はないだろう。&lt;/p&gt;
+
+&lt;h3 id=&#34;用途によって鍵を使い分けたい場合&#34;&gt;用途によって鍵を使い分けたい場合&lt;/h3&gt;
+
+&lt;p&gt;たとえば，暗号化メール，リリースファイルの電子署名， git commit 時の電子署名といった用途毎に異なる鍵を使いたいことがある。
+その場合でもそれぞれ鍵を生成して運用すればいいのだが，新しい鍵を作る度にそれぞれの鍵とやり取りを行うユーザが毎度電子署名を行うのは相当に煩雑な作業である。&lt;/p&gt;
+
+&lt;p&gt;そこで「ルート鍵」と「運用鍵」の2種類の鍵を作って運用する。
+具体的にはルート鍵と各運用鍵との間で電子署名を交わす。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  rt[Root Key]-- Digital Sign --&gt;op1[Operation Key 1]
+  op1-- Digital Sign --&gt;rt
+
+  rt-- Digital Sign --&gt;op2[Operation Key 2]
+  op2-- Digital Sign --&gt;rt
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;運用鍵とやり取りするユーザは，各運用鍵ではなく，ルート鍵と署名を交わし信用度を設定することによって各運用鍵の有効性を確認できる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  usr[User&#39;s Key]
+  rt[Root Key]
+  op1[Operation Key 1]
+  op2[Operation Key 2]
+
+  usr-- Digital Sign --&gt;rt
+  usr-. trust .-&gt;rt
+  rt-- Digital Sign --&gt;usr
+
+  usr-. validate .-&gt;op1
+  rt-- Digital Sign --&gt;op1
+
+  rt-- Digital Sign --&gt;op2
+  usr-. validate .-&gt;op2
+
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;この方法ならユーザも各運用鍵もルート鍵とのみ信頼関係を構築すればいいので柔軟な運用が可能になる。
+欠点としてはルート鍵の管理の手間が多く責務も重くなるため，かなり慎重な運用が求められることであろう。&lt;/p&gt;
+
+&lt;p&gt;では実際にやってみよう。&lt;/p&gt;
+
+&lt;p&gt;ルート鍵は電子署名を行うだけの鍵なので，以下のように署名専用鍵として作成する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --full-gen-key
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+gpg: keybox&amp;#39;C:/Users/username/AppData/Roaming/gnupg/pubring.kbx&amp;#39;が作成されました
+ご希望の鍵の種類を選択してください:
+   (1) RSA と RSA (デフォルト)
+   (2) DSA と Elgamal
+   (3) DSA (署名のみ)
+   (4) RSA (署名のみ)
+あなたの選択は? 3
+DSA 鍵は 1024 から 3072 ビットの長さで可能です。
+鍵長は? (2048) 3072
+要求された鍵長は3072ビット
+鍵の有効期限を指定してください。
+         0 = 鍵は無期限
+      &amp;lt;n&amp;gt;  = 鍵は n 日間で期限切れ
+      &amp;lt;n&amp;gt;w = 鍵は n 週間で期限切れ
+      &amp;lt;n&amp;gt;m = 鍵は n か月間で期限切れ
+      &amp;lt;n&amp;gt;y = 鍵は n 年間で期限切れ
+鍵の有効期間は? (0)0
+鍵の有効期間は? (0)は無期限です
+これで正しいですか? (y/N) y
+
+GnuPGはあなたの鍵を識別するためにユーザIDを構成する必要があります。
+
+本名: Alice
+電子メール・アドレス: alice@examle.com
+コメント: root
+次のユーザIDを選択しました:
+    &amp;#34;Alice (root) &amp;lt;alice@examle.com&amp;gt;&amp;#34;
+
+名前(N)、コメント(C)、電子メール(E)の変更、またはOK(O)か終了(Q)? o
+たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+成器に十分なエントロピーを供給する機会を与えることができます。
+gpg: *警告*: いくつかのOpenPGPプログラムはこのダイジェスト長のDSA鍵を扱うことができません
+
+gpg: C:/Users/username/AppData/Roaming/gnupg/trustdb.gpg: 信用データベースができました
+gpg: 鍵FFA6AEB318E21E7Aを究極的に信用するよう記録しました
+gpg: ディレクトリ&amp;#39;C:/Users/username/AppData/Roaming/gnupg/openpgp-revocs.d&amp;#39;が作成されました
+gpg: 失効証明書を &amp;#39;C:/Users/username/AppData/Roaming/gnupg/openpgp-revocs.d\2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A.rev&amp;#39; に保管
+しました。
+公開鍵と秘密鍵を作成し、署名しました。
+
+この鍵は暗号化には使用できないことに注意してください。暗号化を行うには、
+&amp;#34;--edit-key&amp;#34;コマンドを使って副鍵を生成してください。
+pub   dsa3072 2017-11-21 [SC]
+      2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+uid                      Alice (root) &amp;lt;alice@examle.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;--full-gen-key&lt;/code&gt; オプションで鍵作成モードを起動&lt;/li&gt;
+&lt;li&gt;公開鍵のアルゴリズムとして「(3) DSA (署名のみ)」を選択&lt;/li&gt;
+&lt;li&gt;鍵長を3072ビットで指定&lt;/li&gt;
+&lt;li&gt;有効期限を無期限（= &lt;code&gt;0&lt;/code&gt;）に設定して &lt;code&gt;y&lt;/code&gt; で確定&lt;/li&gt;
+&lt;li&gt;本名，電子メール・アドレス，コメントを指定して &lt;code&gt;o&lt;/code&gt; で確定&lt;/li&gt;
+&lt;li&gt;パスフレーズを設定（Pinentry で2回入力）&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;code&gt;--full-gen-key&lt;/code&gt; オプションを使ってるので操作手順が少し多いのが難である。
+次に運用鍵を用意する。
+最初の &lt;code&gt;--gen-key&lt;/code&gt; オプションを使ったやり方でこんな公開鍵を作ってみた。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys 990BB11E9219BA613733A5829DBB5E987E95A3EF
+pub   rsa2048 2017-11-21 [SC] [有効期限: 2019-11-21]
+      990BB11E9219BA613733A5829DBB5E987E95A3EF
+uid           [  究極  ] Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-21 [E] [有効期限: 2019-11-21]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この鍵にルート鍵で電子署名を施す。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u 2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A --sign-key 990BB11E9219BA613733A5829DBB5E987E95A3EF
+
+sec  rsa2048/9DBB5E987E95A3EF
+     作成: 2017-11-21  有効期限: 2019-11-21  利用法: SC
+     信用: 究極          有効性: 究極
+ssb  rsa2048/1E497E54FD1C6C87
+     作成: 2017-11-21  有効期限: 2019-11-21  利用法: E
+[  究極  ] (1). Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+
+
+sec  rsa2048/9DBB5E987E95A3EF
+     作成: 2017-11-21  有効期限: 2019-11-21  利用法: SC
+     信用: 究極          有効性: 究極
+  主鍵フィンガープリント: 990B B11E 9219 BA61 3733  A582 9DBB 5E98 7E95 A3EF
+
+     Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+
+この鍵は2019-11-21で期限が切れます。
+本当にこの鍵にあなたの鍵&amp;#34;Alice (root) &amp;lt;alice@examle.com&amp;gt;&amp;#34;で署名してよいですか
+(FFA6AEB318E21E7A)
+
+本当に署名しますか? (y/N) y&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;電子署名の状態は感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-sigs 990BB11E9219BA613733A5829DBB5E987E95A3EF
+pub   rsa2048 2017-11-21 [SC] [有効期限: 2019-11-21]
+      990BB11E9219BA613733A5829DBB5E987E95A3EF
+uid           [  究極  ] Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sig 3        9DBB5E987E95A3EF 2017-11-21  Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sig          FFA6AEB318E21E7A 2017-11-21  Alice (root) &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-21 [E] [有効期限: 2019-11-21]
+sig          9DBB5E987E95A3EF 2017-11-21  Alice (commit) &amp;lt;alice@examle.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;主鍵にルート鍵の署名が付与されているのが分かるだろうか。&lt;/p&gt;
+
+&lt;p&gt;同様にルート鍵に対しても運用鍵で署名を施しておく。
+結果はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-sigs 2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+pub   dsa3072 2017-11-21 [SC]
+      2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+uid           [  究極  ] Alice (root) &amp;lt;alice@examle.com&amp;gt;
+sig 3        FFA6AEB318E21E7A 2017-11-21  Alice (root) &amp;lt;alice@examle.com&amp;gt;
+sig          9DBB5E987E95A3EF 2017-11-21  Alice (commit) &amp;lt;alice@examle.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;今度は別の環境を用意する。&lt;/p&gt;
+
+&lt;p&gt;まずは Bob の公開鍵をこんな感じで作ってみた。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys bobby
+pub   rsa2048 2017-11-21 [SC] [有効期限: 2019-11-21]
+      A7E072D768DABA25E7F5AAB00A27C4ADAD0ECEF6
+uid           [  究極  ] Bobby &amp;lt;bob@example.com&amp;gt;
+sub   rsa2048 2017-11-21 [E] [有効期限: 2019-11-21]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この環境に先程の Alice の公開鍵（ルート鍵と運用鍵）をインポートしてみる。
+インポート直後の公開鍵はこんな感じになっている。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-21 [SC]
+      2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+uid           [  不明  ] Alice (root) &amp;lt;alice@examle.com&amp;gt;
+
+pub   rsa2048 2017-11-21 [SC] [有効期限: 2019-11-21]
+      990BB11E9219BA613733A5829DBB5E987E95A3EF
+uid           [  不明  ] Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-21 [E] [有効期限: 2019-11-21]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;まだ署名されていない未知の鍵なので有効性はどちらも「不明」である。&lt;/p&gt;
+
+&lt;p&gt;では，この Alice の公開鍵のうち，ルート鍵に先ほど作った Bob の鍵で署名しよう。
+結果はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-sigs 2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+pub   dsa3072 2017-11-21 [SC]
+      2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+uid           [  充分  ] Alice (root) &amp;lt;alice@examle.com&amp;gt;
+sig 3        FFA6AEB318E21E7A 2017-11-21  Alice (root) &amp;lt;alice@examle.com&amp;gt;
+sig          9DBB5E987E95A3EF 2017-11-21  Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sig          0A27C4ADAD0ECEF6 2017-11-21  Bobby &amp;lt;bob@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この時点で Bob （の環境）から見た Alice の公開鍵の有効性は以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-21 [SC]
+      2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+uid           [  充分  ] Alice (root) &amp;lt;alice@examle.com&amp;gt;
+
+pub   rsa2048 2017-11-21 [SC] [有効期限: 2019-11-21]
+      990BB11E9219BA613733A5829DBB5E987E95A3EF
+uid           [ 未定義 ] Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-21 [E] [有効期限: 2019-11-21]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;署名したルート鍵は「充分」だが運用鍵の方は「未定義」なのが分かるだろうか。
+ここで更に Alice のルート鍵の信用度も設定する。
+信用度の設定は &lt;code&gt;--edit-key&lt;/code&gt; オプションを使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --edit-key 2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+
+pub  dsa3072/FFA6AEB318E21E7A
+     作成: 2017-11-21  有効期限: 無期限      利用法: SC
+     信用: 不明の        有効性: 充分
+[  充分  ] (1). Alice (root) &amp;lt;alice@examle.com&amp;gt;
+
+gpg&amp;gt; trust
+pub  dsa3072/FFA6AEB318E21E7A
+     作成: 2017-11-21  有効期限: 無期限      利用法: SC
+     信用: 不明の        有効性: 充分
+[  充分  ] (1). Alice (root) &amp;lt;alice@examle.com&amp;gt;
+
+他のユーザの鍵を正しく検証するために、このユーザの信用度を決めてください
+(パスポートを見せてもらったり、他から得たフィンガープリントを検査したり、などなど)
+
+  1 = 知らない、または何とも言えない
+  2 = 信用しない
+  3 = まぁまぁ信用する
+  4 = 充分に信用する
+  5 = 究極的に信用する
+  m = メーン・メニューに戻る
+
+あなたの決定は? 4
+
+pub  dsa3072/FFA6AEB318E21E7A
+     作成: 2017-11-21  有効期限: 無期限      利用法: SC
+     信用: 充分          有効性: 充分
+[  充分  ] (1). Alice (root) &amp;lt;alice@examle.com&amp;gt;
+プログラムを再起動するまで、表示された鍵の有効性は正しくないかもしれない、
+ということを念頭においてください。
+
+gpg&amp;gt; save
+鍵は無変更なので更新は不要です。&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;--edit-key&lt;/code&gt; オプションで編集モードを起動&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;trust&lt;/code&gt; コマンドで信用度設定モードにする&lt;/li&gt;
+&lt;li&gt;「4 = 充分に信用する」をセットする&lt;/li&gt;
+&lt;li&gt;念のため &lt;code&gt;save&lt;/code&gt; コマンドで保存と終了&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;この状態でもう一度 Alice の公開鍵を見てみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-21 [SC]
+      2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+uid           [  充分  ] Alice (root) &amp;lt;alice@examle.com&amp;gt;
+
+pub   rsa2048 2017-11-21 [SC] [有効期限: 2019-11-21]
+      990BB11E9219BA613733A5829DBB5E987E95A3EF
+uid           [  充分  ] Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-21 [E] [有効期限: 2019-11-21]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;運用鍵の有効性が変わったことが分かると思う。
+ちなみにルート鍵の信頼度を「まぁまぁ信用する」にすると，こんな感じになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-21 [SC]
+      2D5A462785C5D42ADE2AEBA9FFA6AEB318E21E7A
+uid           [  充分  ] Alice (root) &amp;lt;alice@examle.com&amp;gt;
+
+pub   rsa2048 2017-11-21 [SC] [有効期限: 2019-11-21]
+      990BB11E9219BA613733A5829DBB5E987E95A3EF
+uid           [まぁまぁ] Alice (commit) &amp;lt;alice@examle.com&amp;gt;
+sub   rsa2048 2017-11-21 [E] [有効期限: 2019-11-21]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;以上がルート鍵を使った鍵管理である。
+独りでこれをやるメリットは殆どないが，プロジェクト・チーム等で一括して鍵管理を行いたい場合は有効な手段だと思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;有効期限について&#34;&gt;有効期限について&lt;/h2&gt;
+
+&lt;p&gt;この記事ではすべての鍵を「無期限」で設定している。
+公開鍵の有効期限をどのようにするかは意見が別れるところだと思うが，私個人の意見としては原則として「無期限」にすることをお薦めする。
+何故なら &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵は永続性と一貫性が重要だからである。&lt;/p&gt;
+
+&lt;p&gt;公開鍵に有効期限を設ける理由としては&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;期間の決まったプロジェクト内でのみ使用する鍵である&lt;/li&gt;
+&lt;li&gt;チーム・メンバの出入りが激しく無期限では却って管理が煩雑になる&lt;/li&gt;
+&lt;li&gt;鍵のセキュリティ強度の問題から期限を切って運用したい（たとえば RSA/2048ビット鍵が acceptable なのは2030年までである）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;といったところだろうか。
+これならば，これまで述べたようにルート鍵と運用鍵を分けて，ルート鍵の方で永続性と一貫性を担保するように運用していくのがよいだろう。&lt;/p&gt;
+
+&lt;p&gt;自分の鍵であれば有効期限はいつでも変更できるのだが，有効期限を随時延長していく運用は鍵のオーナーもそれを使うユーザも手間が増えるだけであまりメリットがない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:own1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:own1&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。
+&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵は（今のところ）利用するユーザに公開鍵の変更を自動的に通知・配信する仕組みがないので（それとも cron で鍵サーバへアクセスする？），ユーザ側の手間の多い運用では取りこぼしが出る可能性が大きくなる。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/openpgp.shtml&#34;&gt;わかる！ OpenPGP 暗号&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/using-gnupg-modern-version-1/&#34;&gt;GnuPG for Windows ― インストール編&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/using-gnupg-modern-version-2/&#34;&gt;GnuPG for Windows ― gpg-agent について&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:ksp1&#34;&gt;相手の公開鍵に電子署名するには (1) 相手の公開鍵を貰って &lt;code&gt;--import&lt;/code&gt; （または鍵サーバから &lt;code&gt;--recv-keys&lt;/code&gt;）する (2) インポートした鍵に &lt;code&gt;--sign-key&lt;/code&gt; する (3) 署名した公開鍵を &lt;code&gt;--export&lt;/code&gt; して相手に返す（または鍵サーバへ &lt;code&gt;--send-keys&lt;/code&gt;） といった手順を踏む。これをひとりひとりやるのは割と面倒なので，複数人が一度に電子署名を交わすために「&lt;a href=&#34;https://en.wikipedia.org/wiki/Key_signing_party&#34; title=&#34;Key signing party - Wikipedia&#34;&gt;キーサイン・パーティ（key signing party）&lt;/a&gt;」が行われることがある。日本ではあまり聞かないけど。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ksp1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:tm1&#34;&gt;もう少し詳しく言うと，公開鍵への電子署名の際に「信用度」を設定し，集まった「信用度」の累積から公開鍵の「有効性」を機械的に判定する。なので（信用度が分からない）全く未知の人の電子署名がいくらあっても「有効性」は上がりにくい。また公開鍵に電子署名を施すことは相手の鍵をある程度以上信用していることになるため，よく分からない鍵に対して安易に電子署名を行うことは避けるべきである。ちなみに，現行バージョンの &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では信用度は &lt;code&gt;trustdb.gpg&lt;/code&gt; ファイルを使って鍵束とは独立に管理される。また web of trust 以外にも X.509 や &lt;a href=&#34;https://en.wikipedia.org/wiki/Trust_on_first_use&#34; title=&#34;Trust on first use - Wikipedia&#34;&gt;Tofu (Trust on first use)&lt;/a&gt; といった信用モデルもサポートしている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:tm1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gk1&#34;&gt;暗号アルゴリズムや鍵長などを細かく指定したい場合は &lt;code&gt;--full-gen-key&lt;/code&gt; オプションを使う。また流行りの ECC を使いたいのであれば &lt;code&gt;--expert&lt;/code&gt; オプションも付加する。更に &lt;code&gt;--batch&lt;/code&gt; オプションを使う方法もある。 &lt;code&gt;--batch&lt;/code&gt; オプションの使い方は “&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/Unattended-GPG-key-generation.html&#34;&gt;Unattended GPG key generation&lt;/a&gt;” が参考になる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gk1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:k1&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵は1つの主鍵（primary key）と0個以上の副鍵（subkey）で構成されている。主鍵は必ず電子署名用の鍵になっていて，この主鍵にユーザID（とその自己署名）や他の鍵からの電子署名が付与される。副鍵は暗号化または電子署名用の鍵である。たとえば，データの暗号化と復号は実際にはこの副鍵を使って行う。副鍵は個別に追加したり失効したりできる。ちなみに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では通常のやり方では暗号化機能のみの鍵は作れない。電子署名機能のみの鍵は作ることができる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:k1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:own1&#34;&gt;公開鍵の更新を鍵オーナーの存在証明に使うのは，あまり筋のいい運用とは思えない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:own1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>GnuPG 2.2.3 がリリースされた — しっぽのさきっちょ</title>
@@ -1675,286 +2507,6 @@ b_0 + \cfrac{c_1}{b_1 +
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gcd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:quran2&#34;&gt;「&lt;a href=&#34;http://30th.rcast.u-tokyo.ac.jp/future/future01.html&#34;&gt;イスラームの宗教と脳の機能は交差する。&lt;/a&gt;」には「最後」について「宗教的に画期的な「発明」」と書かれている： 「イスラーム教徒は「最後の預言者であるムハンマドに託された最後の啓示の言葉」としてコーランを認識することで、「最後の次」の啓示というものが出てくることを、単に認識しません。誰かがどれだけよく考え抜いて、現代のグローバル化した人類社会の新たな環境に適合した新たな啓示の法はこうだ、と新しい宗教を提示しても、コーランの内容と比べてその新しい宗教が優れているか否か、ということをイスラーム教徒の側は誰も論じません。論じる必然性を全く感じないからです」
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:quran2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry>
-	
-	<entry>
-		<title>WPA2 脆弱性（KRACKs）に関する覚え書き — しっぽのさきっちょ</title>
-		<link rel="alternate" type="text/html" href="http://text.baldanders.info/remark/2017/10/breaking-wpa2-by-forcing-nonce-reuse/" />
-		<id>tag:text.Baldanders.info,2017-10-17:/remark/2017/10/breaking-wpa2-by-forcing-nonce-reuse/</id>
-		<published>2017-10-17T20:00:30+09:00</published>
-		<updated>2017-11-15T15:47:24+09:00</updated>
-		<summary>今回は，世界中で大騒ぎになっている Wi-Fi の WPA2 認証に関する脆弱性について。</summary>
-		
-			<author>
-				<name>Spiegel</name>
-				<uri>http://www.baldanders.info/spiegel/profile/</uri>
-			</author>
-			
-	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		
-		<category term="remark" label="remark" scheme="http://text.baldanders.info/remark" />
-		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
-
-&lt;p&gt;昨夜は早めに寝落ちしてしまったのだが，その間に TL が随分賑やかになっていた。
-そこで WPA2 脆弱性の話と中性子星衝突を重力波望遠鏡で観測した話をまとめておく。&lt;/p&gt;
-
-&lt;p&gt;今回は，世界中で大騒ぎになっている Wi-Fi の WPA2 認証に関する脆弱性について。
-&lt;a href=&#34;http://text.baldanders.info/remark/2017/09/vulnerability-in-bluetooth-implementation/&#34; title=&#34;Bluetooth 実装の脆弱性に関する覚え書き&#34;&gt;Bluetooth でやらかした&lt;/a&gt;ばっかりなのに追い打ちですやん。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.krackattacks.com/&#34;&gt;KRACK Attacks: Breaking WPA2&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;span&gt;&lt;a href=&#34;https://papers.mathyvanhoef.com/ccs2017.pdf&#34;&gt;Key Reinstallation Attacks: Forcing Nonce Reuse in WPA2 &lt;sup&gt;&lt;i class=&#34;fa fa-file-pdf-o&#34;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/span&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.kb.cert.org/vuls/id/228519&#34;&gt;Vulnerability Note VU#228519 - Wi-Fi Protected Access II (WPA2) handshake traffic can be manipulated to induce nonce and session key reuse&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.ipa.go.jp/security/ciadr/vul/20171017_WPA2.html&#34;&gt;WPA2 における複数の脆弱性について：IPA 独立行政法人 情報処理推進機構&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://jvn.jp/vu/JVNVU90609033/&#34;&gt;JVNVU#90609033: Wi-Fi Protected Access II (WPA2) ハンドシェイクにおいて Nonce およびセッション鍵が再利用される問題&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://d.hatena.ne.jp/Kango/20171016/1488907259&#34;&gt;WPA2の脆弱性 KRACKsについてまとめてみた - piyolog&lt;/a&gt; : オススメ&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;脆弱性の内容&#34;&gt;脆弱性の内容&lt;/h2&gt;
-
-&lt;p&gt;通称 KRACKs (&lt;strong&gt;K&lt;/strong&gt;ey &lt;strong&gt;R&lt;/strong&gt;einstallation &lt;strong&gt;A&lt;/strong&gt;tta&lt;strong&gt;cks&lt;/strong&gt;)。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;q&gt;WPA2 プロトコルには、ハンドシェイク中に Nonce およびセッション鍵が再利用される問題があります。攻撃者はアクセスポイント (AP) とクライアントの間で Man-in-the-Middle 攻撃を成功させた後、ハンドシェイク中に特定のメッセージを AP またはクライアントに再送することで、Nonce やリプレイカウンタ をリセットし、すでに使用されているセッション鍵を再利用させることが可能です。&lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;http://jvn.jp/vu/JVNVU90609033/&#34;&gt;Wi-Fi Protected Access II (WPA2) ハンドシェイクにおいて Nonce およびセッション鍵が再利用される問題&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;div style=&#34;position: relative; margin: 0 2rem; padding-bottom: 56.25%; padding-top: 30px; height: 0; overflow: hidden;&#34;&gt;
-	&lt;iframe class=&#34;youtube-player&#34; style=&#34;position: absolute; top: 0; left: 0; width: 100%; height: 100%;&#34; allowfullscreen frameborder=&#34;0&#34; src=&#34;https://www.youtube-nocookie.com/embed/Oh4WURZoR98&#34; allowfullscreen&gt;&lt;/iframe&gt;
-&lt;/div&gt;
-&lt;figcaption&gt;&lt;a href=&#34;https://www.youtube.com/watch?v=Oh4WURZoR98&#34;&gt;KRACK Attacks: Bypassing WPA2 against Android and Linux - YouTube&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;Nonce （ノンスまたはナンスと読むらしい）ってのは暗号通信の最初にやり取りする使い捨てのランダムな値で，これを認証情報に混ぜることで第三者による「リプレイ攻撃（replay attack）」を防ぐことができる。
-今回はそういうのが全部チャイされてしまうわけやね。&lt;/p&gt;
-
-&lt;p&gt;これが成功すると中間者攻撃（man-in-the-middle attack）が成立してしまい，通信内容の盗み見や改竄ができるようになってしまう。
-ただし影響範囲は無線 LAN 内に限定されるため，インターネット越しに攻撃を受けるわけではない。
-また暗号通信に使われる暗号アルゴリズムには脆弱性はない。&lt;/p&gt;
-
-&lt;p&gt;具体的な脆弱性の内容は以下の通り（&lt;a href=&#34;http://jvn.jp/vu/JVNVU90609033/&#34;&gt;Vulnerability Note VU#228519&lt;/a&gt; より抜粋）。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;4-way ハンドシェイクにおける Pairwise Key の再利用 (CVE-2017-13077)&lt;/li&gt;
-&lt;li&gt;4-way ハンドシェイクにおける Group Key の再利用 (CVE-2017-13078)&lt;/li&gt;
-&lt;li&gt;4-way ハンドシェイクにおける Integrity Group Key の再利用 (CVE-2017-13079)&lt;/li&gt;
-&lt;li&gt;Group-key ハンドシェイクにおける Group Key の再利用 (CVE-2017-13080)&lt;/li&gt;
-&lt;li&gt;Group-key ハンドシェイクにおける Integrity Group Key の再利用 (CVE-2017-13081)&lt;/li&gt;
-&lt;li&gt;Fast BSS Transition 再接続リクエストの再送許可とその処理における Pairwise Key の再利用 (CVE-2017-13082)&lt;/li&gt;
-&lt;li&gt;PeerKey ハンドシェイクにおける STK Key の再利用 (CVE-2017-13084)&lt;/li&gt;
-&lt;li&gt;Tunneled Direct-Link Setup (TDLS) ハンドシェイクにおける TDLS PeerKey (TPK) Key の再利用 (CVE-2017-13086)&lt;/li&gt;
-&lt;li&gt;Wireless Network Management (WNM) Sleep Mode レスポンスフレーム処理時の Group Key (GTK) の再利用 (CVE-2017-13087)&lt;/li&gt;
-&lt;li&gt;Wireless Network Management (WNM) Sleep Mode レスポンスフレーム処理時の Integrity Ggroup Key (IGTK) の再利用 (CVE-2017-13088)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;影響度-cvss&#34;&gt;影響度（CVSS）&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://jvn.jp/vu/JVNVU90609033/&#34;&gt;JVNVU#90609033: Wi-Fi Protected Access II (WPA2) ハンドシェイクにおいて Nonce およびセッション鍵が再利用される問題&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;CVSSv3 基本評価値 5.0 (&lt;code&gt;CVSS:3.0/AV:A/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L&lt;/code&gt;)&lt;/strong&gt;&lt;/p&gt;
-
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th align=&#34;right&#34;&gt;基本評価基準&lt;/th&gt;
-&lt;th align=&#34;left&#34;&gt;評価値&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;攻撃元区分（AV）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;関節（A）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;攻撃条件の複雑さ（AC）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;高（H）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;必要な特権レベル（PR）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;不要（N）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;ユーザ関与レベル（UI）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;不要（N）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;スコープ（S）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;変更なし（U）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;情報漏えいの可能性（機密性への影響, C）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;低（L）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;情報改ざんの可能性（完全性への影響, I）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;低（L）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td align=&#34;right&#34;&gt;業務停止の可能性（可用性への影響, A）&lt;/td&gt;
-&lt;td align=&#34;left&#34;&gt;低（L）&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;CVSS については&lt;a href=&#34;http://text.baldanders.info/remark/2015/cvss-v3-metrics-in-jvn/&#34;&gt;解説ページ&lt;/a&gt;を参照のこと。&lt;/p&gt;
-
-&lt;h2 id=&#34;影響を受ける製品&#34;&gt;影響を受ける製品&lt;/h2&gt;
-
-&lt;p&gt;Wi-Fi 通信が可能なあらゆる機器が対象となる。
-たとえば無線 LAN ルータ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:rt1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:rt1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;，スマホ等の携帯端末，ネットワーク家電などが考えられる。&lt;/p&gt;
-
-&lt;h2 id=&#34;対策-回避策&#34;&gt;対策・回避策&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;日本の &lt;a href=&#34;http://jvn.jp/vu/JVNVU90609033/&#34;&gt;JVN&lt;/a&gt;，および &lt;a href=&#34;https://www.kb.cert.org/vuls/id/228519&#34;&gt;CERT/CC&lt;/a&gt; の各ページにはベンダ企業のステータスが掲載されているので確認すること
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://tools.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-20171016-wpa&#34;&gt;Multiple Vulnerabilities in Wi-Fi Protected Access and Wi-Fi Protected Access II&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.iodata.jp/support/information/2017/wpa2/&#34;&gt;WPA2の脆弱性に関する弊社調査・対応状況について | IODATA アイ・オー・データ機器&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://buffalo.jp/support_s/t20171017.html&#34;&gt;大切なお知らせ ｜ BUFFALO バッファロー&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.watchguard.co.jp/security-news/wpa-and-wpa2-vulnerabilities-update.html&#34;&gt;WPA と WPA2 の脆弱性に関する最新情報 – UTM/NGFWでマルウェア・標的型攻撃対策｜ウォッチガード・テクノロジー&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.rtpro.yamaha.co.jp/RT/FAQ/Security/JVNVU90609033.html&#34;&gt;「Wi-Fi Protected Access II (WPA2) ハンドシェイクにおいて Nonce およびセッション鍵が再利用される問題」について (FAQ for YAMAHA RT Series / Security)&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.dlink-jp.com/support&#34;&gt;サポート | D-Link Japan&lt;/a&gt; : 「「WPA2の脆弱性」 に関する弊社調査状況について」をクリック&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.elecom.co.jp/support/news/20171018/&#34;&gt;WPA2の脆弱性に関する弊社調査・対応状況について - 重要なお知らせ - ELECOM |&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.aterm.jp/product/atermstation/info/2017/info1018.html&#34;&gt;【重要】「WPA2」の脆弱性に関するお知らせ| お知らせ | AtermStation&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://japan.cnet.com/release/30213798/&#34;&gt;【お知らせ】Wi-Fiの暗号化技術「WPA2」脆弱性対策について - CNET Japan&lt;/a&gt; : 日本ヒューレット・パッカード株式会社からの報道資料&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.furunosystems.co.jp/info/detail/id=820&#34;&gt;【重要なお知らせ】無線LAN製品のWPA2の脆弱性に関するお知らせ｜フルノシステムズ&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.furunosystems.co.jp/info/detail/id=822&#34;&gt;【重要なお知らせ】無線ハンディターミナル製品のWPA2の脆弱性に関するお知らせ｜フルノシステムズ&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.planex.co.jp/news/info/20171019_info.shtml&#34;&gt;WPA2の脆弱性への対応についてのお知らせ｜PLANEX&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.toshiba-memory.co.jp/company/news/20171017-1.html&#34;&gt;無線LAN搭載 SDメモリカード/FlashAir™における「WPA2の鍵情報の生成・管理に関する脆弱性」について｜ニュース｜会社情報｜東芝メモリ&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.allied-telesis.co.jp/support/list/faq/vuls/20171019.html&#34;&gt;サポート｜Wi-Fi Protected Access II (WPA2) ハンドシェイクに関する脆弱性&lt;/a&gt; : アライドテレシス株式会社&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://community.sophos.com/kb/ja-jp/127658&#34;&gt;勧告: Sophos Wireless への WPA および WPA2 の脆弱性による鍵再インストール攻撃 (KRACKs) の影響 - Sophos Community&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.tp-link.jp/faq-1970.html&#34;&gt;WPA2 セキュリティの脆弱性に関して(KRACKs) - TP-Link&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.denso-wave.com/ja/info/detail__991.html&#34;&gt;WPA2の脆弱性に関するBHT製品への影響と対応｜お知らせ｜デンソーウェーブ&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;Android については2017年11月の修正で対応しているようだ
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://source.android.com/security/bulletin/2017-11-01&#34;&gt;Android Security Bulletin—November 2017  |  Android Open Source Project&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;ただし端末を提供しているベンダ企業やキャリア企業が対応しない限り対応されない。特に古い機種や古いバージョンの OS を使い続けている場合は対応されないと思ったほうがいいだろう&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;Apple 製品については修正版がリリースされている
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://support.apple.com/ja-jp/HT208220&#34;&gt;watchOS 4.1 のセキュリティコンテンツについて - Apple サポート&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://support.apple.com/ja-jp/HT208222&#34;&gt;About the security content of iOS 11.1 - Apple サポート&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://support.apple.com/ja-jp/HT208221&#34;&gt;About the security content of macOS High Sierra 10.13.1, Security Update 2017-001 Sierra, and Security Update 2017-004 El Capitan - Apple サポート&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://support.apple.com/ja-jp/HT208219&#34;&gt;tvOS 11.1 のセキュリティコンテンツについて - Apple サポート&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;Windows については Microsoft からの10月のアップデートで修正されている
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/CVE-2017-13080&#34;&gt;CVE-2017-13080 | Windows Wireless WPA Group Key Reinstallation Vulnerability&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;Linux や FreeBSD 等については対応が始まっている。ディストリビュータの情報に注意すること
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://oss.sios.com/security/wpa-security-vulnerability-20171016&#34;&gt;WPA2の脆弱性(KRACK Attacks / KRACKs )とCVE情報(CVE-2017-13077 - CVE-2017-13088) — | サイオスOSS | サイオステクノロジー&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;なお GitHub にて CVE-2017-13082（Fast BSS Transition 再接続リクエストの再送許可とその処理における Pairwise Key の再利用）についてのチェックツールが公開されている模様（CVE-2017-13082 は 802.11r 方式を使うアクセスポイントに影響する）&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/vanhoefm/krackattacks-test-ap-ft&#34;&gt;vanhoefm/krackattacks-test-ap-ft&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;サポートが受けられない場合，回避方法としては以下が挙げられるだろう。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Wi-Fi を使用しない
-
-&lt;ul&gt;
-&lt;li&gt;公衆空間で Wi-Fi を使わない場合は無効にしておく&lt;/li&gt;
-&lt;li&gt;公衆無線 LAN はリスクが高いので利用しない&lt;/li&gt;
-&lt;li&gt;可能であれば有線で接続する&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;暗号化通信を利用する
-
-&lt;ul&gt;
-&lt;li&gt;Web でのやりとりには HTTPS を使う（&lt;a href=&#34;https://developer.mozilla.org/ja/docs/Web/Security/HTTP_Strict_Transport_Security&#34; title=&#34;HTTP Strict Transport Security - Web セキュリティ | MDN&#34;&gt;HSTS (HTTP Strict Transport Security)&lt;/a&gt; でちゃんと HTTPS にリダイレクトされること）&lt;/li&gt;
-&lt;li&gt;VPN サービスを利用する（慌ててよく分からないサービスに飛びつかないこと）&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;WPA2 がダメだからと言って WEP を使うのは事態を悪化させるだけである。
-脆弱性が発見された現時点でも WPA2 が一番まともな認証プロトコルであることには変わりない。&lt;/p&gt;
-
-&lt;p&gt;はっきりいってネットワーク機器のアップデートはあまり期待できない。
-とくに安ものの無線 LAN ルータとか，古い機種のスマホとかは事実上の放置プレイである。
-先月の &lt;a href=&#34;http://text.baldanders.info/remark/2017/09/vulnerability-in-bluetooth-implementation/&#34; title=&#34;Bluetooth 実装の脆弱性に関する覚え書き&#34;&gt;Bluetooth 脆弱性&lt;/a&gt;に対応しなかったベンダ企業やその製品については，今回も何もないと考えたほうがいい。&lt;/p&gt;
-
-&lt;p&gt;はっきり言って Android 端末はもう潮時かなと思ってる。
-他の選択肢が Apple 製品しかないってのが業腹だけど（個人的に嫌いなんだよ）。&lt;/p&gt;
-
-&lt;p&gt;まぁ，この機会にゆっくり考えることにしよう。&lt;/p&gt;
-
-&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://arstechnica.com/information-technology/2017/10/severe-flaw-in-wpa2-protocol-leaves-wi-fi-traffic-open-to-eavesdropping/&#34;&gt;Serious flaw in WPA2 protocol lets attackers intercept passwords and much more | Ars Technica&lt;/a&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2017/10/new_krack_attac.html&#34;&gt;New KRACK Attack Against Wi-Fi Encryption - Schneier on Security&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://www.wlan-business.org/archives/11325&#34;&gt;無線LAN（Wi-Fi）暗号化における脆弱性への対応について  |  無線LANビジネス推進連絡会【WiBiz（ワイビズ）】 - お知らせ - 新着情報無線LANビジネス推進連絡会【WiBiz（ワイビズ）】&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.st.ryukoku.ac.jp/~kjm/security/memo/2017/10.html#20171017_wpa2&#34;&gt;セキュリティホール memo の情報&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://japan.cnet.com/article/35108859/&#34;&gt;WPA2の脆弱性「KRACKs」公開、多数のWi-Fi機器に影響の恐れ - CNET Japan&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://jp.techcrunch.com/2017/10/17/20171016heres-what-you-can-do-to-protect-yourself-from-the-krack-wifi-vulnerability/&#34;&gt;WPA2のWiFi脆弱性から身を守る方法――KRACK攻撃の内容と対策 | TechCrunch Japan&lt;/a&gt; : 山奥に引っ越せとか周囲の土地を買い取って建物を潰せとか，ネタでも笑えないよ&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://japan.zdnet.com/article/35108863/&#34;&gt;Wi-Fiを脅かす脆弱性「KRACK」、各社の対応状況は&amp;ndash;MS、アップル、グーグルなど - ZDNet Japan&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://www.itmedia.co.jp/news/articles/1710/17/news044.html&#34;&gt;WPA2の脆弱性「KRACK」対処パッチ、Microsoftは対応済み、AppleのOSとAndroidは数週間中 - ITmedia NEWS&lt;/a&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://www.itmedia.co.jp/enterprise/articles/1710/17/news048.html&#34;&gt;「WPA2」の脆弱性情報、セキュリティ機関が公開　パッチ適用を呼び掛け - ITmedia エンタープライズ&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://blog.trendmicro.co.jp/archives/16162&#34;&gt;WPA2の脆弱性「KRACKs」、ほぼすべてのWi-Fi通信可能な端末機器に影響 | トレンドマイクロ セキュリティブログ&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://protonvpn.com/blog/wifi-vulnerability-krack/&#34;&gt;WiFi Connection Vulnerability - Blog - ProtonVPN -&lt;/a&gt; : ProtonVPN の広告記事（笑）&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://www.soumu.go.jp/menu_kyotsuu/important/kinkyu02_000274.html&#34;&gt;総務省｜無線LAN（Wi-Fi）暗号化における脆弱性について（注意喚起）&lt;/a&gt; : いまさら総務省（笑）&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://pc.watch.impress.co.jp/docs/news/1089340.html&#34;&gt;Apple、WPA2暗号化の脆弱性を修正した「iOS 11.1」、ただし機種限定 - PC Watch&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://www.itmedia.co.jp/enterprise/articles/1711/07/news067.html&#34;&gt;Androidの月例セキュリティ情報公開、「KRACK」の脆弱性に対処 - ITmedia エンタープライズ&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://news.mynavi.jp/news/2017/11/10/068/&#34;&gt;Google、Wi-Fi関連の脆弱性「KRACK」に対処するAndroid向けパッチを公開 | マイナビニュース&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:rt1&#34;&gt;無線 LAN ルータは Wi-Fi ネットワークを中継する機能のあるものが対象となる。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:rt1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
