@@ -4,12 +4,2699 @@
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/openpgp/index.xml" />
 	<id>tag:text.Baldanders.info,2017-12-01:/hugo</id>
-	<updated>2017-12-01T15:15:33+09:00</updated>
+	<updated>2017-12-01T17:52:08+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="https://gohugo.io/">Hugo 0.31.1</generator>
 
+	
+	<entry>
+		<title>Issuer Fingerprint Signature Subpacket in Next OpenPGP — OpenPGP の実装</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/issuer-fingerprint-signature-subpacket-in-next-openpgp/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/issuer-fingerprint-signature-subpacket-in-next-openpgp/</id>
+		<published>2017-12-01T17:52:08+09:00</published>
+		<updated>2017-12-01T17:52:08+09:00</updated>
+		<summary>署名パケットに関して，次期 OpenPGP (RFC 4880bis) の実装が既に GnuPG に一部入っているようである。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;(move from &lt;a href=&#34;http://text.baldanders.info/remark/2017/11/issuer-fingerprint-signature-subpacket-in-next-openpgp/&#34; title=&#34;Issuer Fingerprint Signature Subpacket in Next OpenPGP&#34;&gt;http://text.baldanders.info/remark/2017/11/issuer-fingerprint-signature-subpacket-in-next-openpgp/&lt;/a&gt;)&lt;/p&gt;
+
+&lt;p&gt;「&lt;a href=&#34;http://text.baldanders.info/openpgp/openpgp-key-management/&#34;&gt;OpenPGP 鍵管理に関する考察&lt;/a&gt;」を書いていて気づいたのだが，署名パケット（signature packet）に関して，次期 OpenPGP (&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt;) の実装が既に &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; に一部入っているようである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gpg1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:gpg1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;署名パケットの中に署名サブパケット（signature subpacket; 鍵や署名に関する属性情報が入っている）というのがあって &lt;a href=&#34;https://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;RFC 4880&lt;/a&gt; では sub 32 まで ID が振られているのだけど（プライベート用は別）， &lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; で sub 33 が追加された。
+それが “Issuer Fingerprint” で以下の内容になっている。&lt;/p&gt;
+
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;
+&lt;q&gt;The OpenPGP Key fingerprint of the key issuing the signature.  This subpacket SHOULD be included in all signatures.  If the version of the issuing key is 4 and an Issuer subpacket is also included in the signature, the key ID of the Issuer subpacket MUST match the low 64 bits of the fingerprint.&lt;br&gt;
+Note that the length N of the fingerprint for a version 4 key is 20 octets.  For a version 5 key the leftmost 25 octets of the fingerprint are used (N=25).
+&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34;&gt;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;まぁ，要するに “Issuer Fingerprint” には署名を行う鍵の鍵指紋（key fingerprint）が入りますよ，ということのようだ。
+ちょっと試してみよう。&lt;/p&gt;
+
+&lt;p&gt;たとえば “Hello world” の文字列に電子署名してみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -u 0x7E20B81C --clear-sign
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Hello world
+-----BEGIN PGP SIGNATURE-----
+
+iHUEAREIAB0WIQQbUgLbSj7HdvHgrRi02juufiC4HAUCWhfcngAKCRC02juufiC4
+HCPUAP4npfesVUOXy/RbFn65Ci6rgtvrFNeNIfmFjYit/xMEywD/eHflgDJQWY+Y
+7g7btse2kmbJvRwaKUf1QMgntzgo07E=
+=k8ok
+-----END PGP SIGNATURE-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ちなみに &lt;code&gt;0x7E20B81C&lt;/code&gt; は&lt;a href=&#34;http://www.baldanders.info/spiegel/pubkeys/&#34; title=&#34;OpenPGP 公開鍵リスト — Baldanders.info&#34;&gt;私の鍵&lt;/a&gt;の鍵 ID である。
+&lt;code&gt;--clear-sign&lt;/code&gt; コマンドは署名対象のテキストとその電子署名を ASCII armor で出力する。
+これをそのまま &lt;a href=&#34;http://www.mew.org/~kazu/proj/pgpdump/&#34; title=&#34;pgpdump&#34;&gt;pgpdump&lt;/a&gt; にかけてみよう。&lt;/p&gt;
+
+&lt;p&gt;こんな感じになる。&lt;/p&gt;
+
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -u 0x7E20B81C --clear-sign | pgpdump -u
+Old: Signature Packet(tag 2)(117 bytes)
+        Ver 4 - new
+        Sig type - Signature of a canonical text document(0x01).
+        Pub alg - DSA Digital Signature Algorithm(pub 17)
+        Hash alg - SHA256(hash 8)
+&lt;span class=&#34;hl&#34;&gt;        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;         v4 -   Fingerprint - 1b 52 02 db 4a 3e c7 76 f1 e0 ad 18 b4 da 3b ae 7e 20 b8 1c
+&lt;/span&gt;        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Fri Nov 24 08:56:21 UTC 2017
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0xB4DA3BAE7E20B81C
+        Hash left 2 bytes - 23 54
+        DSA r(255 bits) - ...
+        DSA s(256 bits) - ...
+                -&amp;gt; hash(DSA q bits)&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;なお &lt;a href=&#34;http://www.mew.org/~kazu/proj/pgpdump/&#34; title=&#34;pgpdump&#34;&gt;pgpdump&lt;/a&gt; はバージョン 0.32 で “Issuer Fingerprint” に対応した&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gpd&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:gpd&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; では V5 フォーマットの公開鍵パケットや鍵指紋&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:v5&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:v5&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; の仕様が出てきている。
+これらの仕様を取り込んだ &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; 2.3 あたりがそのうち出てくるんじゃないかと期待している。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2015/openpgp-draft-rfc4880bis-first/&#34;&gt;OpenPGP: First RFC4880bis Draft&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2017/03/topics-on-openpgp/&#34;&gt;OpenPGP に関する話題&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:gpg1&#34;&gt;先行してドラフト仕様が &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; に組み込まれるのは珍しいことではない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gpg1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gpd&#34;&gt;私の &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gpgpdump&#34; title=&#34;spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer&#34;&gt;gpgpdump&lt;/a&gt; も 0.2.1 で一応対応させているがまだテストの途中なのでダメダメ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gpd&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:v5&#34;&gt;V5 フォーマットの鍵指紋は SHA-3 ではなく SHA256 (SHA-2) を使うようだ。まぁドラフト段階なので変わるかもだけど。 SHA-3 自体は既に ID が振られているので組み込みはやれないこともない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:v5&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>OpenPGP 鍵管理に関する考察 — OpenPGP の実装</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/openpgp-key-management/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/openpgp-key-management/</id>
+		<published>2017-12-01T17:51:59+09:00</published>
+		<updated>2017-12-01T17:51:59+09:00</updated>
+		<summary>OpenPGP 鍵の管理について考えてみるテスト。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;(move from &lt;a href=&#34;http://text.baldanders.info/remark/2017/11/openpgp-key-management/&#34; title=&#34;OpenPGP 鍵管理に関する考察&#34;&gt;http://text.baldanders.info/remark/2017/11/openpgp-key-management/&lt;/a&gt;)&lt;/p&gt;
+
+&lt;p&gt;たまたま以下の記事を見かけたのだが&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/moutend/items/5c22d6e57a74845578f6&#34;&gt;gpg (GNU Privacy Guard)の使い方 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このやり方も良さそうだけど，もう少し簡単に運用できないか考えてみる。
+なお &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理は目的別にアドホック（ad hoc）な運用も可能なので「これ！」という正解はない。
+自分にあったやり方を考えるのも面白いと思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;openpgp-の信用モデル&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の信用モデル&lt;/h2&gt;
+
+&lt;p&gt;鍵の管理について考える前に &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の信用モデルについておさらいしておこう。&lt;/p&gt;
+
+&lt;p&gt;最初の登場人物は Alice と Bob。
+2人はそれぞれ &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵を持っていて，これを使って秘密のやり取りをしようと考えている。
+持っている鍵が信用できることを証明するために，お互い相手の公開鍵に自身の鍵で電子署名を施した。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Bob-- Digital Sign --&gt;Alice
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;鍵に施されている電子署名を確認することでコンテンツに対する暗号文や電子署名が正しい鍵で行われていることが証明できるわけだ。
+これが &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の基本。
+公開鍵への電子署名を使って peer-to-peer で信用関係を結ぶ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:ksp1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:ksp1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;ここで3人目の人物 Chris に登場してもらおう。
+Bob と Chris は面識があり既にお互いの公開鍵で電子署名を交わしている。
+しかし Alice と Chris は面識がなく電子署名を交わす機会がないとする。
+Alice から見て Chris の鍵は信用できるだろうか？&lt;/p&gt;
+
+&lt;p&gt;（念のために言うと，ここで言う「信用」は「あなたは人として信用できる」の信用ではなく「この鍵は正しく本人のものであると信用できる」の信用である）&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+  Chris[&#34;Chris&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Alice-. trust? .-&gt;Chris
+  Bob-- Digital Sign --&gt;Alice
+  Bob-- Digital Sign --&gt;Chris
+  Chris-- Digital Sign --&gt;Bob
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;まず Alice から見て直接電子署名を交わした Bob の鍵が信用できるのは明らかである。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+ graph LR
+   Alice[&#34;Alice&#39;s Public Key&#34;]
+   Bob[&#34;Bob&#39;s Public Key&#34;]
+   Chris[&#34;Chris&#39;s Public Key&#34;]
+
+   Alice-- Digital Sign --&gt;Bob
+   Alice-. trust .-&gt;Bob
+   Bob-- Digital Sign --&gt;Alice
+   Bob-- Digital Sign --&gt;Chris
+   Chris-- Digital Sign --&gt;Bob
+
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;Alice は Chris の公開鍵に信用できる Bob の公開鍵による電子署名を見つけたため， Bob の公開鍵と同じく Chris の公開鍵も有効であると見なすことができる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+  Chris[&#34;Chris&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Alice-. validate! .-&gt;Chris
+  Alice-. trust .-&gt;Bob
+  Bob-- Digital Sign --&gt;Alice
+  Bob-- Digital Sign --&gt;Chris
+  Chris-- Digital Sign --&gt;Bob
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;これが &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の代表的な信用モデル “web of trust” の基本的な考え方である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:tm1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:tm1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+このことから &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理ににおいて「信用できる鍵」の条件は&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;多くの電子署名（とできれば信用）が集まっていること&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;だと分かる。
+更にこのことから派生的に&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;同じ鍵が永続的に使われ続けていること&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;も「信用できる鍵」の条件となる。
+何故なら，鍵が頻繁に変わるとその度に電子署名をやり直すことになり，鍵に署名（＝信用）が集まりにくくなるからである。&lt;/p&gt;
+
+&lt;h2 id=&#34;openpgp-の鍵管理&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理&lt;/h2&gt;
+
+&lt;p&gt;以上を踏まえて &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵の管理について考えてみよう。&lt;/p&gt;
+
+&lt;h3 id=&#34;ひとつの鍵で運用する場合&#34;&gt;ひとつの鍵で運用する場合&lt;/h3&gt;
+
+&lt;p&gt;一番簡単なケースで，ひとつの &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵で全てをまかなう場合を考える。
+たとえば，ふだん暗号化ツールなんて全然使わないけど git commit に電子署名するためだけに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を使いたい，など。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の代表的な実装である &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の最新バージョンでは，以下に示すように，鍵の作成処理が（昔と比べて）大幅に簡略化できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --batch --passphrase pass123 --quick-generate-key &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34; default default 0
+gpg: 鍵02C94DC57527A786を究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/alice/AppData/Roaming/gnupg/openpgp-revocs.d\9416E477EBA825CD1694573102C94DC57527A786.rev&amp;#39; に保管しました。&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;--batch&lt;/code&gt; オプション&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gk1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:gk1&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;（または &lt;code&gt;--pinentry-mode&lt;/code&gt; オプションに &lt;code&gt;loopback&lt;/code&gt; を指定）と &lt;code&gt;--passphrase&lt;/code&gt; オプションを組み合わせて Pinentry によるパスフレーズ入力を回避できる&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--quick-generate-key&lt;/code&gt; コマンドの第1引数にユーザID，第2引数にアルゴリズム，第3引数に使用目的，第4引数に有効期限を指定する
+
+&lt;ul&gt;
+&lt;li&gt;アルゴリズムに &lt;code&gt;default&lt;/code&gt; を指定するか指定しない場合は既定のアルゴリズム（RSA/2048ビット）で鍵を作成する&lt;/li&gt;
+&lt;li&gt;使用目的には主鍵&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:k1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:k1&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; の種類を指定する。通常は &lt;code&gt;default&lt;/code&gt; のまま（署名と証明）でよい（指定しなければ &lt;code&gt;default&lt;/code&gt;）&lt;/li&gt;
+&lt;li&gt;有効期限には期間（1週間なら &lt;code&gt;7d&lt;/code&gt; または &lt;code&gt;1w&lt;/code&gt;，1年なら &lt;code&gt;12m&lt;/code&gt; または &lt;code&gt;1y&lt;/code&gt; など）を指定する。 &lt;code&gt;0&lt;/code&gt; を指定すると無期限になる（指定しないと有効期限が当日になる）&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;生成された鍵の状態は以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC]
+      9416E477EBA825CD1694573102C94DC57527A786
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;作成した鍵の公開鍵を配布するには&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export -a alice &amp;gt; alice-key.asc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;として &lt;code&gt;alice-key.asc&lt;/code&gt; を直接配布するか&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --keyserver keys.gnupg.net --send-key alice&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;として鍵サーバ（ここでは &lt;a href=&#34;http://keys.gnupg.net/&#34;&gt;&lt;code&gt;keys.gnupg.net&lt;/code&gt;&lt;/a&gt;）にアップロードすればいい。&lt;/p&gt;
+
+&lt;p&gt;注意する点としてはパスフレーズと失効証明書を紛失・漏洩しないよう管理することであろう。
+できれば失効証明書は普段使う PC や携帯端末とは別に管理しておくのが望ましい。
+ちなみに &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; ではパスフレーズは何処にも保存されないので，パスフレーズを忘れてしまうと全くリカバリできなくなる（だからといってパスフレーズを設定しないというのは通常運用ではあり得ないが）。&lt;/p&gt;
+
+&lt;p&gt;ノートPCや携帯端末には常に紛失・盗難のリスクが付きまとうが，予防に注力しすぎて現実的でない対策を執るよりも，これはもう「起こり得ること」として「事後」がスムーズに行われるようバックアップ等の準備しておくほうが賢明である。&lt;/p&gt;
+
+&lt;h3 id=&#34;ひとつの鍵に複数のユーザidを付与する場合&#34;&gt;ひとつの鍵に複数のユーザIDを付与する場合&lt;/h3&gt;
+
+&lt;p&gt;ユーザIDというのは鍵の名前 “&lt;code&gt;Alice &amp;lt;alice@examle.com&amp;gt;&lt;/code&gt;” の部分である。&lt;/p&gt;
+
+&lt;p&gt;たとえば，以下の鍵があったとき&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC]
+      B686F36CA9FDC10057EFC5D58D7E04B8CE947112
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これに新しいユーザID “&lt;code&gt;Alice &amp;lt;alice@examle2.com&amp;gt;&lt;/code&gt;” を付加するには &lt;code&gt;--quick-add-uid&lt;/code&gt; コマンドを使って&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-add-uid alice &amp;#34;Alice &amp;lt;alice@examle2.com&amp;gt;&amp;#34;
+$ gpg --update-trustdb&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とする&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:updtd1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:updtd1&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。
+これで新しいユーザIDが付加された。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC]
+      B686F36CA9FDC10057EFC5D58D7E04B8CE947112
+uid           [  究極  ] Alice &amp;lt;alice@examle2.com&amp;gt;
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ちなみに，この鍵を &lt;a href=&#34;http://www.mew.org/~kazu/proj/pgpdump/&#34; title=&#34;pgpdump&#34;&gt;pgpdump&lt;/a&gt; にかけると以下のようになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export -a alice | pgpdump -u
+Old: Public Key Packet(tag 6)(269 bytes)
+        Ver 4 - new
+        Public key creation time - Thu Nov 23 06:22:56 UTC 2017
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        RSA n(2048 bits) - ...
+        RSA e(17 bits) - ...
+Old: User ID Packet(tag 13)(25 bytes)
+        User ID - Alice &amp;lt;alice@example.com&amp;gt;
+Old: Signature Packet(tag 2)(334 bytes)
+        Ver 4 - new
+        Sig type - Positive certification of a User ID and Public Key packet(0x13).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - b6 86 f3 6c a9 fd c1 00 57 ef c5 d5 8d 7e 04 b8 ce 94 71 12
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Thu Nov 23 06:22:56 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to certify other keys
+                Flag - This key may be used to sign data
+        Hashed Sub: preferred symmetric algorithms(sub 11)(4 bytes)
+                Sym alg - AES with 256-bit key(sym 9)
+                Sym alg - AES with 192-bit key(sym 8)
+                Sym alg - AES with 128-bit key(sym 7)
+                Sym alg - Triple-DES(sym 2)
+        Hashed Sub: preferred hash algorithms(sub 21)(5 bytes)
+                Hash alg - SHA256(hash 8)
+                Hash alg - SHA384(hash 9)
+                Hash alg - SHA512(hash 10)
+                Hash alg - SHA224(hash 11)
+                Hash alg - SHA1(hash 2)
+        Hashed Sub: preferred compression algorithms(sub 22)(3 bytes)
+                Comp alg - ZLIB &amp;lt;RFC1950&amp;gt;(comp 2)
+                Comp alg - BZip2(comp 3)
+                Comp alg - ZIP &amp;lt;RFC1951&amp;gt;(comp 1)
+        Hashed Sub: features(sub 30)(1 bytes)
+                Flag - Modification detection (packets 18 and 19)
+        Hashed Sub: key server preferences(sub 23)(1 bytes)
+                Flag - No-modify
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0x8D7E04B8CE947112
+        Hash left 2 bytes - 05 21
+        RSA m^d mod n(2047 bits) - ...
+                -&amp;gt; PKCS-1
+Old: User ID Packet(tag 13)(25 bytes)
+        User ID - Alice &amp;lt;alice@examle2.com&amp;gt;
+Old: Signature Packet(tag 2)(334 bytes)
+        Ver 4 - new
+        Sig type - Positive certification of a User ID and Public Key packet(0x13).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - b6 86 f3 6c a9 fd c1 00 57 ef c5 d5 8d 7e 04 b8 ce 94 71 12
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Thu Nov 23 06:33:28 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to certify other keys
+                Flag - This key may be used to sign data
+        Hashed Sub: preferred symmetric algorithms(sub 11)(4 bytes)
+                Sym alg - AES with 256-bit key(sym 9)
+                Sym alg - AES with 192-bit key(sym 8)
+                Sym alg - AES with 128-bit key(sym 7)
+                Sym alg - Triple-DES(sym 2)
+        Hashed Sub: preferred hash algorithms(sub 21)(5 bytes)
+                Hash alg - SHA256(hash 8)
+                Hash alg - SHA384(hash 9)
+                Hash alg - SHA512(hash 10)
+                Hash alg - SHA224(hash 11)
+                Hash alg - SHA1(hash 2)
+        Hashed Sub: preferred compression algorithms(sub 22)(3 bytes)
+                Comp alg - ZLIB &amp;lt;RFC1950&amp;gt;(comp 2)
+                Comp alg - BZip2(comp 3)
+                Comp alg - ZIP &amp;lt;RFC1951&amp;gt;(comp 1)
+        Hashed Sub: features(sub 30)(1 bytes)
+                Flag - Modification detection (packets 18 and 19)
+        Hashed Sub: key server preferences(sub 23)(1 bytes)
+                Flag - No-modify
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0x8D7E04B8CE947112
+        Hash left 2 bytes - 7d 5a
+        RSA m^d mod n(2048 bits) - ...
+                -&amp;gt; PKCS-1
+Old: Public Subkey Packet(tag 14)(269 bytes)
+        Ver 4 - new
+        Public key creation time - Thu Nov 23 06:22:56 UTC 2017
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        RSA n(2048 bits) - ...
+        RSA e(17 bits) - ...
+Old: Signature Packet(tag 2)(310 bytes)
+        Ver 4 - new
+        Sig type - Subkey Binding Signature(0x18).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - b6 86 f3 6c a9 fd c1 00 57 ef c5 d5 8d 7e 04 b8 ce 94 71 12
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Thu Nov 23 06:22:56 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to encrypt communications
+                Flag - This key may be used to encrypt storage
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0x8D7E04B8CE947112
+        Hash left 2 bytes - 3a a7
+        RSA m^d mod n(2047 bits) - ...
+                -&amp;gt; PKCS-1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ユーザID毎に電子署名（自己署名）が付与されているのがお分かりだろうか。&lt;/p&gt;
+
+&lt;p&gt;ひとつの鍵に複数のユーザIDを付与することに関しては昔から賛否あるのだが，手段が提供されていることは覚えておいて損はないだろう。&lt;/p&gt;
+
+&lt;h3 id=&#34;用途によって鍵を使い分けたい場合&#34;&gt;用途によって鍵を使い分けたい場合&lt;/h3&gt;
+
+&lt;p&gt;たとえば，暗号化メール，リリースファイルの電子署名， git commit 時の電子署名といった用途毎に異なる鍵を使いたいことがある。
+その場合でもそれぞれ鍵を生成して運用すればいいのだが，新しい鍵を作る度にそれぞれの鍵とやり取りを行うユーザが毎度電子署名を行うのは相当に煩雑な作業である。&lt;/p&gt;
+
+&lt;p&gt;そこで「ルート鍵」と「運用鍵」の2種類の鍵を作って運用する。
+具体的にはルート鍵と各運用鍵との間で電子署名を交わす。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  rt[Root Key]-- Digital Sign --&gt;op1[Operation Key 1]
+  op1-- Digital Sign --&gt;rt
+
+  rt-- Digital Sign --&gt;op2[Operation Key 2]
+  op2-- Digital Sign --&gt;rt
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;運用鍵とやり取りするユーザは，各運用鍵ではなく，ルート鍵と署名を交わし信用度を設定することによって各運用鍵の有効性を確認できる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  usr[User&#39;s Key]
+  rt[Root Key]
+  op1[Operation Key 1]
+  op2[Operation Key 2]
+
+  usr-- Digital Sign --&gt;rt
+  usr-. trust .-&gt;rt
+  rt-- Digital Sign --&gt;usr
+
+  usr-. validate .-&gt;op1
+  rt-- Digital Sign --&gt;op1
+
+  rt-- Digital Sign --&gt;op2
+  usr-. validate .-&gt;op2
+
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;この方法ならユーザも各運用鍵もルート鍵とのみ信用関係を構築すればいいので柔軟な運用が可能になる。
+欠点としてはルート鍵の管理が煩雑になりがちで信用に関する責務も重くなるため，かなり慎重な運用が求められることであろう。&lt;/p&gt;
+
+&lt;h4 id=&#34;alice-のルート鍵と運用鍵&#34;&gt;Alice のルート鍵と運用鍵&lt;/h4&gt;
+
+&lt;p&gt;では実際にやってみよう。&lt;/p&gt;
+
+&lt;p&gt;まず Alice がルート鍵と運用鍵の運用を行うとする。
+ルート鍵は電子署名を行うだけの鍵なので，以下のように署名専用鍵として作成する（アルゴリズムは DSA/3072ビット にしてみた）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --batch --passphrase pass123 --quick-generate-key &amp;#34;Alice (root) &amp;lt;alice@example.com&amp;gt;&amp;#34; dsa3072 default 0
+gpg: *警告*: いくつかのOpenPGPプログラムはこのダイジェスト長のDSA鍵を扱うことができません
+gpg: 鍵B965D53DB907EF0Eを究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/spiegel/AppData/Roaming/gnupg/openpgp-revocs.d\3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E.rev&amp;#39; に保管しました。&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;もうひとつ。
+運用鍵も作っておく。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --batch --passphrase pass123 --quick-generate-key &amp;#34;Alice (commit) &amp;lt;alice@example.com&amp;gt;&amp;#34; default default 0
+gpg: 鍵DFFC3F67BBB3C083を究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/spiegel/AppData/Roaming/gnupg/openpgp-revocs.d\A3CEFEEEDA222024F325C403DFFC3F67BBB3C083.rev&amp;#39; に保管しました。&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この2つの鍵でお互いに電子署名を交わす（パスフレースの入力あり）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u 3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E --quick-sign-key A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+
+sec  rsa2048/DFFC3F67BBB3C083
+     作成: 2017-11-23  有効期限: 無期限      利用法: SC
+     信用: 究極          有効性: 究極
+  主鍵フィンガープリント: A3CE FEEE DA22 2024 F325  C403 DFFC 3F67 BBB3 C083
+
+     Alice (commit) &amp;lt;alice@example.com&amp;gt;
+
+$ gpg -u A3CEFEEEDA222024F325C403DFFC3F67BBB3C083 --quick-sign-key 3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+
+sec  dsa3072/B965D53DB907EF0E
+     作成: 2017-11-23  有効期限: 無期限      利用法: SC
+     信用: 究極          有効性: 究極
+  主鍵フィンガープリント: 3F8E FC47 7F9D 4D49 AA6C  308F B965 D53D B907 EF0E
+
+     Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで Alice の2つの鍵の署名状態はこんな感じになった。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-sigs alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  究極  ] Alice (root) &amp;lt;alice@example.com&amp;gt;
+sig 3        B965D53DB907EF0E 2017-11-23  Alice (root) &amp;lt;alice@example.com&amp;gt;
+sig          DFFC3F67BBB3C083 2017-11-23  Alice (commit) &amp;lt;alice@example.com&amp;gt;
+
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sig 3        DFFC3F67BBB3C083 2017-11-23  Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sig          B965D53DB907EF0E 2017-11-23  Alice (root) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]
+sig          DFFC3F67BBB3C083 2017-11-23  Alice (commit) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;一方の主鍵に他方の鍵の電子署名が付与されているのが分かるだろうか。&lt;/p&gt;
+
+&lt;h4 id=&#34;bob-鍵で-alice-のルート鍵に電子署名する&#34;&gt;Bob 鍵で Alice のルート鍵に電子署名する&lt;/h4&gt;
+
+&lt;p&gt;今度は Bob の側である。
+まずは Bob の公開鍵をこんな感じで作ってみた（作成操作は省略）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys bob
+pub   rsa2048 2017-11-23 [SC]
+      B4E708652A1E81445B328A3D93F496726CBE8335
+uid           [  究極  ] Bob &amp;lt;bob@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この環境に先程の Alice の公開鍵をインポートしてみる。
+まずはルート鍵から。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import alice-root.asc
+gpg: key B965D53DB907EF0E: 鍵がないため1個の署名は検査しません
+gpg: 鍵B965D53DB907EF0E: 公開鍵&amp;#34;Alice (root) &amp;lt;alice@example.com&amp;gt;&amp;#34;をインポートしました
+gpg:           処理数の合計: 1
+gpg:             インポート: 1
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 0f, 1u&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;当然ながら，この時点では読み込んだルート鍵の有効性は不明である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  不明  ] Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;では，ルート鍵に Bob の鍵で署名しよう&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:lsign1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:lsign1&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;（パスフレースの入力あり）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-sign-key 3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+
+pub  dsa3072/B965D53DB907EF0E
+     作成: 2017-11-23  有効期限: 無期限      利用法: SC
+     信用: 不明の        有効性: 不明の
+  主鍵フィンガープリント: 3F8E FC47 7F9D 4D49 AA6C  308F B965 D53D B907 EF0E
+
+     Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これでルート鍵の有効性は「充分」になった。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  充分  ] Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;さらに信用データベースを更新して信用度も設定する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --update-trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   1  信用: 0-, 0q, 0n, 0m, 0f, 1u
+信用度が指定されていません:
+pub   dsa3072 2017-11-23 [SC]
+      &amp;#34;Alice (root) &amp;lt;alice@example.com&amp;gt;&amp;#34;
+  主鍵フィンガープリント: 3F8E FC47 7F9D 4D49 AA6C  308F B965 D53D B907 EF0E
+
+他のユーザの鍵を正しく検証するために、このユーザの信用度を決めてください
+(パスポートを見せてもらったり、他から得たフィンガープリントを検査したり、などなど)
+
+  1 = 知らない、または何とも言えない
+  2 = 信用し ない
+  3 = まぁまぁ信用する
+  4 = 充分に信用する
+  s = この鍵はとばす
+  q = 終了
+
+あなたの決定は? 4
+gpg: 深さ: 1  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 1f, 0u
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ここでは「充分に信用する」を選択した。&lt;/p&gt;
+
+&lt;p&gt;次に運用鍵もインポートする（操作は同じなので省略）。
+この時点で Alice の公開鍵の状態を見ると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  充分  ] Alice (root) &amp;lt;alice@example.com&amp;gt;
+
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  充分  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;運用鍵の有効性も既に「充分」になっていることが分かると思う。
+ちなみにルート鍵の信用度を「まぁまぁ信用する」にすると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  充分  ] Alice (root) &amp;lt;alice@example.com&amp;gt;
+
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [まぁまぁ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;運用鍵の有効性が「まぁまぁ」になる。&lt;/p&gt;
+
+&lt;p&gt;独りでこうした運用をやるメリットは殆どないが，プロジェクト・チーム等で一括して鍵管理を行いたい場合は有効な手段だと思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;有効期限について&#34;&gt;有効期限について&lt;/h2&gt;
+
+&lt;p&gt;この記事ではすべての鍵を「無期限」で設定している。
+公開鍵の有効期限をどのようにするかは意見が別れるところだと思うが，私個人としては原則として「無期限」にすることをお薦めする。
+何故なら &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵は永続性と一貫性が重要だからである。&lt;/p&gt;
+
+&lt;p&gt;公開鍵に有効期限を設ける理由としては&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;期間の決まったプロジェクト内でのみ使用する鍵である&lt;/li&gt;
+&lt;li&gt;チーム・メンバの出入りが激しく無期限では却って管理が煩雑になる&lt;/li&gt;
+&lt;li&gt;鍵のセキュリティ強度の問題から期限を切って運用したい（たとえば RSA/2048ビット鍵が acceptable なのは2030年までである）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;といったところだろうか。
+これならば，これまで述べたようにルート鍵と運用鍵を分けて，ルート鍵の方で永続性と一貫性を担保するように運用していくのがよいだろう。&lt;/p&gt;
+
+&lt;p&gt;自分の鍵であれば有効期限はいつでも変更できる（変更時にパスフレーズ入力あり）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]
+
+$ gpg --quick-set-expire A3CEFEEEDA222024F325C403DFFC3F67BBB3C083 2y
+
+$ gpg --list-keys A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+pub   rsa2048 2017-11-23 [SC] [有効期限: 2019-11-23]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E] [有効期限: 2019-11-23]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;しかし，有効期限を随時延長していく運用は鍵のオーナーもそれを使うユーザも手間が増えるだけであまりメリットがない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:own1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:own1&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。
+&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵は（今のところ）利用するユーザに公開鍵の変更を自動的に通知・配信する仕組みがないので（それとも cron で鍵サーバへアクセスする？），ユーザ側の手間の多い運用では取りこぼしが出る可能性が大きくなる。&lt;/p&gt;
+
+&lt;h2 id=&#34;鍵を失効させる&#34;&gt;鍵を失効させる&lt;/h2&gt;
+
+&lt;p&gt;秘密鍵が漏洩するなどして鍵の失効が必要になった場合には，鍵作成時に作られた失効証明書を使って失効させる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:rvk1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:rvk1&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;。
+鍵作成時に作られた失効証明書の中身はこんな感じになっている。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cd C:/Users/alice/AppData/Roaming/gnupg/openpgp-revocs.d
+
+$ cat 9416E477EBA825CD1694573102C94DC57527A786.rev
+これは失効証明書でこちらのOpenPGP鍵に対するものです:
+
+pub   rsa2048 2017-11-23 [SC]
+      9416E477EBA825CD1694573102C94DC57527A786
+uid          Alice &amp;lt;alice@example.com&amp;gt;
+
+失効証明書は &amp;#34;殺すスイッチ&amp;#34; のようなもので、鍵がそれ以上使えない
+ように公に宣言するものです。一度発行されると、そのような失効証明書は
+撤回することはできません。
+
+秘密鍵のコンプロマイズや紛失の場合、これを使ってこの鍵を失効させます。
+しかし、秘密鍵がまだアクセス可能である場合、新しい失効証明書を生成し、
+失効の理由をつける方がよいでしょう。詳細は、GnuPGマニュアルのgpgコマン
+ド &amp;#34;--generate-revocation&amp;#34;の記述をご覧ください。
+
+このファイルを誤って使うのを避けるため、以下ではコロンが5つのダッシュ
+の前に挿入されます。この失効証明書をインポートして公開する前に、テク
+スト・エディタでこのコロンを削除してください。
+
+:-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: This is a revocation certificate
+
+iQE2BCABCAAgFiEElBbkd+uoJc0WlFcxAslNxXUnp4YFAloWYkcCHQAACgkQAslN
+xXUnp4aG1wf/XoyxQPks2JlJ93ghQALdqCIxFPh015q21K53u0rVwTsMocwdGowR
+l+/UppyBxnGyU1uIba68D787INlruMzsOyUTuruCUZ5XJpiuYYVXcRuovUmCREWF
+EbW1DGd1lzmrO8cr70qu3yVCMYjGOQ6NA0fh1lpKTpFqHc3GC+ue19RDoVY1KnCC
+YsWuNom4PAuUyHlH3uJLM9+F9J2Qec+0PIedxHyxuIStWOSg+/TGjD4cP3FEItIt
+giRxx6qLWcK+bfg6WXv7I3+FA2J8eRKjLoD/vsZX+FpxG7T+c4mvfTUgxn0+bZD9
+gxTKlFWg2bhKTcxi0EsJ9XAEmocvOolwPQ==
+=ShPY
+-----END PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;実際に使う場合は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;:-----BEGIN PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;の先頭のコロンを削除して使う。
+失効処理を行うには &lt;code&gt;--import&lt;/code&gt; コマンドで失効証明書をインポートすればよい。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import 9416E477EBA825CD1694573102C94DC57527A786.rev
+gpg: 鍵02C94DC57527A786:&amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;失効証明書をインポートしました
+gpg:           処理数の合計: 1
+gpg:         新しい鍵の失効: 1
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 0f, 1u&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで鍵の状態は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC] [失効: 2017-11-23]
+      9416E477EBA825CD1694573102C94DC57527A786
+uid           [  失効  ] Alice &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;となり失効したことが分かる。
+&lt;strong&gt;失効した公開鍵を配布するのを忘れずに！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/OpenPGP-Key-Management.html&#34;&gt;Using the GNU Privacy Guard: OpenPGP Key Management&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/openpgp.shtml&#34;&gt;わかる！ OpenPGP 暗号&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/using-gnupg-modern-version-1/&#34;&gt;GnuPG for Windows ― インストール編&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/using-gnupg-modern-version-2/&#34;&gt;GnuPG for Windows ― gpg-agent について&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:ksp1&#34;&gt;相手の公開鍵に電子署名するには (1) 相手の公開鍵を貰って &lt;code&gt;--import&lt;/code&gt; （または鍵サーバから &lt;code&gt;--recv-keys&lt;/code&gt;）する (2) インポートした鍵に &lt;code&gt;--sign-key&lt;/code&gt; する (3) 署名した公開鍵を &lt;code&gt;--export&lt;/code&gt; して相手に返す（または鍵サーバへ &lt;code&gt;--send-keys&lt;/code&gt;） といった手順を踏む。これをひとりひとりやるのは割と面倒なので，複数人が一度に電子署名を交わすために「&lt;a href=&#34;https://en.wikipedia.org/wiki/Key_signing_party&#34; title=&#34;Key signing party - Wikipedia&#34;&gt;キーサイン・パーティ（key signing party）&lt;/a&gt;」が行われることがある。日本ではあまり聞かないけど。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ksp1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:tm1&#34;&gt;もう少し詳しく言うと，公開鍵への電子署名の際に「信用度」を設定し，集まった「信用度」の累積から公開鍵の「有効性」を機械的に判定する。なので（信用度が分からない）全く未知の人の電子署名がいくらあっても「有効性」は上がりにくい。また公開鍵に電子署名を施すことは相手の鍵をある程度以上信用していることになるため，よく分からない鍵に対して安易に電子署名を行うことは避けるべきである。なお，現行バージョンの &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では web of trust 以外にも X.509 や &lt;a href=&#34;https://en.wikipedia.org/wiki/Trust_on_first_use&#34; title=&#34;Trust on first use - Wikipedia&#34;&gt;Tofu (Trust on first use)&lt;/a&gt; といった信用モデルもサポートしている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:tm1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gk1&#34;&gt;&lt;code&gt;--gen-key&lt;/code&gt; コマンドに &lt;code&gt;--batch&lt;/code&gt; オプションを組み合わせて設定ファイルから鍵を作成することも可能である。詳しい方法は “&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/Unattended-GPG-key-generation.html&#34;&gt;Unattended GPG key generation&lt;/a&gt;” が参考になるだろう。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gk1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:k1&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵は1つの主鍵（primary key）と0個以上の副鍵（subkey）で構成されている。主鍵は必ず電子署名用の鍵になっていて，この主鍵にユーザID（とその自己署名）や他の鍵からの電子署名が付与される。副鍵は暗号化または電子署名用の鍵である。たとえば，データの暗号化と復号は実際にはこの副鍵を使って行う。副鍵は個別に追加したり失効したりできる。ちなみに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では通常のやり方では暗号化機能のみの鍵は作れない。電子署名機能のみの鍵は作ることができる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:k1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:updtd1&#34;&gt;&lt;code&gt;--update-trustdb&lt;/code&gt; コマンドは信用データベース（trustdb）の更新コマンドである。現行バージョンの &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では信用度は &lt;code&gt;trustdb.gpg&lt;/code&gt; ファイルを使って鍵束とは独立に管理される。通常は鍵の状態が変わると自動的に信用データベースが更新されるのだが，自動更新しない場合は &lt;code&gt;--update-trustdb&lt;/code&gt; コマンドで更新できる。なお，他ユーザの公開鍵に電子署名を施した場合は &lt;code&gt;--update-trustdb&lt;/code&gt; コマンドを起動して署名した鍵の信用度を設定する。信用度の設定は &lt;code&gt;--edit-key&lt;/code&gt; コマンドの編集モードでも設定・変更が可能である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:updtd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:lsign1&#34;&gt;公開鍵に電子署名したことを公開したくない場合は &lt;code&gt;--lsign-key&lt;/code&gt; コマンドで署名する。 &lt;code&gt;--lsign-key&lt;/code&gt; コマンドで付与した署名はエクスポートされないため他ユーザには公開されない。公開鍵に関する確証はないけど取り敢えず使いたいという場合には有効な手だろう。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:lsign1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:own1&#34;&gt;公開鍵の更新を鍵オーナーの存在証明に使うのは，あまり筋のいい運用とは思えない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:own1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:rvk1&#34;&gt;または &lt;code&gt;--gen-revoke&lt;/code&gt; コマンドで失効証明書を作成する。 &lt;code&gt;--gen-revoke&lt;/code&gt; コマンドで作成した場合は失効理由も含めることができる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:rvk1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>Git Commit で OpenPGP 署名を行う — OpenPGP の実装</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/git-commit-with-openpgp-signature/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/git-commit-with-openpgp-signature/</id>
+		<published>2017-12-01T17:51:38+09:00</published>
+		<updated>2017-12-01T17:51:38+09:00</updated>
+		<summary>Git で commit する際に OpenPGP 署名を付加できるらしい。いやぁ，今まで知らなかったよ。物知らずでごめん。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;(move from &lt;a href=&#34;http://text.baldanders.info/remark/2016/04/git-commit-with-openpgp-signature/&#34; title=&#34;Git Commit で OpenPGP 署名を行う&#34;&gt;http://text.baldanders.info/remark/2016/04/git-commit-with-openpgp-signature/&lt;/a&gt;)&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://git-scm.com/&#34; title=&#34;Git&#34;&gt;Git&lt;/a&gt; で commit する際に OpenPGP 署名を付加できるらしい。
+いやぁ，今まで知らなかったよ。
+物知らずでごめん。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://git-scm.com/book/uz/v2/Git-Tools-Signing-Your-Work&#34;&gt;Git - Signing Your Work&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/prince_0203/items/ef0e12f2f6d150ff0485&#34;&gt;GitHubでGPGにより署名されたコミットにバッジが表示されるようになったので設定してみる - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;openpgp-鍵の登録&#34;&gt;OpenPGP 鍵の登録&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://git-scm.com/&#34; title=&#34;Git&#34;&gt;Git&lt;/a&gt; に OpenPGP 鍵を設定するには以下のコマンドでいいようだ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ git config --global user.signingkey 7E20B81C&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;“&lt;code&gt;7E20B81C&lt;/code&gt;” は OpenPGP 鍵の鍵 ID である。
+鍵ごとに異なる値になるので注意。
+今回は「&lt;a href=&#34;http://www.baldanders.info/spiegel/pubkeys/&#34;&gt;OpenPGP 公開鍵リスト&lt;/a&gt;」で公開している鍵の鍵 ID を登録している。
+この設定で &lt;code&gt;.gitconfig&lt;/code&gt; ファイルに以下の記述が追加される。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;k&#34;&gt;[user]&lt;/span&gt;
+    &lt;span class=&#34;na&#34;&gt;signingkey&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;7E20B81C&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2 id=&#34;gpg-を直接指定する場合&#34;&gt;Gpg を直接指定する場合&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://git-for-windows.github.io/&#34; title=&#34;Git for Windows&#34;&gt;Git for Windows&lt;/a&gt; の場合， &lt;code&gt;git bash&lt;/code&gt; に同梱されている &lt;code&gt;gpg.exe&lt;/code&gt; を使うのだが，困ったことにこれが classic version なのである。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --version
+gpg (GnuPG) 1.4.20
+Copyright (C) 2015 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &amp;lt;http://gnu.org/licenses/gpl.html&amp;gt;
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Home: ********
+Supported algorithms:
+Pubkey: RSA, RSA-E, RSA-S, ELG-E, DSA
+Cipher: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+        CAMELLIA128, CAMELLIA192, CAMELLIA256
+Hash: MD5, SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+Compression: Uncompressed, ZIP, ZLIB, BZIP2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;既に &lt;a href=&#34;https://www.gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の Windows 版をインストールしているのであれば，以下の設定で &lt;code&gt;gpg.exe&lt;/code&gt; をフルパス指定できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ git config --global gpg.program C:/path/to/GnuPG/bin/gpg.exe&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ちなみに &lt;code&gt;.gitconfig&lt;/code&gt; ファイルには以下の記述が追加される。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;k&#34;&gt;[gpg]&lt;/span&gt;
+    &lt;span class=&#34;na&#34;&gt;program&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;C:/path/to/GnuPG/bin/gpg.exe&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;なお Windows 環境であれば，特に理由がないかぎり， stable/modern version を使うことをお薦めする。
+Windows 環境以外でも &lt;a href=&#34;https://www.gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を classic version と stable/modern version で使い分けている場合は，この設定が役に立つだろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;commit-に-openpgp-署名を付加する&#34;&gt;Commit に OpenPGP 署名を付加する&lt;/h2&gt;
+
+&lt;p&gt;&lt;code&gt;git commit&lt;/code&gt; 時に OpenPGP 署名を付加したい場合は， version 2 以降なら，以下の設定で常時署名を行うようになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ git config --global commit.gpgsign true&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;.gitconfig&lt;/code&gt; ファイルには以下の記述が追加される。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;k&#34;&gt;[commit]&lt;/span&gt;
+    &lt;span class=&#34;na&#34;&gt;gpgsign&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;true&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この状態で逆に commit 時に署名を付加してほしくない場合は &lt;code&gt;--no-gpg-sign&lt;/code&gt; オプションを付加すればいいようだ。&lt;/p&gt;
+
+&lt;p&gt;ちなみに &lt;a href=&#34;https://atom.io/&#34; title=&#34;Atom&#34;&gt;ATOM&lt;/a&gt; エディタの &lt;a href=&#34;https://atom.io/packages/git-plus&#34; title=&#34;git-plus&#34;&gt;git-plus&lt;/a&gt; パッケージで commit してみたが，きちんと署名もできていた。
+&lt;a href=&#34;http://gitextensions.github.io/&#34; title=&#34;Git Extensions&#34;&gt;Git Extensions&lt;/a&gt; でも問題ないようだ。
+「&lt;a href=&#34;http://qiita.com/prince_0203/items/ef0e12f2f6d150ff0485&#34;&gt;GitHubでGPGにより署名されたコミットにバッジが表示されるようになったので設定してみる&lt;/a&gt;」には「GitHub DesktopはGPGによる署名をサポートしていません」とあるが， Facebook で教えてもらった話によれば， &lt;code&gt;gpg-agent&lt;/code&gt; と Pinentry が正しく設定されていれば使えるそうだ。&lt;/p&gt;
+
+&lt;p&gt;きちんと署名されているか確認するには &lt;code&gt;git log&lt;/code&gt; コマンドに &lt;code&gt;--show-signature&lt;/code&gt; オプションを付けるとよい。&lt;/p&gt;
+
+&lt;h3 id=&#34;tag-にも-merge-にも署名できる&#34;&gt;Tag にも Merge にも署名できる&lt;/h3&gt;
+
+&lt;p&gt;タグに署名を付加する場合は &lt;code&gt;-s&lt;/code&gt; オプションを付けて&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ git tag -s -a v0.1.0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とすればいい。
+同様に merge でも &lt;code&gt;-S&lt;/code&gt; オプションを付けて&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ git merge -S branch&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;でいいようだ。&lt;/p&gt;
+
+&lt;h2 id=&#34;github-が-openpgp-署名に対応した&#34;&gt;GitHub が OpenPGP 署名に対応した&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/&#34; title=&#34;GitHub&#34;&gt;GitHub&lt;/a&gt; で commit や tag に対する署名を表示できるようになったらしい。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/blog/2144-gpg-signature-verification&#34;&gt;GPG signature verification&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;たとえばこんな感じに表示される。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26315000570/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1671/26315000570_ba79ae50b1.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1671/26315000570_ba79ae50b1.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;OpenPGP Key in GitHub (4)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26315000570/&#34;&gt;OpenPGP Key in GitHub (4)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;これを有効にするには &lt;a href=&#34;https://github.com/&#34; title=&#34;GitHub&#34;&gt;GitHub&lt;/a&gt; に OpenPGP 公開鍵を登録して署名検証可能にしなければならない。
+公開鍵の登録は設定画面で行う。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26494073882/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1679/26494073882_e53d80376b.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1679/26494073882_e53d80376b.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;OpenPGP Key in GitHub (1)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26494073882/&#34;&gt;OpenPGP Key in GitHub (1)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;この画面で「New GPG key」ボタンを押すと以下の入力画面になる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26520705641/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1598/26520705641_81e21edd32.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1598/26520705641_81e21edd32.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;OpenPGP Key in GitHub (2)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26520705641/&#34;&gt;OpenPGP Key in GitHub (2)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;ここに公開鍵の armor テキストを貼り付けて「Add GPG key」ボタンを押せばよい。
+これで OpenPGP 公開鍵の登録は完了である。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26586667165/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1493/26586667165_9b7d41f16d.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1493/26586667165_9b7d41f16d.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;OpenPGP Key in GitHub (4)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/26586667165/&#34;&gt;OpenPGP Key in GitHub (4)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;なお公開鍵の armor テキストは以下のコマンドで取得できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --armor --export 7E20B81C&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;“&lt;code&gt;7E20B81C&lt;/code&gt;” は先ほど説明した鍵 ID である。&lt;/p&gt;
+
+&lt;p&gt;Tag や commit に署名することで「なりすまし」に対する抑止になる。
+これは特にチームで開発を行う場合に威力を発揮するだろう。
+ぜひ習慣付けていきたいものである。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/pontago/items/5867b6492e09c34084fe&#34;&gt;git(GitHub)でGPGを使った署名をおこなう - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>GnuPG チートシート（鍵作成から失効まで） — OpenPGP の実装</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/gnupg-cheat-sheet/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/gnupg-cheat-sheet/</id>
+		<published>2017-12-01T17:51:18+09:00</published>
+		<updated>2017-12-01T17:51:18+09:00</updated>
+		<summary>ちうわけで GnuPG の使い方に関する簡単な「虎の巻（cheat sheet）」を作ってみることにした。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;(move from &lt;a href=&#34;http://text.baldanders.info/remark/2017/11/gnupg-sheat-sheet/&#34; title=&#34;GnuPG チートシート（鍵作成から失効まで）&#34;&gt;http://text.baldanders.info/remark/2017/11/gnupg-sheat-sheet/&lt;/a&gt;)&lt;/p&gt;
+
+&lt;p&gt;最近 &lt;code&gt;git commit&lt;/code&gt; に電子署名する目的などで &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を使う記事などをチラホラ見かけるようになったが，やっぱ使い慣れんもんは分からんよねぇ。
+しかもバージョンによって微妙に挙動が異なるのが困りものである。&lt;/p&gt;
+
+&lt;p&gt;ちうわけで &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の使い方に関する簡単な「虎の巻（cheat sheet）」を作ってみることにした。
+対象となる  &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; のバージョンは最新版の 2.2.x とする。&lt;/p&gt;
+
+&lt;p&gt;なお，この記事は大変長文なので，あらかじめお茶菓子などを用意した上で読みはじめることをお勧めする。
+また Qiita に簡易版を公開した。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/spiegel-im-spiegel/items/079d69282166281eb946&#34;&gt;GnuPG チートシート（簡易版） - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;説明はいいから例示だけ見せろという方はこちらで。&lt;/p&gt;
+
+&lt;p&gt;では，ご笑覧あれ。&lt;/p&gt;
+
+&lt;h2 id=&#34;コマンドとオプション&#34;&gt;コマンドとオプション&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; のコマンドラインはちょっと作りが古くて（なんせ初期の PGP の UI を引きずってるので&lt;code&gt;w&lt;/code&gt;），今時あたり前な「サブコマンド」みたいな構成になっていない。
+その代わりオプションの種別が「コマンド」と「オプション」に分かれている。
+具体的には &lt;code&gt;gpg -h&lt;/code&gt; でヘルプを見ると分かる（もちろん &lt;code&gt;-h&lt;/code&gt; オプションもコマンドである）。&lt;/p&gt;
+
+&lt;p&gt;以上を踏まえて，そろそろ本題に入ろう。&lt;/p&gt;
+
+&lt;h2 id=&#34;鍵の作成&#34;&gt;鍵の作成&lt;/h2&gt;
+
+&lt;p&gt;鍵の作成コマンドにはいくつか種類がある。&lt;/p&gt;
+
+&lt;h3 id=&#34;generate-key-コマンド&#34;&gt;&amp;ndash;generate-key コマンド&lt;/h3&gt;
+
+&lt;p&gt;&lt;code&gt;--generate-key&lt;/code&gt; コマンドは対話モードで鍵の作成を行う。
+短縮名は &lt;code&gt;--gen-key&lt;/code&gt;。
+あんまり短縮されていないな（笑）&lt;/p&gt;
+
+&lt;p&gt;コマンド自体は初期バージョンから存在するが，バージョンによって挙動がかなり違うので要注意だ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --gen-key
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+注意: 全機能の鍵生成には &amp;#34;gpg --full-generate-key&amp;#34; を使います。
+
+GnuPGはあなたの鍵を識別するためにユーザIDを構成する必要があります。
+
+本名:&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;最新版 2.2.x では暗号アルゴリズムは RSA/2048bit，有効期限は作成日当日で固定されている。
+したがって，ユーザが入力するのはユーザID（本名，電子メール・アドレス）とパスフレーズのみとなる（パスフレーズ入力時には Pinentry が起動する）。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;--generate-key&lt;/code&gt; コマンドについては，以下のような設定ファイルを作って &lt;code&gt;--batch&lt;/code&gt; オプションを付けて起動することで対話モードを回避し，かつアルゴリズム等の詳細な指定をすることもできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cat alice-key.conf
+Key-Type: RSA
+Key-Length: 3072
+Key-Usage: sign,cert
+Subkey-Type: RSA
+Subkey-Length: 3072
+Subkey-Usage: encrypt
+Name-Real: Alice
+Name-Email: alice@example.com
+Expire-Date: 0
+Passphrase: passwd
+%commit
+%echo done
+
+$ gpg --gen-key --batch alice-key.conf
+gpg: 鍵058E5BB44555AF2Cを究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/alice/AppData/Roaming/gnupg/openpgp-revocs.d\DE93A51F5F4EC94847556525058E5BB44555AF2C.rev&amp;#39; に保管しました。
+gpg: done
+
+$ gpg --list-keys alice
+pub   rsa3072 2017-11-30 [SC]
+      DE93A51F5F4EC94847556525058E5BB44555AF2C
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa3072 2017-11-30 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;設定ファイルの書き方は &amp;ldquo;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/Unattended-GPG-key-generation.html&#34; title=&#34;Using the GNU Privacy Guard: Unattended GPG key generation&#34;&gt;Unattended GPG key generation&lt;/a&gt;” を参照のこと。
+いったん設定ファイルを作ってしまえばこの方法が一番簡単かな。&lt;/p&gt;
+
+&lt;p&gt;なお &lt;code&gt;Passphrase&lt;/code&gt; の項目を削除すれば &lt;code&gt;--batch&lt;/code&gt; モードでも Pinentry で設定するパスフレーズを訊いてくるので「設定ファイルにパスフレーズを書くのは&amp;hellip;」という方も安心である。&lt;/p&gt;
+
+&lt;h3 id=&#34;full-generate-key-コマンド&#34;&gt;&amp;ndash;full-generate-key コマンド&lt;/h3&gt;
+
+&lt;p&gt;対話モードで暗号アルゴリズムや鍵長を指定したい場合は &lt;code&gt;--full-generate-key&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;--full-gen-key&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;具体的にはこんな感じで進行する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --full-gen-key
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+ご希望の鍵の種類を選択してください:
+   (1) RSA と RSA (デフォルト)
+   (2) DSA と Elgamal
+   (3) DSA (署名のみ)
+   (4) RSA (署名のみ)
+あなたの選択は? 2
+DSA 鍵は 1024 から 3072 ビットの長さで可能です。
+鍵長は? (2048) 3072
+要求された鍵長は3072ビット
+鍵の有効期限を指定してください。
+         0 = 鍵は無期限
+      &amp;lt;n&amp;gt;  = 鍵は n 日間で期限切れ
+      &amp;lt;n&amp;gt;w = 鍵は n 週間で期限切れ
+      &amp;lt;n&amp;gt;m = 鍵は n か月間で期限切れ
+      &amp;lt;n&amp;gt;y = 鍵は n 年間で期限切れ
+鍵の有効期間は? (0)1y
+鍵は11/30/18 10:39:03 東京 (標準時)で期限切れとなります
+これで正しいですか? (y/N)&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;--expert&lt;/code&gt; オプションを付けると選択可能なアルゴリズムの組み合わせが増える。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --full-gen-key --expert
+gpg (GnuPG) 2.2.3; Copyright (C) 2017 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+ご希望の鍵の種類を選択してください:
+   (1) RSA と RSA (デフォルト)
+   (2) DSA と Elgamal
+   (3) DSA (署名のみ)
+   (4) RSA (署名のみ)
+   (7) DSA (機能をあなた自身で設定)
+   (8) RSA (機能をあなた自身で設定)
+   (9) ECC と ECC
+  (10) ECC (署名のみ)
+  (11) ECC (機能をあなた自身で設定)
+  (13) 既存の鍵
+あなたの選択は?&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3 id=&#34;quick-generate-key-コマンド&#34;&gt;&amp;ndash;quick-generate-key コマンド&lt;/h3&gt;
+
+&lt;p&gt;コマンドライン一発で鍵を作成したい場合は &lt;code&gt;--quick-generate-key&lt;/code&gt; コマンドでユーザID，アルゴリズム，有効期限を指定できる。
+短縮名は &lt;code&gt;--quick-gen-key&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;Usage: gpg [options] --quick-generate-key user-id [algo [usage [expire]]]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;algo&lt;/code&gt; にはアルゴリズムと鍵長を文字列で指定する。
+指定可能な文字列は以下の通り。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&#34;left&#34;&gt;公開鍵暗号アルゴリズム&lt;/th&gt;
+&lt;th align=&#34;left&#34;&gt;名前&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;RSA&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;default&lt;/code&gt; (= &lt;code&gt;rsa2048&lt;/code&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;RSA (署名のみ)&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;rsa&lt;/code&gt; (= &lt;code&gt;rsa2048&lt;/code&gt;), &lt;code&gt;rsa1024&lt;/code&gt;, &lt;code&gt;rsa2048&lt;/code&gt;, &lt;code&gt;rsa3071&lt;/code&gt;, &lt;code&gt;rsa4096&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;DSA (署名のみ)&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;dsa&lt;/code&gt; (= &lt;code&gt;dsa2048&lt;/code&gt;), &lt;code&gt;dsa1024&lt;/code&gt;, &lt;code&gt;dsa2048&lt;/code&gt;, &lt;code&gt;dsa3072&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;ECDH/EdDSA&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;future-default&lt;/code&gt; (= &lt;code&gt;cv25519&lt;/code&gt;/&lt;code&gt;ed25519&lt;/code&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;EdDSA (署名のみ)&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;ed25519&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;ECDSA (署名のみ)&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;nistp256&lt;/code&gt;, &lt;code&gt;nistp384&lt;/code&gt;, &lt;code&gt;nistp521&lt;/code&gt;, &lt;code&gt;brainpoolP256r1&lt;/code&gt;, &lt;code&gt;brainpoolP384r1&lt;/code&gt;, &lt;code&gt;brainpoolP512r1&lt;/code&gt;, &lt;code&gt;secp256k1&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;code&gt;usage&lt;/code&gt; には主鍵の使用目的を文字列で指定する。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&#34;left&#34;&gt;使用目的&lt;/th&gt;
+&lt;th align=&#34;left&#34;&gt;名前&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;署名&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;sign&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;証明&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;cert&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;認証&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;auth&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;暗号化&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;encr&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;主鍵には自動的に &lt;code&gt;cert&lt;/code&gt; が付与されるため暗号化機能しかないアルゴリズム（ElGamal や ECDH）を主鍵に使うことはできない。
+また暗号アルゴリズムと使用目的がマッチしない場合はエラーになる（電子署名用のアルゴリズムなのに &lt;code&gt;encr&lt;/code&gt; を指定するなど）。&lt;/p&gt;
+
+&lt;p&gt;目的が複数ある場合はカンマで区切って列挙する。
+なお &lt;code&gt;default&lt;/code&gt; または &lt;code&gt;-&lt;/code&gt; を指定すれば &lt;code&gt;sign&lt;/code&gt;+&lt;code&gt;cert&lt;/code&gt; となるので，通常は &lt;code&gt;default&lt;/code&gt; のままでよい。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;expire&lt;/code&gt; には有効期限を指定する。
+1週間なら &lt;code&gt;7d&lt;/code&gt; または &lt;code&gt;1w&lt;/code&gt;，1年なら &lt;code&gt;12m&lt;/code&gt; または &lt;code&gt;1y&lt;/code&gt; といった感じ。
+&lt;code&gt;0&lt;/code&gt; を指定すると無期限になる。
+省略すると作成日当日が有効期限となる。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;--quick-generate-key&lt;/code&gt; コマンドの実行例はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-gen-key &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34; default default 0
+たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+成器に十分なエントロピーを供給する機会を与えることができます。
+
+たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+成器に十分なエントロピーを供給する機会を与えることができます。
+gpg: 鍵FED63B6C83CE0152を究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/alice/AppData/Roaming/gnupg/openpgp-revocs.d\57D6D370A7E9BA27A02367DAFED63B6C83CE0152.rev&amp;#39; に保管しました。
+公開鍵と秘密鍵を作成し、署名しました。
+
+pub   rsa2048 2017-11-30 [SC]
+      57D6D370A7E9BA27A02367DAFED63B6C83CE0152
+uid                      Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-30 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3 id=&#34;パスフレーズ入力の回避&#34;&gt;パスフレーズ入力の回避&lt;/h3&gt;
+
+&lt;p&gt;&lt;code&gt;--quick-generate-key&lt;/code&gt; コマンドでもパスフレーズの入力は Pinentry から行うことになるが &lt;code&gt;--pinentry-mode&lt;/code&gt; オプションおよび &lt;code&gt;--passphrase&lt;/code&gt; オプションを付加することで回避できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --pinentry-mode loopback --passphrase passwd --quick-gen-key &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34; default default 0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ただしコマンドラインの履歴に入力したパスフレーズが残ってしまうのであまりお勧めできないが&amp;hellip;&lt;/p&gt;
+
+&lt;h3 id=&#34;quick-add-key-コマンドによる副鍵の追加&#34;&gt;&amp;ndash;quick-add-key コマンドによる副鍵の追加&lt;/h3&gt;
+
+&lt;p&gt;作成した鍵に &lt;code&gt;--quick-add-key&lt;/code&gt; コマンドで後から暗号鍵を追加できる。
+これは &lt;code&gt;--quick-generate-key&lt;/code&gt; コマンドで主鍵のみ作って後から副鍵を加えたい場合などに有効である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;Usage: gpg [options] --quick-add-key key-fingerprint [algo [usage [expire]]]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;たとえば，以下の鍵に対して&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-30 [SC]
+      B5BF56B346B4D961E6BF25A45CC68B4A317E8E5C
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;以下のように暗号鍵を副鍵として追加できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-add-key B5BF56B346B4D961E6BF25A45CC68B4A317E8E5C elg3072 encr
+たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+成器に十分なエントロピーを供給する機会を与えることができます。
+
+$ gpg --list-keys alice
+pub   dsa3072 2017-11-30 [SC]
+      B5BF56B346B4D961E6BF25A45CC68B4A317E8E5C
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   elg3072 2017-11-30 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ちなみに &lt;code&gt;B5BF56B346B4D961E6BF25A45CC68B4A317E8E5C&lt;/code&gt; という長ったらしい数字列は鍵指紋（key fingerprint）である。
+&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; では鍵指紋をそのまま（または下位バイトを）鍵IDとして使っている。&lt;/p&gt;
+
+&lt;p&gt;副鍵では使用目的として &lt;code&gt;cert&lt;/code&gt; は指定できない。
+また暗号アルゴリズムと使用目的がマッチしない場合はエラーになる。
+ただし &lt;code&gt;default&lt;/code&gt; または &lt;code&gt;-&lt;/code&gt; を指定すればアルゴリズムに合わせた適切な使用目的をセットしてくれるみたいなので，大抵の場合は &lt;code&gt;default&lt;/code&gt; でいいだろう。&lt;/p&gt;
+
+&lt;p&gt;暗号化用に使用できるアルゴリズムは以下の通り。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&#34;left&#34;&gt;公開鍵暗号アルゴリズム&lt;/th&gt;
+&lt;th align=&#34;left&#34;&gt;名前&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;RSA&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;default&lt;/code&gt; (= &lt;code&gt;rsa2048&lt;/code&gt;), &lt;code&gt;rsa&lt;/code&gt; (= &lt;code&gt;rsa2048&lt;/code&gt;), &lt;code&gt;rsa1024&lt;/code&gt;, &lt;code&gt;rsa2048&lt;/code&gt;, &lt;code&gt;rsa3071&lt;/code&gt;, &lt;code&gt;rsa4096&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;ElGamal&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;elg&lt;/code&gt; (= &lt;code&gt;elg2048&lt;/code&gt;), &lt;code&gt;elg1024&lt;/code&gt;, &lt;code&gt;elg2048&lt;/code&gt;, &lt;code&gt;elg3072&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;ECDH&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;cv25519&lt;/code&gt;, &lt;code&gt;secp256k1&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;電子署名用のアルゴリズムも（署名用の副鍵として指定すれば）もちろん使える。&lt;/p&gt;
+
+&lt;h2 id=&#34;鍵の管理&#34;&gt;鍵の管理&lt;/h2&gt;
+
+&lt;p&gt;作成した鍵や配布・受領した公開鍵を管理するためのコマンドを紹介する。&lt;/p&gt;
+
+&lt;h3 id=&#34;鍵束内の公開鍵の検索&#34;&gt;鍵束内の公開鍵の検索&lt;/h3&gt;
+
+&lt;p&gt;鍵束内の公開鍵の検索を検索する場合， &lt;code&gt;--list-keys&lt;/code&gt; コマンドの引数にユーザID（の一部）または鍵IDを指定することで，条件にマッチする鍵を検索できる。
+短縮名は &lt;code&gt;-k&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -k alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  充分  ] Alice (root) &amp;lt;alice@example.com&amp;gt;
+
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;引数なしで &lt;code&gt;--list-keys&lt;/code&gt; コマンドを起動した場合は公開鍵の鍵束（&lt;code&gt;pubring.kbx&lt;/code&gt;）にある鍵が全て列挙される。&lt;/p&gt;
+
+&lt;p&gt;秘密鍵を検索する場合には &lt;code&gt;--list-secret-keys&lt;/code&gt; コマンドを使う。
+短縮名は大文字の &lt;code&gt;-K&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -K alice
+sec   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+ssb   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3 id=&#34;副鍵の鍵指紋の表示&#34;&gt;副鍵の鍵指紋の表示&lt;/h3&gt;
+
+&lt;p&gt;&lt;code&gt;--list-keys&lt;/code&gt; コマンドでも主鍵の鍵指紋が表示されるが，副鍵の鍵指紋も表示したい場合は &lt;code&gt;--fingerprint&lt;/code&gt; コマンドを2つ重ねる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --fingerprint --fingerprint alice
+pub   rsa2048 2017-11-30 [SC]
+      79FD 2B99 F3C6 2D2D 3B85  0BBC 93B3 5094 7582 0D5D
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-30 [E]
+      476E 9EA7 D703 F0BB 01B6  FA44 9278 B060 D202 3C53&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3 id=&#34;パスフレーズの変更&#34;&gt;パスフレーズの変更&lt;/h3&gt;
+
+&lt;p&gt;秘密鍵のパスフレーズを変更する場合には &lt;code&gt;--change-passphrase&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;--passwd&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --passwd alice&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;引数にはユーザID（の一部）を指定できる。
+パスワードの入力は Pinentry で行う。&lt;/p&gt;
+
+&lt;h3 id=&#34;有効期限の変更&#34;&gt;有効期限の変更&lt;/h3&gt;
+
+&lt;p&gt;自身の鍵の有効期限を変更する場合には &lt;code&gt;--quick-set-expire&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+
+&lt;p&gt;鍵の鍵指紋がが以下の場合&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --fingerprint --fingerprint alice
+pub   rsa2048 2017-11-30 [SC]
+      79FD 2B99 F3C6 2D2D 3B85  0BBC 93B3 5094 7582 0D5D
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-30 [E]
+      476E 9EA7 D703 F0BB 01B6  FA44 9278 B060 D202 3C53&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;有効期限を2年（&lt;code&gt;2y&lt;/code&gt;）に指定するなら，操作は以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-set-expire 79FD2B99F3C62D2D3B850BBC93B3509475820D5D 2y
+
+$ gpg --list-keys alice
+pub   rsa2048 2017-11-30 [SC] [有効期限: 2019-11-30]
+      79FD2B99F3C62D2D3B850BBC93B3509475820D5D
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-30 [E]
+
+$ gpg --quick-set-expire 79FD2B99F3C62D2D3B850BBC93B3509475820D5D 2y 476E9EA7D703F0BB01B6FA449278B060D2023C53
+
+$ gpg --list-keys alice
+pub   rsa2048 2017-11-30 [SC] [有効期限: 2019-11-30]
+      79FD2B99F3C62D2D3B850BBC93B3509475820D5D
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-30 [E] [有効期限: 2019-11-30]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;前半は主鍵，後半は（主鍵に紐づく）副鍵の有効期限を変更している。
+このことから分かるとおり，主鍵と副鍵は個別に有効期限を設定することが可能である。&lt;/p&gt;
+
+&lt;h3 id=&#34;公開鍵をエクスポートする&#34;&gt;公開鍵をエクスポートする&lt;/h3&gt;
+
+&lt;p&gt;公開鍵のエクスポートには &lt;code&gt;--export&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --armor --export alice
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQENBFofiskBCADjUvPHA3PNscg0K74/Uwxj46+oLsyIy7fYIp/4C4dHejcbbPjx
+VFeic9wQ4aQFp3VKjYgONgQrRo/9p40Ei1+PtMAV7D6Oy6dxlV8zyCJcSf74ahpB
+B15GyA7v4uvTf0Py+Ujyt241ik0fXeLEuwt7p4SIbgJnQs1Fb+61wo8UcCFOLJO5
+An6HjXNgNs6fFoiTad+T4PfaTbRHLfFPkoqmDUKWy40hjWl+Ui0QborXH+PUeUm9
+vgHbqZzS0QRDGI7rO9AeJ6LweBkP1A2qbDLyexS/F+WUEcY0b76IQM5XH0txwnnl
+uCPYcQfIGWce3US1GWJhChF9s/bMGVXOEJbvABEBAAG0GUFsaWNlIDxhbGljZUBl
+eGFtcGxlLmNvbT6JAVQEEwEIAD4CGwMFCwkIBwIGFQgJCgsCBBYCAwECHgECF4AW
+IQR5/SuZ88YtLTuFC7yTs1CUdYINXQUCWh+LMAUJA8JnZwAKCRCTs1CUdYINXcKT
+B/4tLFaPRe289GcX91yLJ/yPS0JvvJKyZzjpNqLbKHuQHPEqGromMGlP4LcaGdFL
+rVZ36W3kVk+75q8JFkld0eRS22vftjz6lA9lyb3W9lU1CayF5s3IsC/Ehj55uaHc
+OHnp6rl7zEeIdvca6yV0gwySs3j9VPHy58zNrpN/clHoB4Zozy6vCXFMShyLc/wF
+brPySf/5LP/642Uro92M2lbkIvZpDhZCVG7s7Ilz3BzsTTNMPkPd5yvdGa5lHQzK
+OmXHaxydOYbEWBgqRGqzEIIoLbEd8KHxJVIVDfcAQCjSWRUjAUSDLpBokGsKoQfp
+41NjWwjkIsfyJ2tDUeRPGYRbuQENBFofiskBCACzyYfIB+/ZwJBJXw7WMDlEKdnz
+L4abwVpw9rBGAWGXjaC/cu7l0svNilXyTgZNq4uKddJ6aYjs7of0SaBl20I8aj5G
+nbw0pG+KkoYhfpZaAZc+bcb+6SprSbAsRhrZ810XNIBUMa8XWsUDn1uv70vGBWBv
+keKZZ7FJ4kuQe0nTONmvQ4EwFekV+IXT5LwdgmPWF0QR7cO8jqeb6psHYauktuzZ
+2ul4nMLmLLf/m4DwiCAbEdToBXqRA30KshtgBYYQwL1YkWYgknnAdhHyeu6ybJvv
+Y57JYzotjFOlnFhtcGITESEWv+pnj0RJUUrlVwLkJhUOKMwL+sbhw0s5+m27ABEB
+AAGJATwEGAEIACYCGwwWIQR5/SuZ88YtLTuFC7yTs1CUdYINXQUCWh+LhAUJA8Jn
+uwAKCRCTs1CUdYINXXuvB/9IKK3SLgJ6lOc2Vq73rGYsrDqfjYt5rCDXhjIaFRE7
+LYmFJcGL5CHJTae438XtAixa+mu6PYG28eknjZs58Cx/bSj9uS6NiLAPCgyTAtvg
+ao6usECOm9Y0xf2+ZcZ9Uji+wsCAFmxRC9je0yUErVyuyQRqzNtdqytnszoTzvb9
+iOP8sX/YNrjC83BtZ4Vg3fzAu8qvwbObgSbws5M8TBwIKd4WFTjOtSU6F8aioJ1g
+mpfd8KGljHkzC0oG8l8fZiTNYqkIMbfyfPpVwsSqsysLKofifFT+mNs79DJdqNFO
+HA2W4WzekYmWWmgK7J8kXHYkxUJA6VpSmNAKwUKqXbNV
+=hneF
+-----END PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;--armor&lt;/code&gt; オプションを指定すると，上記のように， ASCII Armor 形式のテキストを出力する。
+短縮名は &lt;code&gt;-a&lt;/code&gt;。
+&lt;code&gt;--armor&lt;/code&gt; オプションを付けないとバイナリを吐く。&lt;/p&gt;
+
+&lt;p&gt;秘密鍵をエクスポートする場合は &lt;code&gt;--export-secret-key&lt;/code&gt; コマンドを使う（パスフレーズ入力あり）。&lt;/p&gt;
+
+&lt;p&gt;公開鍵をファイル等で配布する場合は &lt;code&gt;--export&lt;/code&gt; コマンドの出力をファイルに落とせばよい。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -a --export alice &amp;gt; alice-key.asc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3 id=&#34;公開鍵をインポートする&#34;&gt;公開鍵をインポートする&lt;/h3&gt;
+
+&lt;p&gt;公開鍵のインポートには &lt;code&gt;--import&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import alice-key.asc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;インポートではパイプが使えるので&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;cat alice-key.asc | gpg --import&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;などとできる。
+また Web ページ上に公開鍵のファイルを置いている場合は &lt;code&gt;--fetch-keys&lt;/code&gt; コマンドで直接インポートすることもできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --fetch-keys http://www.baldanders.info/spiegel/pubkeys/spiegel.asc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;インポートする鍵が既に鍵束にある場合でも，単純な上書きではなく， &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; がいい感じにマージしてくれる。&lt;/p&gt;
+
+&lt;h3 id=&#34;公開鍵を鍵サーバに送信する&#34;&gt;公開鍵を鍵サーバに送信する&lt;/h3&gt;
+
+&lt;p&gt;鍵束にある公開鍵を鍵サーバに送信するには &lt;code&gt;--send-keys&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --keyserver keys.gnupg.net --send-keys 7E20B81C&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;鍵の指定には鍵Dを使う。&lt;/p&gt;
+
+&lt;p&gt;上記のように &lt;code&gt;--keyserver&lt;/code&gt; オプションで鍵サーバを指定する。
+または鍵束フォルダにある &lt;code&gt;gpg.conf&lt;/code&gt; ファイルに既定の鍵サーバを指定できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;keyserver  keys.gnupg.net&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;鍵サーバは，基本的には互いに同期しているので，どのサーバを指定してもいいのだが，有名なところでは&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://keys.gnupg.net/&#34; title=&#34;Nebraska Wesleyan University - OpenPGP Keyserver&#34;&gt;keys.gnupg.net&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://pgp.mit.edu/&#34; title=&#34;MIT PGP Key Server&#34;&gt;pgp.mit.edu&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://pgp.nic.ad.jp/&#34; title=&#34;PGP KEYSERVER&#34;&gt;pgp.nic.ad.jp&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;あたりだろうか。&lt;/p&gt;
+
+&lt;h3 id=&#34;公開鍵を鍵サーバから受信する&#34;&gt;公開鍵を鍵サーバから受信する&lt;/h3&gt;
+
+&lt;p&gt;鍵サーバから公開鍵を受信する場合は &lt;code&gt;--receive-keys&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;--recv-keys&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --keyserver keys.gnupg.net --recv-keys 7E20B81C&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;送信のときと同じく，こちらも鍵の指定には鍵Dを使う。
+あらかじめ鍵IDがわからない場合は &lt;code&gt;--search-keys&lt;/code&gt; コマンドで検索できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --keyserver keys.gnupg.net --search-keys alice@example.com
+(1)     by Teemob &amp;lt;alice@example.com&amp;gt;
+        by Teemob &amp;lt;lockstar2017@gmail.com&amp;gt;
+          3072 bit RSA key 966893ECDA2FD3EC, 作成: 2017-11-15
+(2)     Alice (Alice&amp;#39;s key) &amp;lt;Alice@example.com&amp;gt;
+          1024 bit DSA key A251C75C6213F841, 作成: 2017-11-12, 有効期限: 2018-11-12
+(3)     Alice &amp;lt;alice@example.com&amp;gt;
+          3072 bit RSA key 8EDAABFF277776F3, 作成: 2017-11-03
+(4)     Alice &amp;lt;alice@example.com&amp;gt;
+          3072 bit RSA key 37FC4F26B92A3964, 作成: 2017-10-18
+(5)     Alice &amp;lt;alice@example.com&amp;gt;
+          3072 bit RSA key 09AB44CAA589D7A2, 作成: 2017-10-04
+(6)     Alice &amp;lt;alice@example.com&amp;gt;
+          3072 bit RSA key D3205D5A68E02E2B, 作成: 2017-10-04
+(7)     Alice &amp;lt;alice@example.com&amp;gt;
+          2048 bit RSA key 29FD3D6668D47FA1, 作成: 2017-09-14
+(8)     Alice &amp;lt;alice@example.com&amp;gt;
+          3072 bit RSA key 25B9727BCE238CDE, 作成: 2017-08-10
+(9)     Alice &amp;lt;alice@example.com&amp;gt;
+          3072 bit RSA key 2604F9169E9C4E37, 作成: 2017-08-05 (失効)
+(10)    Alice &amp;lt;alice@example.com&amp;gt;
+          3072 bit RSA key B2251B1A2B632A2E, 作成: 2017-07-17
+(11)    Alice &amp;lt;alice-example-187723@mailismagic.com&amp;gt;
+          2048 bit RSA key FF99048E395DC7E7, 作成: 2017-04-20, 有効期限: 2019-04-20
+Keys 1-11 of 103 for &amp;#34;alice@example.com&amp;#34;.  番号(s)、N)次、またはQ)中止を入力してください &amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;検索結果に対して番号を指定すればそのままインポートしてくれる。&lt;/p&gt;
+
+&lt;h3 id=&#34;公開鍵に署名する&#34;&gt;公開鍵に署名する&lt;/h3&gt;
+
+&lt;p&gt;インポートした公開鍵が有効であることを確認したら，公開鍵に電子署名して有効化しよう。
+公開鍵への電子署名には &lt;code&gt;--sign-key&lt;/code&gt; コマンドまたは &lt;code&gt;--quick-sign-key&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;--sign-key&lt;/code&gt; コマンドは対話モードで複数の鍵にひとつずつ署名することができる。
+&lt;code&gt;--quick-sign-key&lt;/code&gt; コマンドは鍵指紋を指定して一気に処理を行う（パスフレーズ入力あり）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg --quick-sign-key 1B5202DB4A3EC776F1E0AD18B4DA3BAE7E20B81C&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;電子署名が可能な秘密鍵を複数所持している場合は &lt;code&gt;--local-user&lt;/code&gt; オプションで電子署名に使う鍵を指定する。
+短縮名は &lt;code&gt;-u&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg -u alice --quick-sign-key 1B5202DB4A3EC776F1E0AD18B4DA3BAE7E20B81C&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;または電子署名に使う鍵を鍵束フォルダにある &lt;code&gt;gpg.conf&lt;/code&gt; ファイルで指定することもできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;default-key alice&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この電子署名は公開鍵のエクスポート時にも付加されて配布される。
+電子署名を配布されては困る場合は &lt;code&gt;--lsign-key&lt;/code&gt; コマンドまたは &lt;code&gt;--quick-lsign-key&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+
+&lt;h2 id=&#34;データの暗号化&#34;&gt;データの暗号化&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の暗号化は概ね2種類ある。&lt;/p&gt;
+
+&lt;h3 id=&#34;ハイブリッド暗号&#34;&gt;ハイブリッド暗号&lt;/h3&gt;
+
+&lt;p&gt;ハイブリッド暗号は &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の基本機能で，平文を暗号化する「セッション鍵」とセッション鍵を暗号化する公開鍵で構成される。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/openpgp.shtml&#34;&gt;&lt;img src=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/hybrid-enc.svg&#34; srcset=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/hybrid-enc.svg 715w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;「わかる！ OpenPGP 暗号」より&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/openpgp.shtml&#34;&gt;「わかる！ OpenPGP 暗号」より&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;セッション鍵は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; が自動的にし生成するのでコマンドラインではセッション鍵を暗号化する公開鍵を指定する。&lt;/p&gt;
+
+&lt;p&gt;暗号化を行うには &lt;code&gt;--encrypt&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;-e&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -a --recipient alice -e plain-data
+-----BEGIN PGP MESSAGE-----
+
+hQIOAzn9g6TGzi9EEAgAsjEZxs4vutjg1U6BooimWrX3immaTL958Uheqcr7risr
+2MCfVzzHuZtOpS4/lk/K4zk2xCxR3/NreZKlGrWZ205RCUJEY6Hy8GtrjJ2yilC6
+ZV2U/ICRrpoTJm/J/R7W+99arXhP3zDSD2k5Fx9AMJ+OaKuHaBTxJQUtESV8J7Uk
+RhyxQvJPXIfNRG4ZrfTzFzVOV1s9EeFR4UQHhQnp2q+7LA3qrfEh/y/sj4fs6o3G
+KYcRVvUeAYsC1NGGcmpK6Q33oWJxN9vxl+NYlLebtCDS6GYl/bMw+YCXtfMh+cA2
+aLiGUqXZT0Nhb/zVX8zlnP6CZE2kxS60LmTWv11DMQf/UCjdnIM80GKFvvy7/Vas
+OlAwzQv2sWgI4ayL/VvslGVixSATsLD9DREjGo2/RfyDX/aLRsykK7H+Lr/+a3kp
+LQzviY0ogYem1jCcqJs6wKMh1B+M+Ukkk9kVrgXelM6bmPT93Sb54LW9VVCf0GFK
+ntVqfAkhOSOt3p+mHGH0hAmzGGVA9FGU5dIpvWUrMRdoBBJXj3akFVfLFv81QU9H
+j3CCVHvCnGxBDtXWJV9CqVYWARit72R8FOLonpkFTRJ/IvFpePTccsMfsVvvBxS0
+jt88EQAZ7bpdoJZ9qklr7LPMcNzXfZHdZLzNihbLhgEpVkfxI1vfflS5B5p1fIrK
+/NJIAXJc8rgTJ0uI6MyYsgmJS2IVDXzwlsZWDLE9D3cbB8Xa53mlnPvmHgHwxAEn
+Ic3OL8vsjZz9IcRksLr38/nbWhsHIUOrCovj
+=jIJs
+-----END PGP MESSAGE-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;あるいはパイプを使って&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -a --recipient alice -e
+-----BEGIN PGP MESSAGE-----
+
+hQIOAzn9g6TGzi9EEAgAsjEZxs4vutjg1U6BooimWrX3immaTL958Uheqcr7risr
+2MCfVzzHuZtOpS4/lk/K4zk2xCxR3/NreZKlGrWZ205RCUJEY6Hy8GtrjJ2yilC6
+ZV2U/ICRrpoTJm/J/R7W+99arXhP3zDSD2k5Fx9AMJ+OaKuHaBTxJQUtESV8J7Uk
+RhyxQvJPXIfNRG4ZrfTzFzVOV1s9EeFR4UQHhQnp2q+7LA3qrfEh/y/sj4fs6o3G
+KYcRVvUeAYsC1NGGcmpK6Q33oWJxN9vxl+NYlLebtCDS6GYl/bMw+YCXtfMh+cA2
+aLiGUqXZT0Nhb/zVX8zlnP6CZE2kxS60LmTWv11DMQf/UCjdnIM80GKFvvy7/Vas
+OlAwzQv2sWgI4ayL/VvslGVixSATsLD9DREjGo2/RfyDX/aLRsykK7H+Lr/+a3kp
+LQzviY0ogYem1jCcqJs6wKMh1B+M+Ukkk9kVrgXelM6bmPT93Sb54LW9VVCf0GFK
+ntVqfAkhOSOt3p+mHGH0hAmzGGVA9FGU5dIpvWUrMRdoBBJXj3akFVfLFv81QU9H
+j3CCVHvCnGxBDtXWJV9CqVYWARit72R8FOLonpkFTRJ/IvFpePTccsMfsVvvBxS0
+jt88EQAZ7bpdoJZ9qklr7LPMcNzXfZHdZLzNihbLhgEpVkfxI1vfflS5B5p1fIrK
+/NJIAXJc8rgTJ0uI6MyYsgmJS2IVDXzwlsZWDLE9D3cbB8Xa53mlnPvmHgHwxAEn
+Ic3OL8vsjZz9IcRksLr38/nbWhsHIUOrCovj
+=jIJs
+-----END PGP MESSAGE-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とすることもできる。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;--recipient&lt;/code&gt; がセッション鍵の暗号化を行う公開鍵を指定するオプションである。
+短縮名は &lt;code&gt;-r&lt;/code&gt;。
+&lt;code&gt;--recipient&lt;/code&gt; オプションは複数指定できる。
+また鍵束フォルダにある &lt;code&gt;gpg.conf&lt;/code&gt; ファイルで常に使用する公開鍵を指定することもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:dr1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:dr1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;default-key alice
+default-recipient-self&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3 id=&#34;セッション鍵のみで暗号化する&#34;&gt;セッション鍵のみで暗号化する&lt;/h3&gt;
+
+&lt;p&gt;公開鍵は使わずセッション鍵のみで暗号化を行う場合は &lt;code&gt;--symmetric&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;-c&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -a -c
+-----BEGIN PGP MESSAGE-----
+
+jA0EBwMChZ5yarrU9aTF0kIBioFpcLD/laFWIMDVz7AzkzQl+Xwnao+iKpE+yaGo
+sWe2GdB8IGA0O+CAqQYqwQTLKFVtWmAJKMi1hXsb/fuPpzU=
+=5pGP
+-----END PGP MESSAGE-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;コマンド起動時にパスフレーズの入力を要求され，パスフレーズからセッション鍵を生成して暗号化を行う。
+したがって，何らかの方法で暗号データの受け手とパスフレーズを共有する必要がある。&lt;/p&gt;
+
+&lt;h2 id=&#34;暗号データの復号&#34;&gt;暗号データの復号&lt;/h2&gt;
+
+&lt;p&gt;暗号データのf区号には &lt;code&gt;--decrypt&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;-d&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -r alice -e -a &amp;gt; alice-enc.asc
+
+$ gpg -d alice-enc.asc
+gpg: 2048-ビットELG鍵, ID 39FD83A4C6CE2F44, 日付2017-11-30に暗号化されました
+      &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;
+Hello world&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;（パスフレーズ入力あり）&lt;/p&gt;
+
+&lt;p&gt;復号したデータはファイルにリダイレクトすればいいのだが， Windows の場合は安全のため &lt;code&gt;--output&lt;/code&gt; オプションを使うことをお勧めする。
+短縮名は &lt;code&gt;-o&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -o out.txt -d alice-enc.asc
+gpg: 2048-ビットELG鍵, ID 39FD83A4C6CE2F44, 日付2017-11-30に暗号化されました
+      &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;
+Hello world
+
+$ cat out.txt
+Hello world&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;セッション鍵のみで暗号化した場合も同じコマンドで復号できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -a -c &amp;gt; alice-sym-enc.asc
+
+$ gpg -d alice-sym-enc.asc
+gpg: AES暗号化済みデータ
+gpg: 1 個のパスフレーズで暗号化
+Hello world&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;（パスフレーズ入力あり）&lt;/p&gt;
+
+&lt;h2 id=&#34;データへの電子署名と検証&#34;&gt;データへの電子署名と検証&lt;/h2&gt;
+
+&lt;p&gt;データへの電子署名にも幾つかの方法がある。&lt;/p&gt;
+
+&lt;h3 id=&#34;クリア署名&#34;&gt;クリア署名&lt;/h3&gt;
+
+&lt;p&gt;まずデータがテキストの場合は「クリア署名」という方法が使える。
+クリア署名には &lt;code&gt;--clear-sign&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -u alice --clear-sign
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Hello world
+-----BEGIN PGP SIGNATURE-----
+
+iIgEAREIADAWIQTvp6IB8w6ZkSW4Whx6nWuc4jC66QUCWh/IZhIcYWxpY2VAZXhh
+bXBsZS5jb20ACgkQep1rnOIwuuns2QD/RWTidtZjon5cPaiGJHM6oYnYx4HpQXNw
+/xABYweyKdgA/3ArBLWmGhGq1aB8au7bixK91IdIRyhLC0DDJhXG2vM/
+=sLc9
+-----END PGP SIGNATURE-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;このようにクリア署名は元になるテキストと電子署名がくっついた状態で出力される。
+なお，クリア署名の場合は必ず ASCII Armor 形式の出力になるため &lt;code&gt;--armor&lt;/code&gt; オプションは不要である。&lt;/p&gt;
+
+&lt;p&gt;署名の検証には &lt;code&gt;--verify&lt;/code&gt; コマンドを使う。
+少し横着して署名と検証をパイプで繋いでしまおう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -u alice --clear-sign | gpg --verify
+gpg: 11/30/17 18:02:44 東京 (標準時)に施された署名
+gpg:                DSA鍵EFA7A201F30E999125B85A1C7A9D6B9CE230BAE9を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;まぁ自分で署名して，出力をそのまま自分で検証してるんだから正しくてあたり前なのだが，流れは分かると思う。&lt;/p&gt;
+
+&lt;p&gt;実は &lt;code&gt;--verify&lt;/code&gt; コマンドは &lt;code&gt;--decrypt&lt;/code&gt; コマンドで代替えできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -u alice --clear-sign | gpg -d
+Hello world
+gpg: 11/30/17 18:05:11 東京 (標準時)に施された署名
+gpg:                DSA鍵EFA7A201F30E999125B85A1C7A9D6B9CE230BAE9を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;このように &lt;code&gt;--decrypt&lt;/code&gt; コマンドを使うと署名対象のテキストを抽出して出力してくれるのが利点である。&lt;/p&gt;
+
+&lt;h3 id=&#34;分離署名&#34;&gt;分離署名&lt;/h3&gt;
+
+&lt;p&gt;次はファイルへの電子署名をやってみる。
+まず署名対象のファイルを用意する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world&amp;gt; hello.txt
+
+$ cat hello.txt
+Hello world&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;このファイルを配布する際に途中で改竄がないか知りたい。
+こういう場合は「分離署名」にする。
+分離署名には &lt;code&gt;--detach-sign&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;-b&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u alice -b hello.txt&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この結果 &lt;code&gt;hello.txt&lt;/code&gt; ファイルと同じ場所に &lt;code&gt;hello.txt.sig&lt;/code&gt; ファイルが作成される。
+中身はバイナリデータである。&lt;/p&gt;
+
+&lt;p&gt;この&lt;code&gt;hello.txt&lt;/code&gt; ファイルと &lt;code&gt;hello.txt.sig&lt;/code&gt; ファイルをセットで配布するのである。
+どちらかのファイルが改竄されていれば署名の検証が NG になるはずである。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --verify hello.txt.sig
+gpg: 署名されたデータが&amp;#39;hello.txt&amp;#39;にあると想定します
+gpg: 11/30/17 18:31:17 東京 (標準時)に施された署名
+gpg:                DSA鍵EFA7A201F30E999125B85A1C7A9D6B9CE230BAE9を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ここでは署名対象のファイルを &lt;code&gt;hello.txt&lt;/code&gt; と推測して署名の検証を行っている。
+署名対象のファイルを明示して指定するには&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --verify hello.txt.sig hello.txt
+gpg: 11/30/17 18:31:17 東京 (標準時)に施された署名
+gpg:                DSA鍵EFA7A201F30E999125B85A1C7A9D6B9CE230BAE9を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とする。
+分離署名の検証でも &lt;code&gt;--decrypt&lt;/code&gt; コマンドが使える。
+ただし出力は全く同じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -d hello.txt.sig
+gpg: 署名されたデータが&amp;#39;hello.txt&amp;#39;にあると想定します
+gpg: 11/30/17 18:31:17 東京 (標準時)に施された署名
+gpg:                DSA鍵EFA7A201F30E999125B85A1C7A9D6B9CE230BAE9を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;なお，署名対象のファイルがテキスト・ファイルの場合は &lt;code&gt;--textmode&lt;/code&gt; オプションを付けて電子署名を行ったほうが安全である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u alice --textmode -b hello.txt&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;テキスト・ファイルの場合，配布経路によっては改行コードが変えられたりするため（電子メールや FTP 転送など），電子署名を行ったり署名検証を行ったりする前にテキストを正規化しているのである。&lt;/p&gt;
+
+&lt;h3 id=&#34;署名データに署名対象のデータを含める&#34;&gt;署名データに署名対象のデータを含める&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; ではもうひとつ電子署名の形式がある。
+電子署名データの中に署名対象のデータを埋め込んでしまうのである。
+これを行うには &lt;code&gt;--sign&lt;/code&gt; コマンドを使う。
+短縮名は &lt;code&gt;-s&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u alice -s hello.txt&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この結果 &lt;code&gt;hello.txt&lt;/code&gt; ファイルと同じ場所に &lt;code&gt;hello.txt.gpg&lt;/code&gt; ファイルが作成される。
+中身はバイナリデータである。&lt;/p&gt;
+
+&lt;p&gt;さて，できたファイルを検証しよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --verify hello.txt.gpg
+gpg: 11/30/17 19:21:22 東京 (標準時)に施された署名
+gpg:                RSA鍵0200ACBA190D0FB1D4EC7C02DC1D13A6CCA86E21を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;検証は OK だが署名対象のデータが取り出せない。
+そこでまた &lt;code&gt;--decrypt&lt;/code&gt; コマンドを使う。。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -d hello.txt.gpg
+Hello world
+gpg: 11/30/17 19:21:22 東京 (標準時)に施された署名
+gpg:                RSA鍵0200ACBA190D0FB1D4EC7C02DC1D13A6CCA86E21を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これでデータの抽出ができた。
+署名対象のデータを埋め込む方式の何が嬉しいかというと，暗号化と組み合わせる事ができるのである。&lt;/p&gt;
+
+&lt;h3 id=&#34;暗号化と電子署名を同時に行う&#34;&gt;暗号化と電子署名を同時に行う&lt;/h3&gt;
+
+&lt;p&gt;暗号化と電子署名を同時に行うには &lt;code&gt;--encrypt&lt;/code&gt; コマンドと&lt;code&gt;--sign&lt;/code&gt; コマンドを同時に指定する。
+短縮名は &lt;code&gt;-se&lt;/code&gt; または &lt;code&gt;-es&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u alice -r bob -se hello.txt&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ここでは Bob の公開鍵で暗号化して Alice の鍵で電子署名するようにしてみた。
+この結果 &lt;code&gt;hello.txt&lt;/code&gt; ファイルと同じ場所に &lt;code&gt;hello.txt.gpg&lt;/code&gt; ファイルが作成される。
+中身はバイナリデータである。&lt;/p&gt;
+
+&lt;p&gt;ではこれを復号してみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -d hello.txt.gpg
+gpg: 2048-ビットRSA鍵, ID D74C71530446FD66, 日付2017-11-30に暗号化されました
+      &amp;#34;Bob &amp;lt;bob@example.com&amp;gt;&amp;#34;
+Hello world
+gpg: 11/30/17 19:34:06 東京 (標準時)に施された署名
+gpg:                RSA鍵0200ACBA190D0FB1D4EC7C02DC1D13A6CCA86E21を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;このように復号と署名検証が同時に行われる。&lt;/p&gt;
+
+&lt;p&gt;ちなみにセッション鍵のみの暗号化と電子署名を組み合わせることもできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u alice -sc hello.txt
+gpg: AES暗号化を使用します
+
+$ gpg -d hello.txt.gpg
+gpg: AES暗号化済みデータ
+gpg: 1 個のパスフレーズで暗号化
+Hello world
+gpg: 11/30/17 19:47:57 東京 (標準時)に施された署名
+gpg:                RSA鍵0200ACBA190D0FB1D4EC7C02DC1D13A6CCA86E21を使用
+gpg:                発行者&amp;#34;alice@example.com&amp;#34;
+gpg: &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;からの正しい署名 [究極]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;署名・暗号化ではパスフレーズ入力が最大3回（暗号化で確認を入れて2回，電子署名で1回）発生するので注意すること。&lt;/p&gt;
+
+&lt;h2 id=&#34;鍵の失効&#34;&gt;鍵の失効&lt;/h2&gt;
+
+&lt;p&gt;パスフレーズの漏洩や暗号アルゴリズムの危殆化などによって鍵を失効しなければならない場合がある。&lt;/p&gt;
+
+&lt;p&gt;鍵を作成する際に鍵束フォルダの &lt;code&gt;openpgp-revocs.d&lt;/code&gt; フォルダに失効証明書が作成される。
+中身はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;これは失効証明書でこちらのOpenPGP鍵に対するものです:
+
+pub   rsa2048 2017-11-30 [SC]
+      0200ACBA190D0FB1D4EC7C02DC1D13A6CCA86E21
+uid          Alice &amp;lt;alice@example.com&amp;gt;
+
+失効証明書は &amp;#34;殺すスイッチ&amp;#34; のようなもので、鍵がそれ以上使えない
+ように公に宣言するものです。一度発行されると、そのような失効証明書は
+撤回することはできません。
+
+秘密鍵のコンプロマイズや紛失の場合、これを使ってこの鍵を失効させます。
+しかし、秘密鍵がまだアクセス可能である場合、新しい失効証明書を生成し、
+失効の理由をつける方がよいでしょう。詳細は、GnuPGマニュアルのgpgコマン
+ド &amp;#34;--generate-revocation&amp;#34;の記述をご覧ください。
+
+このファイルを誤って使うのを避けるため、以下ではコロンが5つのダッシュ
+の前に挿入されます。この失効証明書をインポートして公開する前に、テク
+スト・エディタでこのコロンを削除してください。
+
+:-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: This is a revocation certificate
+
+iQE2BCABCAAgFiEEAgCsuhkND7HU7HwC3B0TpsyobiEFAlof25ICHQAACgkQ3B0T
+psyobiHRgwf/cNwI01IlXP1dw6op6IgIv3r8nT9XXU4S1WjCvT7yoNs0u+BLHELU
+1V16vY9FcnaiNzz/xkSaAVpY+X1O1G7RZ7oYUMA6yMmeUH2fdP7eh4RFM2RZtlq+
+HQAoyJb6PVu3uIsfqZh2uMH5v3cUIpRI0dwAZG9hQkg0uZ2a1SGKuSjN9voC9vsE
+T55v2WSAtOeleMsNxmywcYGGQBm8YV1F8AC+7K5oc+dmciTBX1IpVHMHkxccObfy
+yrpaQGEWJ39Bp8aR+W6Ywe2Bcpbz1tKWmXmXh4iMYEXDBqs/tnpA30dWJYAiLdCA
+OYcNJtm9leku3UYJGiTSlxZWmImOEgT8ng==
+=xiB6
+-----END PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;このファイルをインポートすることで鍵が失効される。
+なお失効証明書を使用の際には&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;:-----BEGIN PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;の先頭のコロン（&lt;code&gt;:&lt;/code&gt;）を削除して使うこと。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import openpgp-revocs.d/0200ACBA190D0FB1D4EC7C02DC1D13A6CCA86E21.rev
+gpg: 鍵DC1D13A6CCA86E21:&amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;失効証明書をインポートしました
+gpg:           処理数の合計: 1
+gpg:         新しい鍵の失効: 1
+
+$ gpg -k alice
+pub   rsa2048 2017-11-30 [SC] [失効: 2017-11-30]
+      0200ACBA190D0FB1D4EC7C02DC1D13A6CCA86E21
+uid           [  失効  ] Alice &amp;lt;alice@example.com&amp;gt;
+
+$ gpg -a --export alice &amp;gt; alice-rev.asc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;strong&gt;失効した公開鍵を配布するのを忘れずに！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;失効証明書は &lt;code&gt;--generate-revocation&lt;/code&gt; コマンドで作成することもできる。
+短縮名は &lt;code&gt;--gen-revoke&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-test&#34; data-lang=&#34;test&#34;&gt;$ gpg --gen-revoke alice
+
+sec  rsa2048/F3B15FCBA57934CF 2017-11-30 Alice &amp;lt;alice@example.com&amp;gt;
+
+この鍵に対する失効証明書を作成しますか? (y/N) y
+失効の理由を選択してください:
+  0 = 理由は指定されていません
+  1 = 鍵(の信頼性)が損なわれています
+  2 = 鍵がとりかわっています
+  3 = 鍵はもはや使われていません
+  Q = キャンセル
+(ここではたぶん1を選びたいでしょう)
+あなたの決定は? 1
+予備の説明を入力。空行で終了:
+&amp;gt;
+失効理由: 鍵(の信頼性)が損なわれています
+(説明はありません)
+よろしいですか? (y/N) y
+ASCII外装出力を強制します。
+gpg: AllowSetForegroundWindow(11408) failed: アクセスが拒否されました。
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: This is a revocation certificate
+
+iQE2BCABCAAgFiEErVfNdsSCr6H+LTqu87Ffy6V5NM8FAlof5W0CHQIACgkQ87Ff
+y6V5NM+rwgf/dhNTJlYaDdt52CkS8ckSjhrwK3t56mei+sXaic89mYG6RZsJJeAg
++/KAZbruQZqcYAYYw9jOM0UZpysBvZRRfHj7v44FbcJX7GJORDv3lgtQ0nANwHVN
+DXzjpuxBTXGHkBKaOkJ/K5FKGxzFCg+uxJbFh8S710UgS7eg499X+wuKUYuC5orT
+n8qdTvehxLf6hfznCA8fgkSP4VFh1X9NWXBcuH1kogAdOTfTcveY/qC2km/i4SfY
+6x/s4pQvwAIS682dGaqXro0pODsi5Am43xIZeOJaNui7Ear98zB6S/I0Cbp/knzr
+kAc/Jx5aYcyrXqcZtxNwHF+oflpRWyd0KA==
+=wLMC
+-----END PGP PUBLIC KEY BLOCK-----
+失効証明書を作成しました。
+
+みつからないように隠せるような媒体に移してください。もし_悪者_がこの証明書への
+アクセスを得ると、あなたの鍵を使えなくすることができます。
+媒体が読出し不能になった場合に備えて、この証明書を印刷して保管するのが賢明です。
+しかし、ご注意ください。あなたのマシンの印字システムは、他の人がアクセスできる
+場所にデータをおくことがあります!&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;このうち ASCII Armor 形式の部分をコピペして使えばよい。&lt;/p&gt;
+
+&lt;p&gt;鍵作成時に作られた失効証明書は別の場所に補完しておくことをお勧めする。
+もし失効が必要になった時に時間的な余裕があれば &lt;code&gt;--generate-revocation&lt;/code&gt; コマンドで失効証明書を（失効理由も含める形で）作成し，即失効，配布を行うのがいいと思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/OpenPGP-Key-Management.html&#34;&gt;Using the GNU Privacy Guard: OpenPGP Key Management&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/Unattended-GPG-key-generation.html&#34;&gt;Using the GNU Privacy Guard: Unattended GPG key generation&lt;/a&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/GPG-Configuration-Options.html&#34;&gt;Using the GNU Privacy Guard: GPG Configuration Options&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/openpgp.shtml&#34;&gt;わかる！ OpenPGP 暗号 — Baldanders.info&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2017/11/openpgp-key-management/&#34;&gt;OpenPGP 鍵管理に関する考察&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:dr1&#34;&gt;&lt;code&gt;default-recipient-self&lt;/code&gt; の指定は自身の鍵で復号できるよう設定するためのものである。相手の公開鍵のみで暗号化してしまうと，暗号化した本人が復号できないことになってしまうため。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:dr1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>GnuPG for Windows : gpg-agent について — OpenPGP の実装</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/using-gnupg-for-windows-2/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/using-gnupg-for-windows-2/</id>
+		<published>2017-12-01T17:48:43+09:00</published>
+		<updated>2017-12-01T17:48:43+09:00</updated>
+		<summary>今回は gpg-agent について解説する。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;h2 id=&#34;gpg-agent&#34;&gt;gpg-agent&lt;/h2&gt;
+
+&lt;p&gt;&lt;code&gt;gpg-agent&lt;/code&gt; は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の中核コンポーネントで，秘密鍵の管理&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:sr&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:sr&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; を行い一定期間キャッシュする。
+&lt;code&gt;gpg-agent&lt;/code&gt; は &lt;code&gt;gpg&lt;/code&gt;, &lt;code&gt;gpgsm&lt;/code&gt;, &lt;code&gt;gpgconf&lt;/code&gt;, &lt;code&gt;gpg-connect-agent&lt;/code&gt; といったコンポーネントから常駐プロセスとして起動されお互いに通信を行う&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:od&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:od&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;gpg-agent&lt;/code&gt; が稼働中かどうかは &lt;code&gt;gpg-agent&lt;/code&gt; を引数なしで起動すれば分かる。
+以下は既に起動している場合。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg-agent
+gpg-agent[3996]: gpg-agent running and available&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;gpg-agent&lt;/code&gt; が稼働していない場合は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg-agent
+gpg-agent[9552]: no gpg-agent running in this session&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;などと表示される。&lt;/p&gt;
+
+&lt;p&gt;手動で &lt;code&gt;gpg-agent&lt;/code&gt; を起動する場合は以下のコマンドで起動する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg-connect-agent /bye
+gpg-connect-agent: no running gpg-agent - starting &amp;#39;C:\path\to\GnuPG\bin\gpg-agent.exe&amp;#39;
+gpg-connect-agent: waiting for the agent to come up ... (5s)
+gpg-connect-agent: connection to agent established&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;逆に &lt;code&gt;gpg-agent&lt;/code&gt; を手動で停止したい場合は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg-connect-agent killagent /bye
+OK closing connection&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とすれば安全に停止できる。&lt;/p&gt;
+
+&lt;h3 id=&#34;pinentry&#34;&gt;Pinentry&lt;/h3&gt;
+
+&lt;p&gt;Pinentry はパスフレーズ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:pp&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:pp&#34;&gt;3&lt;/a&gt;&lt;/sup&gt; やスマートカードの PIN コードを入力する際に &lt;code&gt;gpg-agent&lt;/code&gt; から呼び出される。
+Windows 版では Pinentry プログラムとして &lt;code&gt;pinentry-basic.exe&lt;/code&gt; が同梱されている。
+同等の機能を持つものであれば他のプログラムと差し替えることもできる。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;gpg&lt;/code&gt; に &lt;code&gt;--batch&lt;/code&gt; （または &lt;code&gt;--pinentry-mode loopback&lt;/code&gt;）オプションとパスフレーズ指定オプション（&lt;code&gt;--passphrase&lt;/code&gt;, &lt;code&gt;--passphrase-fd&lt;/code&gt;, &lt;code&gt;--passphrase-file&lt;/code&gt;）をセットで指定している場合は Pinentry を迂回できることがある（&lt;code&gt;--quick-gen-key&lt;/code&gt; コマンドの場合など）。&lt;/p&gt;
+
+&lt;h3 id=&#34;gpg-agent-のオプション&#34;&gt;gpg-agent のオプション&lt;/h3&gt;
+
+&lt;p&gt;&lt;code&gt;gpg-agent&lt;/code&gt; のオプションは &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; ホームディレクトリ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:hd&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:hd&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; 直下にある &lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルで設定する。
+設定は以下の様なフォーマットで行う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;default-cache-ttl 600
+max-cache-ttl 7200&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルで使いそうなオプションを以下に挙げる。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&#34;left&#34;&gt;オプション名&lt;/th&gt;
+&lt;th align=&#34;left&#34;&gt;内容&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;log-file&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;ログの出力先をフルパスで指定する。 挙動をチェックしたい場合など&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;default-cache-ttl&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;直前にアクセスしたキャッシュ・エントリの有効期間を秒単位で指定する。 既定値は 600&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;max-cache-ttl&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;キャッシュ・エントリの有効期間の最大値を秒単位で指定する。 アクセスの有無にかかわらずこの期間が過ぎるとキャッシュがクリアされる。 既定値は 7200&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;pinentry-program&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;独自に Pinentry プログラムを指定する場合はここにフルパスで指定する&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;pinentry-timeout&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;Pinentry プログラムの表示時間を秒単位で指定する。 既定値は 0 （タイムアウトなし）&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;他にも，鍵生成時にパスフレーズの文字種や最小文字長を指定したり，パスフレーズの有効期間（期間が過ぎると警告が出るらしい）を設定できたりするようだ。
+オプション項目について詳しくはは&lt;a href=&#34;https://gnupg.org/documentation/manuals/gnupg/Agent-Options.html&#34; title=&#34;Agent Options - Using the GNU Privacy Guard&#34;&gt;マニュアル&lt;/a&gt;（英語）を参照のこと。&lt;/p&gt;
+
+&lt;h2 id=&#34;putty-with-gpg-agent&#34;&gt;PuTTY with gpg-agent&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; は Windows 用の SSH クライアント兼ターミナル・エミュレータである。
+&lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; には Plink と呼ばれるコマンドラインベースの SSH 接続ツールがあり，他ツール（例えば &lt;a href=&#34;https://git-for-windows.github.io/&#34; title=&#34;Git for Windows&#34;&gt;Git for Windows&lt;/a&gt;）と連携できるようになっている。
+さらに &lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; には Pagent と呼ばれるエージェントツールもあり，認証用の秘密鍵をキャッシュすることができる。&lt;/p&gt;
+
+&lt;p&gt;今回は Pagent を &lt;code&gt;gpg-agent&lt;/code&gt; で置き換えることを考える。&lt;/p&gt;
+
+&lt;h3 id=&#34;gpg-agent-のオプション-1&#34;&gt;gpg-agent のオプション&lt;/h3&gt;
+
+&lt;p&gt;&lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルに以下のオプションを追加する（&lt;code&gt;enable-putty-support&lt;/code&gt; 以外は任意）。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th align=&#34;left&#34;&gt;オプション名&lt;/th&gt;
+&lt;th align=&#34;left&#34;&gt;内容&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;enable-putty-support&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;Pagent プロトコルを有効にする&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;default-cache-ttl-ssh&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;直前にアクセスしたキャッシュ・エントリの有効期間を秒単位で指定する。 既定値は 1800&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td align=&#34;left&#34;&gt;&lt;code&gt;max-cache-ttl-ssh&lt;/code&gt;&lt;/td&gt;
+&lt;td align=&#34;left&#34;&gt;キャッシュ・エントリの有効期間の最大値を秒単位で指定する。 アクセスの有無にかかわらずこの期間が過ぎるとキャッシュがクリアされる。 既定値は 7200&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;設定を保存したら &lt;code&gt;gpg-connect-agent&lt;/code&gt; を使って &lt;code&gt;gpg-agent&lt;/code&gt; を再起動する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg-connect-agent killagent /bye
+OK closing connection
+
+$ gpg-connect-agent /bye
+gpg-connect-agent: no running gpg-agent - starting &amp;#39;C:\path\to\GnuPG\bin\gpg-agent.exe&amp;#39;
+gpg-connect-agent: waiting for the agent to come up ... (5s)
+gpg-connect-agent: connection to agent established&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;なお， &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の各コンポーネントは必要に応じて自動的に &lt;code&gt;gpg-agent&lt;/code&gt; を起動するので問題ないのだが， &lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; と連動しているわけではないため， &lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; 起動時に &lt;code&gt;gpg-agent&lt;/code&gt; が起動していない状況もありうる。
+そこで， Windows ログイン時に &lt;code&gt;gpg-connect-agent&lt;/code&gt; を使って &lt;code&gt;gpg-agent&lt;/code&gt; を起動しておくことをお薦めする。&lt;/p&gt;
+
+&lt;h3 id=&#34;ssh-鍵のインポート&#34;&gt;SSH 鍵のインポート&lt;/h3&gt;
+
+&lt;p&gt;SSH 鍵のインポートには2通りの方法あるようだが，今回は簡単な方でいく&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:imp&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:imp&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;鍵ファイル（ここでは &lt;code&gt;id_rsa.PPK&lt;/code&gt; とする）を Pagent で開く。
+ファイルの関連付けがされている場合はエクスプローラから該当の PPK ファイルをダブルクリックすればいい。
+そうでない場合は以下のコマンドで PPK ファイルを開く。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ pageant.exe id_rsa.PPK
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;すると Pagent のプロンプトが1回， &lt;code&gt;gpg-agent&lt;/code&gt; のプロンプトが2回表示され，都合3回パスフレーズを入力させられる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a data-flickr-embed=&#34;true&#34; href=&#34;https://www.flickr.com/photos/spiegel/25558118892/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1454/25558118892_045f0a9b8f_o.png&#34; srcset=&#34;https://farm2.staticflickr.com/1454/25558118892_045f0a9b8f_o.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Pagent&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25558118892/&#34;&gt;Pagent&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a data-flickr-embed=&#34;true&#34; href=&#34;https://www.flickr.com/photos/spiegel/25558116832/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1485/25558116832_dd02c5d7ec_o.png&#34; srcset=&#34;https://farm2.staticflickr.com/1485/25558116832_dd02c5d7ec_o.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;GnuPG Pinentry (1)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25558116832/&#34;&gt;GnuPG Pinentry (1)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a data-flickr-embed=&#34;true&#34; href=&#34;https://www.flickr.com/photos/spiegel/25376004580/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1467/25376004580_58a790993c_o.png&#34; srcset=&#34;https://farm2.staticflickr.com/1467/25376004580_58a790993c_o.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;GnuPG Pinentry (2)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25376004580/&#34;&gt;GnuPG Pinentry (2)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;これで秘密鍵が &lt;code&gt;private-keys-v1.d&lt;/code&gt; フォルダに格納される。
+また &lt;code&gt;sshcontrol&lt;/code&gt; ファイルが作成され，インポートした鍵の情報が書き込まれる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# List of allowed ssh keys.  Only keys present in this file are used
+# in the SSH protocol.  The ssh-add tool may add new entries to this
+# file to enable them; you may also add them manually.  Comment
+# lines, like this one, as well as empty lines are ignored.  Lines do
+# have a certain length limit but this is not serious limitation as
+# the format of the entries is fixed and checked by gpg-agent. A
+# non-comment line starts with optional white spaces, followed by the
+# keygrip of the key given as 40 hex digits, optionally followed by a
+# caching TTL in seconds, and another optional field for arbitrary
+# flags.   Prepend the keygrip with an &amp;#39;!&amp;#39; mark to disable it.
+
+# RSA key added on: 2016-03-10 21:24:32
+# MD5 Fingerprint:  56:ff:fd:60:38:a1:7a:44:0c:37:86:90:94:8d:7f:6a
+F65BB98767E88930612C6EABC4D4918E2A573903 0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この &lt;code&gt;F65B...&lt;/code&gt; の長ったらしい数字列は keygrip と呼ばれる鍵の識別子で &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵 ID とは異なるもののようだ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:kg&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:kg&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;これで鍵のインポートができたので &lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; で実際に SSH 接続してみると&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a data-flickr-embed=&#34;true&#34; href=&#34;https://www.flickr.com/photos/spiegel/25585468551/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1586/25585468551_0447584a65_o.png&#34; srcset=&#34;https://farm2.staticflickr.com/1586/25585468551_0447584a65_o.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;GnuPG Pinentry (3)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25585468551/&#34;&gt;GnuPG Pinentry (3)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;とプロンプトが表示された。
+めでたし！&lt;/p&gt;
+
+&lt;h2 id=&#34;git-for-windows-との連携&#34;&gt;Git for Windows との連携&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://git-for-windows.github.io/&#34; title=&#34;Git for Windows&#34;&gt;Git for Windows&lt;/a&gt; と &lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; を連携するには，環境変数 &lt;code&gt;GIT_SSH&lt;/code&gt; に Plink へのフルパスをセットする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;setx GIT_SSH=C:\path\to\PuTTY\plink.exe&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;一方，リポジトリの &lt;code&gt;.git\config&lt;/code&gt; ファイルには PPK ファイルの場所をセットする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;k&#34;&gt;[remote &amp;#34;origin&amp;#34;]&lt;/span&gt;
+    &lt;span class=&#34;na&#34;&gt;puttykeyfile&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;C:/path/to/PuTTY/id_rsa.PPK&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この状態で &lt;code&gt;git fetch&lt;/code&gt; または &lt;code&gt;git push&lt;/code&gt; を行うと Plink 経由で &lt;code&gt;gpg-agent&lt;/code&gt; にリクエストが発生する。&lt;/p&gt;
+
+&lt;h2 id=&#34;windows-版-gpg-agent-は-openssh-と相性が悪い&#34;&gt;Windows 版 gpg-agent は OpenSSH と相性が悪い？&lt;/h2&gt;
+
+&lt;p&gt;&lt;code&gt;gpg-agent&lt;/code&gt; は &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の &lt;code&gt;ssh-agent&lt;/code&gt; と置き換えることもできる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:sa&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:sa&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。
+&lt;code&gt;gpg-agent&lt;/code&gt; への SSH 鍵のインポートには &lt;code&gt;ssh-add&lt;/code&gt; を使うのだが， Windows 環境では上手く動かない。
+どうやらファイル・ディスクリプタ &lt;code&gt;S.gpg-agent.ssh&lt;/code&gt; が上手く機能しないようだ。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://msys2.github.io/&#34; title=&#34;MSYS2 installer&#34;&gt;MSYS2&lt;/a&gt; 版&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:m&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:m&#34;&gt;8&lt;/a&gt;&lt;/sup&gt; と &lt;a href=&#34;https://github.com/PowerShell/Win32-OpenSSH&#34; title=&#34;PowerShell/Win32-OpenSSH: Win32 port of OpenSSH&#34;&gt;PowerShell 用&lt;/a&gt;の &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; で試してみたのだが，いずれも上手くいかなかった。
+&lt;a href=&#34;http://msys2.github.io/&#34; title=&#34;MSYS2 installer&#34;&gt;MSYS2&lt;/a&gt; 版については &lt;a href=&#34;http://msys2.github.io/&#34; title=&#34;MSYS2 installer&#34;&gt;MSYS2&lt;/a&gt; の &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を使えば上手くいくのかもしれないが，面倒なので試してない。
+今後，試す機会があればここに追記する。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考になる-かもしれない-web-ページ&#34;&gt;参考になる（かもしれない） Web ページ&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://hp.vector.co.jp/authors/VA024651/PuTTYkj.html&#34;&gt;hdk の自作ソフトの紹介 | PuTTYjp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://ice.hotmint.com/putty/&#34;&gt;iceiv+putty&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://webkaru.net/linux/putty-ssh-login-public-key/&#34;&gt;公開鍵認証によるSSH接続 - PuTTYの使い方 - Linux入門 - Webkaru&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://qiita.com/tsuyoshi_cho/items/79c09905ae3f192b3a0f&#34;&gt;Windowsでのssh agent - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://developers.yubico.com/PGP/SSH_authentication/Windows.html&#34;&gt;SSH authentication using a YubiKey on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://yanor.net/wiki/?Git%2FGit%20for%20Windows%2FSSH%E3%81%ABPuTTY%E3%82%92%E4%BD%BF%E3%81%86&#34;&gt;Git/Git for Windows/SSHにPuTTYを使う - yanor.net/wiki&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://superuser.com/questions/911496/gpg-agent-under-windows-as-ssh-agent-for-git-bash&#34;&gt;GPG Agent under Windows as SSH Agent for git bash - Super User&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://incenp.org/notes/2015/gnupg-for-ssh-authentication.html&#34;&gt;Using GnuPG (2.1) for SSH authentication&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.sysmic.org/dotclear/index.php?post/2010/03/24/Convert-keys-betweens-GnuPG%2C-OpenSsh-and-OpenSSL&#34;&gt;Convert keys between GnuPG, OpenSsh and OpenSSL - Sysmic.org&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:sr&#34;&gt;&lt;a href=&#34;http://text.baldanders.info/openpgp/using-gnupg-for-windows-1/&#34; title=&#34;GnuPG for Windows インストール編&#34;&gt;前回&lt;/a&gt;も書いたが， classic version と現行バージョンでは鍵（特に秘密鍵）の管理の仕方が異なるため両者を混在させる場合は注意が必要である。 Classic version で作成した鍵を現行バージョンにも反映させたいのであれば &lt;code&gt;gpg-v21-migrated&lt;/code&gt; ファイルを削除すると再度移行処理が走るらしい。 Classic version を使わなければならない状況（Linux などではパッケージ管理ツールがアプリケーションの証明用に &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の classic version を使うことがある）でないのなら現行バージョンに一本化するほうがお勧めである。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:sr&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:od&#34;&gt;現行バージョンでは &lt;code&gt;gpg-agent&lt;/code&gt; が必須である。したがって，かつての &lt;code&gt;--use-agent&lt;/code&gt;, &lt;code&gt;--no-use-agent&lt;/code&gt;, &lt;code&gt;--gpg-agent-info&lt;/code&gt; 各オプションは無効（ダミーオプション）になっている。また UNIX 互換プラットフォームで &lt;code&gt;gpg-agent&lt;/code&gt; 利用する際は &lt;code&gt;GPG_TTY&lt;/code&gt; 環境変数をセットする必要があるが， Windows では不要なためここでは割愛する。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:od&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:pp&#34;&gt;パスワード（password）とパスフレーズ（passphrase）の違いは，パスフレーズでは英数字以外に空白文字や記号が使え文字数の制限がないことにある。ちなみに &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の秘密鍵にはいかなる形でもパスフレーズを保持しない（S2K パラメータ情報は持っている）。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:pp&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:hd&#34;&gt;Windows では， &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; ホームディレクトリの既定は &lt;code&gt;%APPDATA%\gnupg&lt;/code&gt; となっている。これを変更するには &lt;code&gt;GNUPGHOME&lt;/code&gt; 環境変数または &lt;code&gt;--homedir&lt;/code&gt; オプションを使う。（&lt;a href=&#34;http://text.baldanders.info/openpgp/using-gnupg-for-windows-1/&#34; title=&#34;GnuPG for Windows インストール編&#34;&gt;前回&lt;/a&gt;を参照のこと）
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:hd&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:imp&#34;&gt;今回は PPK ファイルを直接読み込む方法をとったが， PPK ファイルから OpenSSH 形式にエクスポートし，それを更に X.509 形式に変換した後 &lt;code&gt;gpgsm&lt;/code&gt; でインポートすることもできる。（参考： &lt;a href=&#34;http://www.sysmic.org/dotclear/index.php?post/2010/03/24/Convert-keys-betweens-GnuPG%2C-OpenSsh-and-OpenSSL&#34;&gt;Convert keys between GnuPG, OpenSsh and OpenSSL&lt;/a&gt;）
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:imp&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:kg&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵以外の鍵にも対応するためらしい。 &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵の keygrip は &lt;code&gt;--with-keygrip&lt;/code&gt; オプションを付けて鍵を表示すると見ることができる。ちなみに &lt;code&gt;private-keys-v1.d&lt;/code&gt; フォルダにある秘密鍵のファイルは，この keygrip 値がそのままファイル名になっている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:kg&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:sa&#34;&gt;&lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルに &lt;code&gt;enable-ssh-support&lt;/code&gt; オプションをセットする。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:sa&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:m&#34;&gt;&lt;a href=&#34;https://git-for-windows.github.io/&#34; title=&#34;Git for Windows&#34;&gt;Git for Windows&lt;/a&gt; に同梱されている &lt;code&gt;git bash&lt;/code&gt; も &lt;a href=&#34;http://msys2.github.io/&#34; title=&#34;MSYS2 installer&#34;&gt;MSYS2&lt;/a&gt; である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:m&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>GnuPG for Windows インストール編 — OpenPGP の実装</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/using-gnupg-for-windows-1/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/using-gnupg-for-windows-1/</id>
+		<published>2017-12-01T17:48:32+09:00</published>
+		<updated>2017-12-01T17:48:32+09:00</updated>
+		<summary>Windows 版 GnuPG のインストールについて。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;この記事は以下の記事を最新版 &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; 用に再構成したものです。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000770.shtml&#34;&gt;GnuPG 2.1.0 (modern) for Windows のインストール — Baldanders.info&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ECC への対応については以下の Gist ページを参照のこと。
+（これもそのうち再構成してここで公開する予定）&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://gist.github.com/spiegel-im-spiegel/f177c02af04d3b34ade0&#34;&gt;Windows 版 GnuPG 2.1.x を使ってみる&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;openpgp-実装としての-gnupg&#34;&gt;OpenPGP 実装としての GnuPG&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の起源は &lt;a href=&#34;https://www.philzimmermann.com/&#34; title=&#34;Phil Zimmermann&#39;s Home Page&#34;&gt;Phil Zimmermann&lt;/a&gt; さんによる PGP (Pretty Good Privacy) と呼ばれる暗号ツールである。
+PGP の最初のバージョンは1991年に公開された&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:1991&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:1991&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+当時の &lt;a href=&#34;https://www.philzimmermann.com/&#34; title=&#34;Phil Zimmermann&#39;s Home Page&#34;&gt;Phil Zimmermann&lt;/a&gt; さんは反核運動家で，政府等の組織からデータやメッセージ（特に電子メール）を保護するための手段として PGP を開発し，最終的にそれをフリーで公開した&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:pgp&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:pgp&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;その後 PGP はいくつか改良を重ね，1998年に &lt;a href=&#34;http://tools.ietf.org/html/rfc2440&#34; title=&#34;RFC 2440 - OpenPGP Message Format&#34;&gt;RFC 2440&lt;/a&gt; つまり OpenPGP として標準化された&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:op&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:op&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。
+また特許上の制限や国際政治上の問題も2000年を機に大幅に緩和され PGP を含む多くの暗号製品が本格的に使われるようになった。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; は &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; をベースにドイツで生まれた製品である。
+特定の個人・組織が独占することのないよう &lt;a href=&#34;https://www.gnu.org/&#34; title=&#34;The GNU Operating System and the Free Software Movement&#34;&gt;GNU&lt;/a&gt; プロジェクトの一環として現在も開発が行われている&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gpl&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:gpl&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の最新バージョンは 2.2 系である。
+2.0 系（旧 stable version）および 2.1 系（旧 modern version）は 2.2 系に統合された。
+また 2.0 系は2017年末でサポートが終了する。&lt;/p&gt;
+
+&lt;p&gt;なお classic version である 1.4 系はレガシー・システムとの互換性のためにメンテナンスが継続されるが， Windows で新たに導入するのであれば 2.2 系を強くお勧めする。&lt;/p&gt;
+
+&lt;h2 id=&#34;事前準備-インストーラのダウンロード&#34;&gt;【事前準備】インストーラのダウンロード&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://gnupg.org/download/&#34; title=&#34;GnuPG - Download&#34;&gt;ダウンロードページ&lt;/a&gt; の “GnuPG binary releases” にある Windows 用のバイナリへのリンクから “current GnuPG” をダウンロードする（2017年11月20日時点で v2.2.3 が最新）。
+必ずインストーラ本体と署名ファイルをセットでダウンロードすること。&lt;/p&gt;
+
+&lt;p&gt;前バージョンの &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を持っている場合はインストーラの署名検証を行い，正しいファイルであることを確認すること。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --verify  gnupg-w32-2.2.3_20171120.exe.sig
+gpg: 署名されたデータが&amp;#39;gnupg-w32-2.2.3_20171120.exe&amp;#39;にあると想定します
+gpg: 11/20/17 21:25:34 東京 (標準時)に施された署名
+gpg:                RSA鍵D8692123C4065DEA5E0F3AB5249B39D24F25E3B6を使用
+gpg: &amp;#34;Werner Koch (dist sig)&amp;#34;からの正しい署名 [充分]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;署名検証用の公開鍵は以下にある。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://gnupg.org/signature_key.html&#34;&gt;Signature Key&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;公開鍵は鍵サーバから取得することもできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --keyserver keys.gnupg.net --recv-keys 0x4F25E3B6&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3 id=&#34;classic-version-削除のススメ&#34;&gt;Classic Version 削除のススメ&lt;/h3&gt;
+
+&lt;p&gt;現行バージョンのファイル構成は classic version と互換性がない。
+Windows で現行バージョンを利用するのなら classic version は削除するのがお勧めである。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Classic version の鍵束（keyring; &lt;code&gt;pubring.gpg&lt;/code&gt;, &lt;code&gt;secring.gpg&lt;/code&gt;, &lt;code&gt;trustdb.gpg&lt;/code&gt;）は別の場所に退避させておき，現行バージョンのインストール後にインポートする&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:imp&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:imp&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。インポートの方法は後述する&lt;/li&gt;
+&lt;li&gt;Classic version  アンインストール後に環境変数 &lt;code&gt;PATH&lt;/code&gt; に &lt;code&gt;gpg.exe&lt;/code&gt; へのパスが残っている場合は念のためこれも削除しておく。環境変数の変更方法がわからない方は無理に削除しなくてもいい&lt;/li&gt;
+&lt;li&gt;Classic version  アンインストール後にレジストリ &lt;code&gt;HKEY_CURRENT_USER\Software\GNU\GnuPG&lt;/code&gt; が残っている場合は，これも削除してしまうのがよいだろう。ただしレジストリ操作に自信のない人はこれも無理に触らなくてよい&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;なお &lt;code&gt;trustdb.gpg&lt;/code&gt; は以下のコマンドでテキストファイルにエクスポートしておくとよい&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:t&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:t&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export-ownertrust &amp;gt; trust.txt&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2 id=&#34;インストーラの実行&#34;&gt;インストーラの実行&lt;/h2&gt;
+
+&lt;p&gt;準備ができたところでインストールを始めよう。
+ダウンロードしたインストーラを起動する（スクリーンショットが古いがご容赦）。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/24974542243/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1502/24974542243_4e83a1d7b1.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1502/24974542243_4e83a1d7b1.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Installing GnuPG for Windows (1)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/24974542243/&#34;&gt;Installing GnuPG for Windows (1)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;英語だけど無問題。
+ほとんど選択肢はないので &lt;code&gt;[Next]&lt;/code&gt; ボタンで先に進めていけばいい。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25482633892/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1545/25482633892_d9dc023e1a.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1545/25482633892_d9dc023e1a.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Installing GnuPG for Windows (2)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25482633892/&#34;&gt;Installing GnuPG for Windows (2)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/24974542073/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1695/24974542073_20408e1079.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1695/24974542073_20408e1079.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Installing GnuPG for Windows (3)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/24974542073/&#34;&gt;Installing GnuPG for Windows (3)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25305629970/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1472/25305629970_6f5dcb4ef0.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1472/25305629970_6f5dcb4ef0.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Installing GnuPG for Windows (4)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25305629970/&#34;&gt;Installing GnuPG for Windows (4)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;インストール先のフォルダを変えたい場合はここで変更する。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25601226555/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1449/25601226555_b07b73e7fa.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1449/25601226555_b07b73e7fa.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Installing GnuPG for Windows (5)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25601226555/&#34;&gt;Installing GnuPG for Windows (5)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25575126816/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1633/25575126816_f090b537bf.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1633/25575126816_f090b537bf.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Installing GnuPG for Windows (6)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25575126816/&#34;&gt;Installing GnuPG for Windows (6)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://www.flickr.com/photos/spiegel/24970753344/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1587/24970753344_5da4faf427.jpg&#34; srcset=&#34;https://farm2.staticflickr.com/1587/24970753344_5da4faf427.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Installing GnuPG for Windows (7)&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/24970753344/&#34;&gt;Installing GnuPG for Windows (7)&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;&lt;code&gt;[Finish]&lt;/code&gt; ボタンを押してインストール完了。&lt;/p&gt;
+
+&lt;p&gt;この時点で &lt;code&gt;PATH&lt;/code&gt; も通っているため，コマンドプロンプトから&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --version
+gpg (GnuPG) 2.2.3
+libgcrypt 1.8.1
+Copyright (C) 2017 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Home: C:/Users/username/AppData/Roaming/gnupg
+サポートしているアルゴリズム:
+公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+    CAMELLIA128, CAMELLIA192, CAMELLIA256
+ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+圧縮: 無圧縮, ZIP, ZLIB, BZIP2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;と入力すればバージョン情報が表示される。&lt;/p&gt;
+
+&lt;h3 id=&#34;ホームディレクトリの変更-必要に応じて&#34;&gt;ホームディレクトリの変更（必要に応じて）&lt;/h3&gt;
+
+&lt;p&gt;インストール直後は &lt;code&gt;%APPDATA%\gnupg&lt;/code&gt; が &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; のホームディレクトリになっている&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gh&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:gh&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。
+通常はこれで問題ないが，他のフォルダに変更したい場合は環境変数 &lt;code&gt;GNUPGHOME&lt;/code&gt; でフォルダを指定する。
+また &lt;code&gt;gpg.exe&lt;/code&gt; 起動時に &lt;code&gt;--homedir&lt;/code&gt; オプションでホームディレクトリを直接指定することもできる（&lt;code&gt;--homedir&lt;/code&gt; オプションが優先）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --version --homedir C:\usr\home
+gpg (GnuPG) 2.2.3
+libgcrypt 1.8.1
+Copyright (C) 2017 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Home: C:/usr/home
+サポートしているアルゴリズム:
+公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+    CAMELLIA128, CAMELLIA192, CAMELLIA256
+ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+圧縮: 無圧縮, ZIP, ZLIB, BZIP2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;インストール直後のホームディレクトリはまだ空である。&lt;/p&gt;
+
+&lt;h3 id=&#34;classic-version-の鍵束のインポート-移行時のみ&#34;&gt;Classic Version の鍵束のインポート（移行時のみ）&lt;/h3&gt;
+
+&lt;p&gt;Classic version からアップグレードした人は旧鍵束（&lt;code&gt;pubring.gpg&lt;/code&gt;, &lt;code&gt;secring.gpg&lt;/code&gt;, &lt;code&gt;trustdb.gpg&lt;/code&gt; → &lt;code&gt;trust.txt&lt;/code&gt;）をあらかじめ退避していると思うが，これを現行バージョンへインポートする。
+手順は以下のとおり。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import-options import-local-sigs --import pubring.gpg
+$ gpg --import secring.gpg
+$ gpg --import-ownertrust trust.txt&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;秘密鍵（&lt;code&gt;secring.gpg&lt;/code&gt;）のインポートでは鍵の数だけパスフレーズの入力をを要求される。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a data-flickr-embed=&#34;true&#34; href=&#34;https://www.flickr.com/photos/spiegel/25316582890/&#34;&gt;&lt;img src=&#34;https://farm2.staticflickr.com/1507/25316582890_9ff8c3d2ea_o.png&#34; srcset=&#34;https://farm2.staticflickr.com/1507/25316582890_9ff8c3d2ea_o.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;GnuPG pinentry&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/25316582890/&#34;&gt;GnuPG pinentry&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;このプロンプト画面（Pinentry）については&lt;a href=&#34;http://text.baldanders.info/openpgp/using-gnupg-for-windows-2/&#34; title=&#34;GnuPG for Windows : gpg-agent について&#34;&gt;次回&lt;/a&gt;に &lt;code&gt;gpg-agent&lt;/code&gt; の話と絡めて説明する。&lt;/p&gt;
+
+&lt;p&gt;上手くインポートできていれば以下のように鍵を表示することができる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys 0x4F25E3B6
+pub   rsa2048 2011-01-12 [SC] [有効期限: 2019-12-31]
+      D8692123C4065DEA5E0F3AB5249B39D24F25E3B6
+uid           [  充分  ] Werner Koch (dist sig)
+sub   rsa2048 2011-01-12 [A] [有効期限: 2019-12-31]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;インポートにより &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; のホームディレクトリには以下のフォルダ・ファイルができているはずである。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;pubring.kbx&lt;/code&gt; ファイル&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:kbx&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:kbx&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;trustdb.gpg&lt;/code&gt; ファイル&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;gpg-v21-migrated&lt;/code&gt; ファイル&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;private-keys-v1.d&lt;/code&gt; フォルダ&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;private-keys-v1.d&lt;/code&gt; フォルダにはインポートした秘密鍵の数だけファイルが作成されている。
+&lt;code&gt;gpg-v21-migrated&lt;/code&gt; ファイルは鍵束が現行バージョンへ移行したことを示すフラグである。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考になる-かもしれない-web-ページ&#34;&gt;参考になる（かもしれない） Web ページ&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/openpgp/bookmark/&#34;&gt;ブックマークはこちら&lt;/a&gt;に移動した。&lt;/p&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4314009071/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51ZRZ62WKCL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4314009071/baldandersinf-22/&#34;&gt;暗号化 プライバシーを救った反乱者たち&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;スティーブン・レビー 斉藤 隆央 &lt;/dd&gt;&lt;dd&gt;紀伊國屋書店 2002-02-16&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/487593100X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/487593100X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;ハッカーズ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4105393022/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4105393022.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;暗号解読―ロゼッタストーンから量子暗号まで&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4484111160/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4484111160.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グーグル ネット覇者の真実 追われる立場から追う立場へ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/410215972X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/410215972X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;暗号解読〈上〉 (新潮文庫)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4102159738/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4102159738.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;暗号解読 下巻 (新潮文庫 シ 37-3)&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-03-09&#34;&gt;2015/03/09&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4900900028/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/5132396FFQL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4900900028/baldandersinf-22/&#34;&gt;PGP―暗号メールと電子署名&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;シムソン ガーフィンケル Simson Garfinkel &lt;/dd&gt;&lt;dd&gt;オライリー・ジャパン 1996-04&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;3&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-3-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4756136494/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4756136494.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラミング作法&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4320026926/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4320026926.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;プログラミング言語C 第2版 ANSI規格準拠&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4797350997/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4797350997.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;新版暗号技術入門 秘密の国のアリス&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798132608/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798132608.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報処理教科書 高度試験午後II論述 春期・秋期 (EXAMPRESS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798105538/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798105538.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;エンタープライズ アプリケーションアーキテクチャパターン (Object Oriented Selection)&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34; &gt;良書なのだが，残念ながら内容が古すぎた。 PGP の歴史資料として読むならいいかもしれない。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#34;#maker&#34; class=&#34;reviewer&#34;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2014-10-16&#34;&gt;2014/10/16&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34;&gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:1991&#34;&gt;当時の PGP の仕様は（公開年にちなんでか） &lt;a href=&#34;http://tools.ietf.org/html/rfc1991&#34; title=&#34;RFC 1991 - PGP Message Exchange Formats&#34;&gt;RFC 1991&lt;/a&gt; として公開されている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:1991&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:pgp&#34;&gt;もともと &lt;a href=&#34;https://www.philzimmermann.com/&#34; title=&#34;Phil Zimmermann&#39;s Home Page&#34;&gt;Phil Zimmermann&lt;/a&gt; さんは PGP をシェアウェアとして売り出すつもりだったらしい。しかし米国内で事実上暗号を禁止する法案が提出され，法案の可決を阻止する目的もあり PGP をフリーで公開した。ところが &lt;a href=&#34;https://www.philzimmermann.com/&#34; title=&#34;Phil Zimmermann&#39;s Home Page&#34;&gt;Phil Zimmermann&lt;/a&gt; さんが暗号に関する特許について迂闊だったことや PGP が ftp サーバを通じて海外に漏洩してしまった（当時は暗号製品には輸出規制があり強い暗号製品は米国外に持ち出せなかった）ことなどもあって，しばらくの間 &lt;a href=&#34;https://www.philzimmermann.com/&#34; title=&#34;Phil Zimmermann&#39;s Home Page&#34;&gt;Phil Zimmermann&lt;/a&gt; さんと PGP は不遇の身の上となる。当時の輸入規制に「書籍」は含まれていなかったため，最新版の PGP コードを書籍として出版し海外でコンパイルする国際化プロジェクトがあった。何もかも懐かしい（笑） ちなみに現在の PGP は無料ではない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:pgp&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:op&#34;&gt;現在は &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;RFC 4880&lt;/a&gt; にアップデートされ，更に改良が進められている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:op&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gpl&#34;&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の著作権は &lt;a href=&#34;http://www.fsf.org/&#34; title=&#34;Front Page — Free Software Foundation — working together for free software&#34;&gt;FSF&lt;/a&gt; に帰属し &lt;a href=&#34;http://www.gnu.org/licenses/licenses.html#GPL&#34; title=&#34;The GNU General Public License&#34;&gt;GNU GPL&lt;/a&gt; でライセンスされている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gpl&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:imp&#34;&gt;実は classic version の鍵束をそのまま使っても自動的にファイルが移行されるため大抵は問題ないのだが，旧鍵束にはバグが混入しているそうで，安全のため明示的にインポート作業を行うほうがいいらしい。なお現行バージョンの &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; は，移行時以外は classic version の &lt;code&gt;secring.gpg&lt;/code&gt; を参照しないため，Classic version と混在させるのであれば取り扱いに注意が必要である。（&lt;code&gt;gpg-v21-migrated&lt;/code&gt; ファイルを削除すると再度移行処理が走るらしい）
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:imp&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:t&#34;&gt;&lt;code&gt;trustdb.gpg&lt;/code&gt; ファイルはそのまま使うのではなく， &lt;code&gt;--export-ownertrust&lt;/code&gt; オプションでテキストファイルにエクスポートしたものを使うのが安全なようだ。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:t&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gh&#34;&gt;環境変数 &lt;code&gt;APPDATA&lt;/code&gt; には通常 &lt;code&gt;C:\Users\username\AppData\Roaming&lt;/code&gt; （&lt;code&gt;username&lt;/code&gt; はログインユーザの名前）がセットされている。ちなみに UNIX 系のプラットフォームでは &lt;code&gt;~/.gnupg&lt;/code&gt; が &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; 既定のホームディレクトリだが Windows は構成が異なるためこのようになっている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gh&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:kbx&#34;&gt;kbx は keybox の略らしい。 バージョン 2 以降では OpenPGP の鍵束だけでなく S/MIME （X.509）や OpenSSH の鍵も格納できる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:kbx&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
+	
+	<entry>
+		<title>OpenPGP で利用可能なアルゴリズム（RFC 4880bis 対応版） — OpenPGP の実装</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/algorithms-for-openpgp/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/algorithms-for-openpgp/</id>
+		<published>2017-12-01T17:47:50+09:00</published>
+		<updated>2017-12-01T17:47:50+09:00</updated>
+		<summary>RFC 4880bis は，名前の通り，ドラフト段階なので今後変わる可能性がある。正式な RFC 番号が振られた段階でこの記事の最終稿とする予定である。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;(move from &lt;a href=&#34;http://text.baldanders.info/remark/2017/11/algorithms-for-openpgp/&#34; title=&#34;OpenPGP で利用可能なアルゴリズム（RFC 4880bis 対応版）&#34;&gt;http://text.baldanders.info/remark/2017/11/algorithms-for-openpgp/&lt;/a&gt;)&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/gpgpdump&#34; title=&#34;spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer&#34;&gt;gpgpdump&lt;/a&gt; を &lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; に&lt;a href=&#34;http://text.baldanders.info/remark/2017/11/gpgpdump-0_3_0-released/&#34; title=&#34;gpgpdump 0.3.0 をリリースした&#34;&gt;対応させていく作業&lt;/a&gt;の中で「改めて『&lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で利用可能なアルゴリズム』をまとめておいたほうがいいかなぁ」と感じたので，覚え書きとして記しておく。&lt;/p&gt;
+
+&lt;p&gt;なお &lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; は，名前の通り，ドラフト段階なので今後変わる可能性がある。
+アルゴリズム関連で変更があった場合は随時この記事に加筆・修正していって，正式な RFC 番号が振られた段階でこの記事の最終稿とする予定である。&lt;/p&gt;
+
+&lt;h2 id=&#34;共通鍵暗号アルゴリズム-symmetric-key-encryption-algorithms&#34;&gt;共通鍵暗号アルゴリズム（Symmetric-Key Encryption Algorithms）&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で利用可能な共通鍵暗号は以下の通り。
+なお「鍵長」項目の括弧内はブロック長を指す。
+いずれも単位は “bit”。&lt;/p&gt;
+
+&lt;div&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;style&gt;
+main table.openpgp-sym td  {
+  vertical-align:middle;
+}
+&lt;/style&gt;
+&lt;table class=&#34;openpgp-sym&#34;&gt;
+&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;アルゴリズム&lt;/th&gt;&lt;th&gt;鍵長&lt;/th&gt;&lt;th&gt;参考文献&lt;/th&gt;&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;1&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;IDEA&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;128 (64)&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;2&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;TripleDES&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;168 (64)&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://doi.org/10.6028/NIST.SP.800-67r2&#34;&gt;SP800-67 Rev.2 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;3&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;CAST5&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;128 (64)&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc2144&#34;&gt;RFC2144&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;4&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;Blowfish&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;128 (64)&lt;/td&gt;
+&lt;td&gt;&lt;q&gt;&lt;a href=&#34;http://www.schneier.com/paper-blowfish-fse.html&#34;&gt;Description of a New Variable-Length Key, 64-Bit Block Cipher (Blowfish)&lt;/a&gt;&lt;/q&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;5&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;--&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;6&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;--&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;7&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;AES with 128-bit key&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;128 (128)&lt;/td&gt;
+&lt;td rowspan=&#34;3&#34;&gt;&lt;a href=&#34;https://dx.doi.org/10.6028/NIST.FIPS.197&#34;&gt;FIPS PUB 197 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;8&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;AES with 192-bit key&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;192 (128)&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;9&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;AES with 256-bit key&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;256 (128)&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;10&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;Twofish with 256-bit key&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;256 (128)&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;11&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;Camellia with 128-bit key&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;128 (128)&lt;/td&gt;
+&lt;td rowspan=&#34;3&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc3713&#34;&gt;RFC3713&lt;/a&gt;, &lt;a href=&#34;https://tools.ietf.org/html/rfc5581&#34;&gt;RFC5581&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;12&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;Camellia with 192-bit key&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;192 (128)&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;13&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;Camellia with 256-bit key&lt;/td&gt;
+&lt;td class=&#39;right nowrap&#39;&gt;256 (128)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;OpenPGP で使用可能な共通鍵暗号アルゴリズム一覧&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;ID は &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で定義されるもので ”sym 1” のように表記する。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;sym 2 の TripleDES は &amp;ldquo;MUST implement” である。また sym 3 の CAST5 と sym 7 の AES-128 は &amp;ldquo;SHOULD implement” である（AES は MUST でいいと思うんだけどなぁ）&lt;/li&gt;
+&lt;li&gt;古い PGP（2.6 以前）の暗号データを復号するためには sym 1 の IDEA が必要となる&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ちなみに sym 11 から sym 13 の &lt;a href=&#34;http://www.baldanders.info/spiegel/log2/000451.shtml&#34; title=&#34;The Camellia Cipher in OpenPGP — Baldanders.info&#34;&gt;Camellia 暗号は日本製&lt;/a&gt;である。&lt;/p&gt;
+
+&lt;h2 id=&#34;公開鍵暗号アルゴリズム-public-key-encryption-algorithms&#34;&gt;公開鍵暗号アルゴリズム（Public-Key Encryption Algorithms）&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で利用可能な公開鍵暗号は以下の通り。&lt;/p&gt;
+
+&lt;div&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;style&gt;
+main table.openpgp-pub td  {
+  vertical-align:middle;
+}
+&lt;/style&gt;
+&lt;table class=&#34;openpgp-pub&#34;&gt;
+&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;アルゴリズム&lt;/th&gt;&lt;th&gt;参考文献&lt;/th&gt;&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;1&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;RSA (Encrypt or Sign)&lt;/td&gt;
+&lt;td rowspan=&#34;3&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc3447&#34;&gt;RFC3447&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;2&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;RSA Encrypt-Only&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;3&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;RSA Sign-Only&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;16&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;Elgamal&lt;br&gt;(Encrypt-Only)&lt;/td&gt;
+&lt;td&gt;&lt;q&gt;&lt;a href=&#34;http://crypto.csail.mit.edu/classes/6.857/papers/elgamal.pdf&#34;&gt;A public key cryptosystem and a signature scheme based on discrete logarithms &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/q&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;17&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;DSA&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://doi.org/10.6028/NIST.FIPS.186-4&#34;&gt;FIPS PUB 186-4 &lt;sup&gt; &lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;18&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;ECDH public key algorithm&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar2.pdf&#34;&gt;SP800-56A Revision 2 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;, &lt;a href=&#34;https://tools.ietf.org/html/rfc6637&#34;&gt;RFC6637&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;19&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;ECDSA public key algorithm&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://doi.org/10.6028/NIST.FIPS.186-4&#34;&gt;FIPS PUB 186-4 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;, &lt;a href=&#34;https://tools.ietf.org/html/rfc6090&#34;&gt;RFC6090&lt;/a&gt;, &lt;a href=&#34;https://tools.ietf.org/html/rfc6637&#34;&gt;RFC6637&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;20&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td&gt;(formerly Elgamal Encrypt or Sign)&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;21&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34; colspan=&#34;2&#34;&gt;(Reserved for Diffie-Hellman)&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;22&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;EdDSA&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://link.springer.com/article/10.1007%2Fs13389-012-0027-1&#34;&gt;High-speed high-security signatures&lt;/a&gt;, &lt;a href=&#34;https://tools.ietf.org/html/rfc8032&#34;&gt;RFC8032&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;OpenPGP で使用可能な公開鍵暗号アルゴリズム一覧&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;ID は &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で定義されるもので ”pub 1” のように表記する。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;pub 2 の RSA Encrypt-Only および pub 3 の RSA Sign-Only は deprecated なので，これらの鍵は新たに作成するべきではない（SHOULD NOT be generated）&lt;/li&gt;
+&lt;li&gt;表には書いてないが pub 4 から pub 15 は予約済み（Reserved）である&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; では pub 16 の ElGamal, pub 17 の DSA, pub 18 の ECDH, pub 19 の ECDSA が &amp;ldquo;MUST implement” となる（現行の &lt;a href=&#34;https://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;RFC 4880&lt;/a&gt; では ElGamal と DSA が &amp;ldquo;MUST implement”）&lt;/li&gt;
+&lt;li&gt;pub 20 の ElGamal は，元々暗号化と署名の両方できるものだったが，脆弱性が見つかったため &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; では使用禁止になった&lt;/li&gt;
+&lt;li&gt;EdDSA は2017年1月に &lt;a href=&#34;https://tools.ietf.org/html/rfc8032&#34; title=&#34;RFC 8032 - Edwards-Curve Digital Signature Algorithm (EdDSA)&#34;&gt;RFC 8032&lt;/a&gt; として正式に RFC 化された。ただし &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; ではまだドラフト段階である&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;一方向ハッシュ関数アルゴリズム-hash-algorithms&#34;&gt;一方向ハッシュ関数アルゴリズム（Hash Algorithms）&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で利用可能なハッシュ関数は以下の通り。&lt;/p&gt;
+
+&lt;div&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;style&gt;
+main table.openpgp-hash td  {
+  vertical-align:middle;
+}
+&lt;/style&gt;
+&lt;table class=&#34;openpgp-hash&#34;&gt;
+&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;アルゴリズム&lt;/th&gt;&lt;th&gt;参考文献&lt;/th&gt;&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;1&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;MD5&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://tools.ietf.org/html/rfc1321&#34;&gt;RFC1321&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;2&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;SHA-1&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://doi.org/10.6028/NIST.FIPS.186-4&#34;&gt;FIPS PUB 186-4 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;3&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;RIPE-MD/160&lt;/td&gt;
+&lt;td&gt;&lt;q&gt;&lt;a href=&#34;http://homes.esat.kuleuven.be/~bosselae/ripemd160.html&#34;&gt;The hash function RIPEMD-160&lt;/a&gt;&lt;/q&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;4&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;5&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;6&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;7&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;8&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;SHA2-256&lt;/td&gt;
+&lt;td rowspan=&#34;4&#34;&gt;&lt;a href=&#34;http://doi.org/10.6028/NIST.FIPS.180-4&#34;&gt;FIPS PUB 180-4 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;9&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;SHA2-384&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;10&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;SHA2-512&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;11&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;SHA2-224&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;12&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;SHA3-256&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://doi.org/10.6028/NIST.FIPS.202&#34;&gt;FIPS PUB 202 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;13&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;(Reserved)&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;14&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;SHA3-512&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://doi.org/10.6028/NIST.FIPS.202&#34;&gt;FIPS PUB 202 &lt;sup&gt;&lt;i class=&#39;fa fa-file-pdf-o&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;OpenPGP で使用可能な一方向ハッシュ関数一覧&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;ID は &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で定義されるもので ”hash 1” のように表記する。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; では hash 8 の SHA2-256 が &amp;ldquo;MUST implement” となる（現行の &lt;a href=&#34;https://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;RFC 4880&lt;/a&gt; では SHA-1 が &amp;ldquo;MUST implement”）。鍵指紋（key fingerprint）についても V5 では SHA2-256 を使用することになる（現行は V4）&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; では hash 1 の MD5 と hash 3 の RIPE-MD/160 は &amp;ldquo;SHOULD NOT use” となる。これらは古い PGP による鍵や暗号データの互換性のためにのみ残されるだろう&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34; title=&#34;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&#34;&gt;RFC 4880bis&lt;/a&gt; では hash 2 の SHA-1 も基本的に非推奨になる（SHOULD NOT create messages）。ただし V4 の鍵指紋や MDC (Modification Detection Code) 用には引き続き使われる&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;その他のアルゴリズム&#34;&gt;その他のアルゴリズム&lt;/h2&gt;
+
+&lt;h3 id=&#34;s2k-string-to-key&#34;&gt;S2K (String-to-Key)&lt;/h3&gt;
+
+&lt;p&gt;S2K はパスフレーズからセッション鍵を生成するためのハッシュ化の手順である。&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;S2K タイプ&lt;/th&gt;&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;0&lt;/td&gt;
+&lt;td&gt;Simple S2K&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;1&lt;/td&gt;
+&lt;td&gt;Salted S2K&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;2&lt;/td&gt;
+&lt;td&gt;Reserved value&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;3&lt;/td&gt;
+&lt;td&gt;Iterated and Salted S2K&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;OpenPGP で使用可能な S2K アルゴリズム一覧&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;ID は &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で定義されるもので ”s2k 1” のように表記する。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; では，パスフレーズ自体はいかなる形（ハッシュ値を含む）でも保存しない。
+このため，パスフレーズを紛失してしまった場合は復元できない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:pp1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:pp1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h3 id=&#34;乱数生成器-random-number-generator&#34;&gt;乱数生成器（Random Number Generator）&lt;/h3&gt;
+
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;
+&lt;q&gt;Certain operations in this specification involve the use of random numbers.  An appropriate entropy source should be used to generate these numbers (see [&lt;a href=&#34;https://tools.ietf.org/html/rfc4086&#34;&gt;RFC4086&lt;/a&gt;]).&lt;/q&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://datatracker.ietf.org/doc/draft-ietf-openpgp-rfc4880bis/&#34;&gt;draft-ietf-openpgp-rfc4880bis - OpenPGP Message Format&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;（リンクは私によるもの）&lt;/p&gt;
+
+&lt;h3 id=&#34;データ圧縮-compression-algorithms&#34;&gt;データ圧縮（Compression Algorithms）&lt;/h3&gt;
+
+&lt;p&gt;暗号化メッセージや電子署名を圧縮するためのアルゴリズムである。&lt;/p&gt;
+
+&lt;figure&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;アルゴリズム&lt;/th&gt;&lt;th&gt;参考文献&lt;/th&gt;&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;0&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;Uncompressed&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;1&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;ZIP&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://tools.ietf.org/html/rfc1951&#34;&gt;RFC1951&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;2&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;ZLIB&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://tools.ietf.org/html/rfc1950&#34;&gt;RFC1950&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td class=&#39;right&#39;&gt;3&lt;/td&gt;
+&lt;td class=&#34;nowrap&#34;&gt;BZip2&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;http://www.bzip.org/&#34;&gt;bzip2&lt;/a&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;OpenPGP で使用可能なデータ圧縮アルゴリズム一覧&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;ID は &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; で定義されるもので ”comp 1” のように表記する。&lt;/p&gt;
+
+&lt;h2 id=&#34;アルゴリズムの選択&#34;&gt;アルゴリズムの選択&lt;/h2&gt;
+
+&lt;p&gt;暗号関連のアルゴリズムや鍵長は組み合わせが重要で，あるアルゴリズムのみ強くても効率が悪くなるだけである。
+たとえば，2030年以降も使える組み合わせが必要なら&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;AES 128bit&lt;/li&gt;
+&lt;li&gt;ElGamal, DSA 3072bit&lt;/li&gt;
+&lt;li&gt;RSA 3072bit&lt;/li&gt;
+&lt;li&gt;ECDH, ECDSA 256bit&lt;/li&gt;
+&lt;li&gt;SHA2-256, SHA3-256&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;の中から組み合わせるのが「&lt;a href=&#34;https://dic.pixiv.net/a/%E3%83%93%E3%83%AB%E3%83%89%28%E4%BB%AE%E9%9D%A2%E3%83%A9%E3%82%A4%E3%83%80%E3%83%BC%29&#34;&gt;ベストマッチ！&lt;/a&gt;」である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:key1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:key1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+詳しくは「&lt;a href=&#34;http://text.baldanders.info/remark/2017/10/key-parameters/&#34;&gt;暗号鍵関連の各種変数について&lt;/a&gt;」を参照のこと。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/openpgp.shtml&#34;&gt;わかる！ OpenPGP 暗号&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2015/openpgp-draft-rfc4880bis-first/&#34;&gt;OpenPGP: First RFC4880bis Draft&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2017/03/topics-on-openpgp/&#34;&gt;OpenPGP に関する話題&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2017/11/openpgp-key-management/&#34;&gt;OpenPGP 鍵管理に関する考察&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2017/11/issuer-fingerprint-signature-subpacket-in-next-openpgp/&#34;&gt;Issuer Fingerprint Signature Subpacket in Next OpenPGP&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4314009071/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51ZRZ62WKCL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4314009071/baldandersinf-22/&#34;&gt;暗号化 プライバシーを救った反乱者たち&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;スティーブン・レビー 斉藤 隆央 &lt;/dd&gt;&lt;dd&gt;紀伊國屋書店 2002-02-16&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/487593100X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/487593100X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;ハッカーズ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4105393022/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4105393022.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;暗号解読―ロゼッタストーンから量子暗号まで&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4484111160/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4484111160.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グーグル ネット覇者の真実 追われる立場から追う立場へ&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/410215972X/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/410215972X.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;暗号解読〈上〉 (新潮文庫)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4102159738/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4102159738.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;暗号解読 下巻 (新潮文庫 シ 37-3)&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-03-09&#34;&gt;2015/03/09&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:pp1&#34;&gt;ただし &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; では試行回数によるロックアウトは定義されないため無限にパスフレーズ解読を試みることができる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:pp1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:key1&#34;&gt;もちろんアルゴリズムの危殆化が起きない前提での話である。こればっかりは予測しようもないし（笑） 危殆化があり得ることを前提にするなら，ひとつのアルゴリズムに固定するのではなく，常に代替えを用意する（または用意できるよう準備する）ことが大事である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:key1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>OpenPGP に関するブックマーク — OpenPGP の実装</title>
