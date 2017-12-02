@@ -3,13 +3,627 @@
 	<title>Trust - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="http://text.baldanders.info/tags/trust/" />
 	<link rel="self" type="application/atom+xml" href="http://text.baldanders.info/tags/trust/index.xml" />
-	<id>tag:text.Baldanders.info,2015-09-20:/tags</id>
-	<updated>2015-09-20T21:43:17+09:00</updated>
+	<id>tag:text.Baldanders.info,2017-12-01:/tags</id>
+	<updated>2017-12-01T17:51:59+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>http://text.baldanders.info//images/avatar.jpg</icon>
 	<logo>http://text.baldanders.info//images/avatar.jpg</logo>
 	<generator uri="https://gohugo.io/">Hugo 0.31.1</generator>
 
+	
+	<entry>
+		<title>OpenPGP 鍵管理に関する考察 - openpgp</title>
+		<link rel="alternate" type="text/html" href="http://text.baldanders.info/openpgp/openpgp-key-management/" />
+		<id>tag:text.Baldanders.info,2017-12-01:/openpgp/openpgp-key-management/</id>
+		<published>2017-12-01T17:51:59+09:00</published>
+		<updated>2017-12-02T16:20:26+09:00</updated>
+		<summary>OpenPGP 鍵の管理について考えてみるテスト。</summary>
+		
+			<author>
+				<name>Spiegel</name>
+				<uri>http://www.baldanders.info/spiegel/profile/</uri>
+			</author>
+			
+	<link rel="cc:license" type="application/rdf+xml" href="http://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		
+		<category term="openpgp" label="openpgp" scheme="http://text.baldanders.info/openpgp" />
+		<content type="html" xml:lang="ja" xml:base="http://text.baldanders.info/">
+
+&lt;p&gt;(move from &lt;a href=&#34;http://text.baldanders.info/remark/2017/11/openpgp-key-management/&#34; title=&#34;OpenPGP 鍵管理に関する考察&#34;&gt;http://text.baldanders.info/remark/2017/11/openpgp-key-management/&lt;/a&gt;)&lt;/p&gt;
+
+&lt;p&gt;たまたま以下の記事を見かけたのだが&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/moutend/items/5c22d6e57a74845578f6&#34;&gt;gpg (GNU Privacy Guard)の使い方 - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このやり方も良さそうだけど，もう少し簡単に運用できないか考えてみる。
+なお &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理は目的別にアドホック（ad hoc）な運用も可能なので「これ！」という正解はない。
+自分にあったやり方を考えるのも面白いと思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;openpgp-の信用モデル&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の信用モデル&lt;/h2&gt;
+
+&lt;p&gt;鍵の管理について考える前に &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の信用モデルについておさらいしておこう。&lt;/p&gt;
+
+&lt;p&gt;最初の登場人物は Alice と Bob。
+2人はそれぞれ &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵を持っていて，これを使って秘密のやり取りをしようと考えている。
+持っている鍵が信用できることを証明するために，お互い相手の公開鍵に自身の鍵で電子署名を施した。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Bob-- Digital Sign --&gt;Alice
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;鍵に施されている電子署名を確認することでコンテンツに対する暗号文や電子署名が正しい鍵で行われていることが証明できるわけだ。
+これが &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の基本。
+公開鍵への電子署名を使って peer-to-peer で信用関係を結ぶ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:ksp1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:ksp1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;p&gt;ここで3人目の人物 Chris に登場してもらおう。
+Bob と Chris は面識があり既にお互いの公開鍵で電子署名を交わしている。
+しかし Alice と Chris は面識がなく電子署名を交わす機会がないとする。
+Alice から見て Chris の鍵は信用できるだろうか？&lt;/p&gt;
+
+&lt;p&gt;（念のために言うと，ここで言う「信用」は「あなたは人として信用できる」の信用ではなく「この鍵は正しく本人のものであると信用できる」の信用である）&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+  Chris[&#34;Chris&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Alice-. trust? .-&gt;Chris
+  Bob-- Digital Sign --&gt;Alice
+  Bob-- Digital Sign --&gt;Chris
+  Chris-- Digital Sign --&gt;Bob
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;まず Alice から見て直接電子署名を交わした Bob の鍵が信用できるのは明らかである。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+ graph LR
+   Alice[&#34;Alice&#39;s Public Key&#34;]
+   Bob[&#34;Bob&#39;s Public Key&#34;]
+   Chris[&#34;Chris&#39;s Public Key&#34;]
+
+   Alice-- Digital Sign --&gt;Bob
+   Alice-. trust .-&gt;Bob
+   Bob-- Digital Sign --&gt;Alice
+   Bob-- Digital Sign --&gt;Chris
+   Chris-- Digital Sign --&gt;Bob
+
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;Alice は Chris の公開鍵に信用できる Bob の公開鍵による電子署名を見つけたため， Bob の公開鍵と同じく Chris の公開鍵も有効であると見なすことができる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  Alice[&#34;Alice&#39;s Public Key&#34;]
+  Bob[&#34;Bob&#39;s Public Key&#34;]
+  Chris[&#34;Chris&#39;s Public Key&#34;]
+
+  Alice-- Digital Sign --&gt;Bob
+  Alice-. validate! .-&gt;Chris
+  Alice-. trust .-&gt;Bob
+  Bob-- Digital Sign --&gt;Alice
+  Bob-- Digital Sign --&gt;Chris
+  Chris-- Digital Sign --&gt;Bob
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;これが &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の代表的な信用モデル “web of trust” の基本的な考え方である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:tm1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:tm1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+このことから &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理ににおいて「信用できる鍵」の条件は&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;多くの電子署名（とできれば信用）が集まっていること&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;だと分かる。
+更にこのことから派生的に&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;同じ鍵が永続的に使われ続けていること&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;も「信用できる鍵」の条件となる。
+何故なら，鍵が頻繁に変わるとその度に電子署名をやり直すことになり，鍵に署名（＝信用）が集まりにくくなるからである。&lt;/p&gt;
+
+&lt;h2 id=&#34;openpgp-の鍵管理&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵管理&lt;/h2&gt;
+
+&lt;p&gt;以上を踏まえて &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵の管理について考えてみよう。&lt;/p&gt;
+
+&lt;h3 id=&#34;ひとつの鍵で運用する場合&#34;&gt;ひとつの鍵で運用する場合&lt;/h3&gt;
+
+&lt;p&gt;一番簡単なケースで，ひとつの &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵で全てをまかなう場合を考える。
+たとえば，ふだん暗号化ツールなんて全然使わないけど git commit に電子署名するためだけに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を使いたい，など。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の代表的な実装である &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の最新バージョンでは，以下に示すように，鍵の作成処理が（昔と比べて）大幅に簡略化できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --batch --passphrase pass123 --quick-generate-key &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34; default default 0
+gpg: 鍵02C94DC57527A786を究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/alice/AppData/Roaming/gnupg/openpgp-revocs.d\9416E477EBA825CD1694573102C94DC57527A786.rev&amp;#39; に保管しました。&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;--batch&lt;/code&gt; オプション&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gk1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:gk1&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;（または &lt;code&gt;--pinentry-mode&lt;/code&gt; オプションに &lt;code&gt;loopback&lt;/code&gt; を指定）と &lt;code&gt;--passphrase&lt;/code&gt; オプションを組み合わせて Pinentry によるパスフレーズ入力を回避できる&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--quick-generate-key&lt;/code&gt; コマンドの第1引数にユーザID，第2引数にアルゴリズム，第3引数に使用目的，第4引数に有効期限を指定する
+
+&lt;ul&gt;
+&lt;li&gt;アルゴリズムに &lt;code&gt;default&lt;/code&gt; を指定するか指定しない場合は既定のアルゴリズム（RSA/2048ビット）で鍵を作成する&lt;/li&gt;
+&lt;li&gt;使用目的には主鍵&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:k1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:k1&#34;&gt;4&lt;/a&gt;&lt;/sup&gt; の種類を指定する。通常は &lt;code&gt;default&lt;/code&gt; のまま（署名と証明）でよい（指定しなければ &lt;code&gt;default&lt;/code&gt;）&lt;/li&gt;
+&lt;li&gt;有効期限には期間（1週間なら &lt;code&gt;7d&lt;/code&gt; または &lt;code&gt;1w&lt;/code&gt;，1年なら &lt;code&gt;12m&lt;/code&gt; または &lt;code&gt;1y&lt;/code&gt; など）を指定する。 &lt;code&gt;0&lt;/code&gt; を指定すると無期限になる（指定しないと有効期限が当日になる）&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;生成された鍵の状態は以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC]
+      9416E477EBA825CD1694573102C94DC57527A786
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;作成した鍵の公開鍵を配布するには&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export -a alice &amp;gt; alice-key.asc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;として &lt;code&gt;alice-key.asc&lt;/code&gt; を直接配布するか&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --keyserver keys.gnupg.net --send-key alice&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;として鍵サーバ（ここでは &lt;a href=&#34;http://keys.gnupg.net/&#34;&gt;&lt;code&gt;keys.gnupg.net&lt;/code&gt;&lt;/a&gt;）にアップロードすればいい。&lt;/p&gt;
+
+&lt;p&gt;注意する点としてはパスフレーズと失効証明書を紛失・漏洩しないよう管理することであろう。
+できれば失効証明書は普段使う PC や携帯端末とは別に管理しておくのが望ましい。
+ちなみに &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; ではパスフレーズは何処にも保存されないので，パスフレーズを忘れてしまうと全くリカバリできなくなる（だからといってパスフレーズを設定しないというのは通常運用ではあり得ないが）。&lt;/p&gt;
+
+&lt;p&gt;ノートPCや携帯端末には常に紛失・盗難のリスクが付きまとうが，予防に注力しすぎて現実的でない対策を執るよりも，これはもう「起こり得ること」として「事後」がスムーズに行われるようバックアップ等の準備しておくほうが賢明である。&lt;/p&gt;
+
+&lt;h3 id=&#34;ひとつの鍵に複数のユーザidを付与する場合&#34;&gt;ひとつの鍵に複数のユーザIDを付与する場合&lt;/h3&gt;
+
+&lt;p&gt;ユーザIDというのは鍵の名前 “&lt;code&gt;Alice &amp;lt;alice@examle.com&amp;gt;&lt;/code&gt;” の部分である。&lt;/p&gt;
+
+&lt;p&gt;たとえば，以下の鍵があったとき&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC]
+      B686F36CA9FDC10057EFC5D58D7E04B8CE947112
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これに新しいユーザID “&lt;code&gt;Alice &amp;lt;alice@examle2.com&amp;gt;&lt;/code&gt;” を付加するには &lt;code&gt;--quick-add-uid&lt;/code&gt; コマンドを使って&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-add-uid alice &amp;#34;Alice &amp;lt;alice@examle2.com&amp;gt;&amp;#34;
+$ gpg --update-trustdb&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とする&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:updtd1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:updtd1&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。
+これで新しいユーザIDが付加された。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC]
+      B686F36CA9FDC10057EFC5D58D7E04B8CE947112
+uid           [  究極  ] Alice &amp;lt;alice@examle2.com&amp;gt;
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ちなみに，この鍵を &lt;a href=&#34;http://www.mew.org/~kazu/proj/pgpdump/&#34; title=&#34;pgpdump&#34;&gt;pgpdump&lt;/a&gt; にかけると以下のようになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export -a alice | pgpdump -u
+Old: Public Key Packet(tag 6)(269 bytes)
+        Ver 4 - new
+        Public key creation time - Thu Nov 23 06:22:56 UTC 2017
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        RSA n(2048 bits) - ...
+        RSA e(17 bits) - ...
+Old: User ID Packet(tag 13)(25 bytes)
+        User ID - Alice &amp;lt;alice@example.com&amp;gt;
+Old: Signature Packet(tag 2)(334 bytes)
+        Ver 4 - new
+        Sig type - Positive certification of a User ID and Public Key packet(0x13).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - b6 86 f3 6c a9 fd c1 00 57 ef c5 d5 8d 7e 04 b8 ce 94 71 12
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Thu Nov 23 06:22:56 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to certify other keys
+                Flag - This key may be used to sign data
+        Hashed Sub: preferred symmetric algorithms(sub 11)(4 bytes)
+                Sym alg - AES with 256-bit key(sym 9)
+                Sym alg - AES with 192-bit key(sym 8)
+                Sym alg - AES with 128-bit key(sym 7)
+                Sym alg - Triple-DES(sym 2)
+        Hashed Sub: preferred hash algorithms(sub 21)(5 bytes)
+                Hash alg - SHA256(hash 8)
+                Hash alg - SHA384(hash 9)
+                Hash alg - SHA512(hash 10)
+                Hash alg - SHA224(hash 11)
+                Hash alg - SHA1(hash 2)
+        Hashed Sub: preferred compression algorithms(sub 22)(3 bytes)
+                Comp alg - ZLIB &amp;lt;RFC1950&amp;gt;(comp 2)
+                Comp alg - BZip2(comp 3)
+                Comp alg - ZIP &amp;lt;RFC1951&amp;gt;(comp 1)
+        Hashed Sub: features(sub 30)(1 bytes)
+                Flag - Modification detection (packets 18 and 19)
+        Hashed Sub: key server preferences(sub 23)(1 bytes)
+                Flag - No-modify
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0x8D7E04B8CE947112
+        Hash left 2 bytes - 05 21
+        RSA m^d mod n(2047 bits) - ...
+                -&amp;gt; PKCS-1
+Old: User ID Packet(tag 13)(25 bytes)
+        User ID - Alice &amp;lt;alice@examle2.com&amp;gt;
+Old: Signature Packet(tag 2)(334 bytes)
+        Ver 4 - new
+        Sig type - Positive certification of a User ID and Public Key packet(0x13).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - b6 86 f3 6c a9 fd c1 00 57 ef c5 d5 8d 7e 04 b8 ce 94 71 12
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Thu Nov 23 06:33:28 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to certify other keys
+                Flag - This key may be used to sign data
+        Hashed Sub: preferred symmetric algorithms(sub 11)(4 bytes)
+                Sym alg - AES with 256-bit key(sym 9)
+                Sym alg - AES with 192-bit key(sym 8)
+                Sym alg - AES with 128-bit key(sym 7)
+                Sym alg - Triple-DES(sym 2)
+        Hashed Sub: preferred hash algorithms(sub 21)(5 bytes)
+                Hash alg - SHA256(hash 8)
+                Hash alg - SHA384(hash 9)
+                Hash alg - SHA512(hash 10)
+                Hash alg - SHA224(hash 11)
+                Hash alg - SHA1(hash 2)
+        Hashed Sub: preferred compression algorithms(sub 22)(3 bytes)
+                Comp alg - ZLIB &amp;lt;RFC1950&amp;gt;(comp 2)
+                Comp alg - BZip2(comp 3)
+                Comp alg - ZIP &amp;lt;RFC1951&amp;gt;(comp 1)
+        Hashed Sub: features(sub 30)(1 bytes)
+                Flag - Modification detection (packets 18 and 19)
+        Hashed Sub: key server preferences(sub 23)(1 bytes)
+                Flag - No-modify
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0x8D7E04B8CE947112
+        Hash left 2 bytes - 7d 5a
+        RSA m^d mod n(2048 bits) - ...
+                -&amp;gt; PKCS-1
+Old: Public Subkey Packet(tag 14)(269 bytes)
+        Ver 4 - new
+        Public key creation time - Thu Nov 23 06:22:56 UTC 2017
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        RSA n(2048 bits) - ...
+        RSA e(17 bits) - ...
+Old: Signature Packet(tag 2)(310 bytes)
+        Ver 4 - new
+        Sig type - Subkey Binding Signature(0x18).
+        Pub alg - RSA Encrypt or Sign(pub 1)
+        Hash alg - SHA256(hash 8)
+        Hashed Sub: issuer fingerprint(sub 33)(21 bytes)
+         v4 -   Fingerprint - b6 86 f3 6c a9 fd c1 00 57 ef c5 d5 8d 7e 04 b8 ce 94 71 12
+        Hashed Sub: signature creation time(sub 2)(4 bytes)
+                Time - Thu Nov 23 06:22:56 UTC 2017
+        Hashed Sub: key flags(sub 27)(1 bytes)
+                Flag - This key may be used to encrypt communications
+                Flag - This key may be used to encrypt storage
+        Sub: issuer key ID(sub 16)(8 bytes)
+                Key ID - 0x8D7E04B8CE947112
+        Hash left 2 bytes - 3a a7
+        RSA m^d mod n(2047 bits) - ...
+                -&amp;gt; PKCS-1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ユーザID毎に電子署名（自己署名）が付与されているのがお分かりだろうか。&lt;/p&gt;
+
+&lt;p&gt;ひとつの鍵に複数のユーザIDを付与することに関しては昔から賛否あるのだが，手段が提供されていることは覚えておいて損はないだろう。&lt;/p&gt;
+
+&lt;h3 id=&#34;用途によって鍵を使い分けたい場合&#34;&gt;用途によって鍵を使い分けたい場合&lt;/h3&gt;
+
+&lt;p&gt;たとえば，暗号化メール，リリースファイルの電子署名， git commit 時の電子署名といった用途毎に異なる鍵を使いたいことがある。
+その場合でもそれぞれ鍵を生成して運用すればいいのだが，新しい鍵を作る度にそれぞれの鍵とやり取りを行うユーザが毎度電子署名を行うのは相当に煩雑な作業である。&lt;/p&gt;
+
+&lt;p&gt;そこで「ルート鍵」と「運用鍵」の2種類の鍵を作って運用する。
+具体的にはルート鍵と各運用鍵との間で電子署名を交わす。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  rt[Root Key]-- Digital Sign --&gt;op1[Operation Key 1]
+  op1-- Digital Sign --&gt;rt
+
+  rt-- Digital Sign --&gt;op2[Operation Key 2]
+  op2-- Digital Sign --&gt;rt
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;運用鍵とやり取りするユーザは，各運用鍵ではなく，ルート鍵と署名を交わし信用度を設定することによって各運用鍵の有効性を確認できる。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph LR
+  usr[User&#39;s Key]
+  rt[Root Key]
+  op1[Operation Key 1]
+  op2[Operation Key 2]
+
+  usr-- Digital Sign --&gt;rt
+  usr-. trust .-&gt;rt
+  rt-- Digital Sign --&gt;usr
+
+  usr-. validate .-&gt;op1
+  rt-- Digital Sign --&gt;op1
+
+  rt-- Digital Sign --&gt;op2
+  usr-. validate .-&gt;op2
+
+&lt;/div&gt;&lt;/figure&gt;
+
+&lt;p&gt;この方法ならユーザも各運用鍵もルート鍵とのみ信用関係を構築すればいいので柔軟な運用が可能になる。
+欠点としてはルート鍵の管理が煩雑になりがちで信用に関する責務も重くなるため，かなり慎重な運用が求められることであろう。&lt;/p&gt;
+
+&lt;h4 id=&#34;alice-のルート鍵と運用鍵&#34;&gt;Alice のルート鍵と運用鍵&lt;/h4&gt;
+
+&lt;p&gt;では実際にやってみよう。&lt;/p&gt;
+
+&lt;p&gt;まず Alice がルート鍵と運用鍵の運用を行うとする。
+ルート鍵は電子署名を行うだけの鍵なので，以下のように署名専用鍵として作成する（アルゴリズムは DSA/3072ビット にしてみた）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --batch --passphrase pass123 --quick-generate-key &amp;#34;Alice (root) &amp;lt;alice@example.com&amp;gt;&amp;#34; dsa3072 default 0
+gpg: *警告*: いくつかのOpenPGPプログラムはこのダイジェスト長のDSA鍵を扱うことができません
+gpg: 鍵B965D53DB907EF0Eを究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/spiegel/AppData/Roaming/gnupg/openpgp-revocs.d\3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E.rev&amp;#39; に保管しました。&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;もうひとつ。
+運用鍵も作っておく。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --batch --passphrase pass123 --quick-generate-key &amp;#34;Alice (commit) &amp;lt;alice@example.com&amp;gt;&amp;#34; default default 0
+gpg: 鍵DFFC3F67BBB3C083を究極的に信用するよう記録しました
+gpg: 失効証明書を &amp;#39;C:/Users/spiegel/AppData/Roaming/gnupg/openpgp-revocs.d\A3CEFEEEDA222024F325C403DFFC3F67BBB3C083.rev&amp;#39; に保管しました。&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この2つの鍵でお互いに電子署名を交わす（パスフレースの入力あり）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -u 3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E --quick-sign-key A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+
+sec  rsa2048/DFFC3F67BBB3C083
+     作成: 2017-11-23  有効期限: 無期限      利用法: SC
+     信用: 究極          有効性: 究極
+  主鍵フィンガープリント: A3CE FEEE DA22 2024 F325  C403 DFFC 3F67 BBB3 C083
+
+     Alice (commit) &amp;lt;alice@example.com&amp;gt;
+
+$ gpg -u A3CEFEEEDA222024F325C403DFFC3F67BBB3C083 --quick-sign-key 3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+
+sec  dsa3072/B965D53DB907EF0E
+     作成: 2017-11-23  有効期限: 無期限      利用法: SC
+     信用: 究極          有効性: 究極
+  主鍵フィンガープリント: 3F8E FC47 7F9D 4D49 AA6C  308F B965 D53D B907 EF0E
+
+     Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで Alice の2つの鍵の署名状態はこんな感じになった。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-sigs alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  究極  ] Alice (root) &amp;lt;alice@example.com&amp;gt;
+sig 3        B965D53DB907EF0E 2017-11-23  Alice (root) &amp;lt;alice@example.com&amp;gt;
+sig          DFFC3F67BBB3C083 2017-11-23  Alice (commit) &amp;lt;alice@example.com&amp;gt;
+
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sig 3        DFFC3F67BBB3C083 2017-11-23  Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sig          B965D53DB907EF0E 2017-11-23  Alice (root) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]
+sig          DFFC3F67BBB3C083 2017-11-23  Alice (commit) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;一方の主鍵に他方の鍵の電子署名が付与されているのが分かるだろうか。&lt;/p&gt;
+
+&lt;h4 id=&#34;bob-鍵で-alice-のルート鍵に電子署名する&#34;&gt;Bob 鍵で Alice のルート鍵に電子署名する&lt;/h4&gt;
+
+&lt;p&gt;今度は Bob の側である。
+まずは Bob の公開鍵をこんな感じで作ってみた（作成操作は省略）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys bob
+pub   rsa2048 2017-11-23 [SC]
+      B4E708652A1E81445B328A3D93F496726CBE8335
+uid           [  究極  ] Bob &amp;lt;bob@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この環境に先程の Alice の公開鍵をインポートしてみる。
+まずはルート鍵から。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import alice-root.asc
+gpg: key B965D53DB907EF0E: 鍵がないため1個の署名は検査しません
+gpg: 鍵B965D53DB907EF0E: 公開鍵&amp;#34;Alice (root) &amp;lt;alice@example.com&amp;gt;&amp;#34;をインポートしました
+gpg:           処理数の合計: 1
+gpg:             インポート: 1
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 0f, 1u&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;当然ながら，この時点では読み込んだルート鍵の有効性は不明である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  不明  ] Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;では，ルート鍵に Bob の鍵で署名しよう&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:lsign1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:lsign1&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;（パスフレースの入力あり）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-sign-key 3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+
+pub  dsa3072/B965D53DB907EF0E
+     作成: 2017-11-23  有効期限: 無期限      利用法: SC
+     信用: 不明の        有効性: 不明の
+  主鍵フィンガープリント: 3F8E FC47 7F9D 4D49 AA6C  308F B965 D53D B907 EF0E
+
+     Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これでルート鍵の有効性は「充分」になった。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  充分  ] Alice (root) &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;さらに信用データベースを更新して信用度も設定する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --update-trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   1  信用: 0-, 0q, 0n, 0m, 0f, 1u
+信用度が指定されていません:
+pub   dsa3072 2017-11-23 [SC]
+      &amp;#34;Alice (root) &amp;lt;alice@example.com&amp;gt;&amp;#34;
+  主鍵フィンガープリント: 3F8E FC47 7F9D 4D49 AA6C  308F B965 D53D B907 EF0E
+
+他のユーザの鍵を正しく検証するために、このユーザの信用度を決めてください
+(パスポートを見せてもらったり、他から得たフィンガープリントを検査したり、などなど)
+
+  1 = 知らない、または何とも言えない
+  2 = 信用し ない
+  3 = まぁまぁ信用する
+  4 = 充分に信用する
+  s = この鍵はとばす
+  q = 終了
+
+あなたの決定は? 4
+gpg: 深さ: 1  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 1f, 0u
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ここでは「充分に信用する」を選択した。&lt;/p&gt;
+
+&lt;p&gt;次に運用鍵もインポートする（操作は同じなので省略）。
+この時点で Alice の公開鍵の状態を見ると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  充分  ] Alice (root) &amp;lt;alice@example.com&amp;gt;
+
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  充分  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;運用鍵の有効性も既に「充分」になっていることが分かると思う。
+ちなみにルート鍵の信用度を「まぁまぁ信用する」にすると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   dsa3072 2017-11-23 [SC]
+      3F8EFC477F9D4D49AA6C308FB965D53DB907EF0E
+uid           [  充分  ] Alice (root) &amp;lt;alice@example.com&amp;gt;
+
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [まぁまぁ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;運用鍵の有効性が「まぁまぁ」になる。&lt;/p&gt;
+
+&lt;p&gt;独りでこうした運用をやるメリットは殆どないが，プロジェクト・チーム等で一括して鍵管理を行いたい場合は有効な手段だと思う。&lt;/p&gt;
+
+&lt;h2 id=&#34;有効期限について&#34;&gt;有効期限について&lt;/h2&gt;
+
+&lt;p&gt;この記事ではすべての鍵を「無期限」で設定している。
+公開鍵の有効期限をどのようにするかは意見が別れるところだと思うが，私個人としては原則として「無期限」にすることをお薦めする。
+何故なら &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵は永続性と一貫性が重要だからである。&lt;/p&gt;
+
+&lt;p&gt;公開鍵に有効期限を設ける理由としては&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;期間の決まったプロジェクト内でのみ使用する鍵である&lt;/li&gt;
+&lt;li&gt;チーム・メンバの出入りが激しく無期限では却って管理が煩雑になる&lt;/li&gt;
+&lt;li&gt;鍵のセキュリティ強度の問題から期限を切って運用したい（たとえば RSA/2048ビット鍵が acceptable なのは2030年までである）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;といったところだろうか。
+これならば，これまで述べたようにルート鍵と運用鍵を分けて，ルート鍵の方で永続性と一貫性を担保するように運用していくのがよいだろう。&lt;/p&gt;
+
+&lt;p&gt;自分の鍵であれば有効期限はいつでも変更できる（変更時にパスフレーズ入力あり）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+pub   rsa2048 2017-11-23 [SC]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E]
+
+$ gpg --quick-set-expire A3CEFEEEDA222024F325C403DFFC3F67BBB3C083 2y
+
+$ gpg --list-keys A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+pub   rsa2048 2017-11-23 [SC] [有効期限: 2019-11-23]
+      A3CEFEEEDA222024F325C403DFFC3F67BBB3C083
+uid           [  究極  ] Alice (commit) &amp;lt;alice@example.com&amp;gt;
+sub   rsa2048 2017-11-23 [E] [有効期限: 2019-11-23]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;しかし，有効期限を随時延長していく運用は鍵のオーナーもそれを使うユーザも手間が増えるだけであまりメリットがない&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:own1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:own1&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。
+&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 鍵は（今のところ）利用するユーザに公開鍵の変更を自動的に通知・配信する仕組みがないので（それとも cron で鍵サーバへアクセスする？），ユーザ側の手間の多い運用では取りこぼしが出る可能性が大きくなる。&lt;/p&gt;
+
+&lt;h2 id=&#34;鍵を失効させる&#34;&gt;鍵を失効させる&lt;/h2&gt;
+
+&lt;p&gt;秘密鍵が漏洩するなどして鍵の失効が必要になった場合には，鍵作成時に作られた失効証明書を使って失効させる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:rvk1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:rvk1&#34;&gt;8&lt;/a&gt;&lt;/sup&gt;。
+鍵作成時に作られた失効証明書の中身はこんな感じになっている。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cd C:/Users/alice/AppData/Roaming/gnupg/openpgp-revocs.d
+
+$ cat 9416E477EBA825CD1694573102C94DC57527A786.rev
+これは失効証明書でこちらのOpenPGP鍵に対するものです:
+
+pub   rsa2048 2017-11-23 [SC]
+      9416E477EBA825CD1694573102C94DC57527A786
+uid          Alice &amp;lt;alice@example.com&amp;gt;
+
+失効証明書は &amp;#34;殺すスイッチ&amp;#34; のようなもので、鍵がそれ以上使えない
+ように公に宣言するものです。一度発行されると、そのような失効証明書は
+撤回することはできません。
+
+秘密鍵のコンプロマイズや紛失の場合、これを使ってこの鍵を失効させます。
+しかし、秘密鍵がまだアクセス可能である場合、新しい失効証明書を生成し、
+失効の理由をつける方がよいでしょう。詳細は、GnuPGマニュアルのgpgコマン
+ド &amp;#34;--generate-revocation&amp;#34;の記述をご覧ください。
+
+このファイルを誤って使うのを避けるため、以下ではコロンが5つのダッシュ
+の前に挿入されます。この失効証明書をインポートして公開する前に、テク
+スト・エディタでこのコロンを削除してください。
+
+:-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: This is a revocation certificate
+
+iQE2BCABCAAgFiEElBbkd+uoJc0WlFcxAslNxXUnp4YFAloWYkcCHQAACgkQAslN
+xXUnp4aG1wf/XoyxQPks2JlJ93ghQALdqCIxFPh015q21K53u0rVwTsMocwdGowR
+l+/UppyBxnGyU1uIba68D787INlruMzsOyUTuruCUZ5XJpiuYYVXcRuovUmCREWF
+EbW1DGd1lzmrO8cr70qu3yVCMYjGOQ6NA0fh1lpKTpFqHc3GC+ue19RDoVY1KnCC
+YsWuNom4PAuUyHlH3uJLM9+F9J2Qec+0PIedxHyxuIStWOSg+/TGjD4cP3FEItIt
+giRxx6qLWcK+bfg6WXv7I3+FA2J8eRKjLoD/vsZX+FpxG7T+c4mvfTUgxn0+bZD9
+gxTKlFWg2bhKTcxi0EsJ9XAEmocvOolwPQ==
+=ShPY
+-----END PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;実際に使う場合は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;:-----BEGIN PGP PUBLIC KEY BLOCK-----&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;の先頭のコロンを削除して使う。
+失効処理を行うには &lt;code&gt;--import&lt;/code&gt; コマンドで失効証明書をインポートすればよい。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --import 9416E477EBA825CD1694573102C94DC57527A786.rev
+gpg: 鍵02C94DC57527A786:&amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34;失効証明書をインポートしました
+gpg:           処理数の合計: 1
+gpg:         新しい鍵の失効: 1
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: 深さ: 0  有効性:   1  署名:   0  信用: 0-, 0q, 0n, 0m, 0f, 1u&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで鍵の状態は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   rsa2048 2017-11-23 [SC] [失効: 2017-11-23]
+      9416E477EBA825CD1694573102C94DC57527A786
+uid           [  失効  ] Alice &amp;lt;alice@example.com&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;となり失効したことが分かる。
+&lt;strong&gt;失効した公開鍵を配布するのを忘れずに！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/OpenPGP-Key-Management.html&#34;&gt;Using the GNU Privacy Guard: OpenPGP Key Management&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://www.baldanders.info/spiegel/archive/pgpdump/openpgp.shtml&#34;&gt;わかる！ OpenPGP 暗号&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/using-gnupg-modern-version-1/&#34;&gt;GnuPG for Windows ― インストール編&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://text.baldanders.info/remark/2016/03/using-gnupg-modern-version-2/&#34;&gt;GnuPG for Windows ― gpg-agent について&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;結城 浩 &lt;/dd&gt;&lt;dd&gt;SBクリエイティブ 2015-08-25&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B0148FQNVC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B0148FQNVC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;自作エミュレータで学ぶx86アーキテクチャ　コンピュータが動く仕組みを徹底理解！&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLJM/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLJM.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/丸い三角関数&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00Y9EYOIW/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00Y9EYOIW.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/微分を追いかけて&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B012BYBTZC/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B012BYBTZC.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;情報セキュリティ白書2015: サイバーセキュリティ新時代：あらゆる変化へ柔軟な対応を&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/B00W6NCLL0/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/B00W6NCLL0.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;数学ガールの秘密ノート/数列の広場&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
+&lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+&lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:ksp1&#34;&gt;相手の公開鍵に電子署名するには (1) 相手の公開鍵を貰って &lt;code&gt;--import&lt;/code&gt; （または鍵サーバから &lt;code&gt;--recv-keys&lt;/code&gt;）する (2) インポートした鍵に &lt;code&gt;--sign-key&lt;/code&gt; する (3) 署名した公開鍵を &lt;code&gt;--export&lt;/code&gt; して相手に返す（または鍵サーバへ &lt;code&gt;--send-keys&lt;/code&gt;） といった手順を踏む。これをひとりひとりやるのは割と面倒なので，複数人が一度に電子署名を交わすために「&lt;a href=&#34;https://en.wikipedia.org/wiki/Key_signing_party&#34; title=&#34;Key signing party - Wikipedia&#34;&gt;キーサイン・パーティ（key signing party）&lt;/a&gt;」が行われることがある。日本ではあまり聞かないけど。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ksp1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:tm1&#34;&gt;もう少し詳しく言うと，公開鍵への電子署名の際に「信用度」を設定し，集まった「信用度」の累積から公開鍵の「有効性」を機械的に判定する。なので（信用度が分からない）全く未知の人の電子署名がいくらあっても「有効性」は上がりにくい。また公開鍵に電子署名を施すことは相手の鍵をある程度以上信用していることになるため，よく分からない鍵に対して安易に電子署名を行うことは避けるべきである。なお，現行バージョンの &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では web of trust 以外にも X.509 や &lt;a href=&#34;https://en.wikipedia.org/wiki/Trust_on_first_use&#34; title=&#34;Trust on first use - Wikipedia&#34;&gt;Tofu (Trust on first use)&lt;/a&gt; といった信用モデルもサポートしている。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:tm1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gk1&#34;&gt;&lt;code&gt;--gen-key&lt;/code&gt; コマンドに &lt;code&gt;--batch&lt;/code&gt; オプションを組み合わせて設定ファイルから鍵を作成することも可能である。詳しい方法は “&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/Unattended-GPG-key-generation.html&#34;&gt;Unattended GPG key generation&lt;/a&gt;” が参考になるだろう。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gk1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:k1&#34;&gt;&lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; の鍵は1つの主鍵（primary key）と0個以上の副鍵（subkey）で構成されている。主鍵は必ず電子署名用の鍵になっていて，この主鍵にユーザID（とその自己署名）や他の鍵からの電子署名が付与される。副鍵は暗号化または電子署名用の鍵である。たとえば，データの暗号化と復号は実際にはこの副鍵を使って行う。副鍵は個別に追加したり失効したりできる。ちなみに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では通常のやり方では暗号化機能のみの鍵は作れない。電子署名機能のみの鍵は作ることができる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:k1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:updtd1&#34;&gt;&lt;code&gt;--update-trustdb&lt;/code&gt; コマンドは信用データベース（trustdb）の更新コマンドである。現行バージョンの &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; では信用度は &lt;code&gt;trustdb.gpg&lt;/code&gt; ファイルを使って鍵束とは独立に管理される。通常は鍵の状態が変わると自動的に信用データベースが更新されるのだが，自動更新しない場合は &lt;code&gt;--update-trustdb&lt;/code&gt; コマンドで更新できる。なお，他ユーザの公開鍵に電子署名を施した場合は &lt;code&gt;--update-trustdb&lt;/code&gt; コマンドを起動して署名した鍵の信用度を設定する。信用度の設定は &lt;code&gt;--edit-key&lt;/code&gt; コマンドの編集モードでも設定・変更が可能である。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:updtd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:lsign1&#34;&gt;公開鍵に電子署名したことを公開したくない場合は &lt;code&gt;--lsign-key&lt;/code&gt; コマンドで署名する。 &lt;code&gt;--lsign-key&lt;/code&gt; コマンドで付与した署名はエクスポートされないため他ユーザには公開されない。公開鍵に関する確証はないけど取り敢えず使いたいという場合には有効な手だろう。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:lsign1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:own1&#34;&gt;公開鍵の更新を鍵オーナーの存在証明に使うのは，あまり筋のいい運用とは思えない。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:own1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:rvk1&#34;&gt;または &lt;code&gt;--gen-revoke&lt;/code&gt; コマンドで失効証明書を作成する。 &lt;code&gt;--gen-revoke&lt;/code&gt; コマンドで作成した場合は失効理由も含めることができる。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:rvk1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry>
 	
 	<entry>
 		<title>『暗号技術入門 第3版』をななめ読み - remark</title>
