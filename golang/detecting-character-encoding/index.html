@@ -126,6 +126,7 @@
 	"keywords": "golang, character, encoding, transform",
 	"image": "http://text.baldanders.info/images/attention/go-code.png",
 	"datePublished": "2017-12-04T12:42:55+09:00",
+	"dateModified": "2017-12-04T23:01:30+09:00",
 	"publisher": {
 		"@id": "http://text.baldanders.info/#org"
 	},
@@ -260,14 +261,71 @@ HTML の中の &ldquo;charset” を見て変換する手もあるのだが， H
 ただ，やっぱり時々失敗するんだよねー。
 まぁこれはしょうがないか。</p>
 
-<p>失敗が多いようなら最終手段（片っ端から変換を試す）を執ることにしよう。
+<p>失敗が多いようなら最終手段（片っ端から変換を試す）を執ることにしよう<sup class="footnote-ref" id="fnref:cnv1"><a rel="footnote" href="#fn:cnv1">1</a></sup>。
 あっ，コードの再利用は（こんなんでよければ）ご自由に。</p>
+
+<h2 id="追記-2017-12-04">追記（2017-12-04）</h2>
+
+<p>この記事を書いた後いろいろ試してみたのだが，やっぱり Shift-JIS と EUC-JP の誤判定が多い。
+で，上の検出と変換部分を別パッケージにしていろいろ調べてみた。</p>
+
+<ul>
+<li><a href="https://github.com/spiegel-im-spiegel/text">spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang</a></li>
+</ul>
+
+<p>このパッケージでは <code>detect</code>, <code>encode</code>, <code>decode</code>, <code>convert</code> と機能毎にサブパッケージに分けたので多少使いやすいのではないかと思う。</p>
+
+<p>で，どうも短い文字列だと誤判定する確率が爆上がりする。
+<a href="https://github.com/saintfish/chardet" title="saintfish/chardet: Charset detector library for golang derived from ICU"><code>saintfish/chardet</code></a> では可能性の高い（？）文字エンコーディング候補から順に配列の形で返すのだが（上のコードの <code>DetectBest()</code> 関数では配列の最上位のものを返す），短い文字列では候補を絞りきれず誤判定になってしまうようだ。</p>
+
+<p>苦肉の策として文字エンコーディング候補のうち日本語のエンコーディングを優先して選ぶ関数を作った。
+これで <a href="https://github.com/spiegel-im-spiegel/mklink/blob/master/charencode.go" title="mklink/charencode.go at master · spiegel-im-spiegel/mklink"><code>charencode.go</code></a> はこんな感じになった。</p>
+
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">mklink</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;github.com/spiegel-im-spiegel/text/decode&#34;</span>
+<span class="p">)</span>
+
+<span class="c1">//ToUTF8 returns string with UTF-8 encoding
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">ToUTF8</span><span class="p">(</span><span class="nx">body</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="s">&#34;&#34;</span>
+	<span class="p">}</span>
+<span class="hl">	<span class="nx">utf8Text</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">decode</span><span class="p">.</span><span class="nx">ToUTF8ja</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span>
+</span>	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="s">&#34;&#34;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="nb">string</span><span class="p">(</span><span class="nx">utf8Text</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
+
+<p>これで他言語の文字エンコーディングと間違える確率は減ったが，今回はページのタイトルだけを対象にしていたので，やっぱり Shift-JIS と EUC-JP とで判定がとっちらかってしまう。
+というところで力尽きた。</p>
+
+<p>そういや UTF-8 から ISO-2022-JP への encode でバグ見つけちゃったよ。</p>
+
+<p>ISO-2022-JP のルールでは行末で必ず US-ASCII に戻さないといけない（1BH 28H 42H のシーケンスを出力する）のだが，文字列の末尾に改行がない場合に US-ASCII に戻していない。</p>
+
+<p>まっ，日本語圏の人しか使わないエンコーディングだし，今は日本語圏の人でも使ってる人は殆どおらんじゃろう。
+メールも今は UTF-8 が主流だし。
+メールメッセージで末尾に改行がないという状況もないしね（実際にはメールメッセージへの電子署名で影響が出るのだが）。</p>
+
+<p>というわけで，標準パッケージでもないし，実害はないので放置する（これが15年くらい前なら煩く言うところだったろうけど）。</p>
 
 <h2 id="参考図書">参考図書</h2>
 
 <div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
 <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
 <p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:cnv1">よく考えたら，この手は使えない。たとえば ISO-2022-JP は7ビット・エンコーディングなので <a href="https://golang.org/pkg/unicode/utf8/" title="utf8 - The Go Programming Language"><code>utf8</code></a>.<code>ValidString()</code> 関数でチェックしても valid になるに決まってるし（制御コードは無視するようだ），間違ったエンコーディングで無理やり UTF-8 に decode した結果も valid になるに決まっている <code>orz</code>
+ <a class="footnote-return" href="#fnref:cnv1"><sup>[return]</sup></a></li>
+</ol>
 </div>
 
 </section>
@@ -333,7 +391,7 @@ HTML の中の &ldquo;charset” を見て変換する手もあるのだが， H
 		</div>
 		<div class="userinfo-info" id="maker">
 			
-				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2017-12-04</time>.
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2017-12-04</time> (revised in <time property='dc:modified'>2017-12-04</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
 

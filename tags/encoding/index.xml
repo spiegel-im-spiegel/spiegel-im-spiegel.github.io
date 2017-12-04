@@ -16,7 +16,7 @@
 		<link rel="alternate" type="text/html" href="http://text.baldanders.info/golang/detecting-character-encoding/" />
 		<id>tag:text.Baldanders.info,2017-12-04:/golang/detecting-character-encoding/</id>
 		<published>2017-12-04T12:42:55+09:00</published>
-		<updated>2017-12-04T12:42:55+09:00</updated>
+		<updated>2017-12-04T23:01:30+09:00</updated>
 		<summary>文字エンコーディングを変換するのはいいのだが，そのためには元の文字列の文字エンコーディングが分かってないといけない。あぁ，これみんな苦労してるやつだよね。</summary>
 		
 			<author>
@@ -133,14 +133,71 @@ HTML の中の &amp;ldquo;charset” を見て変換する手もあるのだが�
 ただ，やっぱり時々失敗するんだよねー。
 まぁこれはしょうがないか。&lt;/p&gt;
 
-&lt;p&gt;失敗が多いようなら最終手段（片っ端から変換を試す）を執ることにしよう。
+&lt;p&gt;失敗が多いようなら最終手段（片っ端から変換を試す）を執ることにしよう&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:cnv1&#34;&gt;&lt;a rel=&#34;footnote&#34; href=&#34;#fn:cnv1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
 あっ，コードの再利用は（こんなんでよければ）ご自由に。&lt;/p&gt;
+
+&lt;h2 id=&#34;追記-2017-12-04&#34;&gt;追記（2017-12-04）&lt;/h2&gt;
+
+&lt;p&gt;この記事を書いた後いろいろ試してみたのだが，やっぱり Shift-JIS と EUC-JP の誤判定が多い。
+で，上の検出と変換部分を別パッケージにしていろいろ調べてみた。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/text&#34;&gt;spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このパッケージでは &lt;code&gt;detect&lt;/code&gt;, &lt;code&gt;encode&lt;/code&gt;, &lt;code&gt;decode&lt;/code&gt;, &lt;code&gt;convert&lt;/code&gt; と機能毎にサブパッケージに分けたので多少使いやすいのではないかと思う。&lt;/p&gt;
+
+&lt;p&gt;で，どうも短い文字列だと誤判定する確率が爆上がりする。
+&lt;a href=&#34;https://github.com/saintfish/chardet&#34; title=&#34;saintfish/chardet: Charset detector library for golang derived from ICU&#34;&gt;&lt;code&gt;saintfish/chardet&lt;/code&gt;&lt;/a&gt; では可能性の高い（？）文字エンコーディング候補から順に配列の形で返すのだが（上のコードの &lt;code&gt;DetectBest()&lt;/code&gt; 関数では配列の最上位のものを返す），短い文字列では候補を絞りきれず誤判定になってしまうようだ。&lt;/p&gt;
+
+&lt;p&gt;苦肉の策として文字エンコーディング候補のうち日本語のエンコーディングを優先して選ぶ関数を作った。
+これで &lt;a href=&#34;https://github.com/spiegel-im-spiegel/mklink/blob/master/charencode.go&#34; title=&#34;mklink/charencode.go at master · spiegel-im-spiegel/mklink&#34;&gt;&lt;code&gt;charencode.go&lt;/code&gt;&lt;/a&gt; はこんな感じになった。&lt;/p&gt;
+
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;mklink&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+	&lt;span class=&#34;s&#34;&gt;&amp;#34;github.com/spiegel-im-spiegel/text/decode&amp;#34;&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+
+&lt;span class=&#34;c1&#34;&gt;//ToUTF8 returns string with UTF-8 encoding
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ToUTF8&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;body&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;byte&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;body&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+		&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;&amp;#34;&lt;/span&gt;
+	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;utf8Text&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;decode&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ToUTF8ja&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;body&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;	&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+		&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;&amp;#34;&lt;/span&gt;
+	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+	&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;utf8Text&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;これで他言語の文字エンコーディングと間違える確率は減ったが，今回はページのタイトルだけを対象にしていたので，やっぱり Shift-JIS と EUC-JP とで判定がとっちらかってしまう。
+というところで力尽きた。&lt;/p&gt;
+
+&lt;p&gt;そういや UTF-8 から ISO-2022-JP への encode でバグ見つけちゃったよ。&lt;/p&gt;
+
+&lt;p&gt;ISO-2022-JP のルールでは行末で必ず US-ASCII に戻さないといけない（1BH 28H 42H のシーケンスを出力する）のだが，文字列の末尾に改行がない場合に US-ASCII に戻していない。&lt;/p&gt;
+
+&lt;p&gt;まっ，日本語圏の人しか使わないエンコーディングだし，今は日本語圏の人でも使ってる人は殆どおらんじゃろう。
+メールも今は UTF-8 が主流だし。
+メールメッセージで末尾に改行がないという状況もないしね（実際にはメールメッセージへの電子署名で影響が出るのだが）。&lt;/p&gt;
+
+&lt;p&gt;というわけで，標準パッケージでもないし，実害はないので放置する（これが15年くらい前なら煩く言うところだったろうけど）。&lt;/p&gt;
 
 &lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
 
 &lt;div class=&#34;hreview&#34; &gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;&lt;img src=&#34;http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg&#34; alt=&#34;photo&#34; class=&#34;photo&#34;  /&gt;&lt;/a&gt;&lt;dl &gt;&lt;dt class=&#34;fn&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;&lt;dd&gt;Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 &lt;/dd&gt;&lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;&lt;dd&gt;評価&lt;abbr class=&#34;rating&#34; title=&#34;5&#34;&gt;&lt;img src=&#34;http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif&#34; alt=&#34;&#34; /&gt;&lt;/abbr&gt; &lt;/dd&gt;&lt;/dl&gt;&lt;p class=&#34;similar&#34;&gt;&lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;スターティングGo言語 (CodeZine BOOKS)&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Go言語によるWebアプリケーション開発&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Kotlinスタートブック -新しいAndroidプログラミング&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;Docker実戦活用ガイド&#34;  /&gt;&lt;/a&gt; &lt;a href=&#34;http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/&#34; target=&#34;_top&#34;&gt;&lt;img src=&#34;http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg&#34;  alt=&#34;グッド・マス ギークのための数・論理・計算機科学&#34;  /&gt;&lt;/a&gt; &lt;/p&gt;
 &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。&lt;/p&gt;
 &lt;p class=&#34;gtools&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;http://www.goodpic.com/mt/aws/index.html&#34; &gt;G-Tools&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:cnv1&#34;&gt;よく考えたら，この手は使えない。たとえば ISO-2022-JP は7ビット・エンコーディングなので &lt;a href=&#34;https://golang.org/pkg/unicode/utf8/&#34; title=&#34;utf8 - The Go Programming Language&#34;&gt;&lt;code&gt;utf8&lt;/code&gt;&lt;/a&gt;.&lt;code&gt;ValidString()&lt;/code&gt; 関数でチェックしても valid になるに決まってるし（制御コードは無視するようだ），間違ったエンコーディングで無理やり UTF-8 に decode した結果も valid になるに決まっている &lt;code&gt;orz&lt;/code&gt;
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:cnv1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
 &lt;/div&gt;
 </content>
 	</entry>
