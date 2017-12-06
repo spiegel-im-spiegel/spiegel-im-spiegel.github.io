@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.31.1" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/css/chroma-styles.css">
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+	displayAlign: "left",
+	displayIndent: "2em",
+	tex2jax: {
+		inlineMath: [['$','$'], ['\\(','\\)']],
+		processEscapes: true
+	},
+	TeX: {
+		equationNumbers: { autoNumber: "AMS" },
+	    extensions: ["mhchem.js"],
+		Macros: {
+			ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1]
+		}
+	},
+	CommonHTML: {
+		matchFontHeight: false
+	},
+	"HTML-CSS": {
+		availableFonts: ["STIX"],
+	    preferredFont: "STIX",
+		webFont: "STIX-Web",
+		matchFontHeight: false,
+	    mtextFontInherit: true
+	}
+});
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_HTML&amp;locale=ja"></script>
+<link rel="canonical" href="http://text.baldanders.info/golang/using-and-testing-cobra/">
+<title>Cobra の使い方とテスト — プログラミング言語 Go | text.Baldanders.info</title>
+<meta property="og:title" content="Cobra の使い方とテスト — プログラミング言語 Go | text.Baldanders.info">
+<meta name="description" content="spf13/cobra そのものについてちゃんと書いてない気がするので，今回はコードの書き方からテストまでをひと通り紹介していく。">
+<meta property="og:description" content="spf13/cobra そのものについてちゃんと書いてない気がするので，今回はコードの書き方からテストまでをひと通り紹介していく。">
+<meta property="og:image" content="http://text.baldanders.info/images/attention/go-code.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang, cli, programming, testing">
+<link rel='prev' href='http://text.baldanders.info/golang/detecting-character-encoding/' title='文字エンコーディングの検出' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "http://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "http://text.baldanders.info/",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "http://text.baldanders.info/#maker"
+	},
+	"image": "http://text.baldanders.info/images/avatar.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "http://text.baldanders.info/#org",
+	"name": "text.Baldanders.info",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "http://text.baldanders.info/#logo",
+		"url": "http://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "http://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "http://www.baldanders.info/spiegel/profile/",
+	"image": "http://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "http://text.baldanders.info/golang/",
+	"url": "http://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "http://text.baldanders.info/images/attention/go-code.png",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "http://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "http://text.baldanders.info/golang/using-and-testing-cobra/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "http://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "http://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "http://text.baldanders.info/golang/using-and-testing-cobra/",
+	"url": "http://text.baldanders.info/golang/using-and-testing-cobra/",
+	"mainEntityOfPage": "http://text.baldanders.info/golang/using-and-testing-cobra/",
+	"inLanguage": "ja",
+	"name": "Cobra の使い方とテスト",
+	"description": "spf13/cobra そのものについてちゃんと書いてない気がするので，今回はコードの書き方からテストまでをひと通り紹介していく。",
+	"headline": "spf13/cobra そのものについてちゃんと書いてない気がするので，今回はコードの書き方からテストまでをひと通り紹介していく。",
+	"keywords": "golang, cli, programming, testing",
+	"image": "http://text.baldanders.info/images/attention/go-code.png",
+	"datePublished": "2017-12-06T21:01:33+09:00",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@type": "Person",
+		"@id": "http://text.baldanders.info/golang/using-and-testing-cobra/#maker",
+		"name": "Spiegel",
+		"url": "http://www.baldanders.info/spiegel/profile/",
+		"image": "http://text.baldanders.info/images/avatar.jpg"
+	},
+	"license": "http://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="http://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="http://text.baldanders.info/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>Cobra の使い方とテスト</h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/cli">cli</a> #<a href="/tags/golang">golang</a> #<a href="/tags/programming">programming</a> #<a href="/tags/testing">testing</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/using-and-testing-cobra/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>だいぶ <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> の扱いに慣れてきたので，そろそろブログにまとめておこうかなと。
+以前に CLI (Command-Line Interface) とファサード・パターンについては以下の記事に</p>
+
+<ul>
+<li><a href="/golang/cli-and-facade-pattern/">コマンドライン・インタフェースとファサード・パターン</a></li>
+</ul>
+
+<p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> の使い方についてさわりの部分は以下の記事に書いた。</p>
+
+<ul>
+<li><a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a></li>
+<li><a href="/golang/codic-api/">Codic API を利用するパッケージを作ってみた</a> （<a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> との連携について）</li>
+</ul>
+
+<p>ただ <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> そのものについてちゃんと書いてない気がするので，今回はコードの書き方からテストまでをひと通り紹介していく。
+漫然と紹介するのもアレなので，今回は以下の CLI を作ることを目標にする。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cli-demo show -i 123 -s 文字列 -b
+Integer option value: 123
+ String option value: 文字列
+Boolean option value: true</code></pre></div>
+<h2 id="spf13-cobra-のインストール"><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> のインストール</h2>
+
+<p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> には CLI ツールもあるのだがバイナリは提供されていないので，自前で取ってきてコンパイルする。
+といっても</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go get -u github.com/spf13/cobra/cobra</code></pre></div>
+<p>とするだけだが。
+<code>github.com/spf13/cobra</code> で get しようとすると CLI のコンパイルを行わないので注意が必要である。
+CLI の Usage はこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cobra -h
+Cobra is a CLI library for Go that empowers applications.
+This application is a tool to generate the needed files
+to quickly create a Cobra application.
+
+Usage:
+  cobra [command]
+
+Available Commands:
+  add         Add a command to a Cobra Application
+  help        Help about any command
+  init        Initialize a Cobra Application
+
+Flags:
+  -a, --author string    author name for copyright attribution (default &#34;YOUR NAME&#34;)
+      --config string    config file (default is $HOME/.cobra.yaml)
+  -h, --help             help for cobra
+  -l, --license string   name of license for the project
+      --viper            use Viper for configuration (default true)
+
+Use &#34;cobra [command] --help&#34; for more information about a command.</code></pre></div>
+<h2 id="初期化処理">初期化処理</h2>
+
+<p>まずは <code>init</code> サブコマンドで雛形となるソースコードを展開する。
+ソースを展開したいフォルダで</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">cobra --viper=false init .</code></pre></div>
+<p>とする。
+今回は <a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> は使わないので <code>--viper</code> オプションは無効にしておく。</p>
+
+<p>これで対象のフォルダに3つのファイルが出力される</p>
+
+<ul>
+<li><code>main.go</code></li>
+<li><code>LICENSE</code></li>
+<li><code>cmd/root.go</code></li>
+</ul>
+
+<p><code>LICENSE</code> はライセンス・ファイルなのでそのまま利用するなり他のファイルに差し替えるなりすればいい。
+<code>main.go</code> と <code>cmd/root.go</code> が実際の雛形になるのだが，やたらコメントが多いので，整理したものを以下に示す。</p>
+
+<p>まずは <code>main.go</code>。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="s">&#34;github.com/spiegel-im-spiegel/cli-demo/cmd&#34;</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">cmd</span><span class="p">.</span><span class="nx">Execute</span><span class="p">()</span>
+<span class="p">}</span></code></pre></div>
+<p>次に <code>cmd/root.go</code>。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;fmt&#34;</span>
+	<span class="s">&#34;os&#34;</span>
+
+	<span class="s">&#34;github.com/spf13/cobra&#34;</span>
+<span class="p">)</span>
+
+<span class="c1">// RootCmd represents the base command when called without any subcommands
+</span><span class="c1"></span><span class="kd">var</span> <span class="nx">RootCmd</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">{</span>
+	<span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;cli-demo&#34;</span><span class="p">,</span>
+	<span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment&#34;</span><span class="p">,</span>
+	<span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment&#34;</span><span class="p">,</span>
+	<span class="c1">//Run: func(cmd *cobra.Command, args []string) { },
+</span><span class="c1"></span><span class="p">}</span>
+
+<span class="c1">//Execute is called from main function
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">Execute</span><span class="p">()</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">RootCmd</span><span class="p">.</span><span class="nx">Execute</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+		<span class="nx">os</span><span class="p">.</span><span class="nx">Exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">init</span><span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span></code></pre></div>
+<p>呼び出し関係は以下の通り。</p>
+
+<figure style='margin:0 auto;text-align:center;'>
+<div class="mermaid">
+graph LR
+  main["main()"]
+  exec1["cmd.Execute()"]
+  exec2["cmd.RootCmd.Execute()"]
+
+  main-->exec1
+  exec1-->exec2
+</div></figure>
+
+<p>もちろん <code>main()</code> 関数から直接 <code>cmd.RootCmd.Execute()</code> 関数を呼んでも構わない（このままであれば）。
+この状態でコマンドを起動すると以下のようになる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run main.go -h
+Long comment</code></pre></div>
+<p>まぁ，当然だよね。
+現状での問題は3つある。</p>
+
+<ol>
+<li><code>cmd.RootCmd</code> を他パッケージから直接操作できてしまう</li>
+<li>引数と標準入出力を <code>cmd.RootCmd</code> が握っていてコントロールできない（ように見える）</li>
+<li><code>cmd.RootCmd.Execute()</code> 関数がエラー時に <code>os.Exit()</code> 関数で強制終了してしまう</li>
+</ol>
+
+<p>特に2番目が致命的。
+何故ならこのままではテストができないからだ。
+そこで <code>cmd.Execute()</code> 関数を改造することにする。</p>
+
+<h2 id="spiegel-im-spiegel-gocli-の導入"><a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> の導入</h2>
+
+<p>その前に標準入出力の取り回しを簡単にするために，手前味噌で申し訳ないが， <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> を導入する。
+これを使えば標準入出力をひとつのインスタンスで取り回しできる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">ui</span> <span class="o">:=</span> <span class="nx">gocli</span><span class="p">.</span><span class="nx">NewUI</span><span class="p">(</span>
+    <span class="nx">gocli</span><span class="p">.</span><span class="nx">Reader</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">),</span>
+    <span class="nx">gocli</span><span class="p">.</span><span class="nx">Writer</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">),</span>
+    <span class="nx">gocli</span><span class="p">.</span><span class="nx">ErrorWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="nx">ui</span><span class="p">.</span><span class="nx">Outputln</span><span class="p">(</span><span class="s">&#34;Hello world&#34;</span><span class="p">)</span></code></pre></div>
+<p><code>gocli.NewUI()</code> の初期化は Functional Options パターンを使っている。
+Functional Options パターンについて詳しくは以下を参照のこと。</p>
+
+<ul>
+<li><a href="/golang/functional-options-pattern/">インスタンスの生成と Functional Options パターン</a></li>
+</ul>
+
+<h2 id="cmd-execute-関数を改造する">cmd.Execute() 関数を改造する</h2>
+
+<p>では <code>cmd.Execute()</code> 関数の改造を行おう。
+途中を省いて結果は以下の通り。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="nx">cui</span> <span class="p">=</span> <span class="nx">gocli</span><span class="p">.</span><span class="nx">NewUI</span><span class="p">()</span> <span class="c1">//CUI instance
+</span><span class="c1"></span><span class="p">)</span>
+
+<span class="c1">//Execute is called from main function
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">Execute</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">gocli</span><span class="p">.</span><span class="nx">UI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">exit</span> <span class="nx">ExitCode</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">defer</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+		<span class="c1">//panic hundling
+</span><span class="c1"></span>		<span class="k">if</span> <span class="nx">r</span> <span class="o">:=</span> <span class="nb">recover</span><span class="p">();</span> <span class="nx">r</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+			<span class="nx">cui</span><span class="p">.</span><span class="nx">OutputErrln</span><span class="p">(</span><span class="s">&#34;Panic:&#34;</span><span class="p">,</span> <span class="nx">r</span><span class="p">)</span>
+			<span class="k">for</span> <span class="nx">depth</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="p">;</span> <span class="nx">depth</span><span class="o">++</span> <span class="p">{</span>
+				<span class="nx">pc</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="nx">line</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">runtime</span><span class="p">.</span><span class="nx">Caller</span><span class="p">(</span><span class="nx">depth</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+					<span class="k">break</span>
+				<span class="p">}</span>
+				<span class="nx">cui</span><span class="p">.</span><span class="nx">OutputErrln</span><span class="p">(</span><span class="s">&#34; -&gt;&#34;</span><span class="p">,</span> <span class="nx">depth</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">runtime</span><span class="p">.</span><span class="nx">FuncForPC</span><span class="p">(</span><span class="nx">pc</span><span class="p">).</span><span class="nx">Name</span><span class="p">(),</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">line</span><span class="p">)</span>
+			<span class="p">}</span>
+			<span class="nx">exit</span> <span class="p">=</span> <span class="nx">ExitAbnormal</span>
+		<span class="p">}</span>
+	<span class="p">}()</span>
+
+	<span class="c1">//execution
+</span><span class="c1"></span>	<span class="nx">cui</span> <span class="p">=</span> <span class="nx">ui</span>
+	<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">SetArgs</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span>
+	<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">SetOutput</span><span class="p">(</span><span class="nx">ui</span><span class="p">.</span><span class="nx">ErrorWriter</span><span class="p">())</span>
+	<span class="nx">exit</span> <span class="p">=</span> <span class="nx">ExitNormal</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">rootCmd</span><span class="p">.</span><span class="nx">Execute</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">exit</span> <span class="p">=</span> <span class="nx">ExitAbnormal</span>
+	<span class="p">}</span>
+	<span class="k">return</span>
+<span class="p">}</span></code></pre></div>
+<p>前半は <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">panic</a> 時のハンドリングで，スタック追跡できるようにしている。
+<a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">panic</a> 時のハンドリングについて詳しくは以下を参照のこと。</p>
+
+<ul>
+<li><a href="/golang/stack-trace-and-panic-handling/">スタック追跡とパニック・ハンドリング</a></li>
+</ul>
+
+<p>後半では <code>cmd.rootCmd</code> に引数と標準出力をセットしてから <code>cmd.rootCmd.Execute()</code> 関数を起動している<sup class="footnote-ref" id="fnref:so1"><a rel="footnote" href="#fn:so1">1</a></sup>。
+エラー時は <code>os.Exit()</code> 関数で強制終了するのではなく，ちゃんとステータスを返すようにした。</p>
+
+<p>そうそう。
+<code>cmd.RootCmd</code> ではパッケージ外から直接操作できてしまうので <code>cmd.rootCmd</code> と小文字にしている。
+小さなことからコツコツと（笑）</p>
+
+<p>これで <code>main()</code> 関数もこのように書き換えることができる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">os</span><span class="p">.</span><span class="nx">Exit</span><span class="p">(</span><span class="nx">cmd</span><span class="p">.</span><span class="nx">Execute</span><span class="p">(</span>
+		<span class="nx">gocli</span><span class="p">.</span><span class="nx">NewUI</span><span class="p">(</span>
+			<span class="nx">gocli</span><span class="p">.</span><span class="nx">Reader</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">),</span>
+			<span class="nx">gocli</span><span class="p">.</span><span class="nx">Writer</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">),</span>
+			<span class="nx">gocli</span><span class="p">.</span><span class="nx">ErrorWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">),</span>
+		<span class="p">),</span>
+		<span class="nx">os</span><span class="p">.</span><span class="nx">Args</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
+	<span class="p">).</span><span class="nx">Int</span><span class="p">())</span>
+<span class="p">}</span></code></pre></div>
+<h2 id="サブコマンドの追加">サブコマンドの追加</h2>
+
+<p>ではいよいよサブコマンド <code>show</code> を追加する。
+サブコマンドの追加は <code>main.go</code> のあるフォルダで以下のコマンドを実行する。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cobra add show</code></pre></div>
+<p>これにより <code>cmd/show.go</code> ファイルが追加された。
+これも中身はコメントが山ほどあるので，整理したものを以下に示す。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;fmt&#34;</span>
+
+	<span class="s">&#34;github.com/spf13/cobra&#34;</span>
+<span class="p">)</span>
+
+<span class="c1">// showCmd represents the show command
+</span><span class="c1"></span><span class="kd">var</span> <span class="nx">showCmd</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">{</span>
+	<span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;show&#34;</span><span class="p">,</span>
+	<span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment for show sub-command&#34;</span><span class="p">,</span>
+	<span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment for show sub-command&#34;</span><span class="p">,</span>
+	<span class="nx">Run</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&#34;show called&#34;</span><span class="p">)</span>
+	<span class="p">},</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">init</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">AddCommand</span><span class="p">(</span><span class="nx">showCmd</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
+<p>この状態で実際に動かしてみるとこうなる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run main.go -h
+Long comment
+
+Usage:
+  cli-demo [flags]
+  cli-demo [command]
+
+Available Commands:
+  help        Help about any command
+  show        Short comment for show sub-command
+
+Flags:
+  -h, --help   help for cli-demo
+
+Use &#34;cli-demo [command] --help&#34; for more information about a command.
+
+$ go run main.go show -h
+Long comment for show sub-command
+
+Usage:
+  cli-demo show [flags]
+
+Flags:
+  -h, --help   help for show
+
+$ go run main.go show
+show called</code></pre></div>
+<h3 id="オプションの追加">オプションの追加</h3>
+
+<p>このコードに対してオプションを追加していく。
+こんな感じでいいだろう。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;github.com/spf13/cobra&#34;</span>
+<span class="p">)</span>
+
+<span class="c1">// showCmd represents the show command
+</span><span class="c1"></span><span class="kd">var</span> <span class="nx">showCmd</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">{</span>
+	<span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;show&#34;</span><span class="p">,</span>
+	<span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment for show sub-command&#34;</span><span class="p">,</span>
+	<span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment for show sub-command&#34;</span><span class="p">,</span>
+	<span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+		<span class="nx">i</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">GetInt</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="nx">err</span>
+		<span class="p">}</span>
+		<span class="nx">b</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">GetBool</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="nx">err</span>
+		<span class="p">}</span>
+		<span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">GetString</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="nx">err</span>
+		<span class="p">}</span>
+		<span class="nx">cui</span><span class="p">.</span><span class="nx">Outputln</span><span class="p">(</span><span class="s">&#34;Integer option value:&#34;</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span>
+		<span class="nx">cui</span><span class="p">.</span><span class="nx">Outputln</span><span class="p">(</span><span class="s">&#34; String option value:&#34;</span><span class="p">,</span> <span class="nx">s</span><span class="p">)</span>
+		<span class="nx">cui</span><span class="p">.</span><span class="nx">Outputln</span><span class="p">(</span><span class="s">&#34;Boolean option value:&#34;</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span>
+
+		<span class="k">return</span> <span class="kc">nil</span>
+	<span class="p">},</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">init</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">AddCommand</span><span class="p">(</span><span class="nx">showCmd</span><span class="p">)</span>
+
+	<span class="nx">showCmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">IntP</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">,</span> <span class="s">&#34;i&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#34;integer option&#34;</span><span class="p">)</span>
+	<span class="nx">showCmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">BoolP</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">,</span> <span class="s">&#34;b&#34;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="s">&#34;boolean option&#34;</span><span class="p">)</span>
+	<span class="nx">showCmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">StringP</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">,</span> <span class="s">&#34;s&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;string option&#34;</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
+<p><code>showCmd</code> 内の <code>Run</code> が <code>RunE</code> に変わってる点に注目。
+これにより，関数内で error が発生した場合に，それを返り値で渡すことができる。</p>
+
+<p>試しにちょろんと動かしてみよう。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run main.go show -h
+Long comment for show sub-command
+
+Usage:
+  cli-demo show [flags]
+
+Flags:
+  -b, --boolean         boolean option
+  -h, --help            help for show
+  -i, --integer int     integer option
+  -s, --string string   string option
+
+$ go run main.go show -i 123 -s 日本語 -b
+Integer option value: 123
+ String option value: 日本語
+Boolean option value: true</code></pre></div>
+<p>おおっ。
+なんか動いてるような気がする。</p>
+
+<p>じゃあテストを始めようか。</p>
+
+<h2 id="cobra-command-を返す関数を作る">cobra.Command を返す関数を作る。</h2>
+
+<p>と言いたいところだけど，このままではまだテストができない。
+何故かというと， <code>rootCmd</code> も <code>showCmd</code> も static な変数として定義されているので，そのままテストを繰り返すと前回の状態が残ってしまって正しいテストにならないからだ。</p>
+
+<p>じゃあどうすればいいかというと， <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions"><code>cobra</code></a>.<code>Command</code> を返す関数を作って，その中で <code>rootCmd</code> や <code>showCmd</code> に相当するインスタンスを作ればいいのである。</p>
+
+<p>じゃあ，まずは <code>cmd/root.go</code> の完全版から。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;runtime&#34;</span>
+
+	<span class="s">&#34;github.com/pkg/errors&#34;</span>
+	<span class="s">&#34;github.com/spf13/cobra&#34;</span>
+	<span class="s">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">var</span> <span class="p">(</span>
+	<span class="nx">cui</span> <span class="p">=</span> <span class="nx">gocli</span><span class="p">.</span><span class="nx">NewUI</span><span class="p">()</span> <span class="c1">//CUI instance
+</span><span class="c1"></span><span class="p">)</span>
+
+<span class="c1">//newRootCmd returns cobra.Command instance for root command
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">newRootCmd</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">gocli</span><span class="p">.</span><span class="nx">UI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span> <span class="p">{</span>
+	<span class="nx">cui</span> <span class="p">=</span> <span class="nx">ui</span>
+	<span class="nx">rootCmd</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">{</span>
+		<span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;cli-demo&#34;</span><span class="p">,</span>
+		<span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment&#34;</span><span class="p">,</span>
+		<span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment&#34;</span><span class="p">,</span>
+		<span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="nx">errors</span><span class="p">.</span><span class="nx">New</span><span class="p">(</span><span class="s">&#34;no command&#34;</span><span class="p">)</span>
+		<span class="p">},</span>
+	<span class="p">}</span>
+	<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">SetArgs</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span>
+	<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">SetOutput</span><span class="p">(</span><span class="nx">ui</span><span class="p">.</span><span class="nx">ErrorWriter</span><span class="p">())</span>
+
+	<span class="nx">rootCmd</span><span class="p">.</span><span class="nx">AddCommand</span><span class="p">(</span><span class="nx">newShowCmd</span><span class="p">())</span>
+
+	<span class="k">return</span> <span class="nx">rootCmd</span>
+<span class="p">}</span>
+
+<span class="c1">//Execute is called from main function
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">Execute</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">gocli</span><span class="p">.</span><span class="nx">UI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">exit</span> <span class="nx">ExitCode</span><span class="p">)</span> <span class="p">{</span>
+	<span class="k">defer</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+		<span class="c1">//panic hundling
+</span><span class="c1"></span>		<span class="k">if</span> <span class="nx">r</span> <span class="o">:=</span> <span class="nb">recover</span><span class="p">();</span> <span class="nx">r</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+			<span class="nx">cui</span><span class="p">.</span><span class="nx">OutputErrln</span><span class="p">(</span><span class="s">&#34;Panic:&#34;</span><span class="p">,</span> <span class="nx">r</span><span class="p">)</span>
+			<span class="k">for</span> <span class="nx">depth</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="p">;</span> <span class="nx">depth</span><span class="o">++</span> <span class="p">{</span>
+				<span class="nx">pc</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="nx">line</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">runtime</span><span class="p">.</span><span class="nx">Caller</span><span class="p">(</span><span class="nx">depth</span><span class="p">)</span>
+				<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+					<span class="k">break</span>
+				<span class="p">}</span>
+				<span class="nx">cui</span><span class="p">.</span><span class="nx">OutputErrln</span><span class="p">(</span><span class="s">&#34; -&gt;&#34;</span><span class="p">,</span> <span class="nx">depth</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">runtime</span><span class="p">.</span><span class="nx">FuncForPC</span><span class="p">(</span><span class="nx">pc</span><span class="p">).</span><span class="nx">Name</span><span class="p">(),</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">line</span><span class="p">)</span>
+			<span class="p">}</span>
+			<span class="nx">exit</span> <span class="p">=</span> <span class="nx">ExitAbnormal</span>
+		<span class="p">}</span>
+	<span class="p">}()</span>
+
+	<span class="c1">//execution
+</span><span class="c1"></span>	<span class="nx">exit</span> <span class="p">=</span> <span class="nx">ExitNormal</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">newRootCmd</span><span class="p">(</span><span class="nx">ui</span><span class="p">,</span> <span class="nx">args</span><span class="p">).</span><span class="nx">Execute</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">exit</span> <span class="p">=</span> <span class="nx">ExitAbnormal</span>
+	<span class="p">}</span>
+	<span class="k">return</span>
+<span class="p">}</span></code></pre></div>
+<p>次は <code>cmd/show.go</code> の完全版。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;github.com/spf13/cobra&#34;</span>
+<span class="p">)</span>
+
+<span class="c1">//newShowCmd returns cobra.Command instance for show sub-command
+</span><span class="c1"></span><span class="kd">func</span> <span class="nx">newShowCmd</span><span class="p">()</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span> <span class="p">{</span>
+	<span class="nx">showCmd</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">{</span>
+		<span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;show&#34;</span><span class="p">,</span>
+		<span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment for show sub-command&#34;</span><span class="p">,</span>
+		<span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment for show sub-command&#34;</span><span class="p">,</span>
+		<span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+			<span class="nx">i</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">GetInt</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+				<span class="k">return</span> <span class="nx">err</span>
+			<span class="p">}</span>
+			<span class="nx">b</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">GetBool</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+				<span class="k">return</span> <span class="nx">err</span>
+			<span class="p">}</span>
+			<span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">GetString</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+				<span class="k">return</span> <span class="nx">err</span>
+			<span class="p">}</span>
+			<span class="nx">cui</span><span class="p">.</span><span class="nx">Outputln</span><span class="p">(</span><span class="s">&#34;Integer option value:&#34;</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span>
+			<span class="nx">cui</span><span class="p">.</span><span class="nx">Outputln</span><span class="p">(</span><span class="s">&#34; String option value:&#34;</span><span class="p">,</span> <span class="nx">s</span><span class="p">)</span>
+			<span class="nx">cui</span><span class="p">.</span><span class="nx">Outputln</span><span class="p">(</span><span class="s">&#34;Boolean option value:&#34;</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span>
+
+			<span class="k">return</span> <span class="kc">nil</span>
+		<span class="p">},</span>
+	<span class="p">}</span>
+
+	<span class="nx">showCmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">IntP</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">,</span> <span class="s">&#34;i&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#34;integer option&#34;</span><span class="p">)</span>
+	<span class="nx">showCmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">BoolP</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">,</span> <span class="s">&#34;b&#34;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="s">&#34;boolean option&#34;</span><span class="p">)</span>
+	<span class="nx">showCmd</span><span class="p">.</span><span class="nx">Flags</span><span class="p">().</span><span class="nx">StringP</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">,</span> <span class="s">&#34;s&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;string option&#34;</span><span class="p">)</span>
+
+	<span class="k">return</span> <span class="nx">showCmd</span>
+<span class="p">}</span></code></pre></div>
+<p>なんで <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> が最初からこういう雛形を作ってくれないかというと，おそらく <code>cobra add</code> コマンドで <code>cmd/root.go</code> を触るわけにはいかないため， static 変数にして <code>init()</code> 関数でコマンドを繋げるような組み方しかできなかったんだと思う。
+でも手作業でこういう雛形を作ってしまえば，以後はコピペでいくらでも量産できるので，面倒でも最初に手間を掛けたほうがいいかもしれない。</p>
+
+<h2 id="テストを書く">テストを書く</h2>
+
+<p>ようやくテストが書けるよ。
+とりあえず正常系のみ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;bytes&#34;</span>
+	<span class="s">&#34;testing&#34;</span>
+
+	<span class="s">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nx">TestShowNormal</span><span class="p">(</span><span class="nx">t</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span> <span class="p">{</span>
+	<span class="nx">testCases</span> <span class="o">:=</span> <span class="p">[]</span><span class="kd">struct</span> <span class="p">{</span>
+		<span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span>
+		<span class="nx">want</span> <span class="kt">string</span>
+	<span class="p">}{</span>
+        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">,</span> <span class="s">&#34;-s&#34;</span><span class="p">,</span> <span class="s">&#34;日本語&#34;</span><span class="p">,</span> <span class="s">&#34;-b&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: 日本語\nBoolean option value: true\n&#34;</span><span class="p">},</span>
+		<span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">,</span> <span class="s">&#34;-s&#34;</span><span class="p">,</span> <span class="s">&#34;日本語&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: 日本語\nBoolean option value: false\n&#34;</span><span class="p">},</span>
+		<span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: \nBoolean option value: false\n&#34;</span><span class="p">},</span>
+		<span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 0\n String option value: \nBoolean option value: false\n&#34;</span><span class="p">},</span>
+	<span class="p">}</span>
+
+	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">c</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">testCases</span> <span class="p">{</span>
+		<span class="nx">out</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
+		<span class="nx">errOut</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
+		<span class="nx">ui</span> <span class="o">:=</span> <span class="nx">gocli</span><span class="p">.</span><span class="nx">NewUI</span><span class="p">(</span>
+			<span class="nx">gocli</span><span class="p">.</span><span class="nx">Writer</span><span class="p">(</span><span class="nx">out</span><span class="p">),</span>
+			<span class="nx">gocli</span><span class="p">.</span><span class="nx">ErrorWriter</span><span class="p">(</span><span class="nx">errOut</span><span class="p">),</span>
+		<span class="p">)</span>
+		<span class="nx">exit</span> <span class="o">:=</span> <span class="nx">Execute</span><span class="p">(</span><span class="nx">ui</span><span class="p">,</span> <span class="nx">c</span><span class="p">.</span><span class="nx">args</span><span class="p">)</span>
+		<span class="k">if</span> <span class="nx">exit</span> <span class="o">!=</span> <span class="nx">ExitNormal</span> <span class="p">{</span>
+			<span class="nx">t</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() err = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">exit</span><span class="p">,</span> <span class="nx">ExitNormal</span><span class="p">)</span>
+		<span class="p">}</span>
+		<span class="k">if</span> <span class="nx">out</span><span class="p">.</span><span class="nx">String</span><span class="p">()</span> <span class="o">!=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">want</span> <span class="p">{</span>
+			<span class="nx">t</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() Stdout = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">out</span><span class="p">.</span><span class="nx">String</span><span class="p">(),</span> <span class="nx">c</span><span class="p">.</span><span class="nx">want</span><span class="p">)</span>
+		<span class="p">}</span>
+		<span class="k">if</span> <span class="nx">errOut</span><span class="p">.</span><span class="nx">String</span><span class="p">()</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+			<span class="nx">t</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() Stderr = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">errOut</span><span class="p">.</span><span class="nx">String</span><span class="p">(),</span> <span class="s">&#34;&#34;</span><span class="p">)</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+<span class="p">}</span></code></pre></div>
+<p>標準出力と標準エラー出力を <a href="https://golang.org/pkg/bytes/" title="bytes - The Go Programming Language"><code>bytes</code></a>.<code>Buffer</code> で代替えしているのがお分かりだろうか。
+これなら CLI でもかなりの部分をテストでカバーできる。
+ここには挙げていないが，当然パイプのテストも可能である。</p>
+
+<h2 id="dep-で-spf13-cobra-を管理する"><a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> で <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> を管理する</h2>
+
+<p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> をはじめとする外部パッケージを <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> を使って <code>vendor/</code> 配下に置くのなら， <code>Gopkg.toml</code> の記述は以下でいいだろう。</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+  <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spf13/cobra&#34;</span>
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;~0.0.1&#34;</span>
+
+<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+  <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;~0.4.0&#34;</span>
+
+<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+  <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/pkg/errors&#34;</span>
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;~0.8.0&#34;</span></code></pre></div>
+<p>ちなみに今回のデモのパッケージ依存関係はこんな感じになっている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep status -dot | dot -Tpng -o dependency.png</code></pre></div>
+<figure style='margin:0 auto;text-align:center;'>
+<img src="/images/cli-demo-dependency.png" srcset="/images/cli-demo-dependency.png 732w" sizes="(min-width:600px) 500px, 80vw" alt=""></figure>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="https://qiita.com/tkit/items/3cdeafcde2bd98612428">Golangのコマンドライブラリcobraを使って少しうまく実装する - Qiita</a></li>
+</ul>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/477418392X/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/61EL3Dc95dL._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/477418392X/baldandersinf-22/">みんなのGo言語【現場で使える実践テクニック】</a></dt><dd>松木雅幸 mattn 藤原俊一郎 中島大一 牧 大輔 鈴木健太 稲葉貴洋 </dd><dd>技術評論社 2016-09-09</dd><dd>評価<abbr class="rating" title="4"><img src="http://g-images.amazon.com/images/G/01/detail/stars-4-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4774184322/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4774184322.09._SCTHUMBZZZ_.jpg"  alt="WEB+DB PRESS Vol.95"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4621300253.09._SCTHUMBZZZ_.jpg"  alt="プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274219151/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274219151.09._SCTHUMBZZZ_.jpg"  alt="プログラミングElixir"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798147400/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798147400.09._SCTHUMBZZZ_.jpg"  alt="詳解MySQL 5.7 止まらぬ進化に乗り遅れないためのテクニカルガイド (NEXT ONE)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4774182869/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4774182869.09._SCTHUMBZZZ_.jpg"  alt="WEB+DB PRESS Vol.94"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117763/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117763.09._SCTHUMBZZZ_.jpg"  alt="Docker"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/477418361X/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/477418361X.09._SCTHUMBZZZ_.jpg"  alt="オブジェクト指向設計実践ガイド ~Rubyでわかる 進化しつづける柔軟なアプリケーションの育て方"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4295000337/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4295000337.09._SCTHUMBZZZ_.jpg"  alt="WebデベロッパーのためのReact開発入門 JavaScript UIライブラリの基本と活用"  /></a> </p>
+<p class="description">リファレンス本なのに索引が貧弱。これなら Kindle で買ってもよかったか。 1.7 への言及があるのはよかった。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-11-17">2016-11-17</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:so1"><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> では出力先がひとつしかなく何故か標準出力と標準エラー出力を区別していない。そこで <code>cmd.rootCmd</code> には標準エラー出力をセットして標準出力へのアクセスは <code>cui</code> を <code>cmd</code> パッケージ内のどのメソッドからも参照できるようにした。 <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> 側が標準出力と標準エラー出力をちゃんと区別してくれれば，もう少しスマートにできるんだけどねぇ。
+ <a class="footnote-return" href="#fnref:so1"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/detecting-character-encoding/">文字エンコーディングの検出</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="http://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker">
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2017-12-06</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2fusing-and-testing-cobra%2f" target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Cobra%20%e3%81%ae%e4%bd%bf%e3%81%84%e6%96%b9%e3%81%a8%e3%83%86%e3%82%b9%e3%83%88+from+@spiegel_2007&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fusing-and-testing-cobra%2f" target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fusing-and-testing-cobra%2f&amp;title=Cobra%20%e3%81%ae%e4%bd%bf%e3%81%84%e6%96%b9%e3%81%a8%e3%83%86%e3%82%b9%e3%83%88" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fusing-and-testing-cobra%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.31.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({startOnLoad: true, theme: 'neutral', sequenceDiagram: {height: 40, mirrorActors: false}});
+</script>
+</body>
+</html>
