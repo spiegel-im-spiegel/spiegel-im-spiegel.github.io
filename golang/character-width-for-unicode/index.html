@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.31.1" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/sawarabimincho.css' type='text/css'>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/text-baldanders.css">
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/css/chroma-styles.css">
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+	displayAlign: "left",
+	displayIndent: "2em",
+	tex2jax: {
+		inlineMath: [['$','$'], ['\\(','\\)']],
+		processEscapes: true
+	},
+	TeX: {
+		equationNumbers: { autoNumber: "AMS" },
+	    extensions: ["mhchem.js"],
+		Macros: {
+			ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1]
+		}
+	},
+	CommonHTML: {
+		matchFontHeight: false
+	},
+	"HTML-CSS": {
+		availableFonts: ["STIX"],
+	    preferredFont: "STIX",
+		webFont: "STIX-Web",
+		matchFontHeight: false,
+	    mtextFontInherit: true
+	}
+});
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_HTML&amp;locale=ja"></script>
+<link rel="canonical" href="http://text.baldanders.info/golang/character-width-for-unicode/">
+<title>Go 言語による Unicode 半角/全角変換 — プログラミング言語 Go | text.Baldanders.info</title>
+<meta property="og:title" content="Go 言語による Unicode 半角/全角変換 — プログラミング言語 Go | text.Baldanders.info">
+<meta name="description" content="以前「Go 言語と Unicode 正規化」の脚注でこっそり「単に全角・半角変換ができればいいのなら golang.org/x/text/width パッケージをお勧めする」と書いていたのだが，今回はその話。">
+<meta property="og:description" content="以前「Go 言語と Unicode 正規化」の脚注でこっそり「単に全角・半角変換ができればいいのなら golang.org/x/text/width パッケージをお勧めする」と書いていたのだが，今回はその話。">
+<meta property="og:image" content="http://text.baldanders.info/images/attention/go-code.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang, unicode, transform, character">
+<link rel='prev' href='http://text.baldanders.info/golang/using-and-testing-cobra/' title='Cobra の使い方とテスト' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "http://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "http://text.baldanders.info/",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "http://text.baldanders.info/#maker"
+	},
+	"image": "http://text.baldanders.info/images/avatar.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "http://text.baldanders.info/#org",
+	"name": "text.Baldanders.info",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "http://text.baldanders.info/#logo",
+		"url": "http://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "http://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "http://www.baldanders.info/spiegel/profile/",
+	"image": "http://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "http://text.baldanders.info/golang/",
+	"url": "http://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "http://text.baldanders.info/images/attention/go-code.png",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "http://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "http://text.baldanders.info/golang/character-width-for-unicode/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "http://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "http://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "http://text.baldanders.info/golang/character-width-for-unicode/",
+	"url": "http://text.baldanders.info/golang/character-width-for-unicode/",
+	"mainEntityOfPage": "http://text.baldanders.info/golang/character-width-for-unicode/",
+	"inLanguage": "ja",
+	"name": "Go 言語による Unicode 半角/全角変換",
+	"description": "以前「Go 言語と Unicode 正規化」の脚注でこっそり「単に全角・半角変換ができればいいのなら golang.org/x/text/width パッケージをお勧めする」と書いていたのだが，今回はその話。",
+	"headline": "以前「Go 言語と Unicode 正規化」の脚注でこっそり「単に全角・半角変換ができればいいのなら golang.org/x/text/width パッケージをお勧めする」と書いていたのだが，今回はその話。",
+	"keywords": "golang, unicode, transform, character",
+	"image": "http://text.baldanders.info/images/attention/go-code.png",
+	"datePublished": "2017-12-08T13:47:48+09:00",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@type": "Person",
+		"@id": "http://text.baldanders.info/golang/character-width-for-unicode/#maker",
+		"name": "Spiegel",
+		"url": "http://www.baldanders.info/spiegel/profile/",
+		"image": "http://text.baldanders.info/images/avatar.jpg"
+	},
+	"license": "http://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="http://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="http://text.baldanders.info/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>Go 言語による Unicode 半角/全角変換</h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/character">character</a> #<a href="/tags/golang">golang</a> #<a href="/tags/transform">transform</a> #<a href="/tags/unicode">unicode</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/character-width-for-unicode/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p>もう2年近く前の記事だが，「<a href="/golang/unicode-normalization/">Go 言語と Unicode 正規化</a>」の脚注でこっそり「単に全角・半角変換ができればいいのなら <code>golang.org/x/text/</code><a href="https://godoc.org/golang.org/x/text/width" title="width - GoDoc"><code>width</code></a> パッケージをお勧めする」と書いていたのだが，今回はその話。</p>
+
+<h2 id="golang-org-x-text-width-パッケージ">golang.org/x/text/width パッケージ</h2>
+
+<p><code>golang.org/x/text/</code><a href="https://godoc.org/golang.org/x/text/width" title="width - GoDoc"><code>width</code></a> パッケージ<sup class="footnote-ref" id="fnref:wdth"><a rel="footnote" href="#fn:wdth">1</a></sup> では全角/半角変換用に以下の <a href="https://godoc.org/golang.org/x/text/transform" title="transform - GoDoc"><code>transform</code></a>.<code>Transformer</code> が用意されている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="c1">// Fold is a transform that maps all runes to their canonical width.
+</span><span class="c1"></span>	<span class="c1">//
+</span><span class="c1"></span>	<span class="c1">// Note that the NFKC and NFKD transforms in golang.org/x/text/unicode/norm
+</span><span class="c1"></span>	<span class="c1">// provide a more generic folding mechanism.
+</span><span class="c1"></span>	<span class="nx">Fold</span> <span class="nx">Transformer</span> <span class="p">=</span> <span class="nx">Transformer</span><span class="p">{</span><span class="nx">foldTransform</span><span class="p">{}}</span>
+
+	<span class="c1">// Widen is a transform that maps runes to their wide variant, if
+</span><span class="c1"></span>	<span class="c1">// available.
+</span><span class="c1"></span>	<span class="nx">Widen</span> <span class="nx">Transformer</span> <span class="p">=</span> <span class="nx">Transformer</span><span class="p">{</span><span class="nx">wideTransform</span><span class="p">{}}</span>
+
+	<span class="c1">// Narrow is a transform that maps runes to their narrow variant, if
+</span><span class="c1"></span>	<span class="c1">// available.
+</span><span class="c1"></span>	<span class="nx">Narrow</span> <span class="nx">Transformer</span> <span class="p">=</span> <span class="nx">Transformer</span><span class="p">{</span><span class="nx">narrowTransform</span><span class="p">{}}</span>
+<span class="p">)</span></code></pre></div>
+<p><a href="https://godoc.org/golang.org/x/text/width" title="width - GoDoc"><code>width</code></a>.<code>Widen</code> が全角変換用， <a href="https://godoc.org/golang.org/x/text/width" title="width - GoDoc"><code>width</code></a>.<code>Narrow</code> が半角変換用である。</p>
+
+<p>たとえば，半角変換なら</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">width</span><span class="p">.</span><span class="nx">Narrow</span><span class="p">.</span><span class="nx">String</span><span class="p">(</span><span class="s">&#34;１２３４５６７８９０アイウエオカキクケコＡＢＣＤＥＦＧＨＩＪＫ&#34;</span><span class="p">))</span>
+<span class="c1">//Outpput
+</span><span class="c1"></span><span class="o">//</span><span class="mi">1234567890</span><span class="nx">ｱｲｳｴｵｶｷｸｹｺABCDEFGHIJK</span></code></pre></div>
+<p>全角変換なら</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">width</span><span class="p">.</span><span class="nx">Narrow</span><span class="p">.</span><span class="nx">String</span><span class="p">(</span><span class="s">&#34;1234567890ｱｲｳｴｵｶｷｸｹｺABCDEFGHIJK&#34;</span><span class="p">))</span>
+<span class="c1">//Outpput
+</span><span class="c1"></span><span class="o">//</span><span class="nx">１２３４５６７８９０アイウエオカキクケコＡＢＣＤＥＦＧＨＩＪＫ</span></code></pre></div>
+<p>のように変換される。
+<a href="https://golang.org/pkg/io/" title="io - The Go Programming Language"><code>io</code></a>.<code>Reader</code> を使うなら</p>
+
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">r</span> <span class="o">:=</span> <span class="nx">bytes</span><span class="p">.</span><span class="nx">NewBufferString</span><span class="p">(</span><span class="s">&#34;1234567890ｱｲｳｴｵｶｷｸｹｺABCDEFGHIJK&#34;</span><span class="p">)</span>
+<span class="hl"><span class="nx">tr</span> <span class="o">:=</span> <span class="nx">transform</span><span class="p">.</span><span class="nx">NewReader</span><span class="p">(</span><span class="nx">r</span><span class="p">,</span> <span class="nx">wdth</span><span class="p">.</span><span class="nx">Widen</span><span class="p">)</span>
+</span><span class="nx">buf</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
+<span class="nx">io</span><span class="p">.</span><span class="nx">Copy</span><span class="p">(</span><span class="nx">buf</span><span class="p">,</span> <span class="nx">tr</span><span class="p">)</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">buf</span><span class="p">)</span>
+<span class="c1">//Outpput
+</span><span class="c1"></span><span class="o">//</span><span class="nx">１２３４５６７８９０アイウエオカキクケコＡＢＣＤＥＦＧＨＩＪＫ</span></code></pre></div>
+
+<p>ってな感じで書ける。</p>
+
+<p>面白いのは <a href="https://godoc.org/golang.org/x/text/width" title="width - GoDoc"><code>width</code></a>.<code>Fold</code> で，半角カナ文字は全角に，全角英数字は半角に，いい感じに変換してくれるのだ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">width</span><span class="p">.</span><span class="nx">Fold</span><span class="p">.</span><span class="nx">String</span><span class="p">(</span><span class="s">&#34;１２３４５６７８９０ｱｲｳｴｵｶｷｸｹｺＡＢＣＤＥＦＧＨＩＪＫ&#34;</span><span class="p">))</span>
+<span class="c1">//Outpput
+</span><span class="c1"></span><span class="o">//</span><span class="mi">1234567890</span><span class="nx">アイウエオカキクケコABCDEFGHIJK</span></code></pre></div>
+<p><a href="https://godoc.org/golang.org/x/text/width" title="width - GoDoc"><code>width</code></a>.<code>Fold</code> は， Unicode 正規化と異なり，「神と神」のような異体字は</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">width</span><span class="p">.</span><span class="nx">Fold</span><span class="p">.</span><span class="nx">String</span><span class="p">(</span><span class="s">&#34;神と神&#34;</span><span class="p">))</span>
+<span class="c1">//Outpput
+</span><span class="c1"></span><span class="o">//</span><span class="nx">神と神</span></code></pre></div>
+<p>と影響を受けない<sup class="footnote-ref" id="fnref:un1"><a rel="footnote" href="#fn:un1">2</a></sup>。
+ブラボー！</p>
+
+<p>ちなみに Unicode の円記号（YEN SIGN）は，通常文字（半角相当）が「¥：U+00A5<sup class="footnote-ref" id="fnref:yen1"><a rel="footnote" href="#fn:yen1">3</a></sup>」で全角文字が「￥：U+FFE5」である。
+JIS ラテン文字（JIS X 0201）の半角円記号（0x5C）は機械的に変換しても同じ値の「<code>\</code> (REVERSE SOLIDUS)」のままなので（当たり前だけど）ご注意を<sup class="footnote-ref" id="fnref:ws"><a rel="footnote" href="#fn:ws">4</a></sup>。
+そろそろ JIS ラテン文字のことは忘れていいかもねー。</p>
+
+<h2 id="spiegel-im-spiegel-text-に組み込んでみた"><a href="https://github.com/spiegel-im-spiegel/text" title="spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang">spiegel-im-spiegel/text</a> に組み込んでみた</h2>
+
+<p>というわけで，この Unicode 半角/全角変換機能を私作の <a href="https://github.com/spiegel-im-spiegel/text" title="spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang">spiegel-im-spiegel/text</a> v0.5.0 に組み込んでみた。
+こんな感じに使える。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">res</span> <span class="o">:=</span> <span class="nx">width</span><span class="p">.</span><span class="nx">Reader</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">NewBufferString</span><span class="p">(</span><span class="s">&#34;１２３４５６７８９０ｱｲｳｴｵｶｷｸｹｺＡＢＣＤＥＦＧＨＩＪＫ&#34;</span><span class="p">),</span> <span class="nx">width</span><span class="p">.</span><span class="nx">Fold</span><span class="p">)</span>
+<span class="nx">buf</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
+<span class="nx">io</span><span class="p">.</span><span class="nx">Copy</span><span class="p">(</span><span class="nx">buf</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">buf</span><span class="p">)</span>
+<span class="c1">// Output:
+</span><span class="c1"></span><span class="o">//</span> <span class="mi">1234567890</span><span class="nx">アイウエオカキクケコABCDEFGHIJK</span></code></pre></div>
+<p>あと，このパッケージの CLI 実装用に作った「<a href="/remark/2017/12/like-nkf/">nkf っぽいなにか</a>」にもサブコマンド <code>width</code> として組み込んでいる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ gonkf width -h
+Convert character width of text (UTF-8 text only)
+
+Usage:
+  gonkf width [flags] [text file]
+
+Flags:
+  -f, --form string     form of width [fold|narrow|widen] (default &#34;fold&#34;)
+  -h, --help            help for width
+  -o, --output string   output file path
+
+$ echo １２３４５６７８９０ｱｲｳｴｵｶｷｸｹｺＡＢＣＤＥＦＧＨＩＪＫ | gonkf width -f fold
+1234567890アイウエオカキクケコABCDEFGHIJK</code></pre></div>
+<p>たとえば Sjift-JIS テキストに対して機能をパイプで繋いで</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cat sjis.txt
+１２３４５６７８９０ｱｲｳｴｵｶｷｸｹｺＡＢＣＤＥＦＧＨＩＪＫ
+
+$ gonkf conv -s sjis sjis.txt | gonkf nwline -f lf | gonkf width -f fold &gt; utf8.txt
+
+$ cat utf8.txt
+1234567890アイウエオカキクケコABCDEFGHIJK</code></pre></div>
+<p>みたいな変換もできる（画面はイメージです<code>w</code>）。</p>
+
+<p>これで概ね <a href="https://github.com/spiegel-im-spiegel/text" title="spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang">spiegel-im-spiegel/text</a> でやりたいことはやり尽くしたかな。</p>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:wdth">“width” って日本人には発音しにくいよね。「<a href="https://qiita.com/ryounagaoka/items/290885ee3291b393fe1f" title="IT業界で横行する恥ずかしい英語発音 - Qiita">IT業界で横行する恥ずかしい英語発音</a>」でもネタになるほど（笑）
+ <a class="footnote-return" href="#fnref:wdth"><sup>[return]</sup></a></li>
+<li id="fn:un1">Unicode 正規化と異体字の問題については「<a href="/golang/unicode-normalization/">Go 言語と Unicode 正規化</a>」を参照のこと。
+ <a class="footnote-return" href="#fnref:un1"><sup>[return]</sup></a></li>
+<li id="fn:yen1">円記号「¥：U+00A5」のコード・ポイントは ISO-8859-1 (Latin-1) で割り当てられている円記号のコードと同じ。というか，そもそも Unicode は ISO-8859-1 と親和するように設計されているのでこうなっているのだが。円記号が ISO-8859-1 に収録されていて（8ビット空間に収まっていて）よかったね，というべきか（笑）
+ <a class="footnote-return" href="#fnref:yen1"><sup>[return]</sup></a></li>
+<li id="fn:ws">この辺の事情は韓国語の WON SIGN「₩：U+20A9」とかでも同じらしい。
+ <a class="footnote-return" href="#fnref:ws"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/using-and-testing-cobra/">Cobra の使い方とテスト</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="http://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker">
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2017-12-08</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fa fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fa fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fa fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fa fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fa fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fa fa-facebook"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fa fa-linkedin"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcharacter-width-for-unicode%2f" target="_blank"><i class="fa fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Go%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%82%88%e3%82%8b%20Unicode%20%e5%8d%8a%e8%a7%92%2f%e5%85%a8%e8%a7%92%e5%a4%89%e6%8f%9b+from+@spiegel_2007&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcharacter-width-for-unicode%2f" target="_blank"><i class="fa fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcharacter-width-for-unicode%2f&amp;title=Go%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%82%88%e3%82%8b%20Unicode%20%e5%8d%8a%e8%a7%92%2f%e5%85%a8%e8%a7%92%e5%a4%89%e6%8f%9b" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2fcharacter-width-for-unicode%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.31.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+
+</body>
+</html>
