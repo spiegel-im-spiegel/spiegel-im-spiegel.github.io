@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.36.1" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='http://www.baldanders.info/fonts/NotoSerifJP/NotoSerifJP.css' type='text/css'>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/cc-icons/1.2.1/css/cc-icons.min.css">
+<link rel="stylesheet" href="/css/main.css" type='text/css'>
+<link rel="stylesheet" href="/css/text-baldanders.css" type='text/css'>
+<script defer src="https://use.fontawesome.com/releases/v5.0.1/js/all.js"></script>
+<link rel="alternate" href="http://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="stylesheet" href="/css/addon.css">
+<link rel="stylesheet" href="/css/chroma-styles.css">
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+	displayAlign: "left",
+	displayIndent: "2em",
+	tex2jax: {
+		inlineMath: [['$','$'], ['\\(','\\)']],
+		processEscapes: true
+	},
+	TeX: {
+		equationNumbers: { autoNumber: "AMS" },
+	    extensions: ["mhchem.js"],
+		Macros: {
+			ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1],
+			tcdegree: ['\\unicode{xb0}'],
+			tccelsius: ['\\unicode{x2103}'],
+			tcperthousand: ['\\unicode{x2030}'],
+			tcmu: ['\\unicode{x3bc}'],
+			tcohm: ['\\unicode{x3a9}']
+		}
+	},
+	CommonHTML: {
+		matchFontHeight: false
+	},
+	"HTML-CSS": {
+		availableFonts: ["STIX"],
+	    preferredFont: "STIX",
+		webFont: "STIX-Web",
+		matchFontHeight: false,
+	    mtextFontInherit: true
+	}
+});
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/MathJax.js?config=TeX-AMS_HTML&amp;locale=ja"></script>
+<link rel="canonical" href="http://text.baldanders.info/golang/lua/">
+<title>Go 言語による Lua 実装を試してみた — プログラミング言語 Go | text.Baldanders.info</title>
+<meta property="og:title" content="Go 言語による Lua 実装を試してみた — プログラミング言語 Go | text.Baldanders.info">
+<meta name="description" content="引数を伴う場合はどうするんだろう。 arg みたいなのはないっぽいのでグローバル変数として自前でセットしないといけないかな？">
+<meta property="og:description" content="引数を伴う場合はどうするんだろう。 arg みたいなのはないっぽいのでグローバル変数として自前でセットしないといけないかな？">
+<meta property="og:image" content="http://text.baldanders.info/images/attention/go-code2.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="author" content="Spiegel">
+<meta name="keywords" content="golang, lua, engineering, programming, language">
+<link rel='prev' href='http://text.baldanders.info/golang/logger/' title='Log パッケージで遊ぶ' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "http://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "http://text.baldanders.info/",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "http://text.baldanders.info/#maker"
+	},
+	"image": "http://text.baldanders.info/images/avatar.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "http://text.baldanders.info/#org",
+	"name": "text.Baldanders.info",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "http://text.baldanders.info/#logo",
+		"url": "http://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "http://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "http://www.baldanders.info/spiegel/profile/",
+	"image": "http://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "http://text.baldanders.info/golang/",
+	"url": "http://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "http://text.baldanders.info/images/attention/go-code.png",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "http://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "http://text.baldanders.info/golang/lua/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "http://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "http://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "http://text.baldanders.info/golang/lua/",
+	"url": "http://text.baldanders.info/golang/lua/",
+	"mainEntityOfPage": "http://text.baldanders.info/golang/lua/",
+	"inLanguage": "ja",
+	"name": "Go 言語による Lua 実装を試してみた",
+	"description": "引数を伴う場合はどうするんだろう。 arg みたいなのはないっぽいのでグローバル変数として自前でセットしないといけないかな？",
+	"headline": "引数を伴う場合はどうするんだろう。 arg みたいなのはないっぽいのでグローバル変数として自前でセットしないといけないかな？",
+	"keywords": "golang, lua, engineering, programming, language",
+	"image": "http://text.baldanders.info/images/attention/go-code2.png",
+	"datePublished": "2018-02-28T19:00:05+09:00",
+	"publisher": {
+		"@id": "http://text.baldanders.info/#org"
+	},
+	"author": {
+		"@type": "Person",
+		"@id": "http://text.baldanders.info/golang/lua/#maker",
+		"name": "Spiegel",
+		"url": "http://www.baldanders.info/spiegel/profile/",
+		"image": "http://text.baldanders.info/images/avatar.jpg"
+	},
+	"license": "http://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="http://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="http://text.baldanders.info/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>Go 言語による Lua 実装を試してみた</h1>
+<nav class="tags">
+<div><a href="/tags">Tags</a>: #<a href="/tags/engineering">engineering</a> #<a href="/tags/golang">golang</a> #<a href="/tags/language">language</a> #<a href="/tags/lua">lua</a> #<a href="/tags/programming">programming</a></div>
+<div><a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/lua/index.html">History</a></div>
+</nav>
+
+<section>
+
+
+<p><a href="https://www.lua.org/" title="The Programming Language Lua">Lua</a> 言語について調べてたら，たまたま <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>による VM とコンパイラの実装を見つけた。</p>
+
+<ul>
+<li><a href="https://github.com/milochristiansen/lua">milochristiansen/lua: A Lua 5.3 VM and compiler written in Go.</a></li>
+</ul>
+
+<p>面白そうなのでちょろんと試してみた。</p>
+
+<h2 id="みんな大好き-hello-world">みんな大好き Hello World</h2>
+
+<p>まずは，みんな大好き Hello World から。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;fmt&#34;</span>
+	<span class="s">&#34;os&#34;</span>
+	<span class="s">&#34;strings&#34;</span>
+
+	<span class="s">&#34;github.com/milochristiansen/lua&#34;</span>
+	<span class="s">&#34;github.com/milochristiansen/lua/lmodbase&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">l</span> <span class="o">:=</span> <span class="nx">lua</span><span class="p">.</span><span class="nx">NewState</span><span class="p">()</span>
+
+	<span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">Protect</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Push</span><span class="p">(</span><span class="nx">lmodbase</span><span class="p">.</span><span class="nx">Open</span><span class="p">)</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+	<span class="p">})</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+		<span class="k">return</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">LoadText</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nx">NewReader</span><span class="p">(</span><span class="s">&#34;print(\&#34;Hello Lua!\&#34;)&#34;</span><span class="p">),</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+		<span class="k">return</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">PCall</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+		<span class="k">return</span>
+	<span class="p">}</span>
+<span class="p">}</span></code></pre></div>
+<p>これを実行すると <a href="https://www.lua.org/" title="The Programming Language Lua">Lua</a> のスクリプト “<code>print(&quot;Hello Lua!&quot;)</code>” が実行され結果が標準出力に出力される。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run hello.go
+Hello Lua!</code></pre></div>
+<h3 id="lua-state-の中身">lua.State の中身</h3>
+
+<p><a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.NewState()</code> 関数で生成される <a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.State</code> インスタンスの中身はこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">// State is the central arbitrator of all Lua operations.
+</span><span class="c1"></span><span class="kd">type</span> <span class="nx">State</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Output should be set to whatever writer you want to use for logging.
+</span><span class="c1"></span>	<span class="c1">// This is where the standard script functions like print will write their output.
+</span><span class="c1"></span>	<span class="c1">// If nil defaults to os.Stdout.
+</span><span class="c1"></span>	<span class="nx">Output</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span>
+
+	<span class="c1">// Add a native stack trace to errors that have attached stack traces.
+</span><span class="c1"></span>	<span class="nx">NativeTrace</span> <span class="kt">bool</span>
+
+	<span class="nx">registry</span> <span class="o">*</span><span class="nx">table</span>
+	<span class="nx">global</span>   <span class="o">*</span><span class="nx">table</span> <span class="c1">// _G
+</span><span class="c1"></span>	<span class="nx">metaTbls</span> <span class="p">[</span><span class="nx">typeCount</span><span class="p">]</span><span class="o">*</span><span class="nx">table</span>
+
+	<span class="nx">stack</span> <span class="o">*</span><span class="nx">stack</span>
+<span class="p">}</span></code></pre></div>
+<p><a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.State.Output</code> に適切な Writer をセットすることで <code>print</code> 関数の出力先を変更できる（<code>nil</code> なら標準出力に出力する）。</p>
+
+<h3 id="モジュールの読み込み">モジュールの読み込み</h3>
+
+<p>以下の部分でモジュールを読み込んでいる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">Protect</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">l</span><span class="p">.</span><span class="nx">Push</span><span class="p">(</span><span class="nx">lmodbase</span><span class="p">.</span><span class="nx">Open</span><span class="p">)</span>
+    <span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="p">})</span></code></pre></div>
+<p><a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.State.Protect()</code> 関数は，関数の実行で panic が発生した際に panic を止めて error を返している。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">// Protect calls f inside an error handler. Use when you need to use API functions that may &#34;raise errors&#34; outside of
+</span><span class="c1">// other error handlers (such as PCall).
+</span><span class="c1">//
+</span><span class="c1">// Protect does the same cleanup PCall does, so it is safe to run code with Call inside a Protected function.
+</span><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">l</span> <span class="o">*</span><span class="nx">State</span><span class="p">)</span> <span class="nx">Protect</span><span class="p">(</span><span class="nx">f</span> <span class="kd">func</span><span class="p">())</span> <span class="p">(</span><span class="nx">err</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+	<span class="k">defer</span> <span class="nx">l</span><span class="p">.</span><span class="nx">Recover</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">false</span><span class="p">)(</span><span class="o">&amp;</span><span class="nx">err</span><span class="p">)</span>
+
+	<span class="nx">f</span><span class="p">()</span>
+
+	<span class="k">return</span> <span class="kc">nil</span>
+<span class="p">}</span></code></pre></div>
+<p><a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>/lmodbase</code> はベースモジュールを格納するサブパッケージである。
+ちなみに <code>print</code> 関数はベース・モジュールに含まれるため，読み込まないと実行時エラーになる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">Value is not a function and has no __call meta method.</code></pre></div>
+<p><a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a> パッケージには他にも <a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>/lmodmath</code>, <a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>/lmodpackage</code>, <a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>/lmodstring</code>, <a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>/lmodtable</code> が用意されている。
+また，これらのサブパッケージを参考にすれば独自の拡張も可能になるだろう。</p>
+
+<h3 id="lua-スクリプトの読み込みと実行"><a href="https://www.lua.org/" title="The Programming Language Lua">Lua</a> スクリプトの読み込みと実行</h3>
+
+<p>以下の部分では <a href="https://www.lua.org/" title="The Programming Language Lua">Lua</a> スクリプトの読み込みと実行を行っている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">LoadText</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nx">NewReader</span><span class="p">(</span><span class="s">&#34;print(\&#34;Hello Lua!\&#34;)&#34;</span><span class="p">),</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+    <span class="k">return</span>
+<span class="p">}</span>
+<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">PCall</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+    <span class="k">return</span>
+<span class="p">}</span></code></pre></div>
+<p><a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.State.PCall()</code> 関数は <a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.State.Call()</code> 関数をラップして panic 時の処理を加えている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">// PCall is exactly like Call, except instead of panicking when it encounters an error the
+</span><span class="c1">// error is cleanly recovered and returned.
+</span><span class="c1">//
+</span><span class="c1">// On error the stack is reset to the way it was before the call minus the function and it&#39;s arguments,
+</span><span class="c1">// the State may then be reused.
+</span><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">l</span> <span class="o">*</span><span class="nx">State</span><span class="p">)</span> <span class="nx">PCall</span><span class="p">(</span><span class="nx">args</span><span class="p">,</span> <span class="nx">rtns</span> <span class="kt">int</span><span class="p">)</span> <span class="p">(</span><span class="nx">err</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+	<span class="k">defer</span> <span class="nx">l</span><span class="p">.</span><span class="nx">Recover</span><span class="p">(</span><span class="nx">args</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="kc">true</span><span class="p">)(</span><span class="o">&amp;</span><span class="nx">err</span><span class="p">)</span>
+
+	<span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="nx">args</span><span class="p">,</span> <span class="nx">rtns</span><span class="p">)</span>
+	<span class="k">return</span> <span class="kc">nil</span>
+<span class="p">}</span></code></pre></div>
+<p><a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.State.LoadText()</code> 関数の代わりに <a href="https://github.com/milochristiansen/lua" title="milochristiansen/lua: A Lua 5.3 VM and compiler written in Go."><code>lua</code></a><code>.State.LoadBinary()</code> 関数を使えばコンパイル済みのバイナリを読み込ませることもできるようだ。</p>
+
+<h2 id="lua-スクリプトファイルを読み込んで実行する"><a href="https://www.lua.org/" title="The Programming Language Lua">Lua</a> スクリプトファイルを読み込んで実行する</h2>
+
+<p>大体分かったところで <a href="https://www.lua.org/" title="The Programming Language Lua">Lua</a> スクリプトファイルを読み込んで実行してみる。
+用意したファイルはフィボナッチ数を求めるスクリプト。</p>
+<div class="highlight"><pre class="chroma"><code class="language-lua" data-lang="lua"><span class="kr">function</span> <span class="nf">fibonacciNumber</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+	<span class="kr">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="kr">then</span>
+		<span class="kr">return</span> <span class="n">n</span>
+	<span class="kr">end</span>
+	<span class="kr">return</span> <span class="n">fibonacciNumber</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">fibonacciNumber</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="kr">end</span>
+
+<span class="n">print</span><span class="p">(</span><span class="n">fibonacciNumber</span><span class="p">(</span><span class="mi">38</span><span class="p">))</span></code></pre></div>
+<p>スクリプトを読み込んで実行するコードはこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;flag&#34;</span>
+	<span class="s">&#34;fmt&#34;</span>
+	<span class="s">&#34;io&#34;</span>
+	<span class="s">&#34;os&#34;</span>
+
+	<span class="s">&#34;github.com/milochristiansen/lua&#34;</span>
+	<span class="s">&#34;github.com/milochristiansen/lua/lmodbase&#34;</span>
+	<span class="s">&#34;github.com/milochristiansen/lua/lmodmath&#34;</span>
+	<span class="s">&#34;github.com/milochristiansen/lua/lmodpackage&#34;</span>
+	<span class="s">&#34;github.com/milochristiansen/lua/lmodstring&#34;</span>
+	<span class="s">&#34;github.com/milochristiansen/lua/lmodtable&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nx">Run</span><span class="p">(</span><span class="nx">r</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Reader</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+	<span class="nx">l</span> <span class="o">:=</span> <span class="nx">lua</span><span class="p">.</span><span class="nx">NewState</span><span class="p">()</span>
+
+	<span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">Protect</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Push</span><span class="p">(</span><span class="nx">lmodbase</span><span class="p">.</span><span class="nx">Open</span><span class="p">)</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Push</span><span class="p">(</span><span class="nx">lmodmath</span><span class="p">.</span><span class="nx">Open</span><span class="p">)</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Push</span><span class="p">(</span><span class="nx">lmodpackage</span><span class="p">.</span><span class="nx">Open</span><span class="p">)</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Push</span><span class="p">(</span><span class="nx">lmodstring</span><span class="p">.</span><span class="nx">Open</span><span class="p">)</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Push</span><span class="p">(</span><span class="nx">lmodtable</span><span class="p">.</span><span class="nx">Open</span><span class="p">)</span>
+		<span class="nx">l</span><span class="p">.</span><span class="nx">Call</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+	<span class="p">})</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nx">err</span>
+	<span class="p">}</span>
+
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">LoadText</span><span class="p">(</span><span class="nx">r</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nx">err</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">PCall</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nx">err</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="kc">nil</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">flag</span><span class="p">.</span><span class="nx">Parse</span><span class="p">()</span>
+	<span class="k">if</span> <span class="nx">flag</span><span class="p">.</span><span class="nx">NArg</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">os</span><span class="p">.</span><span class="nx">ErrInvalid</span><span class="p">)</span>
+		<span class="k">return</span>
+	<span class="p">}</span>
+	<span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Open</span><span class="p">(</span><span class="nx">flag</span><span class="p">.</span><span class="nx">Arg</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+		<span class="k">return</span>
+	<span class="p">}</span>
+	<span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">Run</span><span class="p">(</span><span class="nx">file</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">fmt</span><span class="p">.</span><span class="nx">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+		<span class="k">return</span>
+	<span class="p">}</span>
+<span class="p">}</span></code></pre></div>
+<p>これを実行するとこんな感じになった。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run glua.go fibonacci.lua
+39088169</code></pre></div>
+<p>うーん。
+引数を伴う場合はどうするんだろう。
+<code>arg</code> みたいなのはないっぽいのでグローバル変数として自前でセットしないといけないかな？</p>
+
+<p>まぁ，気が向いたらまた今度。</p>
+
+<h2 id="ブックマーク">ブックマーク</h2>
+
+<ul>
+<li><a href="http://inforno.net/articles/2015/02/15/gopher-lua-released">inforno :: LuaのGo言語実装を公開しました</a> : こちらは <a href="https://www.lua.org/" title="The Programming Language Lua">Lua</a> 5.1 を <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で実装している</li>
+</ul>
+
+<h2 id="参考図書">参考図書</h2>
+
+<div class="hreview" ><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/"><img src="http://ecx.images-amazon.com/images/I/410V3ulwP5L._SL160_.jpg" alt="photo" class="photo"  /></a><dl ><dt class="fn"><a class="item url" href="http://www.amazon.co.jp/exec/obidos/ASIN/4621300253/baldandersinf-22/">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt><dd>Alan A.A. Donovan Brian W. Kernighan 柴田 芳樹 </dd><dd>丸善出版 2016-06-20</dd><dd>評価<abbr class="rating" title="5"><img src="http://g-images.amazon.com/images/G/01/detail/stars-5-0.gif" alt="" /></abbr> </dd></dl><p class="similar"><a href="http://www.amazon.co.jp/exec/obidos/ASIN/4798142417/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4798142417.09._SCTHUMBZZZ_.jpg"  alt="スターティングGo言語 (CodeZine BOOKS)"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4873117526/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4873117526.09._SCTHUMBZZZ_.jpg"  alt="Go言語によるWebアプリケーション開発"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4865940391/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4865940391.09._SCTHUMBZZZ_.jpg"  alt="Kotlinスタートブック -新しいAndroidプログラミング"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4839959234/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4839959234.09._SCTHUMBZZZ_.jpg"  alt="Docker実戦活用ガイド"  /></a> <a href="http://www.amazon.co.jp/exec/obidos/ASIN/4274218961/baldandersinf-22/" target="_top"><img src="http://images.amazon.com/images/P/4274218961.09._SCTHUMBZZZ_.jpg"  alt="グッド・マス ギークのための数・論理・計算機科学"  /></a> </p>
+<p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。</p>
+<p class="gtools" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="http://www.goodpic.com/mt/aws/index.html" >G-Tools</a>)</p>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/logger/">Log パッケージで遊ぶ</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside id='tech-terms'>
+<style>
+#tech-terms h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Technical Terms</h1>
+<div class="cloud" style="font-size:smaller;">
+<script src="http://e-words.jp/embed.x?e=utf8"></script>
+<p class="right">Powered by <a href="http://e-words.jp/p/s-embed.html">e-Words</a></p>
+</div>
+</aside>
+<aside id='feedback'>
+<style>
+#feedback h1 {
+  border: solid thin gray;
+  margin: 0 0 1rem 0;
+  padding: 0 0.5rem 2px 2px;
+}
+</style>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script>
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+<footer>
+
+	<div class="userinfo">
+		<div class="userinfo-avater">
+			
+				<a href="http://www.baldanders.info/spiegel/profile/"><img src="/images/avatar.jpg" width="48" height="48" alt="avatar"></a>
+			
+		</div>
+		<div class="userinfo-info" id="maker">
+			
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2018-02-28</time>.
+				
+	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
+
+			
+			
+	<ul class="social">
+		<li><a href="https://github.com/spiegel-im-spiegel" target="_blank"><i class="fab fa-github"></i></a></li>
+		<li><a href="https://twitter.com/spiegel_2007" target="_blank"><i class="fab fa-twitter"></i></a></li>
+		
+		<li><a href="http://spiegel-im-spiegel.tumblr.com/" target="_blank"><i class="fab fa-tumblr"></i></a></li>
+		<li><a href="http://instagram.com/spiegel_2007" target="_blank"><i class="fab fa-instagram"></i></a></li>
+		<li><a href="https://www.flickr.com/photos/spiegel/" target="_blank"><i class="fab fa-flickr"></i></a></li>
+		<li><a href="https://www.facebook.com/spiegel.im.spiegel" target="_blank"><i class="fab fa-facebook-f"></i></a></li>
+		<li><a href="https://jp.linkedin.com/in/spiegelimspiegel" target="_blank"><i class="fab fa-linkedin-in"></i></a></li>
+		
+	</ul>
+	<ul class="social">
+		<li><a href="http://www.facebook.com/share.php?u=http%3a%2f%2ftext.baldanders.info%2fgolang%2flua%2f" target="_blank"><i class="fab fa-facebook-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="http://twitter.com/share?text=Go%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%82%88%e3%82%8b%20Lua%20%e5%ae%9f%e8%a3%85%e3%82%92%e8%a9%a6%e3%81%97%e3%81%a6%e3%81%bf%e3%81%9f+from+@spiegel_2007&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2flua%2f" target="_blank"><i class="fab fa-twitter-square fa-2x" aria-hidden="true"></i></a></li>
+		<li><a href="https://flattr.com/submit/auto?user_id=spiegel&amp;url=http%3a%2f%2ftext.baldanders.info%2fgolang%2flua%2f&amp;title=Go%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%82%88%e3%82%8b%20Lua%20%e5%ae%9f%e8%a3%85%e3%82%92%e8%a9%a6%e3%81%97%e3%81%a6%e3%81%bf%e3%81%9f" target="_blank"><img src="//button.flattr.com/flattr-badge-large.png" alt="Flattr this" title="Flattr this"></a></li>
+	</ul>
+
+		</div>
+	</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=http%3a%2f%2ftext.baldanders.info%2fgolang%2flua%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='http://www.baldanders.info/'>Baldanders.info</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.36.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-text">Text</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+
+</body>
+</html>
