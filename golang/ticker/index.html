@@ -159,6 +159,7 @@ MathJax.Hub.Config({
 	"keywords": "golang, programming, time, channel, context, goroutine",
 	"image": "http://text.baldanders.info/images/attention/go-code2.png",
 	"datePublished": "2018-03-01T20:28:49+09:00",
+	"dateModified": "2018-03-02T19:36:47+09:00",
 	"publisher": {
 		"@id": "http://text.baldanders.info/#org"
 	},
@@ -256,6 +257,7 @@ MathJax.Hub.Config({
 </span><span class="hl">		<span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGTERM</span><span class="p">,</span>
 </span><span class="hl">		<span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGQUIT</span><span class="p">,</span>
 </span><span class="hl">	<span class="p">)</span>
+</span><span class="hl">    <span class="k">defer</span> <span class="nx">signal</span><span class="p">.</span><span class="nx">Stop</span><span class="p">(</span><span class="nx">sig</span><span class="p">)</span>
 </span>
 	<span class="k">for</span> <span class="p">{</span>
 		<span class="k">select</span> <span class="p">{</span>
@@ -283,7 +285,7 @@ MathJax.Hub.Config({
 <h2 id="キャンセル-イベントの伝搬">キャンセル・イベントの伝搬</h2>
 
 <p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a> 1.7 から <a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> が標準パッケージに加わった。
-<a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージは名前の通りコンテキスト情報を扱うためのパッケージだが，キャンセル・イベントを扱えるという面白い機能がある。</p>
+<a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージは，名前の通り，異なるレイヤやドメイン間でコンテキスト情報を受け渡しするためのパッケージだが，キャンセル・イベントを扱うことができる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">ctx</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">()</span>
 <span class="nx">parent</span><span class="p">,</span> <span class="nx">cancelParent</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
 <span class="nx">child</span><span class="p">,</span> <span class="nx">cancelChild</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span></code></pre></div>
@@ -304,7 +306,7 @@ MathJax.Hub.Config({
 			<span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGTERM</span><span class="p">,</span>
 			<span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGQUIT</span><span class="p">,</span>
 		<span class="p">)</span>
-		<span class="k">defer</span> <span class="nb">close</span><span class="p">(</span><span class="nx">sig</span><span class="p">)</span>
+        <span class="k">defer</span> <span class="nx">signal</span><span class="p">.</span><span class="nx">Stop</span><span class="p">(</span><span class="nx">sig</span><span class="p">)</span>
 
 		<span class="k">select</span> <span class="p">{</span>
 		<span class="k">case</span> <span class="o">&lt;-</span><span class="nx">parent</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
@@ -377,7 +379,7 @@ MathJax.Hub.Config({
 			<span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGTERM</span><span class="p">,</span>
 			<span class="nx">syscall</span><span class="p">.</span><span class="nx">SIGQUIT</span><span class="p">,</span>
 		<span class="p">)</span>
-		<span class="k">defer</span> <span class="nb">close</span><span class="p">(</span><span class="nx">sig</span><span class="p">)</span>
+        <span class="k">defer</span> <span class="nx">signal</span><span class="p">.</span><span class="nx">Stop</span><span class="p">(</span><span class="nx">sig</span><span class="p">)</span>
 
 		<span class="k">select</span> <span class="p">{</span>
 		<span class="k">case</span> <span class="o">&lt;-</span><span class="nx">parent</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
@@ -424,13 +426,52 @@ MathJax.Hub.Config({
 
 <p>なんか今回は久しぶりに <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>っぽいコードだったねぇ（笑）</p>
 
+<h2 id="追記-windows-では-signal-を送信できない">【追記】 Windows では SIGNAL を送信できない</h2>
+
+<p>今回は <a href="https://linuxjm.osdn.jp/html/LDP_man-pages/man7/signal.7.html" title="Man page of SIGNAL">SIGNAL</a> を受信する場合の話だったが，もちろん任意のプロセスに <a href="https://linuxjm.osdn.jp/html/LDP_man-pages/man7/signal.7.html" title="Man page of SIGNAL">SIGNAL</a> を送信することもできる。
+以下は自分自身に SIGINT を投げるコード例である<sup class="footnote-ref" id="fnref:syscall1"><a href="#fn:syscall1">1</a></sup>。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">proc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FindProcess</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Getppid</span><span class="p">())</span>
+<span class="nx">proc</span><span class="p">.</span><span class="nx">Signal</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Interrupt</span><span class="p">)</span></code></pre></div>
+<p>ただし，このコードは Windows では（コンパイル・エラーにはならないが）動かない。
+Windows 用の <a href="https://golang.org/pkg/os/" title="os - The Go Programming Language"><code>os</code></a><code>.Process.Signal()</code> 関数の実体は以下の通りだが</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="p">(</span><span class="nx">p</span> <span class="o">*</span><span class="nx">Process</span><span class="p">)</span> <span class="nx">signal</span><span class="p">(</span><span class="nx">sig</span> <span class="nx">Signal</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+	<span class="nx">handle</span> <span class="o">:=</span> <span class="nx">atomic</span><span class="p">.</span><span class="nx">LoadUintptr</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">p</span><span class="p">.</span><span class="nx">handle</span><span class="p">)</span>
+	<span class="k">if</span> <span class="nx">handle</span> <span class="o">==</span> <span class="nb">uintptr</span><span class="p">(</span><span class="nx">syscall</span><span class="p">.</span><span class="nx">InvalidHandle</span><span class="p">)</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">EINVAL</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="nx">p</span><span class="p">.</span><span class="nx">done</span><span class="p">()</span> <span class="p">{</span>
+		<span class="k">return</span> <span class="nx">errors</span><span class="p">.</span><span class="nx">New</span><span class="p">(</span><span class="s">&#34;os: process already finished&#34;</span><span class="p">)</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="nx">sig</span> <span class="o">==</span> <span class="nx">Kill</span> <span class="p">{</span>
+		<span class="nx">err</span> <span class="o">:=</span> <span class="nx">terminateProcess</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">Pid</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="nx">runtime</span><span class="p">.</span><span class="nx">KeepAlive</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+		<span class="k">return</span> <span class="nx">err</span>
+	<span class="p">}</span>
+	<span class="c1">// TODO(rsc): Handle Interrupt too?
+</span><span class="c1"></span>	<span class="k">return</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">Errno</span><span class="p">(</span><span class="nx">syscall</span><span class="p">.</span><span class="nx">EWINDOWS</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
+<p>このように <a href="https://golang.org/pkg/os/" title="os - The Go Programming Language"><code>os</code></a><code>.Kill</code> (SIGKILL) 以外は効かないようになっている。
+理由は不明だが TODO になってるようなので何か理由があるのだろう。</p>
+
+<p>というわけでテストができないのですよ <code>orz</code></p>
+
 <h2 id="ブックマーク">ブックマーク</h2>
 
 <ul>
+<li><a href="https://blog.golang.org/pipelines">Go Concurrency Patterns: Pipelines and cancellation - The Go Blog</a></li>
 <li><a href="https://deeeet.com/writing/2016/07/22/context/">Go1.7のcontextパッケージ | SOTA</a></li>
 <li><a href="http://deeeet.com/writing/2017/02/23/go-context-value/">Golangのcontext.Valueの使い方 | SOTA</a></li>
 <li><a href="http://qiita.com/Kei-Kamikawa/items/620f9504daf2ec53f0b5">goroutine にシグナルを送信する - Qiita</a></li>
 </ul>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:syscall1"><a href="https://golang.org/pkg/syscall/" title="syscall - The Go Programming Language"><code>syscall</code></a> パッケージを使うやり方もあるが，今回は割愛する。つか， Windows 版には <a href="https://golang.org/pkg/syscall/" title="syscall - The Go Programming Language"><code>syscall</code></a><code>.Kill()</code> 関数が存在しないのでやりようがないのだが。
+ <a class="footnote-return" href="#fnref:syscall1"><sup>[return]</sup></a></li>
+</ol>
+</div>
 
 </section>
 
@@ -495,7 +536,7 @@ MathJax.Hub.Config({
 		</div>
 		<div class="userinfo-info" id="maker">
 			
-				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2018-03-01</time>.
+				Written by <a href="http://www.baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2018-03-01</time> (revised in <time property='dc:modified'>2018-03-02</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="cc cc-cc"></i>&nbsp;<i class="cc cc-by"></i>&nbsp;<i class="cc cc-sa"></i></a>
 
