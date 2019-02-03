@@ -29,6 +29,7 @@
 <meta name="author" content="Spiegel">
 <meta name="keywords" content="golang, programming, image">
 <link rel='prev' href='https://text.baldanders.info/golang/factory-method-pattern/' title='Go 言語で Factory Method Pattern を構成できるか' />
+<link rel='next' href='https://text.baldanders.info/golang/resize-image-2/' title='Go 言語で画像のサイズ変更：定義済み draw.Scaler の比較' />
 
 <script type="application/ld+json">
 {
@@ -126,6 +127,7 @@
 	"keywords": "golang, programming, image",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2019-02-02T17:54:21+09:00",
+	"dateModified": "2019-02-03T11:30:42+09:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -206,7 +208,7 @@
     <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Width:&#34;</span><span class="p">,</span> <span class="nx">rct</span><span class="p">.</span><span class="nf">Dx</span><span class="p">())</span>
     <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Height:&#34;</span><span class="p">,</span> <span class="nx">rct</span><span class="p">.</span><span class="nf">Dy</span><span class="p">())</span>
 <span class="p">}</span></code></pre></div>
-<p><a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Decode()</code> 関数で画像データをデコードし <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Image.Bounds()</code> 関数で画像全体の矩形情報（<a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Rectangle</code>）を取得する。
+<p><a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Decode()</code> 関数で画像データをデコードし <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Image.Bounds()</code> 関数で画像全体の矩形情報（<a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Rectangle</code>）を取得する<sup class="footnote-ref" id="fnref:img1"><a href="#fn:img1">1</a></sup>。
 ポイントは <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Decode()</code> 関数が factory method のように機能していて画像フォーマットを意識する必要はないという点。
 ではどこで依存（dependency）を注入しているかというと，パッケージのインポート</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">import</span> <span class="p">(</span>
@@ -216,7 +218,7 @@
 <span class="p">)</span></code></pre></div>
 <p>の部分。
 この場合は GIF, JPEG, PNG 形式に対応していることを示す。
-もちろんこれらと互換性のある独自パッケージを使ってもよい<sup class="footnote-ref" id="fnref:register1"><a href="#fn:register1">1</a></sup>。</p>
+もちろんこれらと互換性のある独自パッケージを使ってもよい<sup class="footnote-ref" id="fnref:register1"><a href="#fn:register1">2</a></sup>。</p>
 
 <p>では早速</p>
 
@@ -337,7 +339,7 @@ Height: 480</code></pre></div>
 その次に <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.NewRGBA()</code> 関数で Width/Height を半分のサイズにした空のインスタンスを生成し <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.CatmullRom.Scale()</code> 関数で変換した画像データを流し込んでいる。
 その後ファイルに出力するのだが，出力するフォーマットごとに異なる <code>Encode()</code> 関数になっている。</p>
 
-<p><a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.CatmullRom</code> はサイズ変換するための <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.Kernel</code> 型インスタンスで，以下のように定義されている。</p>
+<p><a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.CatmullRom</code> はサイズ変換のための <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.Scaler</code> インタフェースを持つ <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.Kernel</code> 型インスタンスで，以下のように定義されている。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">var</span> <span class="p">(</span>
     <span class="c1">// CatmullRom is the Catmull-Rom kernel. It is very slow, but usually gives
 </span><span class="c1"></span>    <span class="c1">// very high quality results.
@@ -352,16 +354,8 @@ Height: 480</code></pre></div>
         <span class="k">return</span> <span class="p">((</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="nx">t</span><span class="o">+</span><span class="mf">2.5</span><span class="p">)</span><span class="o">*</span><span class="nx">t</span><span class="o">-</span><span class="mi">4</span><span class="p">)</span><span class="o">*</span><span class="nx">t</span> <span class="o">+</span> <span class="mi">2</span>
     <span class="p">}}</span>
 <span class="p">)</span></code></pre></div>
-<p>他にも <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.BiLinear</code> インスタンスが定義されている。</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">var</span> <span class="p">(</span>
-    <span class="c1">// BiLinear is the tent kernel. It is slow, but usually gives high quality
-</span><span class="c1"></span>    <span class="c1">// results.
-</span><span class="c1"></span>    <span class="nx">BiLinear</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Kernel</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">t</span> <span class="kt">float64</span><span class="p">)</span> <span class="kt">float64</span> <span class="p">{</span>
-        <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="nx">t</span>
-    <span class="p">}}</span>
-<span class="p">)</span></code></pre></div>
-<p>速度優先なら <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.BiLinear</code>，品質優先なら <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.CatmullRom</code> というところだろうか。
-もちろん自前で <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.Kernel</code> 型（もしくは <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.Scaler</code> インタフェースを持つ）インスタンスを作ってもいいだろうが。</p>
+<p><a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.CatmullRom</code> はどちらかというと品質優先の <a href="https://godoc.org/golang.org/x/image/draw" title="draw - GoDoc"><code>draw</code></a><code>.Scaler</code> のようだが，他にもいくつか定義済みのインスタンスがある。
+性能について詳しくは<a href="/golang/resize-image-2/" title="Go 言語で画像のサイズ変更：定義済み draw.Scaler の比較">次回の記事</a>を参考にしてほしい。</p>
 
 <p>では，実際に動かしてみよう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run sample2.go 7444837_o.jpg out.jpg
@@ -407,7 +401,9 @@ Height: 480</code></pre></div>
 <hr />
 
 <ol>
-<li id="fn:register1">厳密に言うと <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.RegisterFormat()</code> 関数で登録する。例えば <a href="https://golang.org/pkg/image/jpeg/" title="jpeg - The Go Programming Language"><code>image/jpeg</code></a> パッケージの場合は <code>init()</code> 関数内で <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.RegisterFormat()</code> 関数が呼ばれている。
+<li id="fn:img1"><a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.Image</code> は interface 型で抽象化されている。
+ <a class="footnote-return" href="#fnref:img1"><sup>[return]</sup></a></li>
+<li id="fn:register1">厳密に言うと <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.RegisterFormat()</code> 関数で登録する。例えば <a href="https://golang.org/pkg/image/jpeg/" title="jpeg - The Go Programming Language"><code>image/jpeg</code></a> パッケージの場合は <code>init()</code> 関数内で <a href="https://golang.org/pkg/image/" title="image - The Go Programming Language"><code>image</code></a><code>.RegisterFormat()</code> 関数が呼ばれている。このようなデザイン・パターンは <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>ではよく見られるので覚えておくとよいだろう（参考：<a href="/golang/calculating-hash-value/">Hash 値を計算するパッケージを作ってみた</a>）。
  <a class="footnote-return" href="#fnref:register1"><sup>[return]</sup></a></li>
 </ol>
 </div>
@@ -418,7 +414,7 @@ Height: 480</code></pre></div>
 </main>
 <nav class="page-nav">
 <div class="prev-page">&laquo; <a href="/golang/factory-method-pattern/">Go 言語で Factory Method Pattern を構成できるか</a></div>
-<div class="next-page"></div>
+<div class="next-page"><a href="/golang/resize-image-2/">Go 言語で画像のサイズ変更：定義済み draw.Scaler の比較</a> &raquo;</div>
 </nav>
 
 <aside id='feedback'>
@@ -461,7 +457,7 @@ Height: 480</code></pre></div>
 		</div>
 		<div class="userinfo-info" id="maker">
 			
-				Written by <a href="https://baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2019-02-02</time>.
+				Written by <a href="https://baldanders.info/spiegel/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a> in <time property='dc:dateCopyrighted'>2019-02-02</time> (revised in <time property='dc:modified'>2019-02-03</time>).
 				
 	<a rel='cc:license' href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 
