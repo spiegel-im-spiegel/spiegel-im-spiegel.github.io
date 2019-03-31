@@ -4,13 +4,256 @@
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/linux/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/linux/index.xml" />
 	<id>tag:text.Baldanders.info,2019-03-31:/tags</id>
-	<updated>2019-03-31T10:14:36+09:00</updated>
+	<updated>2019-03-31T20:24:45+09:00</updated>
 	<generator uri="https://gohugo.io/">Hugo 0.54.0</generator>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>CIFS 経由で NAS に接続する</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/03/common-internet-file-system/" />
+		<id>tag:text.Baldanders.info,2019-03-31:/remark/2019/03/common-internet-file-system/</id>
+		<published>2019-03-31T11:24:45+00:00</published>
+		<updated>2019-03-31T11:26:04+00:00</updated>
+		<summary>今回は CIFS (Common Internet File System) クライアントを使って NAS に接続を試みる。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/spiegel/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
+
+&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; から&lt;a href=&#34;https://text.baldanders.info/remark/2018/04/nas/&#34; title=&#34;NAS を導入した&#34;&gt;自宅の簡易 NAS&lt;/a&gt; に接続することを考える。&lt;/p&gt;
+
+&lt;p&gt;相手の NAS は &lt;a href=&#34;https://www.samba.org/&#34; title=&#34;Samba - opening windows to a wider world&#34;&gt;Samba&lt;/a&gt; サーバとして接続できることは分かっているので，こちらは対応するクライアント・ツールを用意すればいいわけだ。&lt;/p&gt;
+
+&lt;p&gt;というわけで今回は CIFS (Common Internet File System) クライアントを使って接続を試みる。&lt;/p&gt;
+
+&lt;h2 id=&#34;cifs-クライアントの導入&#34;&gt;CIFS クライアントの導入&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; であれば APT (Advanced Package Tool) で導入できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install cifs-utils
+パッケージリストを読み込んでいます... 完了
+依存関係ツリーを作成しています                
+状態情報を読み取っています... 完了
+提案パッケージ:
+  keyutils smbclient winbind
+以下のパッケージが新たにインストールされます:
+  cifs-utils
+アップグレード: 0 個、新規インストール: 1 個、削除: 0 個、保留: 0 個。
+71.5 kB のアーカイブを取得する必要があります。
+この操作後に追加で 231 kB のディスク容量が消費されます。
+取得:1 http://jp.archive.ubuntu.com/ubuntu cosmic/main amd64 cifs-utils amd64 2:6.8-2 [71.5 kB]
+71.5 kB を 1秒 で取得しました (104 kB/s)
+以前に未選択のパッケージ cifs-utils を選択しています。
+(データベースを読み込んでいます ... 現在 167532 個のファイルとディレクトリがインストールされています。)
+.../cifs-utils_2%3a6.8-2_amd64.deb を展開する準備をしています ...
+cifs-utils (2:6.8-2) を展開しています...
+cifs-utils (2:6.8-2) を設定しています ...
+update-alternatives: /etc/cifs-utils/idmap-plugin (idmap-plugin) を提供するために自動モードで /usr/lib/x86_64-linux-gnu/cifs-utils/idmapwb.so を使います
+man-db (2.8.4-2) のトリガを処理しています ...
+
+$ mount.cifs -V
+mount.cifs version: 6.8&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;バージョンは 6.8 か。&lt;/p&gt;
+
+&lt;h2 id=&#34;一時的な接続&#34;&gt;一時的な接続&lt;/h2&gt;
+
+&lt;p&gt;まずマウント先のディレクトリを作成する（ディレクトリの場所や名前は他と被らなければなんでもいい）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ mkdir ~/nas&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;この &lt;code&gt;~/nas&lt;/code&gt; ディレクトリに対して以下のコマンドを実行する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;sudo mount -t cifs //nas01/shared ~/nas -o username=sambauser,noexec,nosuid,nodev
+[sudo] username のパスワード: 
+Password for sambauser@//nas01/shared:  ********&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;code&gt;~/nas&lt;/code&gt; ディレクトリに対して共有ディレクトリ &lt;code&gt;//nas01/shared&lt;/code&gt; を一時的にマウントできる。
+マウント時に指定できる主なパラメータ（値がある場合は &lt;code&gt;param=value&lt;/code&gt; 形式で指定）は以下の通り&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:cifs1&#34;&gt;&lt;a href=&#34;#fn:cifs1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;パラメータ名&lt;/th&gt;
+&lt;th&gt;既定値&lt;/th&gt;
+&lt;th&gt;内容&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;username&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;root&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;接続先のユーザ名&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;password&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;接続先ユーザのパスワード。指定しない場合は接続時に訊いてくる&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;domain&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;接続先のドメイン名またはワークグループ名（必要な場合のみ）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;credentials&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;td&gt;接続情報が書かれたファイル（詳しくは後述する）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;uid&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;root&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;共有ディレクトリ・ファイルの（見かけの）オーナー名&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;gid&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;root&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;共有ディレクトリ・ファイルの（見かけの）グループ名&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;file_mode&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0755&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;共有ファイルの（見かけの）ファイルモード&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;dir_mode&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0755&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;共有ディレクトリの（見かけの）ディレクトリモード&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;vers&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;3.0&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;SMB プロトコル・バージョン（&lt;code&gt;1.0/2.0/3.0/3.1.1&lt;/code&gt;）&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;noexec&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;―&lt;/td&gt;
+&lt;td&gt;共有ディレクトリ上のファイルの実行をさせない&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;nosuid&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;―&lt;/td&gt;
+&lt;td&gt;共有ディレクトリ・ファイルの SUID ビットを認識しない&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;nodev&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;―&lt;/td&gt;
+&lt;td&gt;共有ディレクトリ上のデバイスファイルを作用させない&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;sec&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;ntlmssp&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;セキュリティ・モード (&lt;code&gt;none/krb5/krb5i/ntlm/ntlmi/ntlmv2/ntlmv2i/ntlmssp/ntlmsspi&lt;/code&gt;)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;コマンドラインでマウントする際は絶対に &lt;code&gt;password&lt;/code&gt; オプションを付けないこと（履歴に残っちゃうからね）。
+あるいは以下の内容の接続情報ファイル &lt;code&gt;~/.nascred&lt;/code&gt; を作って（ファイル名は適当）&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;username=sambauser
+password=password_string
+domain=domainname&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ファイルモードを &lt;code&gt;0400&lt;/code&gt; に設定して他ユーザから見られないようにし&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo chamod 0400 ~/.nascred&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;credentials&lt;/code&gt; オプションで指定してマウントする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;sudo mount -t cifs //nas01/shared ~/nas -o credentials=~/.nascred,noexec,nosuid,nodev&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;他ユーザから見えなくてもパスワードを平文で保存するのはちょっと... という人は &lt;code&gt;password&lt;/code&gt; の指定行を外してしまえばコマンド実行時にパスワードを訊いてくる。&lt;/p&gt;
+
+&lt;p&gt;マウントを解除するには&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo umount ~/nas&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;で OK。&lt;/p&gt;
+
+&lt;h2 id=&#34;etc-fstab-を使って起動時にマウントする&#34;&gt;/etc/fstab を使って起動時にマウントする&lt;/h2&gt;
+
+&lt;p&gt;&lt;code&gt;/etc/fstab&lt;/code&gt; ファイルに以下の行を追加することで起動時に共有ファイルをマウントできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# &amp;lt;file system&amp;gt; &amp;lt;mount point&amp;gt;      &amp;lt;type&amp;gt; &amp;lt;options&amp;gt;                                                 &amp;lt;dump&amp;gt; &amp;lt;pass&amp;gt;
+//nas01/shared  /home/username/nas cifs   _netdev,credentials=/home/username/.nascred,noexec,nosuid 0      0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ちなみに &lt;code&gt;_netdev&lt;/code&gt; はネットワークの設定が終わったあとにマウントするよう指示するオプションである（先頭のアンダーバーを忘れずに）。&lt;/p&gt;
+
+&lt;p&gt;起動時のマウントではないが以下の2つのオプションを追加する手もある。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;パラメータ名&lt;/th&gt;
+&lt;th&gt;内容&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;noauto&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;起動時にはマウントを行わない&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;user&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;一般ユーザもマウントできる&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# &amp;lt;file system&amp;gt; &amp;lt;mount point&amp;gt;      &amp;lt;type&amp;gt; &amp;lt;options&amp;gt;                                                     &amp;lt;dump&amp;gt; &amp;lt;pass&amp;gt;
+//nas01/shared  /home/username/nas cifs   noauto,user,credentials=/home/username/.nascred,noexec,nosuid 0      0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これなら管理者モードでなくともログイン後に任意のタイミングで&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ mount ~/nas&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;という感じにコマンドラインを少し簡略化してマウントできる（&lt;code&gt;umount&lt;/code&gt; も同様）。&lt;/p&gt;
+
+&lt;p&gt;よし。
+これで次に進める。
+次は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; かな。&lt;/p&gt;
+
+&lt;h2 id=&#34;ブックマーク&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.samba.gr.jp/project/translation/3.5/htmldocs/manpages-3/mount.cifs.8.html&#34;&gt;mount.cifs&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://help.ubuntu.com/community/Samba/SambaClientGuide&#34;&gt;Samba/SambaClientGuide - Community Help Wiki&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.profaim.jp/tools/soft/linux/mnt_cifs.php&#34;&gt;mountコマンドでCIFSをファイル共有 - profaim.jp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/kakinaguru_zo/items/af0122f79af0aa0913b7&#34;&gt;mount.cifsに付けるオプション - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/mdstoy/items/54925cdcbca6d558b666&#34;&gt;Ubuntu から Windows の共有フォルダをマウントして利用する - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/You_name_is_YU/items/85ffbffee744f6f494ed&#34;&gt;samba-client／cifs-utilsを使ってWindowsの共有フォルダをマウントする - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/office-itou/items/0f8df0c5f8c7022b7fad&#34;&gt;Windows 10 に cifs 接続する - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.atmarkit.co.jp/ait/articles/1502/13/news042.html&#34;&gt;Linuxはサンバ（Samba）で踊る――WindowsとLinuxのファイル共有のいま (1/2)：その知識、ホントに正しい？ Windowsにまつわる都市伝説（25） - ＠IT&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;参考図書&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/%E3%80%90%E6%94%B9%E8%A8%82%E6%96%B0%E7%89%88%E3%80%91%E3%82%B5%E3%83%BC%E3%83%90%E6%A7%8B%E7%AF%89%E3%81%AE%E5%AE%9F%E4%BE%8B%E3%81%8C%E3%82%8F%E3%81%8B%E3%82%8BSamba%EF%BC%BB%E5%AE%9F%E8%B7%B5%EF%BC%BD%E5%85%A5%E9%96%80-%E9%AB%99%E6%A9%8B%E5%9F%BA%E4%BF%A1-ebook/dp/B01CXL8NL6?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=B01CXL8NL6&#34;&gt;&lt;img src=&#34;https://images-fe.ssl-images-amazon.com/images/I/51zK0JJz6ZL._SL160_.jpg&#34; width=&#34;113&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/%E3%80%90%E6%94%B9%E8%A8%82%E6%96%B0%E7%89%88%E3%80%91%E3%82%B5%E3%83%BC%E3%83%90%E6%A7%8B%E7%AF%89%E3%81%AE%E5%AE%9F%E4%BE%8B%E3%81%8C%E3%82%8F%E3%81%8B%E3%82%8BSamba%EF%BC%BB%E5%AE%9F%E8%B7%B5%EF%BC%BD%E5%85%A5%E9%96%80-%E9%AB%99%E6%A9%8B%E5%9F%BA%E4%BF%A1-ebook/dp/B01CXL8NL6?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=B01CXL8NL6&#34;&gt;【改訂新版】サーバ構築の実例がわかるSamba［実践］入門&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;髙橋基信&lt;/dd&gt;
+    &lt;dd&gt;技術評論社 2016-03-04 (Release 2016-03-04)&lt;/dd&gt;
+    &lt;dd&gt;eBooks Kindle版&lt;/dd&gt;
+    &lt;dd&gt;ASIN: B01CXL8NL6&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;Samba4/Windows10 対応。昔に比べたら Samba もずいぶん変わったんだねぇ。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2019-03-31&#34;&gt;2019-03-31&lt;/abbr&gt; (powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/amazon-item&#34; &gt;amazon-item&lt;/a&gt; 0.2.1)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:cifs1&#34;&gt;オプションの詳細は &lt;code&gt;man mount.cifs&lt;/code&gt; でマニュアルを参照するとよい。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:cifs1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>Ubuntu で遊ぶ</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/03/using-ubuntu/" />
 		<id>tag:text.Baldanders.info,2019-03-31:/remark/2019/03/using-ubuntu/</id>
