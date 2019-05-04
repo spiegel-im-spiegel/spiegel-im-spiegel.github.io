@@ -2,13 +2,374 @@
 	<title>List of engineering - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/engineering/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/engineering/index.xml" />
-	<id>tag:text.Baldanders.info,2019-04-17:/tags</id>
-	<updated>2019-04-17T13:47:50+09:00</updated>
+	<id>tag:text.Baldanders.info,2019-05-04:/tags</id>
+	<updated>2019-05-04T13:08:19+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>Go モジュールのバージョン管理</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/versioning-of-go-modules/" />
+		<id>tag:text.Baldanders.info,2019-05-04:/golang/versioning-of-go-modules/</id>
+		<published>2019-05-04T04:08:19+00:00</published>
+		<updated>2019-05-04T04:10:27+00:00</updated>
+		<summary>試して壊して試して壊して... を繰り返した成果が今回の記事である。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/spiegel/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
+
+&lt;p&gt;今回の長期休暇を利用して今まで公開したツールやパッケージ類をチューニングしているのだが， &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; 1.11 以降から実装されているモジュール対応モード（module-aware mode）のバージョン管理の挙動が（ドキュメントを読んだだけでは）ピンとこなかったので，この際いろいろと試してみることにした。&lt;/p&gt;
+
+&lt;p&gt;試して壊して試して壊して... を繰り返した成果が今回の記事である&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:e1&#34;&gt;&lt;a href=&#34;#fn:e1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+まとめは&lt;a href=&#34;#digest&#34;&gt;最後に書いておく&lt;/a&gt;のであしからず。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_0&#34;&gt;みんな大好き Hello World&lt;/h2&gt;
+
+&lt;p&gt;まずは以下の簡単なパッケージを作ってみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;hello/
+├── go.mod
+└── hello.go&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;go.mod&lt;/code&gt; ファイルの内容は以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module github.com/spiegel-im-spiegel/hello
+
+go 1.12&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;hello.go&lt;/code&gt; ファイルの内容は以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Hello World&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これをリポジトリに push してバージョンタグ &lt;code&gt;v1.0.0&lt;/code&gt; を付ける。&lt;/p&gt;
+
+&lt;p&gt;このパッケージを使うコードも書いてみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;github.com/spiegel-im-spiegel/hello&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これを実行すると以下のようになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run main.go 
+go: finding github.com/spiegel-im-spiegel/hello v1.0.0
+go: downloading github.com/spiegel-im-spiegel/hello v1.0.0
+go: extracting github.com/spiegel-im-spiegel/hello v1.0.0
+Hello World&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;このときの &lt;code&gt;go.mod&lt;/code&gt; は以下のようになっているはずである。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require github.com/spiegel-im-spiegel/hello v1.0.0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;前準備はこれで OK&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_1&#34;&gt;パッケージのバージョンを v2 にアップグレードする&lt;/h2&gt;
+
+&lt;p&gt;ではこの &lt;code&gt;hello&lt;/code&gt; パッケージを少し弄ってみよう。
+まずは安直に &lt;code&gt;hello.go&lt;/code&gt; 関数を以下のように変更する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;name&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Hello&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;by v2&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;Hello()&lt;/code&gt; 関数の後方互換性が失われたためメジャーバージョンを上げることにする。
+このコードを push してバージョンタグ &lt;code&gt;v2.0.0&lt;/code&gt; を付ける。&lt;/p&gt;
+
+&lt;p&gt;この新しいパッケージを使って先程のコードを修正してみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;github.com/spiegel-im-spiegel/hello&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Golang&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;go.mod&lt;/code&gt; ファイルも直さないとね。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require github.com/spiegel-im-spiegel/hello v2.0.0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これを実行すると以下のようになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run main.go 
+go: finding github.com/spiegel-im-spiegel/hello v2.0.0
+go: downloading github.com/spiegel-im-spiegel/hello v0.0.0-20190503134808-f31e6a72de0f
+go: extracting github.com/spiegel-im-spiegel/hello v0.0.0-20190503134808-f31e6a72de0f
+Hello Golang by v2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;v2.0.0&lt;/code&gt; のモジュールを見つけたまではよかったが，ダウンロード時にバージョンタグを認識していない？&lt;/p&gt;
+
+&lt;p&gt;ここで思い出したのが &lt;a href=&#34;http://semver.org/&#34; title=&#34;Semantic Versioning 2.0.0 | Semantic Versioning&#34;&gt;Semantic Versioning&lt;/a&gt; のルールである。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;https://research.swtch.com/vgo-import&#34;&gt;&lt;img src=&#34;https://research.swtch.com/impver.png&#34; srcset=&#34;https://research.swtch.com/impver.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Semantic Import Versioning&#34;&gt;&lt;/a&gt;
+&lt;figcaption&gt;&lt;a href=&#34;https://research.swtch.com/vgo-import&#34;&gt;Semantic Import Versioning&lt;/a&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;ひょっとして &lt;code&gt;v2&lt;/code&gt; ディレクトリを切ったらいいのか？ 試してみよう&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:sv1&#34;&gt;&lt;a href=&#34;#fn:sv1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_2&#34;&gt;v2 ディレクトリによる分離&lt;/h2&gt;
+
+&lt;p&gt;先ほどのコミットはなかったことにして以下のような構成にする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;hello/
+├── go.mod
+├── hello.go
+└── v2/
+    └── hello.go&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;hello.go&lt;/code&gt; が &lt;code&gt;v1&lt;/code&gt; のコードで &lt;code&gt;v2/hello.go&lt;/code&gt; が新しいコードである。&lt;/p&gt;
+
+&lt;p&gt;このパッケージを使うコードを書いてみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;github.com/spiegel-im-spiegel/hello/v2&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Golang&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;go.mod&lt;/code&gt; はこんな感じ？&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require github.com/spiegel-im-spiegel/hello/v2 v2.0.0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで実行してみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run main.go 
+go: finding github.com/spiegel-im-spiegel/hello/v2 v2.0.0
+go: github.com/spiegel-im-spiegel/hello/v2@v2.0.0: go.mod has non-.../v2 module path &amp;#34;github.com/spiegel-im-spiegel/hello&amp;#34; (and .../v2/go.mod does not exist) at revision v2.0.0
+go: error loading module requirements&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ええつと？ あぁ，そうか。
+パッケージ側の&lt;code&gt;v2/&lt;/code&gt; ディレクトリにも &lt;code&gt;go.mod&lt;/code&gt; ファイルがいるのか。&lt;/p&gt;
+
+&lt;p&gt;んじゃあ，以下の内容の &lt;code&gt;v2/go.mod&lt;/code&gt; ファイルを追加して &lt;code&gt;v2.0.1&lt;/code&gt; タグを付ける。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module github.com/spiegel-im-spiegel/hello/v2
+
+go 1.12&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これでパッケージの構成は以下のようになった。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;hello/
+├── go.mod
+├── hello.go
+└── v2/
+    ├── go.mod
+    └── hello.go&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;では，このパッケージを使って先ほどのコードを動かしてみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run main.go 
+go: finding github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+go: downloading github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+go: extracting github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+Hello Golang by v2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;ようやく動いたよ... &lt;code&gt;orz&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_3&#34;&gt;インポートパスをリダイレクトしたい&lt;/h2&gt;
+
+&lt;p&gt;パッケージ側の構成はこれでいいとして，パッケージをインポートする側は&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;github.com/spiegel-im-spiegel/hello&amp;#34;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;で &lt;code&gt;v2&lt;/code&gt; のコードを動かしたいよね。
+というわけで &lt;code&gt;go.mod&lt;/code&gt; を以下のように書いてみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+
+replace github.com/spiegel-im-spiegel/hello v2.0.1 =&amp;gt; github.com/spiegel-im-spiegel/hello/v2 v2.0.1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで動かすとどうなるか。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run main.go 
+go: finding github.com/spiegel-im-spiegel/hello v2.0.1
+go: finding github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+go: downloading github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+go: extracting github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+Hello Golang by v2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;おっ，うまくいったっぽい？ でも &lt;code&gt;go.mod&lt;/code&gt; ファイルを見てみると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require (
+	github.com/spiegel-im-spiegel/hello v0.0.0-20190503144136-a8f02ef988d2 // indirect
+	github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+)
+
+replace github.com/spiegel-im-spiegel/hello v0.0.0-20190503144136-a8f02ef988d2 =&amp;gt; github.com/spiegel-im-spiegel/hello/v2 v2.0.1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;てな感じに書き換えられてしまった。
+ふむむむむ？&lt;/p&gt;
+
+&lt;p&gt;どうもパッケージ内のディレクトリ名とバージョンタグを暗黙的に関連付けているようだ。
+なので &lt;code&gt;v2.x&lt;/code&gt; タグは &lt;code&gt;hello/v2/&lt;/code&gt; ディレクトリに関連付けられてしまう。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;./hello-graph.dot&#34;&gt;&lt;img src=&#34;./hello-graph.png&#34; srcset=&#34;./hello-graph.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
+
+&lt;p&gt;たとえば同じリビジョンに &lt;code&gt;v1.0.1&lt;/code&gt; タグを付ければ&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;./hello-graph2.dot&#34;&gt;&lt;img src=&#34;./hello-graph2.png&#34; srcset=&#34;./hello-graph2.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
+
+&lt;p&gt;という感じで &lt;code&gt;hello/&lt;/code&gt; ディレクトリにもバージョンタグが割り当てられる。
+もっともそれで&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require (
+	github.com/spiegel-im-spiegel/hello v1.0.1
+	github.com/spiegel-im-spiegel/hello/v2 v2.0.1
+)
+
+replace github.com/spiegel-im-spiegel/hello v1.0.1 =&amp;gt; github.com/spiegel-im-spiegel/hello/v2 v2.0.1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;としたところで更なる混乱を招くだけだけどね。&lt;/p&gt;
+
+&lt;p&gt;結局，モジュール対応モード下でメジャー・バージョンを上げたならインポート・パスも変えるしかない，といういうことらしい。&lt;/p&gt;
+
+&lt;h3 id=&#34;toc_4&#34;&gt;“Malformed Module Path”&lt;/h3&gt;
+
+&lt;p&gt;ならば，旧い &lt;code&gt;v1&lt;/code&gt; の方を別ディレクトリに移動すればいんじゃね？ って思うよね。
+私は思った。&lt;/p&gt;
+
+&lt;p&gt;で，パッケージ側を&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;hello/
+├── go.mod
+├── hello.go
+└── v1/
+    ├── go.mod
+    └── hello.go&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;という構成にし，呼び出す側の &lt;code&gt;go.mod&lt;/code&gt; ファイルを&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require github.com/spiegel-im-spiegel/hello v1.0.1
+
+replace github.com/spiegel-im-spiegel/hello v1.0.1 =&amp;gt; github.com/spiegel-im-spiegel/hello/v1 v1.0.1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とかやってみたんだけど&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;invalid module version github.com/spiegel-im-spiegel/hello/v1: malformed module path: github.com/spiegel-im-spiegel/hello/v1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;とか言われたですよ。
+いや “malformed module path” て。&lt;/p&gt;
+
+&lt;p&gt;とほほ &lt;code&gt;orz&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_5&#34;&gt;v2 ブランチを切って運用する&lt;/h2&gt;
+
+&lt;p&gt;とはいえバージョンごとに物理的にディレクトリを切って運用するというのは今時ありえないダサさである。
+そこで物理的にディレクトリを切るのではなくリポジトリ上でブランチを切って運用することを考える。&lt;/p&gt;
+
+&lt;p&gt;パッケージのディレクトリ構成は &lt;code&gt;v1&lt;/code&gt; と同じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;hello/
+├── go.mod
+└── hello.go&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これに対して &lt;code&gt;v2&lt;/code&gt; ブランチを切り， &lt;code&gt;v2&lt;/code&gt; ブランチ上で &lt;code&gt;go.mod&lt;/code&gt; を以下のように変更する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module github.com/spiegel-im-spiegel/hello2/v2
+
+go 1.12&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;em&gt;モジュールのパスと物理パスが異なっている&lt;/em&gt; が気にしないで先に進む。
+&lt;code&gt;hello.go&lt;/code&gt; を&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;name&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Hello&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;by v2&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;に変更して  &lt;code&gt;go.mod&lt;/code&gt; とともに &lt;code&gt;v2&lt;/code&gt; ブランチに commit &amp;amp; push し，バージョンタグ &lt;code&gt;v2.0.0&lt;/code&gt; を付与する。&lt;/p&gt;
+
+&lt;p&gt;パッケージを使用する側のコードは以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;github.com/spiegel-im-spiegel/hello/v2&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;hello2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Golang&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これを実行すると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run main.go 
+go: finding github.com/spiegel-im-spiegel/hello/v2 v2.0.0
+go: downloading github.com/spiegel-im-spiegel/hello/v2 v2.0.0
+go: extracting github.com/spiegel-im-spiegel/hello/v2 v2.0.0
+Hello Golang by v2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;という感じでうまく動いたようだ。
+&lt;code&gt;go.mod&lt;/code&gt; の内容も&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module work
+
+go 1.12
+
+require github.com/spiegel-im-spiegel/hello/v2 v2.0.0 // indirect&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;となっていた。
+よーし，うむうむ，よーし。&lt;/p&gt;
+
+&lt;p&gt;ブランチとモジュール・パスの関係は以下のような感じだろうか。&lt;/p&gt;
+
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;./hello-graph3.dot&#34;&gt;&lt;img src=&#34;./hello-graph3.png&#34; srcset=&#34;./hello-graph3.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
+
+&lt;h2 id=&#34;digest&#34;&gt;まとめると...&lt;/h2&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;v1&lt;/code&gt; 以降，メジャーバージョンを上げる度にモジュール・パスを変更して管理を分ける
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;v2.x&lt;/code&gt; なら &lt;code&gt;path/to/module/v2&lt;/code&gt; などとする。最後の &lt;code&gt;v2&lt;/code&gt; がポイント&lt;/li&gt;
+&lt;li&gt;パスの最後がバージョン番号（&lt;code&gt;v2&lt;/code&gt; など）になっていれば，暗黙的にバージョンタグが対応する&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;li&gt;モジュール・パスを変更するには &lt;code&gt;go.mod&lt;/code&gt; ファイルの &lt;code&gt;module&lt;/code&gt; ディレクティブを変更する
+
+&lt;ul&gt;
+&lt;li&gt;物理的にディレクトリを切るのであれば &lt;code&gt;go.mod&lt;/code&gt; ファイルも含める&lt;/li&gt;
+&lt;li&gt;バージョンごとにブランチを切って管理するのであれば，それぞれの &lt;code&gt;go.mod&lt;/code&gt; ファイルで指定するモジュール・パスに注意する&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;li&gt;パッケージを利用する側はリポジトリの物理パスとモジュール・パスが異なる場合があるため &lt;code&gt;go.mod&lt;/code&gt; ファイルに記述されているモジュール・パスを確認する&lt;/li&gt;
+&lt;li&gt;同一パッケージの異なるメジャー・バージョンのモジュール・パスを &lt;code&gt;replace&lt;/code&gt; で繋がないこと。更に分かりにくくなるか指定によってはエラーになる&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;といったところだろうか。&lt;/p&gt;
+
+&lt;p&gt;バージョンごとにパッケージのパスを分けるため &lt;a href=&#34;https://labix.org/gopkg.in&#34; title=&#34;gopkg.in - Stable APIs for the Go language&#34;&gt;gopkg.in&lt;/a&gt; といったサービスが使われることがあるが，リポジトリの物理パスとモジュール・パスが異なる場合は注意が必要である。
+うまくパッケージをダウンロードできない場合は &lt;code&gt;go.mod&lt;/code&gt; ファイル内に&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;replace gopkg.in/russross/blackfriday.v2 v2.0.1 =&amp;gt; github.com/russross/blackfriday/v2 v2.0.1&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;といった記述が必要になるかもしれない（というかそれが元々の &lt;code&gt;replace&lt;/code&gt; ディレクティブの機能）。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_7&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/golang/go-module-aware-mode/&#34;&gt;モジュール対応モードへの移行を検討する&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;toc_8&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9EGo-ADDISON-WESLEY-PROFESSIONAL-COMPUTING-Donovan/dp/4621300253?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=4621300253&#34;&gt;&lt;img src=&#34;https://images-fe.ssl-images-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9EGo-ADDISON-WESLEY-PROFESSIONAL-COMPUTING-Donovan/dp/4621300253?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=4621300253&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan, Brian W. Kernighan&lt;/dd&gt;
+    &lt;dd&gt;柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;Book 単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;ASIN: 4621300253, EAN: 9784621300251&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2018-10-20&#34;&gt;2018-10-20&lt;/abbr&gt; (powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/amazon-item&#34; &gt;amazon-item&lt;/a&gt; v0.2.0)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:e1&#34;&gt;実際にはこの記事で書いた量の三倍くらいは試して壊して... を繰り返している。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:e1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:sv1&#34;&gt;ちなみに &lt;code&gt;v0&lt;/code&gt; から &lt;code&gt;v1&lt;/code&gt; へのアップグレード時にはこのようなことは起きない。一般的に &lt;code&gt;v0&lt;/code&gt; 系はベータ版と認識されていて後方互換性については煩くない。 &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のモジュール対応モードでもチェックが入らないようだ。言い方を変えると &lt;code&gt;v1&lt;/code&gt; 以降は（&lt;a href=&#34;http://semver.org/&#34; title=&#34;Semantic Versioning 2.0.0 | Semantic Versioning&#34;&gt;Semantic Versioning&lt;/a&gt; に従うなら）後方互換性についてちゃんと考えないといけないってこともであるのだが。バージョン設計と運用は意外と難しい？
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:sv1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>まだ改元で消耗してるの？</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/04/troubles-of-the-japanese-new-era/" />
 		<id>tag:text.Baldanders.info,2019-04-17:/remark/2019/04/troubles-of-the-japanese-new-era/</id>
@@ -1618,666 +1979,6 @@ Handle 構文の処理はスタック状に積まれていく感じかな。&lt;
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ec1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;li id=&#34;fn:hdl1&#34;&gt;直近に handle 構文がない場合には error を吸い込んだまま何もせずにスルーするようだ。
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:hdl1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>モジュール対応モードへの移行を検討する</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/go-module-aware-mode/" />
-		<id>tag:text.Baldanders.info,2018-10-22:/golang/go-module-aware-mode/</id>
-		<published>2018-10-22T06:55:11+00:00</published>
-		<updated>2019-04-13T05:11:15+00:00</updated>
-		<summary>みんな。なにはさておき go.mod ファイルを作成するんだ！</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/spiegel/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラの&lt;a href=&#34;https://text.baldanders.info/release/2018/09/go-1_11-ise-released/&#34; title=&#34;Go 1.11 のリリースと「モジュール」機能の実験的サポート&#34;&gt;バージョン 1.11&lt;/a&gt;から搭載された「モジュール対応モード」だが，少し試してみてそれなりに使えそうなので，この記事である程度まとめておくことにした。
-これからも何かあればこの記事に加筆・修正していく予定である。&lt;/p&gt;
-
-&lt;p&gt;なお，モジュール対応モードは 1.11 時点で preliminary support に過ぎないため，以降のバージョンで大きな変更が行われるかもしれない。
-したがってこの記事はバージョン 1.12 以降で大幅に書き替える可能性がる。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_0&#34;&gt;用語の整理&lt;/h2&gt;
-
-&lt;p&gt;まず最初に用語の定義をしておく。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_1&#34;&gt;GOPATH モードとモジュール対応モード&lt;/h3&gt;
-
-&lt;p&gt;バージョン 1.11 以降からは &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラは以下の2つのモードのどちらかで動作する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:cmd1&#34;&gt;&lt;a href=&#34;#fn:cmd1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;GOPATH モード (GOPATH mode)&lt;/strong&gt; : バージョン 1.10 までの動作モード。標準ライブラリを除く全てのパッケージの管理とビルドを &lt;code&gt;$GOPATH&lt;/code&gt; 以下のディレクトリで行う。パッケージの管理はリポジトリの最新リビジョンのみが対象となる&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;モジュール対応モード (module-aware mode)&lt;/strong&gt; : 標準ライブラリを除く全てのパッケージをモジュールとして管理する。モジュールの管理とビルドは任意のディレクトリで可能で，モジュールはリポジトリのバージョンタグまたはリビジョン毎に管理される&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&#34;toc_2&#34;&gt;「モジュール」とは&lt;/h3&gt;
-
-&lt;p&gt;モジュール対応モードでは，標準ライブラリを除くパッケージを「モジュール（module）」として管理する。
-パッケージが &lt;a href=&#34;https://git-scm.com/&#34; title=&#34;Git&#34;&gt;git&lt;/a&gt; 等のバージョン管理ツールで管理されている場合はバージョン毎に異なるモジュールと見なされる。
-つまりモジュールの実体は「パッケージ＋バージョン」ということになる。&lt;/p&gt;
-
-&lt;p&gt;ただしコード上ではパッケージとモジュールの間に区別はなく，したがってソースコードを書き換える必要はない。
-モジュールはソースコードではなく &lt;code&gt;go.mod&lt;/code&gt; ファイルで管理される。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_3&#34;&gt;環境変数 $GO111MODULE&lt;/h2&gt;
-
-&lt;p&gt;バージョン 1.11 では2つのモードの切り替えのために環境変数 &lt;code&gt;$GO111MODULE&lt;/code&gt; でモードを指定する。
-環境変数 &lt;code&gt;$GO111MODULE&lt;/code&gt; は以下の値をとり得る。&lt;/p&gt;
-
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;値&lt;/th&gt;
-&lt;th&gt;内容&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;on&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;常にモジュール対応モードで動作する&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;off&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;常に GOPATH モードで動作する&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;auto&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;$GOPATH&lt;/code&gt; 以下のディレクトリにあるパッケージは GOPATH モードで，それ以外はモジュール対応モードで動作する&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;バージョン 1.11 では，環境変数 &lt;code&gt;$GO111MODULE&lt;/code&gt; の既定値には &lt;code&gt;auto&lt;/code&gt; が設定されている。
-独自の開発環境や IDE を使用しているためモジュール対応モードへの移行が難しい場合には &lt;code&gt;$GO111MODULE&lt;/code&gt; を &lt;code&gt;off&lt;/code&gt; にするとよいだろう。&lt;/p&gt;
-
-&lt;div class=&#34;box&#34;&gt;【追記 2019-03-24】 &lt;a href=&#34;https://text.baldanders.info/release/2019/02/go-1_12-is-released/&#34;&gt;Go 1.12&lt;/a&gt; でも引き続き &lt;code&gt;auto&lt;/code&gt; が規定値になっている。
-なお 1.13 からはモジュール対応モードが既定になるらしい。
-そうなれば環境変数 &lt;code&gt;$GO111MODULE&lt;/code&gt; はお役御免になるかな。&lt;/div&gt;
-
-&lt;h2 id=&#34;toc_4&#34;&gt;モジュール対応モード移行への準備&lt;/h2&gt;
-
-&lt;p&gt;本格的にモジュール対応モードへ移行する前に，以下の準備を行う。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_5&#34;&gt;&lt;a href=&#34;http://semver.org/&#34; title=&#34;Semantic Versioning 2.0.0 | Semantic Versioning&#34;&gt;Semantic Versioning&lt;/a&gt; によるバージョン管理&lt;/h3&gt;
-
-&lt;p&gt;モジュールのバージョンははリポジトリのリビジョン番号またはバージョンタグによって管理されるが，バージョンタグに関しては &lt;a href=&#34;http://semver.org/&#34; title=&#34;Semantic Versioning 2.0.0 | Semantic Versioning&#34;&gt;Semantic Versioning&lt;/a&gt; のルールに則ってバージョン番号を設定することが推奨されている&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:sv1&#34;&gt;&lt;a href=&#34;#fn:sv1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;https://research.swtch.com/vgo-import&#34;&gt;&lt;img src=&#34;https://research.swtch.com/impver.png&#34; srcset=&#34;https://research.swtch.com/impver.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Semantic Import Versioning&#34;&gt;&lt;/a&gt;
-&lt;figcaption&gt;&lt;a href=&#34;https://research.swtch.com/vgo-import&#34;&gt;Semantic Import Versioning&lt;/a&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;このように後方互換性のない変更がある場合にはメジャーバージョンを，後方互換性が担保された変更や追加についてはマイナーバージョンを，不具合や脆弱性の修正については第3位のパッチバージョンを上げるようにする。
-またメジャーバージョンを上げる際には，図のようにディレクトリを分離するか，旧バージョン用にブランチを切るのがよいだろう&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:sv2&#34;&gt;&lt;a href=&#34;#fn:sv2&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;p&gt;バージョンタグによってバージョン管理を行うのであればきちんとルールを決めて管理する必要がある。
-リポジトリ管理に &lt;a href=&#34;https://git-scm.com/&#34; title=&#34;Git&#34;&gt;Git&lt;/a&gt; を使うのであれば Git Flow や GitHub Flow などが参考になるかも知れない。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://nvie.com/posts/a-successful-git-branching-model/&#34;&gt;A successful Git branching model » nvie.com&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://danielkummer.github.io/git-flow-cheatsheet/&#34;&gt;git-flow cheatsheet&lt;/a&gt; （&lt;a href=&#34;http://danielkummer.github.io/git-flow-cheatsheet/index.ja_JP.html&#34;&gt;日本語&lt;/a&gt;）&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://scottchacon.com/2011/08/31/github-flow.html&#34;&gt;GitHub Flow – Scott Chacon&lt;/a&gt; （&lt;a href=&#34;https://gist.github.com/Gab-km/3705015&#34;&gt;日本語訳&lt;/a&gt;）&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/&#34;&gt;GitHub&lt;/a&gt; 等の SaaS ではバージョンタグを使ったリリース管理がやりやすいように構成されているし，上手く使ってほしい。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_6&#34;&gt;なにはさておき go.mod ファイルを作成する&lt;/h3&gt;
-
-&lt;p&gt;モジュール対応モードでは &lt;code&gt;go.mod&lt;/code&gt; ファイルでモジュール管理を行う。
-そういうわけで，なにはさておき &lt;code&gt;go.mod&lt;/code&gt; ファイルを作ってしまおう。&lt;/p&gt;
-
-&lt;p&gt;適当なディレクトリで以下のコマンドを実行する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go mod init hello
-go: creating new go.mod: module hello&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;ここで &lt;code&gt;hello&lt;/code&gt; というのがモジュール名（厳密にはモジュール・パス）になる。
-モジュール名は &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の名前として使えるものであれば何でもいいが，パッケージ名（厳密にはパッケージ・パス）と合わせておくと面倒がない。
-たとえば &lt;a href=&#34;https://github.com/&#34;&gt;GitHub&lt;/a&gt; に &lt;code&gt;github.com/my/package&lt;/code&gt; というパッケージを公開するのであれば，モジュール名も&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go mod init github.com/my/package
-go: creating new go.mod: module github.com/my/package&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;としておくのがいいだろう。&lt;/p&gt;
-
-&lt;p&gt;コンパイル時に参照する &lt;code&gt;go.mod&lt;/code&gt; ファイルがどこにあるかは環境変数 &lt;code&gt;$GOMOD&lt;/code&gt; を見ればよい。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go env GOMOD
-/home/username/workspace/gpgpdump/go.mod&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;カレント・ディレクトリに &lt;code&gt;go.mod&lt;/code&gt; ファイルがない場合は親ディレクトリに遡って探すようだ。
-まぁ，サブパッケージはディレクトリで階層化されているから当然なんだけど。&lt;/p&gt;
-
-&lt;p&gt;なお，カレント・ディレクトリにも親ディレクトリを遡っても &lt;code&gt;go.mod&lt;/code&gt; ファイルがない場合は &lt;code&gt;/dev/null&lt;/code&gt; （Windows 環境では &lt;code&gt;NUL&lt;/code&gt;）を空の &lt;code&gt;go.mod&lt;/code&gt; ファイルと見なして処理を継続する&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:go112a&#34;&gt;&lt;a href=&#34;#fn:go112a&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go env GOMOD
-/dev/null&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;h4 id=&#34;toc_7&#34;&gt;&lt;a href=&#34;https://golang.github.io/dep/&#34; title=&#34;dep · Dependency management for Go&#34;&gt;dep&lt;/a&gt; からの移行&lt;/h4&gt;
-
-&lt;p&gt;既存のパッケージに &lt;code&gt;go.mod&lt;/code&gt; ファイルを追加する場合も同様の操作でよい。
-なお &lt;a href=&#34;https://golang.github.io/dep/&#34; title=&#34;dep · Dependency management for Go&#34;&gt;dep&lt;/a&gt; を使ってパッケージ管理を行っている場合は &lt;code&gt;Gopkg.lock&lt;/code&gt; ファイルを読んで &lt;code&gt;go.mod&lt;/code&gt; ファイルに組み込んでくれる。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go mod init github.com/spiegel-im-spiegel/gpgpdump
-go: creating new go.mod: module github.com/spiegel-im-spiegel/gpgpdump
-go: copying requirements from Gopkg.lock&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;なんて便利！&lt;/p&gt;
-
-&lt;h4 id=&#34;toc_8&#34;&gt;go.mod の内容&lt;/h4&gt;
-
-&lt;p&gt;ここで作成した &lt;code&gt;go.mod&lt;/code&gt; ファイルの中身を見てみよう。&lt;/p&gt;
-
-&lt;p&gt;たとえば &lt;code&gt;github.com/spiegel-im-spiegel/gpgpdump&lt;/code&gt; パッケージの &lt;code&gt;go.mod&lt;/code&gt; ファイルの内容は以下の通り。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module github.com/spiegel-im-spiegel/gpgpdump
-
-go 1.12
-
-require (
-	github.com/BurntSushi/toml v0.3.1
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3 // indirect
-	github.com/spiegel-im-spiegel/gocli v0.9.4
-	golang.org/x/crypto v0.0.0-20190320223903-b7391e95e576
-	golang.org/x/xerrors v0.0.0-20190315151331-d61658bd2e18
-)&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code&gt;module&lt;/code&gt; や &lt;code&gt;require&lt;/code&gt; は命令（directive）と呼ばれるもので，これらの命令を使ってモジュールの管理を行う。
-&lt;code&gt;go.mod&lt;/code&gt; ファイルの記述で使える命令は以下の通り。&lt;/p&gt;
-
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;命令&lt;/th&gt;
-&lt;th&gt;記述例&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;module&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;module my/thing&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;go&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;1.12&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;require&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;require other/thing v1.0.2&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;exclude&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;exclude old/thing v1.2.3&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;replace&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;replace bad/thing v1.4.5 =&amp;gt; good/thing v1.4.5&lt;/code&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;code&gt;module&lt;/code&gt; はカレント以下のディレクトリにあるパッケージに対するモジュール名を定義する。
-前述したようにモジュール名（モジュール・パス）はパッケージ名（パッケージ・パス）と合わせておくほうが面倒がない。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;go&lt;/code&gt; は対応する &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のバージョンを指定する。
-マイナーバージョンまで指定すれば OK だが，指定しなくても動作に支障はない。
-おそらく将来的に &lt;code&gt;go.mod&lt;/code&gt; ファイルの後方互換性が確保できなくなった場合の保険だろう。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;require&lt;/code&gt; はカレントのモジュールが要求するモジュール名とバージョンを指定する。
-つまり &lt;code&gt;require&lt;/code&gt; で指定したモジュールが，カレント・モジュールが依存する外部モジュールとなるわけだ。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;exclude&lt;/code&gt; は管理から除外するモジュールを指定する。
-不具合等で特定のバージョンのモジュールを使いたくないときなどに使える。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;replace&lt;/code&gt; はモジュール名の置き換えである。
-パッケージ・パスのリダイレクトなどで名前と実体が一致しないときなどに使える。
-たとえば以下のような感じ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:ltst1&#34;&gt;&lt;a href=&#34;#fn:ltst1&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module md2html
-
-require gopkg.in/russross/blackfriday.v2 latest
-replace gopkg.in/russross/blackfriday.v2 latest =&amp;gt; github.com/russross/blackfriday/v2 latest&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;この件については後ほど詳しく説明する。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_9&#34;&gt;モジュール対応モードで使う主なコマンド&lt;/h2&gt;
-
-&lt;p&gt;それではモジュール対応モードで色々と操作してみよう。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;go build&lt;/code&gt; や &lt;code&gt;go test&lt;/code&gt; や &lt;code&gt;go run&lt;/code&gt; のようなコマンドは，モジュール対応モードでも変わりなく使える。
-ビルド時に必要なモジュールは自動的にダウンロードされるため，事前に &lt;code&gt;go get -u ./...&lt;/code&gt; みたいなことはしなくていいようだ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run hello.go
-go: finding rsc.io/quote v1.5.2
-go: downloading rsc.io/quote v1.5.2
-go: finding rsc.io/sampler v1.3.0
-go: finding golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c
-go: downloading rsc.io/sampler v1.3.0
-go: downloading golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c
-Hello, world.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;なお &lt;code&gt;go get&lt;/code&gt; の挙動については後ほど詳しく紹介する。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;go list&lt;/code&gt; コマンドは &lt;code&gt;-m&lt;/code&gt; オプションを付けることでモジュールに対応した。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go list -m -u all
-go: finding github.com/pkg/errors v0.8.0
-go: finding github.com/spf13/pflag v1.0.2
-go: finding github.com/spf13/cobra v0.0.3
-go: finding github.com/BurntSushi/toml v0.3.0
-go: finding github.com/spiegel-im-spiegel/gocli v0.8.0
-go: finding github.com/inconshreveable/mousetrap v1.0.0
-go: finding golang.org/x/crypto v0.0.0-20180816225734-aabede6cba87
-go: finding golang.org/x/crypto latest
-go: finding github.com/BurntSushi/toml v0.3.1
-github.com/spiegel-im-spiegel/gpgpdump
-github.com/BurntSushi/toml v0.3.0 [v0.3.1]
-github.com/inconshreveable/mousetrap v1.0.0
-github.com/pkg/errors v0.8.0
-github.com/spf13/cobra v0.0.3
-github.com/spf13/pflag v1.0.2
-github.com/spiegel-im-spiegel/gocli v0.8.0
-golang.org/x/crypto v0.0.0-20180816225734-aabede6cba87 [v0.0.0-20180910181607-0e37d006457b]&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;実行結果から &lt;code&gt;github.com/BurntSushi/toml&lt;/code&gt; と &lt;code&gt;golang.org/x/crypto&lt;/code&gt; には新しいバージョンがあることが分かる。
-この情報を基に &lt;code&gt;go.mod&lt;/code&gt; を調整していけばいいだろう。&lt;/p&gt;
-
-&lt;p&gt;新しく追加されたモジュール対応モード用のコマンド &lt;code&gt;go mod&lt;/code&gt; はこんな感じ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go help mod
-Go mod provides access to operations on modules.
-
-Note that support for modules is built into all the go commands,
-not just &amp;#39;go mod&amp;#39;. For example, day-to-day adding, removing, upgrading,
-and downgrading of dependencies should be done using &amp;#39;go get&amp;#39;.
-See &amp;#39;go help modules&amp;#39; for an overview of module functionality.
-
-Usage:
-
-        go mod &amp;lt;command&amp;gt; [arguments]
-
-The commands are:
-
-        download    download modules to local cache
-        edit        edit go.mod from tools or scripts
-        graph       print module requirement graph
-        init        initialize new module in current directory
-        tidy        add missing and remove unused modules
-        vendor      make vendored copy of dependencies
-        verify      verify dependencies have expected content
-        why         explain why packages or modules are needed
-
-Use &amp;#34;go help mod &amp;lt;command&amp;gt;&amp;#34; for more information about a command.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code&gt;go mod init&lt;/code&gt; は既に紹介したとおり。
-他によく使うものといえば &lt;code&gt;go mod download&lt;/code&gt; と &lt;code&gt;go mod graph&lt;/code&gt; だろうか。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;go mod download&lt;/code&gt; は &lt;code&gt;go get -u ./...&lt;/code&gt; の代わりに使える。
-&lt;code&gt;go mod graph&lt;/code&gt; はモジュール間の依存関係を調べるときに使えるだろう。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/golang/go-mod-graph/&#34;&gt;“go mod graph” を視覚化する&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;code&gt;go mod edit&lt;/code&gt; は &lt;code&gt;go.mod&lt;/code&gt; ファイルを編集するためのコマンドだが手で書いたほうが早い（笑） まぁ何らかのバッチ処理で使える感じだろうか。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_10&#34;&gt;モジュール間の依存関係の構造化&lt;/h2&gt;
-
-&lt;p&gt;以下のコードに対して&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
-
-&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
-    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
-
-    &lt;span class=&#34;s&#34;&gt;&amp;#34;rsc.io/quote&amp;#34;&lt;/span&gt;
-&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
-
-&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
-    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;quote&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;())&lt;/span&gt;
-&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code&gt;go.mod&lt;/code&gt; ファイルの内容が以下の通りだとする。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module hello
-
-require rsc.io/quote v1.5.2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;これに対して &lt;code&gt;go mod graph&lt;/code&gt; コマンドを実行すると以下のようになる。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go mod graph
-hello rsc.io/quote@v1.5.2
-rsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0
-rsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;これを図式化すると以下のようになるだろう。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;div class=&#34;mermaid&#34;&gt;
-graph TD
-  hello[&#34;hello&#34;]
-  quote[&#34;rsc.io/quote@v1.5.2&#34;]
-  sampler[&#34;rsc.io/sampler@v1.3.0&#34;]
-  text[&#34;golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c&#34;]
-
-  hello--&#34;hello/go.mod&#34;--&gt;quote
-  quote--&#34;rsc.io/quote@v1.5.2/go.mod&#34;--&gt;sampler
-  sampler--&#34;rsc.io/sampler@v1.3.0/go.mod&#34;--&gt;text
-&lt;/div&gt;&lt;/figure&gt;
-
-&lt;p&gt;&lt;code&gt;hello&lt;/code&gt; モジュールは &lt;code&gt;go.mod&lt;/code&gt; より &lt;code&gt;rsc.io/quote@v1.5.2&lt;/code&gt; モジュールを参照している。
-&lt;code&gt;rsc.io/quote@v1.5.2&lt;/code&gt; モジュールは自身の &lt;code&gt;go.mod&lt;/code&gt; より &lt;code&gt;rsc.io/sampler@v1.3.0&lt;/code&gt; モジュールを参照している。
-同じように &lt;code&gt;rsc.io/sampler@v1.3.0&lt;/code&gt; モジュールからも依存モジュールを参照しているわけだ。&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;hello/go.mod&lt;/code&gt; には &lt;code&gt;rsc.io/sampler@v1.3.0&lt;/code&gt; 等のモジュールについての記述はないが， &lt;code&gt;rsc.io/quote@v1.5.2/go.mod&lt;/code&gt; や &lt;code&gt;rsc.io/sampler@v1.3.0/go.mod&lt;/code&gt; の記述から依存関係を階層的に取得することができる。&lt;/p&gt;
-
-&lt;p&gt;このようにモジュールごとに &lt;code&gt;go.mod&lt;/code&gt; ファイルを記述していくことで依存関係の構造化を実現できる。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://research.swtch.com/vgo-mvs&#34;&gt;research!rsc: Minimal Version Selection (Go &amp;amp; Versioning, Part 4)&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;だからみんな。なにはさておき &lt;code&gt;go.mod&lt;/code&gt; ファイルを作成するんだ！&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_11&#34;&gt;モジュールのキャッシュとビルド・キャッシュ&lt;/h2&gt;
-
-&lt;p&gt;パッケージのコンパイル結果は環境変数 &lt;code&gt;$GOCACHE&lt;/code&gt; の示すディレクトリにキャッシュされる。
-モジュール対応モードではモジュール単位でキャッシュされるようだ。
-したがって &lt;code&gt;$GOCACHE&lt;/code&gt; の値は &lt;code&gt;off&lt;/code&gt; にせず，正しいディレクトリを指定する必要がある。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/release/2019/02/go-1_12-is-released/&#34;&gt;Go 1.12&lt;/a&gt; からは &lt;code&gt;$GOCACHE&lt;/code&gt; を &lt;code&gt;off&lt;/code&gt; にできなくなった。
-&lt;code&gt;off&lt;/code&gt; をセットするとビルドに失敗するようだ。&lt;/p&gt;
-
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote&gt;
-&lt;q&gt;The &lt;a href=&#34;https://golang.org/cmd/go/#hdr-Build_and_test_caching&#34;&gt;build cache&lt;/a&gt; is now required as a step toward eliminating &lt;code&gt;$GOPATH/pkg&lt;/code&gt;.
-Setting the environment variable &lt;code&gt;GOCACHE=off&lt;/code&gt; will cause go commands that write to the cache to fail. &lt;/q&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://golang.org/doc/go1.12&#34;&gt;Go 1.12 Release Notes - The Go Programming Language&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;&lt;code&gt;$GOCACHE&lt;/code&gt; の値は &lt;code&gt;go env&lt;/code&gt; コマンドで確認できる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:bc1&#34;&gt;&lt;a href=&#34;#fn:bc1&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go env GOCACHE&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;ビルド・キャッシュをクリアするには以下のコマンドを実行する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go clean -cache&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;ダウンロードしたモジュールのソースコードは今のところ &lt;code&gt;$GOPATH/pkg/mod&lt;/code&gt; 以下に格納される。
-モジュールのソースコードを含めて全てのキャッシュをクリアするには以下のコマンドを実行する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go clean -modcache&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;コンパイラの将来バージョンでは &lt;code&gt;$GOPATH/pkg&lt;/code&gt; を廃止する予定があるようで，その場合にはソースコード・キャッシュの置き場が変更される可能性がある。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_12&#34;&gt;モジュール対応モード in Travis CI&lt;/h2&gt;
-
-&lt;p&gt;CI (Continuous Integration) サービスのひとつである &lt;a href=&#34;https://travis-ci.org/&#34; title=&#34;Travis CI - Test and Deploy Your Code with Confidence&#34;&gt;Travis CI&lt;/a&gt; は &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;にも対応しているが，処理対象のパッケージを &lt;code&gt;$GOPATH/src&lt;/code&gt; 以下に展開するため GOPATH モードで処理が走ってしまう。
-そこで &lt;code&gt;.travis.yml&lt;/code&gt; ファイルを以下のように書き換えて強引にモジュール対応モードにする。&lt;/p&gt;
-
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-yaml&#34; data-lang=&#34;yaml&#34;&gt;language&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;go&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;go&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;1.12.x&amp;#34;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;env&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;global&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;GO111MODULE=on&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;install&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;go&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;mod&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;download&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;script&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;go&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;test&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;./...&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-
-&lt;p&gt;環境変数の設定部分に注目してほしい。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_13&#34;&gt;&lt;a href=&#34;https://goreleaser.com/&#34; title=&#34;GoReleaser | Deliver Go binaries as fast and easily as possible&#34;&gt;GoReleaser&lt;/a&gt; による Deploy&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://goreleaser.com/&#34; title=&#34;GoReleaser | Deliver Go binaries as fast and easily as possible&#34;&gt;GoReleaser&lt;/a&gt; を使って&lt;a href=&#34;https://text.baldanders.info/golang/cross-compiling-in-travis-ci-with-goreleaser/&#34; title=&#34;Travis CI でクロス・コンパイル（GoReleaser 編）&#34;&gt;複数の実行モジュールをビルド&lt;/a&gt;するには &lt;code&gt;.goreleaser.yml&lt;/code&gt; ファイルの &lt;code&gt;builds&lt;/code&gt; 項目に環境変数の設定を追加しておけば安心である。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-yaml&#34; data-lang=&#34;yaml&#34;&gt;builds&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;env&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;GO111MODULE=on&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;a href=&#34;https://travis-ci.org/&#34; title=&#34;Travis CI - Test and Deploy Your Code with Confidence&#34;&gt;Travis CI&lt;/a&gt; で &lt;a href=&#34;https://goreleaser.com/&#34; title=&#34;GoReleaser | Deliver Go binaries as fast and easily as possible&#34;&gt;GoReleaser&lt;/a&gt; を使って deploy を行うには &lt;code&gt;.travis.yml&lt;/code&gt; ファイルを以下のように記述すれば良い。&lt;/p&gt;
-
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-yaml&#34; data-lang=&#34;yaml&#34;&gt;language&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;go&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;go&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;1.12.x&amp;#34;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;env&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;global&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;GO111MODULE=on&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;install&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;go&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;mod&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;download&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;script&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;go&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;test&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;./...&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;deploy&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;-&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;provider&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;script&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;skip_cleanup&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;true&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;script&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;curl&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;-sL&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;https&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;//git.io/goreleaser&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;|&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;bash&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;on&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;tags&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;true&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;condition&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;$TRAVIS_OS_NAME&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;=&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;linux&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-
-&lt;h2 id=&#34;toc_14&#34;&gt;モジュール・パスとパッケージ・パスが一致しない場合&lt;/h2&gt;
-
-&lt;p&gt;先ほど少し紹介したが &lt;code&gt;gopkg.in/russross/blackfriday.v2&lt;/code&gt; パッケージをモジュールとして記述する例を挙げてみる&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:bf1&#34;&gt;&lt;a href=&#34;#fn:bf1&#34;&gt;7&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-
-&lt;p&gt;まず以下のコードを書く。ファイル名は &lt;code&gt;md2html.go&lt;/code&gt; とでもしておこう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
-
-&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
-    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
-    &lt;span class=&#34;s&#34;&gt;&amp;#34;io/ioutil&amp;#34;&lt;/span&gt;
-    &lt;span class=&#34;s&#34;&gt;&amp;#34;os&amp;#34;&lt;/span&gt;
-
-    &lt;span class=&#34;s&#34;&gt;&amp;#34;gopkg.in/russross/blackfriday.v2&amp;#34;&lt;/span&gt;
-&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
-
-&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
-    &lt;span class=&#34;nx&#34;&gt;md&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ioutil&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ReadFile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Args&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;])&lt;/span&gt;
-    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
-        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Fprintln&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Stderr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
-        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;
-    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
-
-    &lt;span class=&#34;nx&#34;&gt;html&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;blackfriday&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Run&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;md&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
-    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;html&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;
-&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code&gt;md2html.go&lt;/code&gt; に対して以下のようにモジュール定義を行う。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module md2html
-
-require gopkg.in/russross/blackfriday.v2 latest&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;では実際にコンパイル&amp;amp;実行してみよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run md2html.go hello.md
-go: finding gopkg.in/russross/blackfriday.v2 v2.0.1
-go: gopkg.in/russross/blackfriday.v2@v2.0.1: go.mod has non-....v2 module path &amp;#34;github.com/russross/blackfriday/v2&amp;#34; at revision v2.0.1
-go: error loading module requirements&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;おおう。
-エラーになってしまった。
-&lt;code&gt;github.com/russross/blackfriday/v2&lt;/code&gt; なんてパスはねーよ！ とお怒りのようだ。&lt;/p&gt;
-
-&lt;p&gt;パス名 &lt;code&gt;gopkg.in/russross/blackfriday.v2&lt;/code&gt; は &lt;code&gt;github.com/russross/blackfriday&lt;/code&gt; の alias で v2 のコードは v2 ブランチで管理されている。
-v2 ブランチにある &lt;code&gt;go.mod&lt;/code&gt; ファイルを見てみると&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;module github.com/russross/blackfriday/v2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;と記されているが，実際に v2 ブランチの &lt;a href=&#34;https://github.com/russross/blackfriday/tree/v2&#34;&gt;&lt;code&gt;github.com/russross/blackfriday&lt;/code&gt;&lt;/a&gt; に &lt;code&gt;v2&lt;/code&gt; ディレクトリは存在しない。
-このパスの不一致がエラーの原因のようである。&lt;/p&gt;
-
-&lt;p&gt;この不一致を解消するために &lt;code&gt;replace&lt;/code&gt; を追加する。
-具体的には以下のように記述する。&lt;/p&gt;
-
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-tex&#34; data-lang=&#34;tex&#34;&gt;module md2html
-
-require gopkg.in/russross/blackfriday.v2 latest
-&lt;span class=&#34;hl&#34;&gt;replace gopkg.in/russross/blackfriday.v2 latest =&amp;gt; github.com/russross/blackfriday/v2 latest&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-
-&lt;p&gt;では，この状態でコンパイル&amp;amp;実行してみよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run md2html.go hello.md
-go: finding github.com/russross/blackfriday/v2 v2.0.1
-go: downloading github.com/russross/blackfriday/v2 v2.0.1
-go: finding github.com/shurcooL/sanitized_anchor_name latest
-go: downloading github.com/shurcooL/sanitized_anchor_name v0.0.0-20170918181015-86672fcb3f95
-&amp;lt;h1&amp;gt;Hello&amp;lt;/h1&amp;gt;
-
-&amp;lt;p&amp;gt;Hello, World!&amp;lt;/p&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;というわけでうまく動作したようだ。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_15&#34;&gt;バージョンを指定して go get を実行する&lt;/h2&gt;
-
-&lt;div class=&#34;box&#34;&gt;【追記 2019-02-26】 &lt;a href=&#34;https://text.baldanders.info/release/2019/02/go-1_12-is-released/&#34;&gt;Go 1.12&lt;/a&gt; からはダミーの &lt;code&gt;go.mod&lt;/code&gt; ファイルは必要なくなった。
-任意の場所で &lt;code&gt;go get&lt;/code&gt; コマンドを起動できる。
-ブラボー！&lt;/div&gt;
-
-&lt;p&gt;たとえば私の自作ツールである &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gpgpdump&#34; title=&#34;spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer&#34;&gt;gpgpdump&lt;/a&gt; を自前でビルドすることを考える。&lt;/p&gt;
-
-&lt;p&gt;GOPATH モードでパッケージをダウンロードし実行ファイルをビルドするには以下のコマンドを実行すればよい。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go get -v github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump
-github.com/spiegel-im-spiegel/gpgpdump (download)
-github.com/spiegel-im-spiegel/gocli (download)
-vendor/golang_org/x/net/dns/dnsmessage
-github.com/spiegel-im-spiegel/gocli/exitcode
-github.com/spiegel-im-spiegel/gocli/rwi
-github.com/inconshreveable/mousetrap
-net
-github.com/spf13/pflag
-github.com/spf13/cobra
-github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump/facade
-github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;ダウンロードした &lt;code&gt;github.com/spiegel-im-spiegel/gpgpdump&lt;/code&gt; パッケージのソースコードとコンパイル結果（実行ファイルを含む）は &lt;code&gt;$GOPATH&lt;/code&gt; 以下に格納される。&lt;/p&gt;
-
-&lt;p&gt;では，モジュール対応モードでバージョンを指定して &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gpgpdump&#34; title=&#34;spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer&#34;&gt;gpgpdump&lt;/a&gt; をビルドしてみよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ export GO111MODULE=on
-
-$ go get github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump@latest
-go: finding github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump latest
-go: finding github.com/spiegel-im-spiegel/gpgpdump/cli latest
-go: finding github.com/spiegel-im-spiegel/gpgpdump v0.3.9
-go: downloading github.com/spiegel-im-spiegel/gpgpdump v0.3.9
-go: extracting github.com/spiegel-im-spiegel/gpgpdump v0.3.9
-go: finding github.com/pkg/errors v0.8.1
-go: finding github.com/spf13/pflag v1.0.3
-go: finding github.com/BurntSushi/toml v0.3.1
-go: finding github.com/spiegel-im-spiegel/gocli v0.9.1
-go: finding github.com/spf13/cobra v0.0.3
-go: finding github.com/inconshreveable/mousetrap v1.0.0
-go: finding golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
-go: finding github.com/mattn/go-isatty v0.0.4
-go: downloading github.com/spiegel-im-spiegel/gocli v0.9.1
-go: downloading github.com/spf13/cobra v0.0.3
-go: downloading github.com/pkg/errors v0.8.1
-go: downloading golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
-go: downloading github.com/BurntSushi/toml v0.3.1
-go: extracting github.com/spiegel-im-spiegel/gocli v0.9.1
-go: extracting github.com/pkg/errors v0.8.1
-go: extracting github.com/BurntSushi/toml v0.3.1
-go: extracting github.com/spf13/cobra v0.0.3
-go: downloading github.com/spf13/pflag v1.0.3
-go: downloading github.com/inconshreveable/mousetrap v1.0.0
-go: extracting golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
-go: extracting github.com/inconshreveable/mousetrap v1.0.0
-go: extracting github.com/spf13/pflag v1.0.3&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;おおっ，上手くいった。
-ソースコードは &lt;code&gt;$GOPATH/pkg/mod&lt;/code&gt; 以下に，ビルド結果の実行ファイルは &lt;code&gt;$GOPATH/bin&lt;/code&gt; に格納されるようだ。&lt;/p&gt;
-
-&lt;p&gt;ちなみに &lt;code&gt;path@version&lt;/code&gt; 形式でモジュールを指定できるのは &lt;code&gt;go get&lt;/code&gt; コマンドのみらしい。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go run github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump@latest
-package github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump@latest: can only use path@version syntax with &amp;#39;go get&amp;#39;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;ただし，バージョン指定を省略して latest バージョンで &lt;code&gt;go build&lt;/code&gt; や &lt;code&gt;go run&lt;/code&gt; コマンドを使うことはできるようだ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ go clean -modcache
-
-$ go run github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump -h
-go: finding github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump latest
-go: finding github.com/spiegel-im-spiegel/gpgpdump/cli latest
-go: finding github.com/spiegel-im-spiegel/gpgpdump v0.3.9
-go: downloading github.com/spiegel-im-spiegel/gpgpdump v0.3.9
-go: extracting github.com/spiegel-im-spiegel/gpgpdump v0.3.9
-go: finding github.com/spiegel-im-spiegel/gocli v0.9.1
-go: finding github.com/spf13/cobra v0.0.3
-go: finding github.com/spf13/pflag v1.0.3
-go: finding github.com/BurntSushi/toml v0.3.1
-go: finding github.com/pkg/errors v0.8.1
-go: finding github.com/inconshreveable/mousetrap v1.0.0
-go: finding golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
-go: finding github.com/mattn/go-isatty v0.0.4
-go: downloading github.com/spiegel-im-spiegel/gocli v0.9.1
-go: downloading github.com/pkg/errors v0.8.1
-go: downloading golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
-go: downloading github.com/spf13/cobra v0.0.3
-go: downloading github.com/BurntSushi/toml v0.3.1
-go: extracting github.com/pkg/errors v0.8.1
-go: extracting github.com/spiegel-im-spiegel/gocli v0.9.1
-go: extracting github.com/BurntSushi/toml v0.3.1
-go: extracting github.com/spf13/cobra v0.0.3
-go: extracting golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
-go: downloading github.com/spf13/pflag v1.0.3
-go: downloading github.com/inconshreveable/mousetrap v1.0.0
-go: extracting github.com/inconshreveable/mousetrap v1.0.0
-go: extracting github.com/spf13/pflag v1.0.3
-Usage:
-  gpgpdump [flags] [OpenPGP file]
-
-Flags:
-  -a, --armor     accepts ASCII input only
-      --debug     for debug
-  -h, --help      help for gpgpdump
-  -i, --int       dumps multi-precision integers
-  -j, --json      output with JSON format
-  -l, --literal   dumps literal packets (tag 11)
-  -m, --marker    dumps marker packets (tag 10)
-  -p, --private   dumps private packets (tag 60-63)
-  -t, --toml      output with TOML format
-  -u, --utc       output with UTC time
-  -v, --version   output version of gpgpdump&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;こりゃあ，便利だ。
-上手く活用しましょう。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_16&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://blog.golang.org/using-go-modules&#34;&gt;Using Go Modules - The Go Blog&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/release/2018/09/go-1_11-ise-released/&#34;&gt;Go 1.11 のリリースと「モジュール」機能の実験的サポート&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/spiegel-im-spiegel/items/5cb1587cb55d6f6a34d7&#34;&gt;GOPATH モードからモジュール対応モードへ移行せよ&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.wantedly.com/companies/wantedly/post_articles/132270&#34;&gt;Go 1.11 の modules・vgo を試す - 実際に使っていく上で考えないといけないこと #golang | Wantedly Engineer Blog&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/k-motoyan/items/4213d5ef09963ffea489&#34;&gt;Goモジュールモードでモジュール内に作ったモジュールを扱う - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://budougumi0617.github.io/2019/02/15/go-modules-on-go112/&#34;&gt;Go Modulesの概要とGo1.12に含まれるModulesに関する変更 #golangjp #go112party - My External Storage&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/Tommy_/items/32d2d0d9f56365ee61fc&#34;&gt;GoにおけるSemantic versioningとgo.modにある+incompatibleについて - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/golang/gopath-pollution/&#34;&gt;GOPATH 汚染問題&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/golang/go-and-versioning/&#34;&gt;vgo (Versioned Go) に関する覚え書き&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_17&#34;&gt;参考図書&lt;/h2&gt;
-
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9EGo-ADDISON-WESLEY-PROFESSIONAL-COMPUTING-Donovan/dp/4621300253?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=4621300253&#34;&gt;&lt;img src=&#34;https://images-fe.ssl-images-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl class=&#34;fn&#34;&gt;
-    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9EGo-ADDISON-WESLEY-PROFESSIONAL-COMPUTING-Donovan/dp/4621300253?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=4621300253&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Alan A.A. Donovan, Brian W. Kernighan&lt;/dd&gt;
-    &lt;dd&gt;柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
-    &lt;dd&gt;Book 単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;ASIN: 4621300253, EAN: 9784621300251&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2018-10-20&#34;&gt;2018-10-20&lt;/abbr&gt; (powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/amazon-item&#34; &gt;amazon-item&lt;/a&gt; v0.2.0)&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:cmd1&#34;&gt;「GOPATH モード」および「モジュール対応モード」の名称は “&lt;a href=&#34;https://golang.org/cmd/go/&#34; title=&#34;go - The Go Programming Language&#34;&gt;Command go&lt;/a&gt;” の記述から抜き出した。 &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;って用語の表記に微妙なブレがあるのがイマイチだよなぁ。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:cmd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:sv1&#34;&gt;リビジョン番号によるバージョン管理も可能だが， &lt;code&gt;v0.0.0-20180816225734-aabede6cba87&lt;/code&gt; のような擬似バージョン番号に置き換えられるため，モジュールのインポート時の運用が煩雑になり推奨できない。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:sv1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:sv2&#34;&gt;異なるメジャーバージョンを同一ディレクトリの同一ブランチで管理していると &lt;code&gt;go.mod&lt;/code&gt; のバージョン番号部分に勝手に “&lt;code&gt;+incompatible&lt;/code&gt;” が付加されてめっさカッコ悪くなる（笑）
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:sv2&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:go112a&#34;&gt;&lt;code&gt;/dev/null&lt;/code&gt; ファイルの仮定は &lt;a href=&#34;https://text.baldanders.info/release/2019/02/go-1_12-is-released/&#34;&gt;Go 1.12&lt;/a&gt; から有効になっている。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:go112a&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:ltst1&#34;&gt;バージョンに &lt;code&gt;latest&lt;/code&gt; を指定すると，コンパイラ側で最新バージョン（またはリビジョン）を探して，最新の番号に置き換えてくれる。 &lt;code&gt;go build&lt;/code&gt; や &lt;code&gt;go test&lt;/code&gt; などを実行するたびに &lt;code&gt;go.mod&lt;/code&gt; ファイルの &lt;code&gt;latest&lt;/code&gt; 表記が書き換えられるので注意すること。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ltst1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:bc1&#34;&gt;Windows 環境では &lt;code&gt;$GOCACHE&lt;/code&gt; の既定値は &lt;code&gt;%USERPROFILE%\AppData\Local\go-build&lt;/code&gt; となっているようだ。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:bc1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:bf1&#34;&gt;&lt;code&gt;gopkg.in/russross/blackfriday.v2&lt;/code&gt; パッケージは Markdown コードを HTML 等の書式に変換するパッケージである（参考：&lt;a href=&#34;https://text.baldanders.info/golang/using-blackfriday-v2/&#34;&gt;Markdown パーサ blackfriday.v2 で遊ぶ&lt;/a&gt;）。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:bf1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
 </content>
