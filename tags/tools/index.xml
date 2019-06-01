@@ -2,13 +2,200 @@
 	<title>List of tools - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/tools/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/tools/index.xml" />
-	<id>tag:text.Baldanders.info,2019-05-29:/tags</id>
-	<updated>2019-05-29T19:11:01+09:00</updated>
+	<id>tag:text.Baldanders.info,2019-06-01:/tags</id>
+	<updated>2019-06-01T23:45:58+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>メール・サービスを立てずにコマンドラインでメールを送信する</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/06/send-mail-without-mail-service/" />
+		<id>tag:text.Baldanders.info,2019-06-01:/remark/2019/06/send-mail-without-mail-service/</id>
+		<published>2019-06-01T14:45:58+00:00</published>
+		<updated>2019-06-01T14:46:32+00:00</updated>
+		<summary>調べてみたら msmtp なるツールが良さげである。今回は msmtp を構成してメールを送信してみる。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/spiegel/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
+
+&lt;p&gt;cron で回したプロセスの実行結果をメールで送信することを考える。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; はインストール直後の既定状態ではメール・サービスは入ってない。
+したがって cron の実行結果（標準出力等に吐き出されるもの）は何処にも通知されない。
+これはこれで合理的な設計なのだが（ cron の実行結果でメールボックスが溢れたりすることもないし），やはり結果をメールで通知したいこともある。
+かといって，そのためにわざわざデスクトップ・パソコンにメール・サービスを入れるのはナンセンスであろう。&lt;/p&gt;
+
+&lt;p&gt;自前でメール・サービスを立てずに外部のメール・サーバにメールを流す送信専用の簡易 MUA があれば便利である。
+そこで調べてみたら &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; なるツールが良さげである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:ssmtp1&#34;&gt;&lt;a href=&#34;#fn:ssmtp1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+今回は &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; を構成してコマンドラインでメールを送信してみる。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_0&#34;&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; のインストール&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; は APT で導入可能である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ apt show msmtp
+Package: msmtp
+Version: 1.8.3-1
+Priority: extra
+Section: universe/mail
+Origin: Ubuntu
+Maintainer: Ubuntu Developers &amp;lt;ubuntu-devel-discuss@lists.ubuntu.com&amp;gt;
+Original-Maintainer: Emmanuel Bouthenot &amp;lt;kolter@debian.org&amp;gt;
+...&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;なので早速インストールする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install msmtp msmtp-mta&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;msmtp-mta&lt;/code&gt; パッケージは cron から &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; を利用するのに必要なので併せてインストールしておく。
+一応，操作確認しておこう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ msmtp --version
+msmtp version 1.8.3
+Platform: x86_64-pc-linux-gnu
+TLS/SSL library: GnuTLS
+Authentication library: GNU SASL
+Supported authentication methods:
+plain scram-sha-1 external gssapi cram-md5 digest-md5 login ntlm 
+IDN support: enabled
+NLS: enabled, LOCALEDIR is /usr/share/locale
+Keyring support: none
+System configuration file name: /etc/msmtprc
+User configuration file name: /home/username/.msmtprc
+
+Copyright (C) 2019 Martin Lambers and others.
+This is free software.  You may redistribute copies of it under the terms of
+the GNU General Public License &amp;lt;http://www.gnu.org/licenses/gpl.html&amp;gt;.
+There is NO WARRANTY, to the extent permitted by law.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;よしよし。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_1&#34;&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; の設定&lt;/h2&gt;
+
+&lt;p&gt;まずは &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルを作成して外部のメール・サーバを定義する。
+&lt;code&gt;~/.msmtprc&lt;/code&gt; の雛形ファイルは以下にあるので参考になるだろう。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/usr/share/doc/msmtp/examples/msmtprc-user.example&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このファイルを元にして Gmail のメール・サーバにアクセスする設定を記述してみる。
+こんな感じ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:passwd1&#34;&gt;&lt;a href=&#34;#fn:passwd1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# Set default values for all following accounts.
+defaults
+
+# Use the mail submission port 587 instead of the SMTP port 25.
+port 587
+
+# Always use TLS.
+tls on
+
+# Gmail service
+account gmail
+
+# Host name of the SMTP server
+host smtp.gmail.com
+
+# Envelope-from address
+from username@gmail.com
+
+# Authentication. The password is given using one of five methods, see below.
+auth on
+user username@gmail.com
+
+# Password method 2: Store the password in an encrypted file, and tell msmtp
+# which command to use to decrypt it. This is usually used with GnuPG, as in
+# this example. Usually gpg-agent will ask once for the decryption password.
+#passwordeval gpg2 --no-tty -q -d ~/.msmtp-password.gpg
+
+# Password method 3: Store the password directly in this file. Usually it is not
+# a good idea to store passwords in plain text files. If you do it anyway, at
+# least make sure that this file can only be read by yourself.
+password password_string
+
+# Set a default account
+account default : gmail&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルの権限を変更するのも忘れずに。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ chmod 0600 ~/.msmtprc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで準備 OK。
+試しにコマンドラインでメールを送信してみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo &amp;#34;hello there.&amp;#34; | msmtp -a gmail username@gmail.com&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;code&gt;username@gmail.com&lt;/code&gt; 宛に “hello there.” という内容でメールが届けば成功である。
+ちなみに &lt;code&gt;-a&lt;/code&gt; オプションは省略できる。
+この場合 &lt;code&gt;account default&lt;/code&gt; で指定されたアカウント情報で送信される。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_2&#34;&gt;cron との連携&lt;/h2&gt;
+
+&lt;p&gt;では cron との連携を試してみよう。&lt;/p&gt;
+
+&lt;p&gt;まずはパソコンのユーザ・アカウントとメールアドレスを連携させるために &lt;code&gt;/etc/aliases&lt;/code&gt; ファイルを作成する。
+内容はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;username: username@gmail.com
+root: username@gmail.com
+default: username@gmail.com&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;さらに &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルに以下の記述を追加する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# aliases file
+aliases /etc/aliases&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; 側の準備は完了。&lt;/p&gt;
+
+&lt;p&gt;テスト用のプロセスを crontab で定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ crontab -e
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;内容は例えばこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;*/5 * * * * MAILTO=username ls&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;code&gt;username&lt;/code&gt; のメールアドレス宛に5分おきに &lt;code&gt;ls&lt;/code&gt; コマンドの実行結果をメール送信する。
+かなりウザいので動作確認できたらソッコーで削除しないと（笑）&lt;/p&gt;
+
+&lt;p&gt;うまくいかない場合は &lt;code&gt;/var/log/syslog&lt;/code&gt; を見てみるとヒントになるかもしれない。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cat /var/log/syslog | grep sendmail&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2 id=&#34;toc_3&#34;&gt;パウワード情報の暗号化&lt;/h2&gt;
+
+&lt;p&gt;外部メール・サーバへ送信する際に認証を行う場合は &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルに認証用のパスワードを設定する必要があるが，平文で保存されるため，いかにも不用心である。
+そこでパスワード情報を暗号化することを考える。&lt;/p&gt;
+
+&lt;p&gt;具体的には &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルの &lt;code&gt;password&lt;/code&gt; 項目を以下の記述で置き換える。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;#passwordeval gpg --no-tty -q -d ~/.msmtp-password.gpg&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;~/.msmtp-password.gpg&lt;/code&gt; が暗号化されたパスワード情報を格納するファイルで &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で暗号化されている。
+&lt;code&gt;~/.msmtp-password.gpg&lt;/code&gt; ファイルを作成するには以下のコマンドラインを実行する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg --encrypt -o ~/.msmtp-gmail.gpg -r &amp;lt;user&amp;gt;@gmail.com -&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;最後のハイフン（&lt;code&gt;-&lt;/code&gt;）を忘れずに。
+これで標準入力からパスワードを入力し改行コードを入力した後 &lt;code&gt;ctrl-d&lt;/code&gt; で処理を抜ければ完了である。&lt;/p&gt;
+
+&lt;p&gt;メール送信時には復号のために &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; がパスフレーズを要求するのでご注意を&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gpg1&#34;&gt;&lt;a href=&#34;#fn:gpg1&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_4&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://wiki.debian.org/msmtp&#34;&gt;msmtp - Debian Wiki&lt;/a&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://wiki.archlinux.jp/index.php/Msmtp&#34;&gt;msmtp - ArchWiki&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/iganari/items/5a61ec93d989f7c77a2c&#34;&gt;各ユーザのcrontabファイルの場所について - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/tossh/items/e135bd063a50087c3d6a&#34;&gt;初心者向けcronの使い方 - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://bakunyo.hatenablog.com/entry/2013/06/20/crontab%E4%BD%BF%E3%81%84%E6%96%B9%E3%81%BE%E3%81%A8%E3%82%81%E3%80%82&#34;&gt;crontab使い方まとめ。 - ばくのエンジニア日誌&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/UNILORN/items/a1a3f62409cdb4256219&#34;&gt;Cronの使い方とテクニックと詰まったところ - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:ssmtp1&#34;&gt;ググってみると &lt;a href=&#34;https://wiki.debian.org/sSMTP&#34; title=&#34;sSMTP - Debian Wiki&#34;&gt;sSMTP&lt;/a&gt; に関する記事が頻出したが，残念なことに &lt;a href=&#34;https://wiki.debian.org/sSMTP&#34; title=&#34;sSMTP - Debian Wiki&#34;&gt;sSMTP&lt;/a&gt; はもはやメンテナンスされていないようである。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ssmtp1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:passwd1&#34;&gt;&lt;code&gt;password&lt;/code&gt; の項目にはパスワードを記述するが， Google サインイン用のパスワードではなく「アプリ・パスワード」をセットする（Googleへのサインインに2要素認証を使っていることが前提）。アプリ・パスワードは「&lt;a href=&#34;https://myaccount.google.com/&#34;&gt;Google アカウント&lt;/a&gt;」のページで設定できる。アプリやプラットフォームごとに異なるアプリ・パスワードを設定するのがコツである。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:passwd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gpg1&#34;&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵を作成する際にパスフレーズの入力を省略すれば復号処理を自動化できるが秘密鍵の中身が丸見えになってしまうので取り扱いには注意が必要である。パスワード暗号化用の専用鍵を作って運用するのが無難だろう。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gpg1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>GnuPG 2.2.16 がリリースされた</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2019/05/gnupg-2_2_16-is-released/" />
 		<id>tag:text.Baldanders.info,2019-05-29:/release/2019/05/gnupg-2_2_16-is-released/</id>
@@ -1303,183 +1490,6 @@ Microsoft が今後 PWA (Progressive Web Apps) へのシフトを進めていく
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:subs1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>Ubuntu に Mono を導入する</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/04/mono-in-ubuntu/" />
-		<id>tag:text.Baldanders.info,2019-04-14:/remark/2019/04/mono-in-ubuntu/</id>
-		<published>2019-04-14T10:36:23+00:00</published>
-		<updated>2019-05-31T12:12:12+00:00</updated>
-		<summary>今回は Mono および Mono で動くアプリケーションを導入する。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/spiegel/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
-
-&lt;p&gt;今回は &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; および &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; で動くアプリケーションを導入する。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_0&#34;&gt;&lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; の導入&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; を導入するにはリポジトリの登録から始める必要がある。
-&lt;code&gt;gnupg&lt;/code&gt; と &lt;code&gt;ca-certificates&lt;/code&gt; は既に入ってるみたいなので公開鍵のインポートとソースリストの追加から。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-$ echo &amp;#34;deb https://download.mono-project.com/repo/ubuntu stable-bionic main&amp;#34; | sudo tee /etc/apt/sources.list.d/mono-official-stable.list
-$ sudo apt update&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;続いて &lt;code&gt;mono-devel&lt;/code&gt; を導入する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install mono-devel&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;インストール処理が完了したら念のため動作確認をしておこう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ mono -V
-Mono JIT compiler version 5.20.1.19 (tarball Thu Apr 11 09:02:17 UTC 2019)
-Copyright (C) 2002-2014 Novell, Inc, Xamarin Inc and Contributors. www.mono-project.com
-	TLS:           __thread
-	SIGSEGV:       altstack
-	Notifications: epoll
-	Architecture:  amd64
-	Disabled:      none
-	Misc:          softdebug 
-	Interpreter:   yes
-	LLVM:          yes(600)
-	Suspend:       hybrid
-	GC:            sgen (concurrent by default)&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;よーし，うむうむ，よーし。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_1&#34;&gt;&lt;a href=&#34;https://keepass.info/&#34; title=&#34;KeePass Password Safe&#34;&gt;KeePass&lt;/a&gt; の導入&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://keepass.info/&#34; title=&#34;KeePass Password Safe&#34;&gt;KeePass&lt;/a&gt; は OSS のパスワード管理ツールで，基本的には Windows 用だが各種プラットフォーム用のバージョンが公開されている。
-&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; では APT で導入可能である。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt show keepass2
-Package: keepass2
-Version: 2.39.1+dfsg-1
-Priority: optional
-Section: universe/utils
-Origin: Ubuntu
-...&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;ちょっとバージョンが古いがプラットフォームが違うし，まぁいいだろう。
-インストールしてしまおう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install keepass2&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;インストールが完了するとドックのアプリボタンで表示されるアプリ一覧にアイコンが追加される。
-あとは Windows 版と同じように使える。&lt;/p&gt;
-
-&lt;p&gt;パスワードを覚えるなんて脳みその無駄遣い。
-適切な管理ツールでパスワード管理を行いましょう。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://pagent.github.io/2015/03/14/keepass2-font/&#34;&gt;Keepass2のフォントを日本語化 | Pagent&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_2&#34;&gt;&lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt; の導入&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt; は .NET Framework 上で動く &lt;a href=&#34;https://git-scm.com/&#34;&gt;git&lt;/a&gt; 用の GUI フロントエンドだが， &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; 版もあって他プラットフォームでも利用できる。
-ただし &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; 版はバージョン 2 系までしか対応していないので注意が必要である。&lt;/p&gt;
-
-&lt;p&gt;ダウンロードページから &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; 版の&lt;a href=&#34;https://github.com/gitextensions/gitextensions/releases/tag/v2.51.05&#34; title=&#34;Release Version 2.51.05 · gitextensions/gitextensions&#34;&gt;最新バージョン&lt;/a&gt;をダウンロードする。&lt;/p&gt;
-
-&lt;p&gt;適当なディレクトリにダウンロードした zip ファイルを &lt;code&gt;unzip&lt;/code&gt; コマンドで展開する。
-&lt;code&gt;GitExtensions&lt;/code&gt; ディレクトリが作成されてファイルが展開されている筈である。&lt;/p&gt;
-
-&lt;p&gt;展開されたファイルの中に &lt;code&gt;gitext.sh&lt;/code&gt; があるので，これに実行権限を付与して起動する。
-今後のためにパスを通しておいたほうがいいだろう。&lt;/p&gt;
-
-&lt;p&gt;最初に &lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt; を起動すると言語の選択ウィンドウが表示される。&lt;/p&gt;
-
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./language.png&#34;&gt;&lt;img src=&#34;./language.png&#34; srcset=&#34;./language.png 642w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-
-&lt;p&gt;日本語があってよかったね。
-あとは Windows 版と同じ。&lt;/p&gt;
-
-&lt;p&gt;けど Windows 版と比べて操作感がイマイチなんだよなぁ。
-まぁ &lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt; をメインに作業するわけではないので，これでもいいか。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_3&#34;&gt;【追記 2019-04-20】 &lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt; が落ちる&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; を &lt;a href=&#34;{{ ref&#34; title=&#34;/remark/2019/04/upgrade-ubuntu-19_04.md&amp;quot; }} &amp;quot;Ubuntu 19.04 へのアップグレードを試す&#34;&gt;19.04 にアップグレード&lt;/a&gt;したら &lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt; が落ちるようになってしまった。
-似た事例がないかと探してみたら &lt;code&gt;GitExtensions/Plugins/Bitbucket.dll&lt;/code&gt; を削除したら行けるみたいな記述を見かけたので試してみたら上手く行ったっぽい？&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.codeofclimber.ru/2015/how-to-install-gitextensions-in-ubuntu/&#34;&gt;How to install GitExtensions in Ubuntu&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;やれやれだぜ。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt; の代わりになるような GUI フロントエンドを探しているのだがいいのがない。
-コミットやタギングで電子署名を付与できて結果を検証できればいいのだが，特にタギングに署名できる製品がない。
-&lt;a href=&#34;https://blog.axosoft.com/gitkraken-v5-0/&#34;&gt;GitKraken v5.0&lt;/a&gt; ならいけると思ったのだが設定画面が分かりにくい上にフリー版だと署名の検証ができないっぽい？&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_4&#34;&gt;.NET Framework と &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; と .NET Core&lt;/h2&gt;
-
-&lt;p&gt;.NET Framework と &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; と .NET Core の関係がいまひとつ分からなかったのでちょろんと調べてみた。
-かなり大雑把な説明なのはご容赦。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_5&#34;&gt;.NET Framework&lt;/h3&gt;
-
-&lt;p&gt;.NET Framework が最初に公開されたのは2001年。
-基盤となる CLI (Common Language Infrastructure) や CLR (Common Language Runtime) は標準化され Windows 以外のプラットフォームでも実装可能となるよう設計されたが，実際にはリファレンス実装である .NET Framework は Windows 以外には対応しなかった。
-まぁ，当時の Microsoft は FOSS に敵対的だったし，それもやむなしというところだろうか。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_6&#34;&gt;&lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; と Xamarin&lt;/h3&gt;
-
-&lt;p&gt;当然ながら，.NET Framework に対抗する OSS 製品を作ろうという動きがあり，そのうちのひとつが &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; Project であった。
-&lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; はマルチプラットフォームで動作するアプリケーション基盤として実装されているのが特徴である。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; を巡っては紆余曲折があったが（生臭い話は省略），最終的に Xamarin が開発母体となった。&lt;/p&gt;
-
-&lt;p&gt;Xamarin は  &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; Project のオーナー企業であると同時に &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; を基盤とした製品群を指すようだ。
-なので今後は &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt;/Xamarin と一括りにしてしまおう。&lt;/p&gt;
-
-&lt;p&gt;企業としての Xamarin は後に Microsoft に買収され &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt;/Xamarin は Microsoft 傘下である &lt;a href=&#34;https://www.dotnetfoundation.org/&#34;&gt;.NET Foundation&lt;/a&gt; において今も開発が続けられている。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_7&#34;&gt;.NET Core&lt;/h3&gt;
-
-&lt;p&gt;一方，実質 Windows でしか動作しない .NET Framework の派生として .NET Core が Microsoft からリリースされた。
-.NET Core はマルチプラットフォームで動作する OSS 製品として，こちらも &lt;a href=&#34;https://www.dotnetfoundation.org/&#34;&gt;.NET Foundation&lt;/a&gt; で開発が行われている。&lt;/p&gt;
-
-&lt;p&gt;ここに於いて Microsoft は経営方針の大転換を果たしたわけだ。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_8&#34;&gt;.NET Core と &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt;/Xamarin&lt;/h3&gt;
-
-&lt;p&gt;現在 Microsoft は OSS の .NET シリーズとして .NET Core と &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt;/Xamarin の2系統の製品を持っている。
-両者の棲み分けは以下のような感じらしい。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;https://ascii.jp/elem/000/001/156/1156949/img.html&#34;&gt;&lt;img src=&#34;https://ascii.jp/elem/000/001/156/1156949/ph07_2000x1125.jpg&#34; srcset=&#34;https://ascii.jp/elem/000/001/156/1156949/ph07_2000x1125.jpg 2000w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://ascii.jp/elem/000/001/156/1156721/&#34;&gt;ASCII.jp：.NET Core / .NET Framework / Xamarin / Monoの関係を整理する&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;つまり Linux や macOS，あるいは iOS や Android の GUI アプリケーションとしては &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt;/Xamarin，サーバ・サイドあるいはクラウド向けには .NET Core ということのようだ。
-さらに将来的には Windows アプリケーション向けの .NET Framework，マルチプラットフォーム向けの .NET Core と &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt;/Xamarin の基盤を共通化すると表明されている。&lt;/p&gt;
-
-&lt;figure&gt;
-&lt;blockquote&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;https://ascii.jp/elem/000/001/156/1156951/img.html&#34;&gt;&lt;img src=&#34;https://ascii.jp/elem/000/001/156/1156951/ph09_2000x1125.jpg&#34; srcset=&#34;https://ascii.jp/elem/000/001/156/1156951/ph09_2000x1125.jpg 2000w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;via &lt;q&gt;&lt;a href=&#34;https://ascii.jp/elem/000/001/156/1156721/&#34;&gt;ASCII.jp：.NET Core / .NET Framework / Xamarin / Monoの関係を整理する&lt;/a&gt;&lt;/q&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;そうなったら &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; も役目を終える感じになるのかねぇ。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_9&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://mag.osdn.jp/17/05/22/150000&#34;&gt;C#7に完全対応した「Mono 5.0」が公開 | OSDN Magazine&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://ascii.jp/elem/000/001/156/1156721/&#34;&gt;ASCII.jp：.NET Core / .NET Framework / Xamarin / Monoの関係を整理する (1/3)&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://docs.microsoft.com/ja-jp/dotnet/core/about&#34;&gt;.NET Core について | Microsoft Docs&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.infoq.com/jp/articles/varieties-dotnet&#34;&gt;.NETの派生を理解する&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.ossnews.jp/compare/Mono/dotNET_Core&#34;&gt;オープンソースのMonoと.NET Coreを比較&lt;/a&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/amay077/items/399002a02c1abf9d620b&#34;&gt;Xamarin 最近どうよ？ - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://github.com/gitextensions/gitextensions/wiki/How-To%3A-run-Git-Extensions-on-Linux&#34;&gt;How To: run Git Extensions on Linux · gitextensions/gitextensions Wiki&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-&lt;/ul&gt;
 </content>
 	</entry>
 </feed>

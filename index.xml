@@ -2,13 +2,201 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2019-05-31:/</id>
-	<updated>2019-06-01T06:41:11+00:00</updated>
+	<id>tag:text.Baldanders.info,2019-06-01:/</id>
+	<updated>2019-06-01T14:46:32+00:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>メール・サービスを立てずにコマンドラインでメールを送信する</title>
+		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/06/send-mail-without-mail-service/" />
+		<id>tag:text.Baldanders.info,2019-06-01:/remark/2019/06/send-mail-without-mail-service/</id>
+		<published>2019-06-01T14:45:58+00:00</published>
+		<updated>2019-06-01T14:46:32+00:00</updated>
+		<summary>調べてみたら msmtp なるツールが良さげである。今回は msmtp を構成してメールを送信してみる。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/spiegel/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
+
+&lt;p&gt;cron で回したプロセスの実行結果をメールで送信することを考える。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; はインストール直後の既定状態ではメール・サービスは入ってない。
+したがって cron の実行結果（標準出力等に吐き出されるもの）は何処にも通知されない。
+これはこれで合理的な設計なのだが（ cron の実行結果でメールボックスが溢れたりすることもないし），やはり結果をメールで通知したいこともある。
+かといって，そのためにわざわざデスクトップ・パソコンにメール・サービスを入れるのはナンセンスであろう。&lt;/p&gt;
+
+&lt;p&gt;自前でメール・サービスを立てずに外部のメール・サーバにメールを流す送信専用の簡易 MUA があれば便利である。
+そこで調べてみたら &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; なるツールが良さげである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:ssmtp1&#34;&gt;&lt;a href=&#34;#fn:ssmtp1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+今回は &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; を構成してコマンドラインでメールを送信してみる。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_0&#34;&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; のインストール&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; は APT で導入可能である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ apt show msmtp
+Package: msmtp
+Version: 1.8.3-1
+Priority: extra
+Section: universe/mail
+Origin: Ubuntu
+Maintainer: Ubuntu Developers &amp;lt;ubuntu-devel-discuss@lists.ubuntu.com&amp;gt;
+Original-Maintainer: Emmanuel Bouthenot &amp;lt;kolter@debian.org&amp;gt;
+...&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;なので早速インストールする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install msmtp msmtp-mta&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;msmtp-mta&lt;/code&gt; パッケージは cron から &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; を利用するのに必要なので併せてインストールしておく。
+一応，操作確認しておこう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ msmtp --version
+msmtp version 1.8.3
+Platform: x86_64-pc-linux-gnu
+TLS/SSL library: GnuTLS
+Authentication library: GNU SASL
+Supported authentication methods:
+plain scram-sha-1 external gssapi cram-md5 digest-md5 login ntlm 
+IDN support: enabled
+NLS: enabled, LOCALEDIR is /usr/share/locale
+Keyring support: none
+System configuration file name: /etc/msmtprc
+User configuration file name: /home/username/.msmtprc
+
+Copyright (C) 2019 Martin Lambers and others.
+This is free software.  You may redistribute copies of it under the terms of
+the GNU General Public License &amp;lt;http://www.gnu.org/licenses/gpl.html&amp;gt;.
+There is NO WARRANTY, to the extent permitted by law.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;よしよし。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_1&#34;&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; の設定&lt;/h2&gt;
+
+&lt;p&gt;まずは &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルを作成して外部のメール・サーバを定義する。
+&lt;code&gt;~/.msmtprc&lt;/code&gt; の雛形ファイルは以下にあるので参考になるだろう。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/usr/share/doc/msmtp/examples/msmtprc-user.example&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このファイルを元にして Gmail のメール・サーバにアクセスする設定を記述してみる。
+こんな感じ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:passwd1&#34;&gt;&lt;a href=&#34;#fn:passwd1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# Set default values for all following accounts.
+defaults
+
+# Use the mail submission port 587 instead of the SMTP port 25.
+port 587
+
+# Always use TLS.
+tls on
+
+# Gmail service
+account gmail
+
+# Host name of the SMTP server
+host smtp.gmail.com
+
+# Envelope-from address
+from username@gmail.com
+
+# Authentication. The password is given using one of five methods, see below.
+auth on
+user username@gmail.com
+
+# Password method 2: Store the password in an encrypted file, and tell msmtp
+# which command to use to decrypt it. This is usually used with GnuPG, as in
+# this example. Usually gpg-agent will ask once for the decryption password.
+#passwordeval gpg2 --no-tty -q -d ~/.msmtp-password.gpg
+
+# Password method 3: Store the password directly in this file. Usually it is not
+# a good idea to store passwords in plain text files. If you do it anyway, at
+# least make sure that this file can only be read by yourself.
+password password_string
+
+# Set a default account
+account default : gmail&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルの権限を変更するのも忘れずに。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ chmod 0600 ~/.msmtprc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで準備 OK。
+試しにコマンドラインでメールを送信してみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo &amp;#34;hello there.&amp;#34; | msmtp -a gmail username@gmail.com&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;code&gt;username@gmail.com&lt;/code&gt; 宛に “hello there.” という内容でメールが届けば成功である。
+ちなみに &lt;code&gt;-a&lt;/code&gt; オプションは省略できる。
+この場合 &lt;code&gt;account default&lt;/code&gt; で指定されたアカウント情報で送信される。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_2&#34;&gt;cron との連携&lt;/h2&gt;
+
+&lt;p&gt;では cron との連携を試してみよう。&lt;/p&gt;
+
+&lt;p&gt;まずはパソコンのユーザ・アカウントとメールアドレスを連携させるために &lt;code&gt;/etc/aliases&lt;/code&gt; ファイルを作成する。
+内容はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;username: username@gmail.com
+root: username@gmail.com
+default: username@gmail.com&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;さらに &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルに以下の記述を追加する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# aliases file
+aliases /etc/aliases&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; 側の準備は完了。&lt;/p&gt;
+
+&lt;p&gt;テスト用のプロセスを crontab で定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ crontab -e
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;内容は例えばこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;*/5 * * * * MAILTO=username ls&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;code&gt;username&lt;/code&gt; のメールアドレス宛に5分おきに &lt;code&gt;ls&lt;/code&gt; コマンドの実行結果をメール送信する。
+かなりウザいので動作確認できたらソッコーで削除しないと（笑）&lt;/p&gt;
+
+&lt;p&gt;うまくいかない場合は &lt;code&gt;/var/log/syslog&lt;/code&gt; を見てみるとヒントになるかもしれない。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cat /var/log/syslog | grep sendmail&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2 id=&#34;toc_3&#34;&gt;パウワード情報の暗号化&lt;/h2&gt;
+
+&lt;p&gt;外部メール・サーバへ送信する際に認証を行う場合は &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルに認証用のパスワードを設定する必要があるが，平文で保存されるため，いかにも不用心である。
+そこでパスワード情報を暗号化することを考える。&lt;/p&gt;
+
+&lt;p&gt;具体的には &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルの &lt;code&gt;password&lt;/code&gt; 項目を以下の記述で置き換える。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;#passwordeval gpg --no-tty -q -d ~/.msmtp-password.gpg&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;~/.msmtp-password.gpg&lt;/code&gt; が暗号化されたパスワード情報を格納するファイルで &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で暗号化されている。
+&lt;code&gt;~/.msmtp-password.gpg&lt;/code&gt; ファイルを作成するには以下のコマンドラインを実行する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg --encrypt -o ~/.msmtp-gmail.gpg -r &amp;lt;user&amp;gt;@gmail.com -&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;最後のハイフン（&lt;code&gt;-&lt;/code&gt;）を忘れずに。
+これで標準入力からパスワードを入力し改行コードを入力した後 &lt;code&gt;ctrl-d&lt;/code&gt; で処理を抜ければ完了である。&lt;/p&gt;
+
+&lt;p&gt;メール送信時には復号のために &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; がパスフレーズを要求するのでご注意を&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gpg1&#34;&gt;&lt;a href=&#34;#fn:gpg1&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_4&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://wiki.debian.org/msmtp&#34;&gt;msmtp - Debian Wiki&lt;/a&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://wiki.archlinux.jp/index.php/Msmtp&#34;&gt;msmtp - ArchWiki&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/iganari/items/5a61ec93d989f7c77a2c&#34;&gt;各ユーザのcrontabファイルの場所について - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/tossh/items/e135bd063a50087c3d6a&#34;&gt;初心者向けcronの使い方 - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://bakunyo.hatenablog.com/entry/2013/06/20/crontab%E4%BD%BF%E3%81%84%E6%96%B9%E3%81%BE%E3%81%A8%E3%82%81%E3%80%82&#34;&gt;crontab使い方まとめ。 - ばくのエンジニア日誌&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/UNILORN/items/a1a3f62409cdb4256219&#34;&gt;Cronの使い方とテクニックと詰まったところ - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:ssmtp1&#34;&gt;ググってみると &lt;a href=&#34;https://wiki.debian.org/sSMTP&#34; title=&#34;sSMTP - Debian Wiki&#34;&gt;sSMTP&lt;/a&gt; に関する記事が頻出したが，残念なことに &lt;a href=&#34;https://wiki.debian.org/sSMTP&#34; title=&#34;sSMTP - Debian Wiki&#34;&gt;sSMTP&lt;/a&gt; はもはやメンテナンスされていないようである。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ssmtp1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:passwd1&#34;&gt;&lt;code&gt;password&lt;/code&gt; の項目にはパスワードを記述するが， Google サインイン用のパスワードではなく「アプリ・パスワード」をセットする（Googleへのサインインに2要素認証を使っていることが前提）。アプリ・パスワードは「&lt;a href=&#34;https://myaccount.google.com/&#34;&gt;Google アカウント&lt;/a&gt;」のページで設定できる。アプリやプラットフォームごとに異なるアプリ・パスワードを設定するのがコツである。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:passwd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gpg1&#34;&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵を作成する際にパスフレーズの入力を省略すれば復号処理を自動化できるが秘密鍵の中身が丸見えになってしまうので取り扱いには注意が必要である。パスワード暗号化用の専用鍵を作って運用するのが無難だろう。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gpg1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>Go モジュールのミラーリングとインデックス化</title>
 		<category term="golang" label="golang" scheme="https://text.baldanders.info/golang/" />
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/mirror-index-and-checksum-database-for-go-module/" />
@@ -954,114 +1142,6 @@ go version go1.11.1 freebsd/amd64&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
  &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:m1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>2019-05-18 のブックマーク</title>
-		<category term="bookmarks" label="bookmarks" scheme="https://text.baldanders.info/bookmarks/" />
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/bookmarks/2019/05/18-bookmarks/" />
-		<id>tag:text.Baldanders.info,2019-05-18:/bookmarks/2019/05/18-bookmarks/</id>
-		<published>2019-05-18T11:42:58+00:00</published>
-		<updated>2019-05-18T11:48:19+00:00</updated>
-		<summary>「機械学習は「因果性」を発見できるか？ 著名研究者がICLRで提案」他</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/spiegel/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
-
-&lt;h2 id=&#34;toc_0&#34;&gt;リリース情報&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://news.mynavi.jp/article/20190513-821163/&#34;&gt;PostgreSQL 11.3、10.8、9.6.13、9.5.17、9.4.22登場 | マイナビニュース&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2019/05/ubuntu-1904-39-openjdkdos.html&#34;&gt;Ubuntu 19.04 その39 - OpenJDKにDoSやサンドボックス回避の脆弱性・今すぐアップデートを - kledgeb&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/gitextensions/gitextensions/releases/tag/v3.1&#34;&gt;Release Version v3.1 · gitextensions/gitextensions · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2019/05/ubuntu-1904-48-ubuntu-1904-remix.html&#34;&gt;Ubuntu 19.04 その48 - Ubuntu 19.04 日本語 Remixがリリースされました・ディスクイメージのダウンロード - kledgeb&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://gohugo.io/news/0.55.6-relnotes/&#34;&gt;Hugo 0.55.6: One Bug Fix! | Hugo&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_1&#34;&gt;バベルのインターネット&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.technologyreview.jp/nl/facebook-is-cracking-down-on-live-streaming-with-bans-for-rule-breakers/&#34;&gt;MIT Tech Review: フェイスブック、規約違反ならライブ配信を「即利用禁止」へ&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_2&#34;&gt;セキュリティ＆プライバシー関連&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://jp.techcrunch.com/2019/05/12/2019-05-10-eyedisk-encrypted-flash-drive-unhackable/&#34;&gt;データを暗号化するフラッシュドライブeyeDiskは簡単にハックできた  |  TechCrunch Japan&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.hrw.org/video-photos/interactive/2019/05/02/china-how-mass-surveillance-works-xinjiang&#34;&gt;China: How Mass Surveillance Works in Xinjiang | Human Rights Watch&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2019/05/reverse_enginee_1.html&#34;&gt;Reverse Engineering a Chinese Surveillance App - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://japan.cnet.com/article/35136842/&#34;&gt;アパートにスマートロックを導入した家主、入居者に提訴される--鍵提供で和解 - CNET Japan&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://piyolog.hatenadiary.jp/entry/2019/05/14/183000&#34;&gt;大手ウイルス対策ベンダ3社への不正アクセスについてまとめてみた - piyolog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2019/05/cryptanalysis_o_4.html&#34;&gt;Cryptanalysis of SIMON-32/64 - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://piyolog.hatenadiary.jp/entry/2019/05/15/063000&#34;&gt;WhatsAppの脆弱性CVE-2019-3568についてまとめてみた - piyolog&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2019/05/whatsapp_vulner_1.html&#34;&gt;WhatsApp Vulnerability Fixed - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://forest.watch.impress.co.jp/docs/news/1184536.html&#34;&gt;「Google Chrome 74」にセキュリティアップデート - 窓の杜&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://jp.techcrunch.com/2019/05/15/2019-05-13-twitter-bug-disclosed-some-users-location-data-to-an-unnamed-partner/&#34;&gt;Twitterが一部のユーザーの位置情報がパートナーに共有されたバグを公表  |  TechCrunch Japan&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/freedom-of-speech/censorship/1955&#34;&gt;なぜ「暗号通貨禁止法」はひどいアイデアなのか – P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/privacy/1966&#34;&gt;サンフランシスコ市、市当局による監視技術導入を監視し、顔認識技術の使用を禁止へ – P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://piyolog.hatenadiary.jp/entry/2019/05/17/183000&#34;&gt;ユニクロ・ジーユーオンラインストアの不正ログインについてまとめてみた - piyolog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2019/05/more_attacks_ag.html&#34;&gt;More Attacks against Computer Automatic Update Systems - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://wired.jp/2019/05/15/googles-new-privacy-features-put-the-responsibility-on-users/&#34;&gt;グーグルの新しいプライヴァシー設定は、「ユーザーへの責任転嫁」にすぎない｜WIRED.jp&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_3&#34;&gt;天文関連&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.technologyreview.jp/nl/this-hubble-photo-captures-more-than-265000-galaxies-in-one-image/&#34;&gt;MIT Tech Review: ハッブル宇宙望遠鏡の成果の集大成、26万の銀河を捉えた写真&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://subarutelescope.org/Pressrelease/2019/05/13/j_index.html&#34;&gt;観測成果 - すばる望遠鏡が写し出す、惑星が隠れた若い惑星系の姿 - すばる望遠鏡&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.technologyreview.jp/s/141909/the-moon-is-a-lot-more-seismically-active-than-we-thought/&#34;&gt;MIT Tech Review: 実は活発だった「月」の地殻活動、地震計データを再分析&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_4&#34;&gt;知財関連&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/copyright/1946&#34;&gt;HDMIの規格仕様書アーカイブ、機密性と著作権侵害を理由にDMCA削除される – P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/copyright/1941&#34;&gt;違法ダウンロードに巻き込まれたTor出口ノード運営者、手続きの不備で（今のところ）難を逃れる – P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.eff.org/press/releases/youtube-user-fights-unfair-takedown-campaign-ufc&#34;&gt;YouTube User Fights Unfair Takedown Campaign from UFC | Electronic Frontier Foundation&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://stocker.jp/diary/adobe-cc/&#34;&gt;「CS6以降のアプリがいつでもすべて使える」という売り文句のAdobe CCが、事後報告すらなく過去のアプリが使えなくなった件 | Stocker.jp / diary&lt;/a&gt; : Adobe はライセンス料を払ってなかったらしい（笑）&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/copyright/1962&#34;&gt;米国「著作権侵害警告システム」のその後 – P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/copyright/1909&#34;&gt;著作権侵害を疑われた女性、著作権トロールに情報開示請求で反撃 – P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_5&#34;&gt;Linux または Ubuntu に関する話題&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2019/05/ubuntu-1904-37-snapsnap13.html&#34;&gt;Ubuntu 19.04 その37 - Snapストアからインストール可能なSnapアプリ13選 - kledgeb&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://japan.zdnet.com/article/35136835/&#34;&gt;2019年発売の全てのChromebookがLinux対応に - ZDNet Japan&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://japan.zdnet.com/article/35137030/&#34;&gt;「Chromebook」で「Windows」を動かす「Project Campfire」、打ち切りか - ZDNet Japan&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_6&#34;&gt;その他&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://japanese.engadget.com/2019/05/11/facetime/&#34;&gt;グループFaceTimeの盗聴バグ訴訟、原告の弁護士が敗訴。アップルの予見可能性が証明されず - Engadget 日本版&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://kaikaji.hatenablog.com/entry/2019/05/12/235432&#34;&gt;理性としての「反緊縮」 - 梶ピエールのブログ&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.technologyreview.jp/s/141523/a-new-way-to-build-tiny-neural-networks-could-create-powerful-ai-on-your-phone/&#34;&gt;MIT Tech Review: ニューラルネットを大幅に「ダウンサイジング」 MIT研究者が提唱&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.moguravr.com/fictionvr-9/&#34;&gt;篠房六郎がＶＲと心の救済を描いた2作品『空談師』『ナツノクモ』-フィクションの中のVR【第9回】 | MoguraVR News - VRの「いま」を掘りだすニュースメディア&lt;/a&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://thinking-spot-robot.blogspot.com/2019/05/vr.html&#34;&gt;Thinking Spot: VR社会は痛覚を刺激できない&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/19/red_hat_enterprise_linux_8osred_hat_universal_base_image.html&#34;&gt;自由に再配布可能なRed Hat Enterprise Linux 8ベースのコンテナ用OSイメージ「Red Hat Universal Base Image」が公開 － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://qiita.com/tanabee/items/0d17d58ac6008329fdaa&#34;&gt;Slack の特定のチャンネルのメッセージ一覧をスプレッドシートにエクスポートするツールを作ってみた - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.technologyreview.jp/s/140861/global-renewables-growth-has-stalled-and-thats-terrible-news/&#34;&gt;MIT Tech Review: 再生可能エネの成長が失速、IEA発表の衝撃&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://anond.hatelabo.jp/20190429102212&#34;&gt;だから抗拒不能はそういう意味じゃねえって言ってんだろ&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://japan.zdnet.com/article/35137015/&#34;&gt;Oracle Databaseは「ポータブルな利用環境」を捨てたのか - ZDNet Japan&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://qiita.com/hodaka0714/items/cf44b4ece992a39b5be4&#34;&gt;「サイゼリヤで1000円あれば最大何kcal摂れるのか」を量子アニーリング計算(Wildqat)で解いてみた。 - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.technologyreview.jp/s/141062/deep-learning-could-reveal-why-the-world-works-the-way-it-does/&#34;&gt;MIT Tech Review: 機械学習は「因果性」を発見できるか？ 著名研究者がICLRで提案&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://qiita.com/katsuki104/items/e0f81a9cacc3e5f4fcd7&#34;&gt;東大松尾研から新たに無償公開されたDeep Learning講座「DL4US」が良い、という話 - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
 </content>
 	</entry>
 </feed>

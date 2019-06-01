@@ -2,13 +2,201 @@
 	<title>しっぽのさきっちょ | text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/remark/index.xml" />
-	<id>tag:text.Baldanders.info,2019-05-30:/remark</id>
-	<updated>2019-05-30T21:51:57+09:00</updated>
+	<id>tag:text.Baldanders.info,2019-06-01:/remark</id>
+	<updated>2019-06-01T23:45:58+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」。とりとめのない四方山話。</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>メール・サービスを立てずにコマンドラインでメールを送信する — しっぽのさきっちょ</title>
+		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/06/send-mail-without-mail-service/" />
+		<id>tag:text.Baldanders.info,2019-06-01:/remark/2019/06/send-mail-without-mail-service/</id>
+		<published>2019-06-01T23:45:58+09:00</published>
+		<updated>2019-06-01T14:46:32+00:00</updated>
+		<summary>調べてみたら msmtp なるツールが良さげである。今回は msmtp を構成してメールを送信してみる。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/spiegel/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
+
+&lt;p&gt;cron で回したプロセスの実行結果をメールで送信することを考える。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; はインストール直後の既定状態ではメール・サービスは入ってない。
+したがって cron の実行結果（標準出力等に吐き出されるもの）は何処にも通知されない。
+これはこれで合理的な設計なのだが（ cron の実行結果でメールボックスが溢れたりすることもないし），やはり結果をメールで通知したいこともある。
+かといって，そのためにわざわざデスクトップ・パソコンにメール・サービスを入れるのはナンセンスであろう。&lt;/p&gt;
+
+&lt;p&gt;自前でメール・サービスを立てずに外部のメール・サーバにメールを流す送信専用の簡易 MUA があれば便利である。
+そこで調べてみたら &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; なるツールが良さげである&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:ssmtp1&#34;&gt;&lt;a href=&#34;#fn:ssmtp1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+今回は &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; を構成してコマンドラインでメールを送信してみる。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_0&#34;&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; のインストール&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; は APT で導入可能である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ apt show msmtp
+Package: msmtp
+Version: 1.8.3-1
+Priority: extra
+Section: universe/mail
+Origin: Ubuntu
+Maintainer: Ubuntu Developers &amp;lt;ubuntu-devel-discuss@lists.ubuntu.com&amp;gt;
+Original-Maintainer: Emmanuel Bouthenot &amp;lt;kolter@debian.org&amp;gt;
+...&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;なので早速インストールする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install msmtp msmtp-mta&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;msmtp-mta&lt;/code&gt; パッケージは cron から &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; を利用するのに必要なので併せてインストールしておく。
+一応，操作確認しておこう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ msmtp --version
+msmtp version 1.8.3
+Platform: x86_64-pc-linux-gnu
+TLS/SSL library: GnuTLS
+Authentication library: GNU SASL
+Supported authentication methods:
+plain scram-sha-1 external gssapi cram-md5 digest-md5 login ntlm 
+IDN support: enabled
+NLS: enabled, LOCALEDIR is /usr/share/locale
+Keyring support: none
+System configuration file name: /etc/msmtprc
+User configuration file name: /home/username/.msmtprc
+
+Copyright (C) 2019 Martin Lambers and others.
+This is free software.  You may redistribute copies of it under the terms of
+the GNU General Public License &amp;lt;http://www.gnu.org/licenses/gpl.html&amp;gt;.
+There is NO WARRANTY, to the extent permitted by law.&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;よしよし。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_1&#34;&gt;&lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; の設定&lt;/h2&gt;
+
+&lt;p&gt;まずは &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルを作成して外部のメール・サーバを定義する。
+&lt;code&gt;~/.msmtprc&lt;/code&gt; の雛形ファイルは以下にあるので参考になるだろう。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;/usr/share/doc/msmtp/examples/msmtprc-user.example&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このファイルを元にして Gmail のメール・サーバにアクセスする設定を記述してみる。
+こんな感じ&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:passwd1&#34;&gt;&lt;a href=&#34;#fn:passwd1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# Set default values for all following accounts.
+defaults
+
+# Use the mail submission port 587 instead of the SMTP port 25.
+port 587
+
+# Always use TLS.
+tls on
+
+# Gmail service
+account gmail
+
+# Host name of the SMTP server
+host smtp.gmail.com
+
+# Envelope-from address
+from username@gmail.com
+
+# Authentication. The password is given using one of five methods, see below.
+auth on
+user username@gmail.com
+
+# Password method 2: Store the password in an encrypted file, and tell msmtp
+# which command to use to decrypt it. This is usually used with GnuPG, as in
+# this example. Usually gpg-agent will ask once for the decryption password.
+#passwordeval gpg2 --no-tty -q -d ~/.msmtp-password.gpg
+
+# Password method 3: Store the password directly in this file. Usually it is not
+# a good idea to store passwords in plain text files. If you do it anyway, at
+# least make sure that this file can only be read by yourself.
+password password_string
+
+# Set a default account
+account default : gmail&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルの権限を変更するのも忘れずに。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ chmod 0600 ~/.msmtprc&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで準備 OK。
+試しにコマンドラインでメールを送信してみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo &amp;#34;hello there.&amp;#34; | msmtp -a gmail username@gmail.com&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;code&gt;username@gmail.com&lt;/code&gt; 宛に “hello there.” という内容でメールが届けば成功である。
+ちなみに &lt;code&gt;-a&lt;/code&gt; オプションは省略できる。
+この場合 &lt;code&gt;account default&lt;/code&gt; で指定されたアカウント情報で送信される。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_2&#34;&gt;cron との連携&lt;/h2&gt;
+
+&lt;p&gt;では cron との連携を試してみよう。&lt;/p&gt;
+
+&lt;p&gt;まずはパソコンのユーザ・アカウントとメールアドレスを連携させるために &lt;code&gt;/etc/aliases&lt;/code&gt; ファイルを作成する。
+内容はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;username: username@gmail.com
+root: username@gmail.com
+default: username@gmail.com&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;さらに &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルに以下の記述を追加する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;# aliases file
+aliases /etc/aliases&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;a href=&#34;https://marlam.de/msmtp/&#34;&gt;msmtp&lt;/a&gt; 側の準備は完了。&lt;/p&gt;
+
+&lt;p&gt;テスト用のプロセスを crontab で定義する。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ crontab -e
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;内容は例えばこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;*/5 * * * * MAILTO=username ls&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;これで &lt;code&gt;username&lt;/code&gt; のメールアドレス宛に5分おきに &lt;code&gt;ls&lt;/code&gt; コマンドの実行結果をメール送信する。
+かなりウザいので動作確認できたらソッコーで削除しないと（笑）&lt;/p&gt;
+
+&lt;p&gt;うまくいかない場合は &lt;code&gt;/var/log/syslog&lt;/code&gt; を見てみるとヒントになるかもしれない。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cat /var/log/syslog | grep sendmail&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2 id=&#34;toc_3&#34;&gt;パウワード情報の暗号化&lt;/h2&gt;
+
+&lt;p&gt;外部メール・サーバへ送信する際に認証を行う場合は &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルに認証用のパスワードを設定する必要があるが，平文で保存されるため，いかにも不用心である。
+そこでパスワード情報を暗号化することを考える。&lt;/p&gt;
+
+&lt;p&gt;具体的には &lt;code&gt;~/.msmtprc&lt;/code&gt; ファイルの &lt;code&gt;password&lt;/code&gt; 項目を以下の記述で置き換える。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;#passwordeval gpg --no-tty -q -d ~/.msmtp-password.gpg&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;~/.msmtp-password.gpg&lt;/code&gt; が暗号化されたパスワード情報を格納するファイルで &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で暗号化されている。
+&lt;code&gt;~/.msmtp-password.gpg&lt;/code&gt; ファイルを作成するには以下のコマンドラインを実行する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg --encrypt -o ~/.msmtp-gmail.gpg -r &amp;lt;user&amp;gt;@gmail.com -&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;最後のハイフン（&lt;code&gt;-&lt;/code&gt;）を忘れずに。
+これで標準入力からパスワードを入力し改行コードを入力した後 &lt;code&gt;ctrl-d&lt;/code&gt; で処理を抜ければ完了である。&lt;/p&gt;
+
+&lt;p&gt;メール送信時には復号のために &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; がパスフレーズを要求するのでご注意を&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:gpg1&#34;&gt;&lt;a href=&#34;#fn:gpg1&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_4&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://wiki.debian.org/msmtp&#34;&gt;msmtp - Debian Wiki&lt;/a&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://wiki.archlinux.jp/index.php/Msmtp&#34;&gt;msmtp - ArchWiki&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/iganari/items/5a61ec93d989f7c77a2c&#34;&gt;各ユーザのcrontabファイルの場所について - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/tossh/items/e135bd063a50087c3d6a&#34;&gt;初心者向けcronの使い方 - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;http://bakunyo.hatenablog.com/entry/2013/06/20/crontab%E4%BD%BF%E3%81%84%E6%96%B9%E3%81%BE%E3%81%A8%E3%82%81%E3%80%82&#34;&gt;crontab使い方まとめ。 - ばくのエンジニア日誌&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://qiita.com/UNILORN/items/a1a3f62409cdb4256219&#34;&gt;Cronの使い方とテクニックと詰まったところ - Qiita&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;footnotes&#34;&gt;
+
+&lt;hr /&gt;
+
+&lt;ol&gt;
+&lt;li id=&#34;fn:ssmtp1&#34;&gt;ググってみると &lt;a href=&#34;https://wiki.debian.org/sSMTP&#34; title=&#34;sSMTP - Debian Wiki&#34;&gt;sSMTP&lt;/a&gt; に関する記事が頻出したが，残念なことに &lt;a href=&#34;https://wiki.debian.org/sSMTP&#34; title=&#34;sSMTP - Debian Wiki&#34;&gt;sSMTP&lt;/a&gt; はもはやメンテナンスされていないようである。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:ssmtp1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:passwd1&#34;&gt;&lt;code&gt;password&lt;/code&gt; の項目にはパスワードを記述するが， Google サインイン用のパスワードではなく「アプリ・パスワード」をセットする（Googleへのサインインに2要素認証を使っていることが前提）。アプリ・パスワードは「&lt;a href=&#34;https://myaccount.google.com/&#34;&gt;Google アカウント&lt;/a&gt;」のページで設定できる。アプリやプラットフォームごとに異なるアプリ・パスワードを設定するのがコツである。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:passwd1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li id=&#34;fn:gpg1&#34;&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵を作成する際にパスフレーズの入力を省略すれば復号処理を自動化できるが秘密鍵の中身が丸見えになってしまうので取り扱いには注意が必要である。パスワード暗号化用の専用鍵を作って運用するのが無難だろう。
+ &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:gpg1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>「ヒト」こそがセキュリティの最強点 — しっぽのさきっちょ</title>
 		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/05/incident-response/" />
@@ -999,427 +1187,6 @@ Windows は MDS よりヤバい脆弱性があるみたいで&lt;/p&gt;
   &lt;/dl&gt;
   &lt;p class=&#34;description&#34;&gt;興味本位で買うには少々お高いので図書館で借りて読んだ。大学とかで専門の教科書にもなっているそうな。独学で読むにはヘヴィな内容だが一度は目を通しておきたい一冊。&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34; &gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2019-05-11&#34;&gt;2019-05-11&lt;/abbr&gt; (powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/amazon-item&#34; &gt;amazon-item&lt;/a&gt; 0.2.1)&lt;/p&gt;
-&lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>Advanced Package Tool に関する覚え書き — しっぽのさきっちょ</title>
-		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/05/advanced-package-tool/" />
-		<id>tag:text.Baldanders.info,2019-05-10:/remark/2019/05/advanced-package-tool/</id>
-		<published>2019-05-10T18:32:34+09:00</published>
-		<updated>2019-05-16T15:36:43+00:00</updated>
-		<summary>今回の件で自機でのアプリケーションあるいはパッケージ管理について，ちょっと考えてしまった。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/spiegel/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
-
-&lt;p&gt;先日 Firefox がやらしたじゃないですか。&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://discourse.mozilla.org/t/thread-add-ons-not-working-due-to-certificate-expiration/38968&#34;&gt;Thread: Add-ons not working due to certificate expiration - Add-on Support - Mozilla Discourse&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;証明書の期限切れでアドオンが全部排除されるというバグとしてはありがちなやつなんだけど， Mozilla が改修版（v66.0.4）を出してから &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; の &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; でアップデートできるようになるまで概ね2日ほどかかってるのよ。&lt;/p&gt;
-
-&lt;p&gt;今回の件で自機でのアプリケーションあるいはパッケージ管理について，ちょっと考えてしまった。
-そこでまずは &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; について調べ直すところから始めることにした。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_0&#34;&gt;dpkg と Advanced Package Tool&lt;/h2&gt;
-
-&lt;p&gt;皆さんご存知の通り &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; は &lt;a href=&#34;https://www.debian.org/&#34; title=&#34;Debian -- The Universal Operating System&#34;&gt;Debian&lt;/a&gt; から fork したディストリビューションでアプリケーション管理も &lt;a href=&#34;https://www.debian.org/&#34; title=&#34;Debian -- The Universal Operating System&#34;&gt;Debian&lt;/a&gt; のものを踏襲している。&lt;/p&gt;
-
-&lt;p&gt;アプリケーションのビルド済みバイナリや関連ファイルにバージョン情報や依存情報等のメタデータを付加したものを（ar/tar/gzip/bzip2 などで）ひとまとめにしたものを「&lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/packaging-system.html&#34; title=&#34;第 5 章 パッケージシステム、ツールと基本原則&#34;&gt;パッケージ&lt;/a&gt;」と呼ぶ。
-&lt;a href=&#34;https://www.debian.org/&#34; title=&#34;Debian -- The Universal Operating System&#34;&gt;Debian&lt;/a&gt;/&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; では &lt;code&gt;.deb&lt;/code&gt; の拡張子が付いたファイルがそのパッケージファイルで，パッケージファイルを利用するためのツールが &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/sect.manipulating-packages-with-dpkg.html&#34; title=&#34;5.4. dpkg を用いたパッケージの操作&#34;&gt;dpkg&lt;/a&gt; である。&lt;/p&gt;
-
-&lt;p&gt;ただし &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/sect.manipulating-packages-with-dpkg.html&#34; title=&#34;5.4. dpkg を用いたパッケージの操作&#34;&gt;dpkg&lt;/a&gt; にはプリミティブな機能しかないため一般のユーザが &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/sect.manipulating-packages-with-dpkg.html&#34; title=&#34;5.4. dpkg を用いたパッケージの操作&#34;&gt;dpkg&lt;/a&gt; をそのまま使うことはまずない。
-一般ユーザ用のフロントエンド（のひとつ）が &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; (Advanced Package Tool) ということになる。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; はバックエンドにパッケージ管理用のデータベースを持っていて&lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:sl1&#34;&gt;&lt;a href=&#34;#fn:sl1&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;，このデータベースをもとにパッケージ間の依存関係を維持しながら可能な限り自動で導入や削除を行おうとする。&lt;/p&gt;
-
-&lt;p&gt;したがってデータベースにないパッケージは &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; では導入できない。
-この場合は以下の3つの手段をとることができる。&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;サードパーティのリポジトリを登録して &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; から導入できるようにする&lt;/li&gt;
-&lt;li&gt;deb ファイルを使って直接インストールする&lt;/li&gt;
-&lt;li&gt;ビルド済みバイナリを直接展開して導入する。またはソースファイルから直接ビルドを行う&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&#34;toc_1&#34;&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; パッケージのリリースサイクル&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; は概ね半年ごとにアップグレードされ，リリース時の年月がそのままバージョン番号になっている。
-たとえば先日2019年4月にリリースされたバージョンには 19.04 が振られている。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; に収録されるパッケージは OS リリース時にバージョンが固定され重大な不具合や脆弱性が発覚しない限り更新されることはないようだ。
-先日の Firefox の件はむしろ例外的に早い対応だったということになる。&lt;/p&gt;
-
-&lt;p&gt;しかし，昨今は活況なソフトウェアほどリリースサイクルが短い傾向があり半年というタイムスケールでは追いつかないことも多い。
-自身でリスクを引き受けてでも &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; による管理を離れて自前で最新バージョンを維持したいという要求もあると思う。&lt;/p&gt;
-
-&lt;p&gt;つまり &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; で管理可能なパッケージについても&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; で導入する&lt;/li&gt;
-&lt;li&gt;deb ファイルを使って直接インストールする&lt;/li&gt;
-&lt;li&gt;ビルド済みバイナリを直接展開して導入する。またはソースファイルから直接ビルドを行う&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;という3つの手段をとり得るわけだ。&lt;/p&gt;
-
-&lt;p&gt;そこで以降からは管理方法毎によく使うパッケージを分類してみる。
-なお，この分類は私の独断と偏見に依る部分が大きいので，他の人にはあまり参考にならないであろう点は先に誤っておく。
-ゴメンペコン。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_2&#34;&gt;公式リポジトリから &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; を使って管理するパッケージ&lt;/h2&gt;
-
-&lt;h3 id=&#34;toc_3&#34;&gt;セキュリティ関連ツールなのでしょうがない&lt;/h3&gt;
-
-&lt;p&gt;以下のパッケージはセキュリティ関連ツールで，これらに依存するパッケーも多く，特に保守的な運用になっているようだ。
-したがって安定的な運用を優先し &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; による管理とする。&lt;/p&gt;
-
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;製品名&lt;/th&gt;
-&lt;th&gt;パッケージ名&lt;/th&gt;
-&lt;th&gt;備考&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;gnupg&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;既定でインストール済&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;openssh-client&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;クライアント側。既定でインストール済&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;openssl&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;既定でインストール済&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;以下も参考にどうぞ&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/move-gpg-keyring/&#34;&gt;Windows 環境で作った GnuPG の鍵束を Ubuntu に移行する&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&#34;toc_4&#34;&gt;&lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; に任せて安心なパッケージ&lt;/h3&gt;
-
-&lt;p&gt;以下は何も考えずに &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; に任せても大丈夫だろう。
-不具合や脆弱性への対応はどうしても遅れるが今のところは許容範囲ということで。&lt;/p&gt;
-
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;製品名&lt;/th&gt;
-&lt;th&gt;パッケージ名&lt;/th&gt;
-&lt;th&gt;備考&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.mozilla.org/&#34; title=&#34;Internet for people, not profit — Mozilla&#34;&gt;Firefox&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;firefox&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;既定でインストール済&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.thunderbird.net/&#34; title=&#34;Thunderbird — Software made to make email easier. — Mozilla&#34;&gt;Thunderbird&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;thunderbird&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;既定でインストール済&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;ifconfig&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;net-tools&lt;/code&gt; &lt;sup class=&#34;footnote-ref&#34; id=&#34;fnref:nt1&#34;&gt;&lt;a href=&#34;#fn:nt1&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/td&gt;
-&lt;td&gt;何故か既定で入ってなかった&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://curl.haxx.se/&#34;&gt;curl&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;curl&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;何故か既定で入ってなかった&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;http://openjdk.java.net/&#34;&gt;OpenJDK&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;openjdk-12-jre&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;JRE のみの場合。バージョンごとにパッケージ名が異なるので注意（左は Java 12 の場合）&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;http://kdiff3.sourceforge.net/&#34;&gt;KDiff3&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;kdiff3&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.graphviz.org/&#34; title=&#34;Graphviz - Graph Visualization Software&#34;&gt;Graphviz&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;graphviz&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.vim.org/&#34;&gt;vim&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;vim&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;既定で入ってるのは &lt;code&gt;vim-tiny&lt;/code&gt; で &lt;code&gt;vim&lt;/code&gt; を入れると置き換わる&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://boinc.berkeley.edu/&#34;&gt;BOINC&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;boinc-client&lt;/code&gt;, &lt;code&gt;boinc-manager&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;クライアント側&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://keepass.info/&#34; title=&#34;KeePass Password Safe&#34;&gt;KeePass&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;keepass2&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;あらかじめ &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; がインストールされていること&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.mozilla.org/&#34; title=&#34;Internet for people, not profit — Mozilla&#34;&gt;Firefox&lt;/a&gt;, &lt;a href=&#34;https://www.thunderbird.net/&#34; title=&#34;Thunderbird — Software made to make email easier. — Mozilla&#34;&gt;Thunderbird&lt;/a&gt; については公式サイトで実行イメージがダウンロード可能になっていて，そちらを取ってきて使うこともできるが，完全に APT の管理を離れてしまい，かつ APT で管理されるバージョンと混在になってしまうので考えどころではある。
-&lt;a href=&#34;https://www.mozilla.org/firefox/developer/&#34;&gt;Firefox Developer Edition&lt;/a&gt; を使うなら混在もありかも。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_5&#34;&gt;その他&lt;/h3&gt;
-
-&lt;p&gt;依存関係とか導入手順とかが複雑で自前で管理するのが面倒くさい，て感じのパッケージ。&lt;/p&gt;
-
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;製品名&lt;/th&gt;
-&lt;th&gt;パッケージ名&lt;/th&gt;
-&lt;th&gt;備考&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://gcc.gnu.org/&#34; title=&#34;GCC, the GNU Compiler Collection - GNU Project - Free Software Foundation (FSF)&#34;&gt;GCC&lt;/a&gt; 等&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;build-essential&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;何故か 18.10 には既定で入ってなかった&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;CIFS Client&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;cifs-utils&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;導入方法は&lt;a href=&#34;https://text.baldanders.info/remark/2019/03/common-internet-file-system/&#34;&gt;拙文を参照&lt;/a&gt;のこと&lt;/td&gt;
-&lt;/tr&gt;
-
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.clamav.net/&#34; title=&#34;ClamavNet&#34;&gt;ClamAV&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;clamav&lt;/code&gt;, &lt;code&gt;clamav-daemon&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;導入方法は&lt;a href=&#34;https://text.baldanders.info/remark/2019/05/clamav-for-ubuntu/&#34;&gt;拙文を参照&lt;/a&gt;のこと&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h2 id=&#34;toc_6&#34;&gt;サードパーティ・リポジトリから &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; を使って管理するパッケージ&lt;/h2&gt;
-
-&lt;h3 id=&#34;toc_7&#34;&gt;&lt;a href=&#34;https://git-scm.com/&#34;&gt;Git&lt;/a&gt;&lt;/h3&gt;
-
-&lt;p&gt;公式リポジトリでも導入可能だが最新版が欲しかったので &lt;a href=&#34;https://launchpad.net/ubuntu/+ppas&#34; title=&#34;Personal Package Archives : Ubuntu&#34;&gt;PPA&lt;/a&gt; のリポジトリを使うことにした。
-詳しくは&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/install-git-from-ppa/&#34;&gt;PPA から Git をインストールする&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;を参照のこと。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_8&#34;&gt;&lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt;&lt;/h3&gt;
-
-&lt;p&gt;インストールにはサードパーティ・リポジトリの登録と署名検証用の公開鍵の取得が必要。
-詳しくは&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/mono-in-ubuntu/&#34;&gt;Ubuntu に Mono を導入する&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;を参照のこと。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_9&#34;&gt;&lt;a href=&#34;https://atom.io/&#34;&gt;ATOM&lt;/a&gt; エディタ&lt;/h3&gt;
-
-&lt;p&gt;インストールにはサードパーティ・リポジトリの登録と署名検証用の公開鍵の取得が必要。
-詳しくは&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/release/2019/05/atom-v1_37-released/&#34;&gt;ATOM v1.37 がリリースされた&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;で紹介している。&lt;/p&gt;
-
-&lt;p&gt;また deb ファイルを使って直接インストールすることも可能。
-詳しくは&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/atom-in-ubuntu/&#34;&gt;Ubuntu に ATOM エディタを導入する&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;を参照のこと。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_10&#34;&gt;deb ファイルを使って直接インストールする&lt;/h2&gt;
-
-&lt;p&gt;deb ファイルを使って直接インストールするには gdebi を使うのがオススメである。
-導入は &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; からできる。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install gdebi-core&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;これで&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo gdebi foo.deb&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;とすれば依存パッケージも含めてインストールしてくれる。
-内部で &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; のデータベースを使ってるのかな。&lt;/p&gt;
-
-&lt;p&gt;自前で導入する場合は最新バージョンに常に注意すること。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_11&#34;&gt;&lt;a href=&#34;https://gohugo.io/&#34; title=&#34;The world’s fastest framework for building websites | Hugo&#34;&gt;Hugo&lt;/a&gt;&lt;/h3&gt;
-
-&lt;p&gt;いや，シングルバイナリで依存関係も殆どないので deb ファイルからインストールする必然性は微塵もないのだが，どうも &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; からインストールできるパッケージが全く追従できてないみたいなので。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/gohugoio/hugo/releases&#34; title=&#34;Releases · gohugoio/hugo&#34;&gt;リリースページ&lt;/a&gt;から最新版の deb ファイルを取ってきてインストールすればよい。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo gdebi ./hugo_0.55.5_Linux-64bit.deb&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;h3 id=&#34;toc_12&#34;&gt;&lt;a href=&#34;https://www.libreoffice.org/&#34; title=&#34;LibreOffice - Free Office Suite - Fun Project - Fantastic People&#34;&gt;LibreOffice&lt;/a&gt;&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.libreoffice.org/&#34; title=&#34;LibreOffice - Free Office Suite - Fun Project - Fantastic People&#34;&gt;LibreOffice&lt;/a&gt; は公式ページにあるバージョンが無難なようである。
-詳しくは&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/05/installing-libreoffice-in-ubuntu/&#34;&gt;Ubuntu に LibreOffice をインストールする3つの方法&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&#34;toc_13&#34;&gt;ビルド済みバイナリを直接展開して導入する&lt;/h2&gt;
-
-&lt;p&gt;自前で導入する場合は最新バージョンに常に注意すること。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_14&#34;&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; コンパイラ&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; コンパイラ自体は &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; でも導入可能だが，お互いのリリースタイミングが悪いのか2世代もバージョンが古い。
-これでは使いものにならないので（&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; コンパイラの公式サポートは1世代前まで），&lt;a href=&#34;https://golang.org/dl/&#34; title=&#34;Downloads - The Go Programming Language&#34;&gt;ダウンロードページ&lt;/a&gt;から &lt;code&gt;go1.xx.x.linux-amd64.tar.gz&lt;/code&gt; ファイルを取ってきて任意の場所に展開して使う。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cd /usr/local/src
-$ sudo curl https://dl.google.com/go/go1.12.5.linux-amd64.tar.gz -O
-$ cd ..
-$ unlink go # 以前の Go が入っている場合
-$ sudo tar xvf src/go1.12.5.linux-amd64.tar.gz
-$ sudo mv go go1.12.5
-$ sudo ln -s go1.12.5 go
-$ ./go/bin/go version
-go version go1.12.5 linux/amd64&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code&gt;bin/&lt;/code&gt; ディレクトリにはパスを通しておけば大丈夫。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_15&#34;&gt;&lt;a href=&#34;https://filezilla-project.org/&#34; title=&#34;FileZilla - The free FTP solution&#34;&gt;FileZilla&lt;/a&gt;&lt;/h3&gt;
-
-&lt;p&gt;これも &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; で導入可能なのだが，だいぶバージョンが古いので，&lt;a href=&#34;https://filezilla-project.org/download.php&#34; title=&#34;Download FileZilla Client for Linux&#34;&gt;ダウンロードページ&lt;/a&gt;から取ってきたファイルを展開して使うことにする。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cd /usr/local/
-$ sudo tar xvf src/FileZilla_3.42.1_x86_64-linux-gnu.tar.bz2
-$ sudo chown -R root:root FileZilla3&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code&gt;chown&lt;/code&gt; でオーナーを変えるのを忘れないように。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_16&#34;&gt;&lt;a href=&#34;https://gitextensions.github.io/&#34; title=&#34;Git Extensions | Git Extensions is a graphical user interface for Git that allows you to control Git without using the commandline&#34;&gt;Git Extensions&lt;/a&gt;&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; がインストールされていることが前提。
-詳しくは&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/mono-in-ubuntu/&#34;&gt;Ubuntu に Mono を導入する&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;を参照のこと。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_17&#34;&gt;&lt;a href=&#34;http://www.tug.org/texlive/&#34; title=&#34;TeX Live - TeX Users Group&#34;&gt;TeX Live&lt;/a&gt;&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&#34;http://www.tug.org/texlive/&#34; title=&#34;TeX Live - TeX Users Group&#34;&gt;TeX Live&lt;/a&gt; に関しては（大量のパッケージがあるため）最新の環境が必要ないのであれば &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; を使うほうがオススメである。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ apt show texlive
-Package: texlive
-Version: 2018.20190227-1
-Priority: optional
-Section: universe/tex
-Source: texlive-base
-Origin: Ubuntu
-...&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;が，やっぱり最新の環境がほしいので手動でインストールすることにした。&lt;/p&gt;
-
-&lt;p&gt;手動でインストールする場合はインストーラ &lt;code&gt;install-tl&lt;/code&gt; を使う。
-&lt;a href=&#34;http://www.tug.org/texlive/&#34; title=&#34;TeX Live - TeX Users Group&#34;&gt;TeX Live&lt;/a&gt; 内の各パッケージの更新には tlmgr を使う。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo tlmgr update --self --all&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;詳しくは&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/install-texlive-in-ubuntu/&#34;&gt;TeX Live を Ubuntu に（&lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; を使わずに）導入する&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;を参照のこと。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_18&#34;&gt;ソースファイルから直接ビルドを行う&lt;/h2&gt;
-
-&lt;p&gt;自前で導入する場合は最新バージョンに常に注意すること。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_19&#34;&gt;&lt;a href=&#34;http://www.mew.org/~kazu/proj/pgpdump/&#34;&gt;pgpdump&lt;/a&gt; のビルド&lt;/h3&gt;
-
-&lt;p&gt;実は &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; で導入できるっぽいのだが，自作の &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gpgpdump&#34; title=&#34;spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer&#34;&gt;gpgpdump&lt;/a&gt; の動作確認用にリファレンス実装として最新版が必要なのよ。
-&lt;a href=&#34;https://gcc.gnu.org/&#34; title=&#34;GCC, the GNU Compiler Collection - GNU Project - Free Software Foundation (FSF)&#34;&gt;GCC&lt;/a&gt; 等のツールチェーンがあれば簡単にビルドできる。&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&#34;https://github.com/kazu-yamamoto/pgpdump&#34; title=&#34;kazu-yamamoto/pgpdump: A PGP packet visualizer&#34;&gt;リポジトリ&lt;/a&gt;からソースコードを取ってきて&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ ./configure 
-$ make&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;でビルドできる。
-なお圧縮パケットの解凍に bz2 が必要な場合は &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; でパッケージ &lt;code&gt;libbz2-dev&lt;/code&gt; をあらかじめインストールしておくこと。&lt;/p&gt;
-
-&lt;h3 id=&#34;toc_20&#34;&gt;git-credential-libsecret のビルド&lt;/h3&gt;
-
-&lt;p&gt;git-credential 用に git-credential-libsecret をビルドする。&lt;/p&gt;
-
-&lt;p&gt;libsecret 自体のインストールは &lt;a href=&#34;https://debian-handbook.info/browse/ja-JP/stable/apt.html&#34; title=&#34;第 6 章 メンテナンスと更新、APT ツール&#34;&gt;APT&lt;/a&gt; で行う。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install libsecret-1-dev libgnome-keyring-dev&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;これで展開されるソースコードを適当な場所にコピーしてビルドする。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cp -r /usr/share/doc/git/contrib/credential/libsecret ~/work
-$ cd ~/work/libsecret
-$ make
-gcc -g -O2 -Wall  -pthread -I/usr/include/libsecret-1 -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/uuid -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -o git-credential-libsecret.o -c git-credential-libsecret.c
-gcc -o git-credential-libsecret  git-credential-libsecret.o -lsecret-1 -lgio-2.0 -lgobject-2.0 -lglib-2.0&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;ビルドした git-credential-libsecret をパスの通ったディレクトリに入れれば完了。&lt;/p&gt;
-
-&lt;h2 id=&#34;toc_21&#34;&gt;ブックマーク&lt;/h2&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://usn.ubuntu.com/&#34;&gt;Ubuntu security notices&lt;/a&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://www.debian.org/security/&#34;&gt;Debian -- Security Information&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://linuxfan.info/package-management-ubuntu&#34;&gt;「apt-get」はもう古い？新しい「apt」コマンドを使ったUbuntuのパッケージ管理 | LFI&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://itsfoss.com/gdebi-default-ubuntu-software-center/&#34;&gt;Use GDebi for Quickly Installing DEB Packages in Ubuntu - It&#39;s FOSS&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://linuxfan.info/post-1881&#34;&gt;【Linux FAQ】.debファイルをダウンロードしたのですが、どうやってインストールすればいいですか？ | LFI&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;a href=&#34;https://wiki.documentfoundation.org/Documentation/Install/Linux&#34;&gt;Installing LibreOffice on Linux - The Document Foundation Wiki&lt;/a&gt;&lt;/p&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;div class=&#34;footnotes&#34;&gt;
-
-&lt;hr /&gt;
-
-&lt;ol&gt;
-&lt;li id=&#34;fn:sl1&#34;&gt;&lt;code&gt;/etc/apt/&lt;/code&gt; ディレクトリ以下のファイル群がそれ。このうち &lt;code&gt;sources.list&lt;/code&gt; が &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; 公式のパッケージ・リポジトリを定義したファイルである。またサードパーティのリポジトリは &lt;code&gt;/etc/apt/sources.list.d/&lt;/code&gt; ディレクトリに &lt;code&gt;*.list&lt;/code&gt; ファイルで設定可能である。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:sl1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;li id=&#34;fn:nt1&#34;&gt;パッケージ &lt;code&gt;net-tools&lt;/code&gt; をインストールすると ifconfig のほかに arp, netstat, rarp, nameif, route といったツールがインストールされる。
- &lt;a class=&#34;footnote-return&#34; href=&#34;#fnref:nt1&#34;&gt;&lt;sup&gt;[return]&lt;/sup&gt;&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
 &lt;/div&gt;
 </content>
 	</entry>
