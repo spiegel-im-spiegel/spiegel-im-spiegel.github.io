@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.55.6" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="canonical" href="https://text.baldanders.info/remark/2019/07/openpgp-certificate-flooding/">
+<script defer src="https://use.fontawesome.com/releases/v5.8.2/js/all.js" integrity="sha384-DJ25uNYET2XCl5ZF++U8eNxPWqcKohUUBUpKGlNLMchM7q4Wjg2CUpjHLaL8yYPH" crossorigin="anonymous"></script>
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//api.baldanders.info/fonts/NotoSerifJP.css' type='text/css'>
+<link rel="stylesheet" href="/css/main.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info.css" type='text/css'>
+<link rel="stylesheet" href="/css/chroma-styles.css">
+
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<title>OpenPGP 公開鍵サーバにおける公開鍵の汚染問題 — しっぽのさきっちょ | text.Baldanders.info</title>
+<meta property="og:title" content="OpenPGP 公開鍵サーバにおける公開鍵の汚染問題 — しっぽのさきっちょ | text.Baldanders.info">
+<meta name="description" content="新しい OpenPGP 公開鍵サーバや Autocrypt について調査したほうがいいかしらん。">
+<meta property="og:description" content="新しい OpenPGP 公開鍵サーバや Autocrypt について調査したほうがいいかしらん。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/openpgp.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="keywords" content="openpgp, pki, security, risk, pgpdump, gpgpdump">
+<link rel='prev' href='https://text.baldanders.info/remark/2019/07/site-renewal/' title='本家サイトをリニューアルしました' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/remark/",
+	"url": "https://text.baldanders.info/remark/",
+	"inLanguage": "ja",
+	"name": "しっぽのさきっちょ",
+	"description": "帰ってきた「しっぽのさきっちょ」。とりとめのない四方山話。",
+	"image": "https://text.baldanders.info/images/attention/remark.jpg",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/remark/2019/07/openpgp-certificate-flooding/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/remark/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/remark/2019/07/openpgp-certificate-flooding/",
+	"url": "https://text.baldanders.info/remark/2019/07/openpgp-certificate-flooding/",
+	"mainEntityOfPage": "https://text.baldanders.info/remark/2019/07/openpgp-certificate-flooding/",
+	"inLanguage": "ja",
+	"name": "OpenPGP 公開鍵サーバにおける公開鍵の汚染問題",
+	"description": "新しい OpenPGP 公開鍵サーバや Autocrypt について調査したほうがいいかしらん。",
+	"headline": "新しい OpenPGP 公開鍵サーバや Autocrypt について調査したほうがいいかしらん。",
+	"keywords": "openpgp, pki, security, risk, pgpdump, gpgpdump",
+	"image": "https://text.baldanders.info/images/attention/openpgp.png",
+	"datePublished": "2019-07-05T14:46:33+00:00",
+	"dateModified": "2019-07-05T14:47:15+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/remark/">しっぽのさきっちょ</a>
+</nav>
+<article>
+<h1>OpenPGP 公開鍵サーバにおける公開鍵の汚染問題</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/gpgpdump/">gpgpdump</a> #<a href="/tags/openpgp/">openpgp</a> #<a href="/tags/pgpdump/">pgpdump</a> #<a href="/tags/pki/">pki</a> #<a href="/tags/risk/">risk</a> #<a href="/tags/security/">security</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-alt"></i></span>&nbsp;:&nbsp;
+		<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fremark%2f2019%2f07%2fopenpgp-certificate-flooding%2f" target="_blank"><span class="facebook-color"><i class="fab fa-facebook-square" aria-hidden="true"></i></span></a>
+		<a href="http://twitter.com/share?text=OpenPGP%20%e5%85%ac%e9%96%8b%e9%8d%b5%e3%82%b5%e3%83%bc%e3%83%90%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%e5%85%ac%e9%96%8b%e9%8d%b5%e3%81%ae%e6%b1%9a%e6%9f%93%e5%95%8f%e9%a1%8c+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fremark%2f2019%2f07%2fopenpgp-certificate-flooding%2f" target="_blank"><span class="twitter-color"><i class="fab fa-twitter-square" aria-hidden="true"></i></span></a>
+		<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fremark%2f2019%2f07%2fopenpgp-certificate-flooding%2f&amp;title=OpenPGP%20%e5%85%ac%e9%96%8b%e9%8d%b5%e3%82%b5%e3%83%bc%e3%83%90%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%e5%85%ac%e9%96%8b%e9%8d%b5%e3%81%ae%e6%b1%9a%e6%9f%93%e5%95%8f%e9%a1%8c" target="_blank"><span class="pocket-color"><i class="fab fa-get-pocket" aria-hidden="true"></i></span></a>
+		
+	</div>
+</nav>
+<nav class="history">
+	<a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2019/07/openpgp-certificate-flooding/index.html">History</a>
+</nav>
+
+<section><div>
+<div class="noextension">
+<a href="/remark/2018/11/copyright-law-is-revised/" title="年末年始に施行される改正著作権法に関する覚え書き"><img src="/images/noextension.png" alt="no extension" width="165" height="50" /></a>
+</div>
+
+
+<p>7pay のセキュリティ事故があまりにバカすぎるのでブログネタにしてやろうかと思っていたが，個人的にもっと重大な案件が出てきたので，先にこちらの話を書くことにする。</p>
+
+<ul>
+<li><a href="https://japan.zdnet.com/article/35139514/">PGPのSKSキーサーバーネットワークへの証明書ポイズニング--攻撃を受け開発者らが警鐘 - ZDNet Japan</a></li>
+</ul>
+
+<p>かなりヤバいというか「ついにやっちゃったか」って感じの話なのだが，記事の後半に書かれている</p>
+
+<figure>
+<blockquote>
+<q>キーサーバーはPGPと、PGPプロトコルにおけるユーザー認証の要となるコンポーネントだ</q>
+</blockquote>
+<figcaption>via <q><a href="https://japan.zdnet.com/article/35139514/">PGPのSKSキーサーバーネットワークへの証明書ポイズニング--攻撃を受け開発者らが警鐘</a></q></figcaption>
+</figure>
+
+<p>というのはかなり言い過ぎである。</p>
+
+<p>というのも，そもそも <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> の元祖である <a href="https://tools.ietf.org/html/rfc1991" title="RFC 1991 - PGP Message Exchange Formats">PGP</a> は必ずしも公開鍵サーバを要件としていたわけではなく（<a href="https://www.amazon.co.jp/exec/obidos/ASIN/4900900028/baldandersinf-22/">PGP 本</a>を読めば分かるが，当時はフロッピー運用とか当たり前の時代だった），後継である <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> においてもそのコンセプトが踏襲されているからだ。
+<a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> の信用モデル（web of trust; 信用の輪）については拙文ながら以下を参考にしてほしい。</p>
+
+<ul>
+<li><a href="https://text.baldanders.info/openpgp/openpgp-key-management/">OpenPGP 鍵管理に関する考察 — OpenPGP の実装 | text.Baldanders.info</a></li>
+</ul>
+
+<p>この信用モデルの下では</p>
+
+<ul>
+<li>多くの電子署名が集まっていること</li>
+<li>同じ鍵が永続的に使われ続けていること</li>
+</ul>
+
+<p>が鍵の信用を高める条件となっている<sup class="footnote-ref" id="fnref:pki1"><a href="#fn:pki1">1</a></sup>。
+<a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵サーバにおいて鍵や署名の追記しかできないのにはちゃんと理由があるのだ。</p>
+
+<p>とは言え <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵サーバが鍵運用において大きなウエイトを占めているのは間違いないことで，鍵の所有者が（電子署名や鍵そのものの削除を含めて）制御できないというのはちょっと，いやだいぶ困った事態となっているのも確かである。</p>
+
+<p>たとえば APT などのパッケージ管理ツールでは，パッケージへの電子署名に <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵を使うが，鍵のインポートの際に公開鍵サーバを利用するようだ。</p>
+
+<p>この前紹介した <a href="https://text.baldanders.info/remark/2019/04/mono-in-ubuntu/" title="Ubuntu に Mono を導入する
+">Mono のインストール</a>でも</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF</code></pre></div>
+<p>といった感じで鍵サーバから公開鍵をインポートしている<sup class="footnote-ref" id="fnref:gpg1"><a href="#fn:gpg1">2</a></sup>。</p>
+
+<p>なので，鍵サーバに登録されている公開鍵が汚染されている（可能性がある）というのは拙いのである。</p>
+
+<h2 id="toc_0">回避策1： <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵サーバを使わない</h2>
+
+<p>今回のリスクを確実に回避したいのであれば <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵サーバを使わないのが手っ取り早い。
+以下のように，いったんテキストデータとして吐き出して</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ gpg -a --export alice@example.com
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQENBFofiskBCADjUvPHA3PNscg0K74/Uwxj46+oLsyIy7fYIp/4C4dHejcbbPjx
+VFeic9wQ4aQFp3VKjYgONgQrRo/9p40Ei1+PtMAV7D6Oy6dxlV8zyCJcSf74ahpB
+B15GyA7v4uvTf0Py+Ujyt241ik0fXeLEuwt7p4SIbgJnQs1Fb+61wo8UcCFOLJO5
+An6HjXNgNs6fFoiTad+T4PfaTbRHLfFPkoqmDUKWy40hjWl+Ui0QborXH+PUeUm9
+vgHbqZzS0QRDGI7rO9AeJ6LweBkP1A2qbDLyexS/F+WUEcY0b76IQM5XH0txwnnl
+uCPYcQfIGWce3US1GWJhChF9s/bMGVXOEJbvABEBAAG0GUFsaWNlIDxhbGljZUBl
+eGFtcGxlLmNvbT6JAVQEEwEIAD4CGwMFCwkIBwIGFQgJCgsCBBYCAwECHgECF4AW
+IQR5/SuZ88YtLTuFC7yTs1CUdYINXQUCWh+LMAUJA8JnZwAKCRCTs1CUdYINXcKT
+B/4tLFaPRe289GcX91yLJ/yPS0JvvJKyZzjpNqLbKHuQHPEqGromMGlP4LcaGdFL
+rVZ36W3kVk+75q8JFkld0eRS22vftjz6lA9lyb3W9lU1CayF5s3IsC/Ehj55uaHc
+OHnp6rl7zEeIdvca6yV0gwySs3j9VPHy58zNrpN/clHoB4Zozy6vCXFMShyLc/wF
+brPySf/5LP/642Uro92M2lbkIvZpDhZCVG7s7Ilz3BzsTTNMPkPd5yvdGa5lHQzK
+OmXHaxydOYbEWBgqRGqzEIIoLbEd8KHxJVIVDfcAQCjSWRUjAUSDLpBokGsKoQfp
+41NjWwjkIsfyJ2tDUeRPGYRbuQENBFofiskBCACzyYfIB+/ZwJBJXw7WMDlEKdnz
+L4abwVpw9rBGAWGXjaC/cu7l0svNilXyTgZNq4uKddJ6aYjs7of0SaBl20I8aj5G
+nbw0pG+KkoYhfpZaAZc+bcb+6SprSbAsRhrZ810XNIBUMa8XWsUDn1uv70vGBWBv
+keKZZ7FJ4kuQe0nTONmvQ4EwFekV+IXT5LwdgmPWF0QR7cO8jqeb6psHYauktuzZ
+2ul4nMLmLLf/m4DwiCAbEdToBXqRA30KshtgBYYQwL1YkWYgknnAdhHyeu6ybJvv
+Y57JYzotjFOlnFhtcGITESEWv+pnj0RJUUrlVwLkJhUOKMwL+sbhw0s5+m27ABEB
+AAGJATwEGAEIACYCGwwWIQR5/SuZ88YtLTuFC7yTs1CUdYINXQUCWh+LhAUJA8Jn
+uwAKCRCTs1CUdYINXXuvB/9IKK3SLgJ6lOc2Vq73rGYsrDqfjYt5rCDXhjIaFRE7
+LYmFJcGL5CHJTae438XtAixa+mu6PYG28eknjZs58Cx/bSj9uS6NiLAPCgyTAtvg
+ao6usECOm9Y0xf2+ZcZ9Uji+wsCAFmxRC9je0yUErVyuyQRqzNtdqytnszoTzvb9
+iOP8sX/YNrjC83BtZ4Vg3fzAu8qvwbObgSbws5M8TBwIKd4WFTjOtSU6F8aioJ1g
+mpfd8KGljHkzC0oG8l8fZiTNYqkIMbfyfPpVwsSqsysLKofifFT+mNs79DJdqNFO
+HA2W4WzekYmWWmgK7J8kXHYkxUJA6VpSmNAKwUKqXbNV
+=hneF
+-----END PGP PUBLIC KEY BLOCK-----</code></pre></div>
+<p>このテキストデータで運用すればいいのだ。</p>
+
+<p>たとえば私の公開鍵は<a href="https://baldanders.info/pubkeys/" title="OpenPGP 公開鍵リスト | Baldanders.info">本家サイトで公開している</a>が</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ gpg --fetch-keys https://baldanders.info/pubkeys/spiegel.asc</code></pre></div>
+<p>とすれば簡単に鍵束にインポートできる。</p>
+
+<p>メールの暗号化や署名検証については <a href="https://autocrypt.org/" title="Autocrypt 1.1.0 documentation">Autocrypt</a> のような仕組みを使えば鍵サーバを経由せずに鍵のやりとりができるらしい（実はよく知らない）。
+ちなみに Thunderbird の <a href="https://addons.thunderbird.net/thunderbird/addon/enigmail/">Enigmail</a> は <a href="https://autocrypt.org/" title="Autocrypt 1.1.0 documentation">Autocrypt</a> に対応している。</p>
+
+<p><a href="https://autocrypt.org/" title="Autocrypt 1.1.0 documentation">Autocrypt</a> についてはちゃんと調べていつか記事にする予定である。</p>
+
+<h2 id="toc_1">回避策2： <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵サーバ上の公開鍵をいきなりインポートしない</h2>
+
+<p>APT のように <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵サーバを使った鍵運用が必須の場合でも，いきなり鍵束にインポートするのではなく，事前に公開鍵をチェックして問題がないか調べたほうがよさそうである。</p>
+
+<p>公開鍵をチェックするのであれば <a href="https://github.com/kazu-yamamoto/pgpdump" title="kazu-yamamoto/pgpdump: A PGP packet visualizer">pgpdump</a> か（手前味噌でナニだが）その <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>版である <a href="https://github.com/spiegel-im-spiegel/gpgpdump" title="spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer">gpgpdump</a> を使うことをオススメする。</p>
+
+<p>先ほどの</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF</code></pre></div>
+<p>であれば</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ wget -O - &#34;http://keyserver.ubuntu.com/pks/lookup?search=0x3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF&amp;op=get&#34;</code></pre></div>
+<p>とすればテキスト形式でダウンロードできるので，をれを <a href="https://github.com/spiegel-im-spiegel/gpgpdump" title="spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer">gpgpdump</a> に食わせれば</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ wget -O - &#34;http://keyserver.ubuntu.com/pks/lookup?search=0x3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF&amp;op=get&#34; | gpgpdump
+Public-Key Packet (tag 6) (269 bytes)
+	Version: 4 (current)
+	Public key creation time: 2014-08-05T00:35:03+09:00
+		53 df a8 27
+	Public-key Algorithm: RSA (Encrypt or Sign) (pub 1)
+	RSA public modulus n (2048 bits)
+	RSA public encryption exponent e (17 bits)
+User ID Packet (tag 13) (58 bytes)
+	User ID: Xamarin Public Jenkins (auto-signing) &lt;releng@xamarin.com&gt;
+Signature Packet (tag 2) (284 bytes)
+	Version: 4 (current)
+	Signiture Type: Generic certification of a User ID and Public-Key packet (0x10)
+	Public-key Algorithm: RSA (Encrypt or Sign) (pub 1)
+	Hash Algorithm: SHA-1 (hash 2)
+	Hashed Subpacket (6 bytes)
+		Signature Creation Time (sub 2): 2014-09-05T00:26:28+09:00
+	Unhashed Subpacket (10 bytes)
+		Issuer (sub 16): 0xc90f9cb90e1fad0c
+	Hash left 2 bytes
+		9c d7
+	RSA signature value m^d mod n (2046 bits)
+Signature Packet (tag 2) (284 bytes)
+	Version: 4 (current)
+	Signiture Type: Generic certification of a User ID and Public-Key packet (0x10)
+	Public-key Algorithm: RSA (Encrypt or Sign) (pub 1)
+	Hash Algorithm: SHA2-256 (hash 8)
+	Hashed Subpacket (6 bytes)
+		Signature Creation Time (sub 2): 2016-12-11T10:14:48+09:00
+	Unhashed Subpacket (10 bytes)
+		Issuer (sub 16): 0x01150a655bbd8102
+	Hash left 2 bytes
+		7f cf
+	RSA signature value m^d mod n (2048 bits)
+Signature Packet (tag 2) (312 bytes)
+	Version: 4 (current)
+	Signiture Type: Positive certification of a User ID and Public-Key packet (0x13)
+	Public-key Algorithm: RSA (Encrypt or Sign) (pub 1)
+	Hash Algorithm: SHA-1 (hash 2)
+	Hashed Subpacket (34 bytes)
+		Signature Creation Time (sub 2): 2014-08-05T00:35:03+09:00
+		Key Flags (sub 27) (1 bytes)
+			Flag: This key may be used to certify other keys.
+			Flag: This key may be used to sign data.
+		Preferred Symmetric Algorithms (sub 11) (5 bytes)
+			Symmetric Algorithm: AES with 256-bit key (sym 9)
+			Symmetric Algorithm: AES with 192-bit key (sym 8)
+			Symmetric Algorithm: AES with 128-bit key (sym 7)
+			Symmetric Algorithm: CAST5 (128 bit key, as per) (sym 3)
+			Symmetric Algorithm: TripleDES (168 bit key derived from 192) (sym 2)
+		Preferred Hash Algorithms (sub 21) (5 bytes)
+			Hash Algorithm: SHA2-256 (hash 8)
+			Hash Algorithm: SHA-1 (hash 2)
+			Hash Algorithm: SHA2-384 (hash 9)
+			Hash Algorithm: SHA2-512 (hash 10)
+			Hash Algorithm: SHA2-224 (hash 11)
+		Preferred Compression Algorithms (sub 22) (3 bytes)
+			Compression Algorithm: ZLIB &lt;RFC1950&gt; (comp 2)
+			Compression Algorithm: BZip2 (comp 3)
+			Compression Algorithm: ZIP &lt;RFC1951&gt; (comp 1)
+		Features (sub 30) (1 bytes)
+			Flag: Modification Detection (packets 18 and 19)
+		Key Server Preferences (sub 23) (1 bytes)
+			Flag: No-modify
+	Unhashed Subpacket (10 bytes)
+		Issuer (sub 16): 0xa6a19b38d3d831ef
+	Hash left 2 bytes
+		90 e8
+	RSA signature value m^d mod n (2047 bits)
+Public-Subkey Packet (tag 14) (269 bytes)
+	Version: 4 (current)
+	Public key creation time: 2014-08-05T00:35:03+09:00
+		53 df a8 27
+	Public-key Algorithm: RSA (Encrypt or Sign) (pub 1)
+	RSA public modulus n (2048 bits)
+	RSA public encryption exponent e (17 bits)
+Signature Packet (tag 2) (287 bytes)
+	Version: 4 (current)
+	Signiture Type: Subkey Binding Signature (0x18)
+	Public-key Algorithm: RSA (Encrypt or Sign) (pub 1)
+	Hash Algorithm: SHA-1 (hash 2)
+	Hashed Subpacket (9 bytes)
+		Signature Creation Time (sub 2): 2014-08-05T00:35:03+09:00
+		Key Flags (sub 27) (1 bytes)
+			Flag: This key may be used to encrypt communications.
+			Flag: This key may be used to encrypt storage.
+	Unhashed Subpacket (10 bytes)
+		Issuer (sub 16): 0xa6a19b38d3d831ef
+	Hash left 2 bytes
+		ac 35
+	RSA signature value m^d mod n (2048 bits)</code></pre></div>
+<p>と公開鍵の中身をダンプ表示できる。
+ちなみに <a href="https://github.com/spiegel-im-spiegel/gpgpdump" title="spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer">gpgpdump</a> は <code>-j</code> オプションを使って JSON 形式で出力できるので</p>
+<div class="highlight"><pre class="chroma"><code class="language-json" data-lang="json"><span class="err">$</span> <span class="err">wget</span> <span class="err">-O</span> <span class="err">-</span> <span class="s2">&#34;http://keyserver.ubuntu.com/pks/lookup?search=0x3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF&amp;op=get&#34;</span> <span class="err">|</span> <span class="err">gpgpdump</span> <span class="err">-j</span> <span class="err">|</span> <span class="err">jq</span> <span class="err">.</span>
+<span class="p">{</span>
+  <span class="nt">&#34;Packet&#34;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-Key Packet (tag 6)&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;269 bytes&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Version&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;4&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;current&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public key creation time&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;2014-08-05T00:35:03+09:00&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;dump&#34;</span><span class="p">:</span> <span class="s2">&#34;53 df a8 27&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-key Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA (Encrypt or Sign) (pub 1)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA public modulus n&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;2048 bits&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA public encryption exponent e&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;17 bits&#34;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;User ID Packet (tag 13)&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;58 bytes&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;User ID&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;Xamarin Public Jenkins (auto-signing) &lt;releng@xamarin.com&gt;&#34;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Packet (tag 2)&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;284 bytes&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Version&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;4&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;current&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signiture Type&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;Generic certification of a User ID and Public-Key packet (0x10)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-key Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA (Encrypt or Sign) (pub 1)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA-1 (hash 2)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;6 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Creation Time (sub 2)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;2014-09-05T00:26:28+09:00&#34;</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Unhashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;10 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Issuer (sub 16)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;0xc90f9cb90e1fad0c&#34;</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash left 2 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;dump&#34;</span><span class="p">:</span> <span class="s2">&#34;9c d7&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA signature value m^d mod n&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;2046 bits&#34;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Packet (tag 2)&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;284 bytes&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Version&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;4&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;current&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signiture Type&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;Generic certification of a User ID and Public-Key packet (0x10)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-key Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA (Encrypt or Sign) (pub 1)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA2-256 (hash 8)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;6 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Creation Time (sub 2)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;2016-12-11T10:14:48+09:00&#34;</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Unhashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;10 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Issuer (sub 16)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;0x01150a655bbd8102&#34;</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash left 2 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;dump&#34;</span><span class="p">:</span> <span class="s2">&#34;7f cf&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA signature value m^d mod n&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;2048 bits&#34;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Packet (tag 2)&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;312 bytes&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Version&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;4&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;current&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signiture Type&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;Positive certification of a User ID and Public-Key packet (0x13)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-key Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA (Encrypt or Sign) (pub 1)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA-1 (hash 2)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;34 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Creation Time (sub 2)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;2014-08-05T00:35:03+09:00&#34;</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Key Flags (sub 27)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;1 bytes&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Flag&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;This key may be used to certify other keys.&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Flag&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;This key may be used to sign data.&#34;</span>
+                <span class="p">}</span>
+              <span class="p">]</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Preferred Symmetric Algorithms (sub 11)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;5 bytes&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Symmetric Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;AES with 256-bit key (sym 9)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Symmetric Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;AES with 192-bit key (sym 8)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Symmetric Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;AES with 128-bit key (sym 7)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Symmetric Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;CAST5 (128 bit key, as per) (sym 3)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Symmetric Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;TripleDES (168 bit key derived from 192) (sym 2)&#34;</span>
+                <span class="p">}</span>
+              <span class="p">]</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Preferred Hash Algorithms (sub 21)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;5 bytes&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA2-256 (hash 8)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA-1 (hash 2)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA2-384 (hash 9)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA2-512 (hash 10)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA2-224 (hash 11)&#34;</span>
+                <span class="p">}</span>
+              <span class="p">]</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Preferred Compression Algorithms (sub 22)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;3 bytes&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Compression Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;ZLIB &lt;RFC1950&gt; (comp 2)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Compression Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;BZip2 (comp 3)&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Compression Algorithm&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;ZIP &lt;RFC1951&gt; (comp 1)&#34;</span>
+                <span class="p">}</span>
+              <span class="p">]</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Features (sub 30)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;1 bytes&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Flag&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;Modification Detection (packets 18 and 19)&#34;</span>
+                <span class="p">}</span>
+              <span class="p">]</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Key Server Preferences (sub 23)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;1 bytes&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Flag&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;No-modify&#34;</span>
+                <span class="p">}</span>
+              <span class="p">]</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Unhashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;10 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Issuer (sub 16)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;0xa6a19b38d3d831ef&#34;</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash left 2 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;dump&#34;</span><span class="p">:</span> <span class="s2">&#34;90 e8&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA signature value m^d mod n&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;2047 bits&#34;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-Subkey Packet (tag 14)&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;269 bytes&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Version&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;4&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;current&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public key creation time&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;2014-08-05T00:35:03+09:00&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;dump&#34;</span><span class="p">:</span> <span class="s2">&#34;53 df a8 27&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-key Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA (Encrypt or Sign) (pub 1)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA public modulus n&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;2048 bits&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA public encryption exponent e&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;17 bits&#34;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Packet (tag 2)&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;287 bytes&#34;</span><span class="p">,</span>
+      <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Version&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;4&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;current&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signiture Type&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;Subkey Binding Signature (0x18)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Public-key Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA (Encrypt or Sign) (pub 1)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash Algorithm&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;SHA-1 (hash 2)&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;9 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Signature Creation Time (sub 2)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;2014-08-05T00:35:03+09:00&#34;</span>
+            <span class="p">},</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Key Flags (sub 27)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;1 bytes&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Flag&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;This key may be used to encrypt communications.&#34;</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Flag&#34;</span><span class="p">,</span>
+                  <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;This key may be used to encrypt storage.&#34;</span>
+                <span class="p">}</span>
+              <span class="p">]</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Unhashed Subpacket&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;10 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;Item&#34;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Issuer (sub 16)&#34;</span><span class="p">,</span>
+              <span class="nt">&#34;value&#34;</span><span class="p">:</span> <span class="s2">&#34;0xa6a19b38d3d831ef&#34;</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;Hash left 2 bytes&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;dump&#34;</span><span class="p">:</span> <span class="s2">&#34;ac 35&#34;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;RSA signature value m^d mod n&#34;</span><span class="p">,</span>
+          <span class="nt">&#34;note&#34;</span><span class="p">:</span> <span class="s2">&#34;2048 bits&#34;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span></code></pre></div>
+<p>てなこともできる（自画自賛<code>w</code>）。</p>
+
+<p>これなら最悪でも <a href="https://github.com/spiegel-im-spiegel/gpgpdump" title="spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer">gpgpdump</a> がコケるだけなので <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> の鍵束にはダメージがいかないだろう。</p>
+
+<h2 id="toc_2">新しい keys.openpgp.org を使う</h2>
+
+<p>今後の話になるだろうが，新しい <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵サーバが登場したので，公開鍵の運用をそちらに移行する手もある。</p>
+
+<ul>
+<li><a href="https://text.baldanders.info/remark/2019/06/launching-a-new-openpgp-key-server/">新しい OpenPGP 鍵サーバが Launch したらしい</a></li>
+</ul>
+
+<p>「まだベータ運用だし，しばらくは様子見かなぁ」と思っていたが，ちょっと前倒しして調査したほうがいいかしらん。
+先ほどの <a href="https://autocrypt.org/" title="Autocrypt 1.1.0 documentation">Autocrypt</a> の調査も併せて色々調べてみるつもりである。</p>
+
+<h2 id="toc_3">ブックマーク</h2>
+
+<ul>
+<li><a href="https://www.vice.com/en_us/article/8xzj45/someone-is-spamming-and-breaking-a-core-component-of-pgps-ecosystem">Someone Is Spamming and Breaking a Core Component of PGP’s Ecosystem - VICE</a></li>
+<li><a href="https://gist.github.com/rjhansen/67ab921ffb4084c865b3618d6955275f">SKS Keyserver Network Under Attack · GitHub</a></li>
+
+<li><p><a href="https://dkg.fifthhorseman.net/blog/openpgp-certificate-flooding.html">dkg's blog - OpenPGP Certificate Flooding</a></p></li>
+
+<li><p><a href="https://text.baldanders.info/openpgp/gnupg-cheat-sheet/">GnuPG チートシート（鍵作成から失効まで）</a></p></li>
+</ul>
+
+<h2 id="toc_4">参考図書</h2>
+
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/PGP%E2%80%95%E6%9A%97%E5%8F%B7%E3%83%A1%E3%83%BC%E3%83%AB%E3%81%A8%E9%9B%BB%E5%AD%90%E7%BD%B2%E5%90%8D-%E3%82%B7%E3%83%A0%E3%82%BD%E3%83%B3-%E3%82%AC%E3%83%BC%E3%83%95%E3%82%A3%E3%83%B3%E3%82%B1%E3%83%AB/dp/4900900028?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&tag=baldandersinf-22&linkCode=xm2&camp=2025&creative=165953&creativeASIN=4900900028"><img src="https://images-fe.ssl-images-amazon.com/images/I/5132396FFQL._SL160_.jpg" width="124" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/PGP%E2%80%95%E6%9A%97%E5%8F%B7%E3%83%A1%E3%83%BC%E3%83%AB%E3%81%A8%E9%9B%BB%E5%AD%90%E7%BD%B2%E5%90%8D-%E3%82%B7%E3%83%A0%E3%82%BD%E3%83%B3-%E3%82%AC%E3%83%BC%E3%83%95%E3%82%A3%E3%83%B3%E3%82%B1%E3%83%AB/dp/4900900028?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&tag=baldandersinf-22&linkCode=xm2&camp=2025&creative=165953&creativeASIN=4900900028">PGP―暗号メールと電子署名</a></dt>
+    <dd>シムソン ガーフィンケル</dd>
+    <dd>Simson Garfinkel (原著), ユニテック (翻訳)</dd>
+    <dd>オライリー・ジャパン 1996-04</dd>
+    <dd>Book 単行本</dd>
+    <dd>ASIN: 4900900028, EAN: 9784900900028</dd>
+    <dd>評価<abbr class="rating fa-sm" title="3">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">良書なのだが，残念ながら内容が古すぎた。 PGP の歴史資料として読むならいいかもしれない。</p>
+  <p class="powered-by" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2014-10-16">2014-10-16</abbr> (powered by <a href="https://github.com/spiegel-im-spiegel/amazon-item" >amazon-item</a> v0.2.0)</p>
+</div>
+
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/%E6%9A%97%E5%8F%B7%E6%8A%80%E8%A1%93%E5%85%A5%E9%96%80-%E7%AC%AC3%E7%89%88-%E7%A7%98%E5%AF%86%E3%81%AE%E5%9B%BD%E3%81%AE%E3%82%A2%E3%83%AA%E3%82%B9-%E7%B5%90%E5%9F%8E-%E6%B5%A9-ebook/dp/B015643CPE?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&tag=baldandersinf-22&linkCode=xm2&camp=2025&creative=165953&creativeASIN=B015643CPE"><img src="https://images-fe.ssl-images-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg" width="113" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/%E6%9A%97%E5%8F%B7%E6%8A%80%E8%A1%93%E5%85%A5%E9%96%80-%E7%AC%AC3%E7%89%88-%E7%A7%98%E5%AF%86%E3%81%AE%E5%9B%BD%E3%81%AE%E3%82%A2%E3%83%AA%E3%82%B9-%E7%B5%90%E5%9F%8E-%E6%B5%A9-ebook/dp/B015643CPE?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&tag=baldandersinf-22&linkCode=xm2&camp=2025&creative=165953&creativeASIN=B015643CPE">暗号技術入門 第3版　秘密の国のアリス</a></dt>
+    <dd>結城 浩</dd>
+    <dd>SBクリエイティブ 2015-08-25 (Release 2015-09-17)</dd>
+    <dd>eBooks Kindle版</dd>
+    <dd>ASIN: B015643CPE</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。</p>
+  <p class="powered-by" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-09-20">2015-09-20</abbr> (powered by <a href="https://github.com/spiegel-im-spiegel/amazon-item" >amazon-item</a> v0.2.0)</p>
+</div>
+
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/%E6%9A%97%E5%8F%B7%E5%8C%96-%E3%83%97%E3%83%A9%E3%82%A4%E3%83%90%E3%82%B7%E3%83%BC%E3%82%92%E6%95%91%E3%81%A3%E3%81%9F%E5%8F%8D%E4%B9%B1%E8%80%85%E3%81%9F%E3%81%A1-%E3%82%B9%E3%83%86%E3%82%A3%E3%83%BC%E3%83%96%E3%83%B3%E3%83%BB%E3%83%AC%E3%83%93%E3%83%BC/dp/4314009071?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&tag=baldandersinf-22&linkCode=xm2&camp=2025&creative=165953&creativeASIN=4314009071"><img src="https://images-fe.ssl-images-amazon.com/images/I/51ZRZ62WKCL._SL160_.jpg" width="108" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/%E6%9A%97%E5%8F%B7%E5%8C%96-%E3%83%97%E3%83%A9%E3%82%A4%E3%83%90%E3%82%B7%E3%83%BC%E3%82%92%E6%95%91%E3%81%A3%E3%81%9F%E5%8F%8D%E4%B9%B1%E8%80%85%E3%81%9F%E3%81%A1-%E3%82%B9%E3%83%86%E3%82%A3%E3%83%BC%E3%83%96%E3%83%B3%E3%83%BB%E3%83%AC%E3%83%93%E3%83%BC/dp/4314009071?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&tag=baldandersinf-22&linkCode=xm2&camp=2025&creative=165953&creativeASIN=4314009071">暗号化 プライバシーを救った反乱者たち</a></dt>
+    <dd>スティーブン・レビー</dd>
+    <dd>斉藤 隆央 (翻訳)</dd>
+    <dd>紀伊國屋書店 2002-02-16</dd>
+    <dd>Book 単行本</dd>
+    <dd>ASIN: 4314009071, EAN: 9784314009072</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！</p>
+  <p class="powered-by" >reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2018-12-16">2018-12-16</abbr> (powered by <a href="https://github.com/spiegel-im-spiegel/amazon-item" >amazon-item</a> v0.2.0)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:pki1">そういう意味で <a href="http://tools.ietf.org/html/rfc4880" title="RFC 4880 - OpenPGP Message Format">OpenPGP</a> 公開鍵への電子署名は厳密な「証明（certification）」というよりは小切手の裏書きのようなものを連想してもらうのがいいだろう。つまり今回の「公開鍵の汚染問題」は「裏書き spam」と考えると分かりやすい。
+ <a class="footnote-return" href="#fnref:pki1"><sup>[return]</sup></a></li>
+<li id="fn:gpg1">ちなみに <code>--keyserver</code> とか <code>--recv-keys</code> とかは <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> のオプションである。おそらくこれらのオプションをそのまま <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> に引き渡しているのだろう。
+ <a class="footnote-return" href="#fnref:gpg1"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2019/07/site-renewal/">本家サイトをリニューアルしました</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2019-07-05</time>
+		
+	<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+
+		<ul class="social">
+	<li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li>
+	<li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li>
+	
+	
+	<li><a href="http://instagram.com/spiegel_2007"><span class="instagram-color"><i class="fab fa-instagram"></i></span></a></li>
+	<li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li>
+	<li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li>
+	
+	
+</ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fremark%2f2019%2f07%2fopenpgp-certificate-flooding%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.55.6</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
