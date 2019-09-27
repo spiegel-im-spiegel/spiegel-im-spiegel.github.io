@@ -2,13 +2,240 @@
 	<title>List of format - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/format/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/format/index.xml" />
-	<id>tag:text.Baldanders.info,2019-09-12:/tags</id>
-	<updated>2019-09-12T23:19:22+09:00</updated>
+	<id>tag:text.Baldanders.info,2019-09-28:/tags</id>
+	<updated>2019-09-28T01:27:23+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>Go 言語で浮動小数点数をいろいろな書式で表示してみる</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/floating-point-number/" />
+		<id>tag:text.Baldanders.info,2019-09-28:/golang/floating-point-number/</id>
+		<published>2019-09-27T16:27:23+00:00</published>
+		<updated>2019-09-27T16:28:41+00:00</updated>
+		<summary>Go 1.13 で浮動小数点数の内部構造が簡単に見れるようになって，より理解が進むというものである。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">
+
+&lt;p&gt;今日も面白い記事を見つけた。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://qiita.com/Nabetani/items/6cea56acb71f111aebc8&#34;&gt;go で float32 を JSON にするとちょっと意外なことになる - Qiita&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;今回は &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; 1.13 になった記念として 浮動小数点数をいろいろな書式で表示してみることにする。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_0&#34;&gt;その前に...&lt;/h2&gt;
+
+&lt;p&gt;上の記事について補足をしておくが &lt;code&gt;0xa0000000&lt;/code&gt; をいわゆる倍精度浮動小数点数（&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で言うところの &lt;code&gt;float64&lt;/code&gt;）にキャストした場合と，いったん単精度浮動小数点数（&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で言うところの &lt;code&gt;float32&lt;/code&gt;）にキャストした後に倍精度で再度キャストした場合で結果は同じ値になるが，これは倍精度へのキャストで精度が復元しているわけではない点に注意が必要である。
+これは &lt;code&gt;0xa0000000&lt;/code&gt; を2進数に展開するとよく分かる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;%b\n&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;int64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mh&#34;&gt;0xa0000000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;
+&lt;span class=&#34;c1&#34;&gt;//Output
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;//&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;10100000000000000000000000000000&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;つまり &lt;code&gt;0xa0000000&lt;/code&gt; の実質的な有効桁数は3ビットしかない。
+なので単精度と倍精度の間でキャストを繰り返しても実質的な精度に影響はないのである。&lt;/p&gt;
+
+&lt;p&gt;この話はサンプルの値を &lt;code&gt;0xa0000000&lt;/code&gt; から &lt;code&gt;0xa0000001&lt;/code&gt; に変えてみればよく分かる。
+たとえば件の記事の JavaScript コード&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-js&#34; data-lang=&#34;js&#34;&gt;&lt;span class=&#34;nx&#34;&gt;o&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+  &lt;span class=&#34;nx&#34;&gt;foo&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;Float32Array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;([&lt;/span&gt;&lt;span class=&#34;mh&#34;&gt;0xa0000000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]),&lt;/span&gt;
+  &lt;span class=&#34;nx&#34;&gt;bar&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;Float64Array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;([&lt;/span&gt;&lt;span class=&#34;mh&#34;&gt;0xa0000000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;])&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;nx&#34;&gt;process&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;stdout&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;write&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;JSON&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;stringify&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;o&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;を&lt;/p&gt;
+
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-js&#34; data-lang=&#34;js&#34;&gt;&lt;span class=&#34;nx&#34;&gt;o&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;  &lt;span class=&#34;nx&#34;&gt;foo&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;Float32Array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;([&lt;/span&gt;&lt;span class=&#34;mh&#34;&gt;0xa0000001&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;  &lt;span class=&#34;nx&#34;&gt;bar&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;Float64Array&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;([&lt;/span&gt;&lt;span class=&#34;mh&#34;&gt;0xa0000001&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;])&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;nx&#34;&gt;process&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;stdout&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;write&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;JSON&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;stringify&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;o&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;に書き換えて実行してみると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ node json.js 
+{&amp;#34;foo&amp;#34;:{&amp;#34;0&amp;#34;:2684354560},&amp;#34;bar&amp;#34;:{&amp;#34;0&amp;#34;:2684354561}}&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;という具合に値が異なっている。
+これで JavaScript コードでも明示的に単精度浮動小数点数にすれば精度が削られることが分かるだろう。&lt;/p&gt;
+
+&lt;p&gt;JSON (&lt;a href=&#34;https://tools.ietf.org/html/rfc7159&#34; title=&#34;RFC 7159 - The JavaScript Object Notation (JSON) Data Interchange Format&#34;&gt;RFC 7159&lt;/a&gt;) における数値（numbers）の内部表現は倍精度浮動小数点数のみだが JavaScript の仕様に合わせて整数で表現可能な場合はできるだけ整数で表そうとする。
+故にこんな妙ちきりんなことも起きる。
+幸い JSON は &lt;code&gt;1.23E+4&lt;/code&gt; みたいな表現も許容するので，有効桁数を明示したいならこの表記がいいだろう。&lt;/p&gt;
+
+&lt;p&gt;ちなみに &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;で &lt;code&gt;float32&lt;/code&gt; を JSON 形式に展開する際に &lt;code&gt;1.23E+4&lt;/code&gt; のような表記にしたければ &lt;code&gt;float32&lt;/code&gt; をラップする型を作って&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;Float32&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;float32&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;f&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;Float32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;MarshalJSON&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;([]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;byte&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+	&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;byte&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Sprintf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;%v&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)),&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;などとすればよい。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_1&#34;&gt;0xa0000001 を様々な書式で表記してみる&lt;/h2&gt;
+
+&lt;p&gt;では本題。&lt;/p&gt;
+
+&lt;p&gt;あらかじめ &lt;code&gt;0xa0000001&lt;/code&gt; を&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kd&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mh&#34;&gt;0xa0000001&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;var&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;i64&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;int64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;f64&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;float64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+	&lt;span class=&#34;nx&#34;&gt;f32&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;float32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;と定義して &lt;a href=&#34;https://golang.org/pkg/fmt/&#34; title=&#34;fmt - The Go Programming Language&#34;&gt;&lt;code&gt;fmt&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Printf()&lt;/code&gt; 関数の各書式（verb）を使って表記してみよう。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Format&lt;/th&gt;
+&lt;th&gt;Expression&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%d&amp;quot;, i64)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2684354561&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%b&amp;quot;, i64)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;10100000000000000000000000000001&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%f&amp;quot;, f64)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2684354561.000000&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%f&amp;quot;, f32)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2684354560.000000&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%e&amp;quot;, f64)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2.684355e+09&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%e&amp;quot;, f32)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2.684355e+09&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%g&amp;quot;, f64)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2.684354561e+09&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%g&amp;quot;, f32)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2.6843546e+09&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%g&amp;quot;, float64(f32))&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;2.68435456e+09&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;更に &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; 1.13 から浮動小数点数に対して &lt;code&gt;%b&lt;/code&gt; が使えるようになった。
+ &lt;code&gt;%b&lt;/code&gt; を使うと仮数部と指数部が分けて表記される。
+こんな感じ。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Format&lt;/th&gt;
+&lt;th&gt;Expression&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%b&amp;quot;, f64)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;5629499536310272p-21&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%b&amp;quot;, f32)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;10485760p+8&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fmt.Printf(&amp;quot;%b&amp;quot;, float64(f32))&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;5629499534213120p-21&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;仮数部が10進数表記で分かりにくいので強引に2進数に置き換えるとこんな感じ。&lt;/p&gt;
+
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Value&lt;/th&gt;
+&lt;th&gt;Expression&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;f64&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0b10100000000000000000000000000001000000000000000000000p-21&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;f32&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0b101000000000000000000000p+8&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;float64(f32)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;0b10100000000000000000000000000000000000000000000000000p-21&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;というわけで &lt;code&gt;float32&lt;/code&gt; にキャストした瞬間に見事に末尾の1が削れてしまっているのが分かるだろう。
+覆水盆に返らず（笑）&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; 1.13 で浮動小数点数の内部構造が簡単に見れるようになって，より理解が進むというものである。&lt;/p&gt;
+
+&lt;h2 id=&#34;toc_2&#34;&gt;ブックマーク&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/golang/loop-counter/&#34;&gt;1を1億回足して1億にならない場合&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/golang/formatting/&#34;&gt;書式 %v のカスタマイズ&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&#34;toc_3&#34;&gt;参考図書&lt;/h2&gt;
+
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9EGo-ADDISON-WESLEY-PROFESSIONAL-COMPUTING-Donovan/dp/4621300253?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=4621300253&#34;&gt;&lt;img src=&#34;https://images-fe.ssl-images-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9EGo-ADDISON-WESLEY-PROFESSIONAL-COMPUTING-Donovan/dp/4621300253?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&amp;tag=baldandersinf-22&amp;linkCode=xm2&amp;camp=2025&amp;creative=165953&amp;creativeASIN=4621300253&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan, Brian W. Kernighan&lt;/dd&gt;
+    &lt;dd&gt;柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2018-10-20&#34;&gt;2018-10-20&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-API&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>書式 %v のカスタマイズ</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/formatting/" />
 		<id>tag:text.Baldanders.info,2019-09-12:/golang/formatting/</id>
