@@ -131,7 +131,7 @@
 	"keywords": "golang, programming, format",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2019-09-12T14:19:22+00:00",
-	"dateModified": "2019-09-15T05:52:42+00:00",
+	"dateModified": "2019-10-13T03:55:15+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -350,6 +350,23 @@
 </span><span class="c1"></span><span class="kd">type</span> <span class="nx">Formatter</span> <span class="kd">interface</span> <span class="p">{</span>
     <span class="nf">Format</span><span class="p">(</span><span class="nx">f</span> <span class="nx">State</span><span class="p">,</span> <span class="nx">c</span> <span class="kt">rune</span><span class="p">)</span>
 <span class="p">}</span></code></pre></div>
+<p>更に引数の <a href="https://golang.org/pkg/fmt/" title="fmt - The Go Programming Language"><code>fmt</code></a><code>.State</code> もインタフェース型で以下のように定義されている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">// State represents the printer state passed to custom formatters.
+</span><span class="c1">// It provides access to the io.Writer interface plus information about
+</span><span class="c1">// the flags and options for the operand&#39;s format specifier.
+</span><span class="c1"></span><span class="kd">type</span> <span class="nx">State</span> <span class="kd">interface</span> <span class="p">{</span>
+    <span class="c1">// Write is the function to call to emit formatted output to be printed.
+</span><span class="c1"></span>    <span class="nf">Write</span><span class="p">(</span><span class="nx">b</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">(</span><span class="nx">n</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">err</span> <span class="kt">error</span><span class="p">)</span>
+    <span class="c1">// Width returns the value of the width option and whether it has been set.
+</span><span class="c1"></span>    <span class="nf">Width</span><span class="p">()</span> <span class="p">(</span><span class="nx">wid</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">ok</span> <span class="kt">bool</span><span class="p">)</span>
+    <span class="c1">// Precision returns the value of the precision option and whether it has been set.
+</span><span class="c1"></span>    <span class="nf">Precision</span><span class="p">()</span> <span class="p">(</span><span class="nx">prec</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">ok</span> <span class="kt">bool</span><span class="p">)</span>
+
+    <span class="c1">// Flag reports whether the flag c, a character, has been set.
+</span><span class="c1"></span>    <span class="nf">Flag</span><span class="p">(</span><span class="nx">c</span> <span class="kt">int</span><span class="p">)</span> <span class="kt">bool</span>
+<span class="p">}</span></code></pre></div>
+<p>つまり自作の <code>Format()</code> メソッド内では <code>State.Write()</code>,  <code>State.Width()</code>,  <code>State.Precision()</code>, <code>State.Flag()</code> 各メソッドが使える。 これらを使って出力の整形を行えるわけだ（<code>State.Write()</code> は <a href="https://golang.org/pkg/io/" title="io - The Go Programming Language"><code>io</code></a><code>.Writer</code> インタフェースとマッチしている点にも注目）。</p>
+
 <p>では <code>Planet</code> 型に <a href="https://golang.org/pkg/fmt/" title="fmt - The Go Programming Language"><code>fmt</code></a><code>.Formatter</code> インタフェースを組み込んでみる。
 こんな感じでどうだろう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="p">(</span><span class="nx">p</span> <span class="nx">Planet</span><span class="p">)</span> <span class="nf">Format</span><span class="p">(</span><span class="nx">s</span> <span class="nx">fmt</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">verb</span> <span class="kt">rune</span><span class="p">)</span> <span class="p">{</span>
@@ -357,16 +374,16 @@
     <span class="k">case</span> <span class="sc">&#39;v&#39;</span><span class="p">:</span>
         <span class="k">switch</span> <span class="p">{</span>
         <span class="k">case</span> <span class="nx">s</span><span class="p">.</span><span class="nf">Flag</span><span class="p">(</span><span class="sc">&#39;#&#39;</span><span class="p">):</span>
-            <span class="nx">s</span><span class="p">.</span><span class="nf">Write</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nf">GoString</span><span class="p">()))</span>
+            <span class="nx">io</span><span class="p">.</span><span class="nf">Copy</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nf">GoString</span><span class="p">()))</span>
         <span class="k">case</span> <span class="nx">s</span><span class="p">.</span><span class="nf">Flag</span><span class="p">(</span><span class="sc">&#39;+&#39;</span><span class="p">):</span>
-            <span class="nx">s</span><span class="p">.</span><span class="nf">Write</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">`{&#34;Name&#34;:%s,&#34;Mass&#34;:%.3f}`</span><span class="p">,</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Quote</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">Name</span><span class="p">),</span> <span class="nx">p</span><span class="p">.</span><span class="nx">Mass</span><span class="p">)))</span>
+            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintf</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span> <span class="s">`{&#34;Name&#34;:%s,&#34;Mass&#34;:%.3f}`</span><span class="p">,</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Quote</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">Name</span><span class="p">),</span> <span class="nx">p</span><span class="p">.</span><span class="nx">Mass</span><span class="p">)</span>
         <span class="k">default</span><span class="p">:</span>
-            <span class="nx">s</span><span class="p">.</span><span class="nf">Write</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nf">String</span><span class="p">()))</span>
+            <span class="nx">io</span><span class="p">.</span><span class="nf">Copy</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nf">String</span><span class="p">()))</span>
         <span class="p">}</span>
     <span class="k">case</span> <span class="sc">&#39;s&#39;</span><span class="p">:</span>
-        <span class="nx">s</span><span class="p">.</span><span class="nf">Write</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nf">String</span><span class="p">()))</span>
+        <span class="nx">io</span><span class="p">.</span><span class="nf">Copy</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nf">String</span><span class="p">()))</span>
     <span class="k">default</span><span class="p">:</span> <span class="c1">//bad verb
-</span><span class="c1"></span>        <span class="nx">s</span><span class="p">.</span><span class="nf">Write</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">`%%!%c(%s)`</span><span class="p">,</span> <span class="nx">verb</span><span class="p">,</span> <span class="nx">p</span><span class="p">.</span><span class="nf">GoString</span><span class="p">())))</span>
+</span><span class="c1"></span>        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintf</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span> <span class="s">`%%!%c(%s)`</span><span class="p">,</span> <span class="nx">verb</span><span class="p">,</span> <span class="nx">p</span><span class="p">.</span><span class="nf">GoString</span><span class="p">())</span>
     <span class="p">}</span>
 <span class="p">}</span></code></pre></div>
 <p>これで <code>%v</code> の出力は以下のように変わる。</p>
@@ -380,7 +397,14 @@
 <p><a href="https://golang.org/pkg/fmt/" title="fmt - The Go Programming Language"><code>fmt</code></a><code>.Formatter</code> インタフェースを組み込めば細かい制御ができるようになるが，取りうる書式を全て記述しないといけないのが面倒である<sup class="footnote-ref" id="fnref:f1"><a href="#fn:f1">1</a></sup>。
 状況によって使い分けるのがいいだろう。</p>
 
-<h2 id="toc_3">参考図書</h2>
+<h2 id="toc_3">ブックマーク</h2>
+
+<ul>
+<li><a href="https://qiita.com/tenntenn/items/453a09c4c6d7f580d0ab">fmt.Formatterを実装して%vや%+vをカスタマイズしたり、%3🍺みたいな書式をつくってみよう #golang - Qiita</a></li>
+<li><a href="https://budougumi0617.github.io/2019/10/12/confirm-print-with-fmt-interfaces/"><a href="https://golang.org/" title="The Go Programming Language">Go</a> 独自型にfmtパッケージのインターフェースを実装して出力を制御する - My External Storage</a></li>
+</ul>
+
+<h2 id="toc_4">参考図書</h2>
 
 <div class="hreview">
   <div class="photo"><a class="item url" href="https://www.amazon.co.jp/%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%9F%E3%83%B3%E3%82%B0%E8%A8%80%E8%AA%9EGo-ADDISON-WESLEY-PROFESSIONAL-COMPUTING-Donovan/dp/4621300253?SubscriptionId=AKIAJYVUJ3DMTLAECTHA&tag=baldandersinf-22&linkCode=xm2&camp=2025&creative=165953&creativeASIN=4621300253"><img src="https://images-fe.ssl-images-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="123" alt="photo"></a></div>
@@ -450,7 +474,7 @@
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2019-09-12</time> (revised in 2019-09-15)
+		in <time property='dc:dateCopyrighted'>2019-09-12</time> (revised in 2019-10-13)
 		
 	<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 
