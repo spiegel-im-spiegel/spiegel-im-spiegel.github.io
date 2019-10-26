@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.59.0" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="canonical" href="https://text.baldanders.info/golang/walking-with-multi-core/">
+<script src="https://kit.fontawesome.com/152e339e63.js"></script>
+<link rel='stylesheet' href='//fonts.googleapis.com/css?family=Noto+Serif%7cNoto+Sans%3a400,700%7cInconsolata%3a400,700' type='text/css'>
+<link rel='stylesheet' href='//fonts.googleapis.com/earlyaccess/notosansjp.css' type='text/css'>
+<link rel='stylesheet' href='//api.baldanders.info/fonts/NotoSerifJP.css' type='text/css'>
+<link rel="stylesheet" href="/css/main.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info.css" type='text/css'>
+<link rel="stylesheet" href="/css/chroma-styles.css">
+
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<title>saracen/walker で歩いてみる — プログラミング言語 Go | text.Baldanders.info</title>
+<meta property="og:title" content="saracen/walker で歩いてみる — プログラミング言語 Go | text.Baldanders.info">
+<meta name="description" content="saracen/walker を使うと filepath.Walk() 関数を置き換えることができる。">
+<meta property="og:description" content="saracen/walker を使うと filepath.Walk() 関数を置き換えることができる。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="keywords" content="golang, programming, concurrency, filepath">
+<link rel='prev' href='https://text.baldanders.info/golang/join-strings-2/' title='【改訂版】文字列連結はどれが速い？' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/golang/",
+	"url": "https://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/golang/walking-with-multi-core/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/golang/walking-with-multi-core/",
+	"url": "https://text.baldanders.info/golang/walking-with-multi-core/",
+	"mainEntityOfPage": "https://text.baldanders.info/golang/walking-with-multi-core/",
+	"inLanguage": "ja",
+	"name": "saracen/walker で歩いてみる",
+	"description": "saracen/walker を使うと filepath.Walk() 関数を置き換えることができる。",
+	"headline": "saracen/walker を使うと filepath.Walk() 関数を置き換えることができる。",
+	"keywords": "golang, programming, concurrency, filepath",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2019-10-26T13:25:35+00:00",
+	"dateModified": "2019-10-26T13:26:53+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>saracen/walker で歩いてみる</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/concurrency/">concurrency</a> #<a href="/tags/filepath/">filepath</a> #<a href="/tags/golang/">golang</a> #<a href="/tags/programming/">programming</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-alt"></i></span>&nbsp;:&nbsp;
+		<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fgolang%2fwalking-with-multi-core%2f" target="_blank"><span class="facebook-color"><i class="fab fa-facebook-square" aria-hidden="true"></i></span></a>
+		<a href="http://twitter.com/share?text=saracen%2fwalker%20%e3%81%a7%e6%ad%a9%e3%81%84%e3%81%a6%e3%81%bf%e3%82%8b+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fwalking-with-multi-core%2f" target="_blank"><span class="twitter-color"><i class="fab fa-twitter-square" aria-hidden="true"></i></span></a>
+		<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fwalking-with-multi-core%2f&amp;title=saracen%2fwalker%20%e3%81%a7%e6%ad%a9%e3%81%84%e3%81%a6%e3%81%bf%e3%82%8b" target="_blank"><span class="pocket-color"><i class="fab fa-get-pocket" aria-hidden="true"></i></span></a>
+		
+	</div>
+</nav>
+<nav class="history">
+	<a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/walking-with-multi-core/index.html">History</a>
+</nav>
+
+<section>
+
+
+<p>日頃から <a href="https://github.com/mattn/jvgrep" title="mattn/jvgrep: grep for japanese vimmer">mattn/jvgrep</a> には大変お世話になっているので常時 watch しているのだが，最近組み込まれたらしい <a href="https://github.com/saracen/walker" title="saracen/walker: walker is a faster, parallel version, of filepath.Walk">saracen/walker</a> が良さげである。</p>
+
+<p>指定したパス以下のファイル・ディレクトリを探索する機能としては標準の <a href="https://golang.org/pkg/path/filepath/" title="filepath - The Go Programming Language"><code>filepath</code></a><code>.Walk()</code> 関数がある。
+たとえば，こんな感じで使う。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">WalkWithSingle</span><span class="p">(</span><span class="nx">rootPath</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">int64</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">count</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="nx">lastErr</span> <span class="o">:=</span> <span class="nx">filepath</span><span class="p">.</span><span class="nf">Walk</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">info</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FileInfo</span><span class="p">,</span> <span class="nx">err</span> <span class="kt">error</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="nx">err</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">!</span><span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">()</span> <span class="p">{</span>
+            <span class="nx">count</span><span class="o">++</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">nil</span>
+    <span class="p">})</span>
+    <span class="k">return</span> <span class="nx">count</span><span class="p">,</span> <span class="nx">lastErr</span>
+<span class="p">}</span></code></pre></div>
+<p>ちなみにこれは，指定したパス以下に存在する（ディレクトリ以外の）ファイルの数を数える関数である。</p>
+
+<p><a href="https://github.com/saracen/walker" title="saracen/walker: walker is a faster, parallel version, of filepath.Walk">saracen/walker</a> の <a href="https://github.com/saracen/walker" title="saracen/walker: walker is a faster, parallel version, of filepath.Walk"><code>walker</code></a><code>.Walk()</code> 関数を使うと <a href="https://golang.org/pkg/path/filepath/" title="filepath - The Go Programming Language"><code>filepath</code></a><code>.Walk()</code> 関数を置き換えることができる。
+<a href="https://github.com/saracen/walker" title="saracen/walker: walker is a faster, parallel version, of filepath.Walk"><code>walker</code></a><code>.Walk()</code> 関数の特徴は，ファイル・ディレクトリの探索を並行処理で行うことである。
+したがってマルチコアの環境下（最近のパソコンや携帯端末は皆そうだが）ではコア数に応じた高速処理が期待できる。</p>
+
+<p><a href="https://github.com/saracen/walker" title="saracen/walker: walker is a faster, parallel version, of filepath.Walk"><code>walker</code></a><code>.Walk()</code> 関数を使う際にはひとつだけ注意点があって，それは <a href="https://github.com/saracen/walker" title="saracen/walker: walker is a faster, parallel version, of filepath.Walk"><code>walker</code></a><code>.Walk()</code> 関数の引数で指定する関数は goroutine-safe でなければならないということだ。</p>
+
+<p>たとえば<ruby><rb>関数閉包</rb><rp> (</rp><rt>closure</rt><rp>) </rp></ruby>を使って，ついうっかり</p>
+
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">WalkWithMultiple</span><span class="p">(</span><span class="nx">rootPath</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">int64</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">count</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="nx">err</span> <span class="o">:=</span> <span class="nx">walker</span><span class="p">.</span><span class="nf">Walk</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">info</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FileInfo</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">!</span><span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">()</span> <span class="p">{</span>
+<span class="hl">            <span class="nx">count</span><span class="o">++</span>
+</span>        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">nil</span>
+    <span class="p">})</span>
+    <span class="k">return</span> <span class="nx">count</span><span class="p">,</span> <span class="nx">err</span>
+<span class="p">}</span></code></pre></div>
+
+<p>なんてなコード書くと，返ってくるファイル数の値は不定になってしまう（どうしてそうなるかは自分で考えよう）。
+まぁ，今回に限っては <a href="https://golang.org/pkg/sync/" title="sync - The Go Programming Language"><code>sync</code></a><code>/</code><a href="https://golang.org/pkg/sync/atomic/" title="atomic - The Go Programming Language"><code>atomic</code></a> パッケージを使って</p>
+
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">WalkWithMultiple</span><span class="p">(</span><span class="nx">rootPath</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">int64</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">count</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="nx">err</span> <span class="o">:=</span> <span class="nx">walker</span><span class="p">.</span><span class="nf">Walk</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">info</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FileInfo</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">!</span><span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">()</span> <span class="p">{</span>
+<span class="hl">            <span class="nx">atomic</span><span class="p">.</span><span class="nf">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">count</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span>        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">nil</span>
+    <span class="p">})</span>
+    <span class="k">return</span> <span class="nx">count</span><span class="p">,</span> <span class="nx">err</span>
+<span class="p">}</span></code></pre></div>
+
+<p>で<ruby><rb>無問題</rb><rp> (</rp><rt>no problem</rt><rp>) </rp></ruby>である。</p>
+
+<p><a href="https://github.com/saracen/walker" title="saracen/walker: walker is a faster, parallel version, of filepath.Walk">saracen/walker</a> の性能評価についてはリポジトリのドキュメントを見てもらうとして，ここではもっとふわっとしたコードで性能差を体感してみよう。
+用意したコードはこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s">&#34;fmt&#34;</span>
+    <span class="s">&#34;os&#34;</span>
+    <span class="s">&#34;path/filepath&#34;</span>
+    <span class="s">&#34;sync/atomic&#34;</span>
+    <span class="s">&#34;time&#34;</span>
+
+    <span class="s">&#34;github.com/saracen/walker&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nf">WalkWithSingle</span><span class="p">(</span><span class="nx">rootPath</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">int64</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">count</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="nx">start</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
+    <span class="nx">lastErr</span> <span class="o">:=</span> <span class="nx">filepath</span><span class="p">.</span><span class="nf">Walk</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">info</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FileInfo</span><span class="p">,</span> <span class="nx">err</span> <span class="kt">error</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="nx">err</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">!</span><span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">()</span> <span class="p">{</span>
+            <span class="nx">count</span><span class="o">++</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">nil</span>
+    <span class="p">})</span>
+    <span class="k">return</span> <span class="nx">count</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Since</span><span class="p">(</span><span class="nx">start</span><span class="p">),</span> <span class="nx">lastErr</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">WalkWithMultiple</span><span class="p">(</span><span class="nx">rootPath</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">int64</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">count</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="nx">start</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
+    <span class="nx">err</span> <span class="o">:=</span> <span class="nx">walker</span><span class="p">.</span><span class="nf">Walk</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">info</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FileInfo</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">!</span><span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">()</span> <span class="p">{</span>
+            <span class="nx">atomic</span><span class="p">.</span><span class="nf">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">count</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">nil</span>
+    <span class="p">})</span>
+    <span class="k">return</span> <span class="nx">count</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Since</span><span class="p">(</span><span class="nx">start</span><span class="p">),</span> <span class="nx">err</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">rootPath</span> <span class="o">:=</span> <span class="s">&#34;/usr/local/go/src&#34;</span>
+    <span class="nx">ct</span><span class="p">,</span> <span class="nx">dt</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">WalkWithSingle</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="p">}</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;WalkWithSingle&#34;</span><span class="p">)</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\tDuration:&#34;</span><span class="p">,</span> <span class="nx">dt</span><span class="p">)</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\t   Count:&#34;</span><span class="p">,</span> <span class="nx">ct</span><span class="p">)</span>
+
+    <span class="nx">ct</span><span class="p">,</span> <span class="nx">dt</span><span class="p">,</span> <span class="nx">err</span> <span class="p">=</span> <span class="nf">WalkWithMultiple</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="p">}</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;WalkWithMultiple&#34;</span><span class="p">)</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\tDuration:&#34;</span><span class="p">,</span> <span class="nx">dt</span><span class="p">)</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\t   Count:&#34;</span><span class="p">,</span> <span class="nx">ct</span><span class="p">)</span>
+<span class="p">}</span></code></pre></div>
+<p>これを実行するとこんな感じになった。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run sample1.go 
+WalkWithSingle
+    Duration: 38.305071ms
+       Count: 6008
+WalkWithMultiple
+    Duration: 9.328229ms
+       Count: 6008</code></pre></div>
+<p>私のマシンは10年前に買った4コアのパソコンなので，まぁ妥当な値だろう。</p>
+
+<p>数を数えるだけでは芸がないのでファイルの一覧を取得してみようか。
+たとえば，以下のような <code>walking.PathList</code> 型を用意する<sup class="footnote-ref" id="fnref:map1"><a href="#fn:map1">1</a></sup>。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">walking</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s">&#34;sync&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">type</span> <span class="nx">PathList</span> <span class="kd">struct</span> <span class="p">{</span>
+    <span class="nx">mutex</span> <span class="o">*</span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span>
+    <span class="nx">list</span>  <span class="p">[]</span><span class="kt">string</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">New</span><span class="p">()</span> <span class="o">*</span><span class="nx">PathList</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="o">&amp;</span><span class="nx">PathList</span><span class="p">{</span><span class="nx">mutex</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span><span class="p">{},</span> <span class="nx">list</span><span class="p">:</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">string</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10240</span><span class="p">)}</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="p">(</span><span class="nx">p</span> <span class="o">*</span><span class="nx">PathList</span><span class="p">)</span> <span class="nf">Init</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">mutex</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">list</span> <span class="p">=</span> <span class="nx">p</span><span class="p">.</span><span class="nx">list</span><span class="p">[:</span><span class="mi">0</span><span class="p">]</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">mutex</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="p">(</span><span class="nx">p</span> <span class="o">*</span><span class="nx">PathList</span><span class="p">)</span> <span class="nf">Append</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">mutex</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">list</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">list</span><span class="p">,</span> <span class="nx">path</span><span class="p">)</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">mutex</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="p">(</span><span class="nx">p</span> <span class="o">*</span><span class="nx">PathList</span><span class="p">)</span> <span class="nf">List</span><span class="p">()</span> <span class="p">[]</span><span class="kt">string</span> <span class="p">{</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">mutex</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span>
+    <span class="nx">list</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">string</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">list</span><span class="p">))</span>
+    <span class="nb">copy</span><span class="p">(</span><span class="nx">list</span><span class="p">,</span> <span class="nx">p</span><span class="p">.</span><span class="nx">list</span><span class="p">)</span>
+    <span class="nx">p</span><span class="p">.</span><span class="nx">mutex</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nx">list</span>
+<span class="p">}</span></code></pre></div>
+<p>これを使って先程の <code>WalkWithMultiple()</code> 関数を以下のように書き直してみる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+    <span class="s">&#34;fmt&#34;</span>
+    <span class="s">&#34;os&#34;</span>
+    <span class="s">&#34;sort&#34;</span>
+
+    <span class="s">&#34;walking&#34;</span>
+
+    <span class="s">&#34;github.com/saracen/walker&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nf">WalkWithMultiple</span><span class="p">(</span><span class="nx">rootPath</span> <span class="kt">string</span><span class="p">)</span> <span class="p">([]</span><span class="kt">string</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">list</span> <span class="o">:=</span> <span class="nx">walking</span><span class="p">.</span><span class="nf">New</span><span class="p">()</span>
+    <span class="nx">err</span> <span class="o">:=</span> <span class="nx">walker</span><span class="p">.</span><span class="nf">Walk</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">info</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FileInfo</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">!</span><span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">()</span> <span class="p">{</span>
+            <span class="nx">list</span><span class="p">.</span><span class="nf">Append</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="kc">nil</span>
+    <span class="p">})</span>
+    <span class="k">return</span> <span class="nx">list</span><span class="p">.</span><span class="nf">List</span><span class="p">(),</span> <span class="nx">err</span>
+<span class="p">}</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">rootPath</span> <span class="o">:=</span> <span class="s">&#34;/usr/local/go/src&#34;</span>
+    <span class="nx">list</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">WalkWithMultiple</span><span class="p">(</span><span class="nx">rootPath</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="p">}</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;WalkWithMultiple ( Count =&#34;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="nx">list</span><span class="p">),</span> <span class="s">&#34;):&#34;</span><span class="p">)</span>
+    <span class="nx">sort</span><span class="p">.</span><span class="nf">Strings</span><span class="p">(</span><span class="nx">list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">path</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">list</span> <span class="p">{</span>
+        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;\t&#34;</span><span class="p">,</span> <span class="nx">path</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></div>
+<p>これを実行すると以下のような結果になる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run sample1/sample1.go 
+WalkWithMultiple ( Count = 6008 ):
+     /usr/local/go/src/Make.dist
+     /usr/local/go/src/README.vendor
+     /usr/local/go/src/all.bash
+     /usr/local/go/src/all.bat
+     /usr/local/go/src/all.rc
+     /usr/local/go/src/archive/tar/common.go
+     /usr/local/go/src/archive/tar/example_test.go
+     /usr/local/go/src/archive/tar/format.go
+     /usr/local/go/src/archive/tar/reader.go
+     /usr/local/go/src/archive/tar/reader_test.go
+     /usr/local/go/src/archive/tar/stat_actime1.go
+     /usr/local/go/src/archive/tar/stat_actime2.go
+     ...</code></pre></div>
+<p>よーし，うむうむ，よーし。</p>
+
+<h2 id="toc_0">ブックマーク</h2>
+
+<ul>
+<li><a href="https://text.baldanders.info/remark/2018/03/grep/">Windows でも Grep したい</a></li>
+</ul>
+
+<h2 id="toc_1">参考図書</h2>
+
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1"><img src="https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1">Go言語による並行処理</a></dt>
+    <dd>Katherine Cox-Buday (著), 山口 能迪 (翻訳)</dd>
+    <dd>オライリージャパン 2018-10-26</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">この本を読んで「よっしゃ，明日から立派な goroutine 使いだ！」とはならないと思うけど，有象無象なコピペ・プログラマじゃなく，きちんと Go 言語のプログラミングを勉強したいのであれば，この本は必読書になると思う。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2018-11-03">2018-11-03</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div>
+
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="123" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt>
+    <dd>Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)</dd>
+    <dd>丸善出版 2016-06-20</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2018-10-20">2018-10-20</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div>
+<div class="footnotes">
+
+<hr />
+
+<ol>
+<li id="fn:map1">配列ではなく連想配列を使うなら標準の <a href="https://golang.org/pkg/sync/" title="sync - The Go Programming Language"><code>sync</code></a><code>.Map</code> 型を使うのがいいだろう。
+ <a class="footnote-return" href="#fnref:map1"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/join-strings-2/">【改訂版】文字列連結はどれが速い？</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+<p>Web ブラウザとその設定によってはコメント機能をホストしている <a href="https://disqus.com/">Disqus</a> のコードを「追跡コード」としてブロックする場合があります。</p>
+<p>フィードバックの手段として Twitter, Facebook または電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2019-10-26</time>
+		
+	<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+
+		<ul class="social">
+	<li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li>
+	<li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li>
+	
+	
+	<li><a href="http://instagram.com/spiegel_2007"><span class="instagram-color"><i class="fab fa-instagram"></i></span></a></li>
+	<li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li>
+	<li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li>
+	
+	
+</ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fgolang%2fwalking-with-multi-core%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.59.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
