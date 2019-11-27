@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.59.1" />
+<meta name="generator" content="Hugo 0.60.0" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -195,40 +195,31 @@ MathJax = {
 </nav>
 
 <section>
-
-
 <p>だいぶ <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> の扱いに慣れてきたので，そろそろブログにまとめておこうかなと。
 以前に CLI (Command-Line Interface) とファサード・パターンについては以下の記事に</p>
-
 <ul>
 <li><a href="/golang/cli-and-facade-pattern/">コマンドライン・インタフェースとファサード・パターン</a></li>
 </ul>
-
 <p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> の使い方については，触りの部分を以下の記事に書いた。</p>
-
 <ul>
 <li><a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a></li>
 <li><a href="/golang/codic-api/">Codic API を利用するパッケージを作ってみた</a> （<a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> との連携について）</li>
 </ul>
-
 <p>ただ <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> そのものについてちゃんと書いてない気がするので，今回はコードの書き方からテストまでをひと通り紹介していく。
 漫然と紹介するのもアレなので，今回は以下の CLI を作ることを目標にする。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cli-demo show -i 123 -s 文字列 -b
 Integer option value: 123
  String option value: 文字列
-Boolean option value: true</code></pre></div>
-<p>なお，この記事の作業の結果は以下のリポジトリに置いてある。</p>
-
+Boolean option value: true
+</code></pre></div><p>なお，この記事の作業の結果は以下のリポジトリに置いてある。</p>
 <ul>
 <li><a href="https://github.com/spiegel-im-spiegel/cli-demo">spiegel-im-spiegel/cli-demo: Demonstration for Command Line Interface</a></li>
 </ul>
-
-<h2 id="toc_0"><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> のインストール</h2>
-
+<h2 id="spf13cobra-"><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> のインストール</h2>
 <p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> には CLI ツールもあるのだがバイナリは提供されていないので，自前で取ってきてコンパイルする。
 といっても</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go get -u github.com/spf13/cobra/cobra</code></pre></div>
-<p>とするだけだが。
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go get -u github.com/spf13/cobra/cobra
+</code></pre></div><p>とするだけだが。
 <code>github.com/spf13/cobra</code> で get しようとすると CLI のコンパイルを行わないので注意が必要である。
 CLI の Usage はこんな感じ。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cobra -h
@@ -251,35 +242,30 @@ Flags:
   -l, --license string   name of license for the project
       --viper            use Viper for configuration (default true)
 
-Use &#34;cobra [command] --help&#34; for more information about a command.</code></pre></div>
-<h2 id="toc_1">初期化処理</h2>
-
+Use &#34;cobra [command] --help&#34; for more information about a command.
+</code></pre></div><h2 id="heading">初期化処理</h2>
 <p>まずは <code>init</code> サブコマンドで雛形となるソースコードを展開する。
 ソースを展開したいフォルダで</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">cobra --viper=false init .</code></pre></div>
-<p>とする。
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">cobra --viper=false init .
+</code></pre></div><p>とする。
 今回は <a href="https://github.com/spf13/viper" title="spf13/viper: Go configuration with fangs">spf13/viper</a> は使わないので <code>--viper</code> オプションは無効にしておく。</p>
-
 <p>これで対象のフォルダに3つのファイルが出力される</p>
-
 <ul>
 <li><code>main.go</code></li>
 <li><code>LICENSE</code></li>
 <li><code>cmd/root.go</code></li>
 </ul>
-
 <p><code>LICENSE</code> はライセンス・ファイルなのでそのまま利用するなり他のファイルに差し替えるなりすればいい。
 <code>main.go</code> と <code>cmd/root.go</code> が実際の雛形になるのだが，やたらコメントが多いので，整理したものを以下に示す。</p>
-
 <p>まずは <code>main.go</code>。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
 
 <span class="kn">import</span> <span class="s">&#34;github.com/spiegel-im-spiegel/cli-demo/cmd&#34;</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nx">cmd</span><span class="p">.</span><span class="nf">Execute</span><span class="p">()</span>
-<span class="p">}</span></code></pre></div>
-<p>次に <code>cmd/root.go</code>。</p>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">cmd</span><span class="p">.</span><span class="nf">Execute</span><span class="p">(</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p>次に <code>cmd/root.go</code>。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
 
 <span class="kn">import</span> <span class="p">(</span>
@@ -298,17 +284,16 @@ Use &#34;cobra [command] --help&#34; for more information about a command.</code
 </span><span class="c1"></span><span class="p">}</span>
 
 <span class="c1">//Execute is called from main function
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">Execute</span><span class="p">()</span> <span class="p">{</span>
-    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">RootCmd</span><span class="p">.</span><span class="nf">Execute</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">Execute</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">RootCmd</span><span class="p">.</span><span class="nf">Execute</span><span class="p">(</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
         <span class="nx">os</span><span class="p">.</span><span class="nf">Exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
     <span class="p">}</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">init</span><span class="p">()</span> <span class="p">{</span>
-<span class="p">}</span></code></pre></div>
-<p>呼び出し関係は以下の通り。</p>
-
+<span class="kd">func</span> <span class="nf">init</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+<span class="p">}</span>
+</code></pre></div><p>呼び出し関係は以下の通り。</p>
 <figure style='margin:0 auto;text-align:center;'>
 <div class="mermaid">
 graph LR
@@ -319,28 +304,23 @@ graph LR
   main-->exec1
   exec1-->exec2
 </div></figure>
-
 <p>もちろん <code>main()</code> 関数から直接 <code>cmd.RootCmd.Execute()</code> 関数を呼んでも構わない（このままであれば）。
 この状態でコマンドを起動すると以下のようになる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run main.go -h
-Long comment</code></pre></div>
-<p>まぁ，当然だよね。
+Long comment
+</code></pre></div><p>まぁ，当然だよね。
 現状での問題は3つある。</p>
-
 <ol>
 <li><code>cmd.RootCmd</code> を他パッケージから直接操作できてしまう</li>
 <li>引数と標準入出力を <code>cmd.RootCmd</code> が握っていてコントロールできない（ように見える）</li>
 <li><code>cmd.RootCmd.Execute()</code> 関数がエラー時に <code>os.Exit()</code> 関数で強制終了してしまう</li>
 </ol>
-
 <p>特に2番目が致命的。
 何故ならこのままではテストができないからだ。
 そこで <code>cmd.Execute()</code> 関数を改造することにする。</p>
-
-<h2 id="toc_2"><a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> の導入</h2>
-
+<h2 id="spiegelimspiegelgocli-"><a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> の導入</h2>
 <p>その前に標準入出力の取り回しを簡単にするために，手前味噌で申し訳ないが， <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> を導入する。
-これを使えば標準入出力をひとつのインスタンスで取り回しできる<sup class="footnote-ref" id="fnref:gocli1"><a href="#fn:gocli1">1</a></sup>。</p>
+これを使えば標準入出力をひとつのインスタンスで取り回しできる<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
 
 <span class="kn">import</span> <span class="p">(</span>
@@ -353,86 +333,78 @@ Long comment</code></pre></div>
     <span class="k">return</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Normal</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
     <span class="nf">run</span><span class="p">(</span><span class="nx">rwi</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span>
-        <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithReader</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">),</span>
-        <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">),</span>
-        <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithErrorWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">),</span>
-    <span class="p">)).</span><span class="nf">Exit</span><span class="p">()</span>
-<span class="p">}</span></code></pre></div>
-<p><code>rwi.New()</code> の初期化は Functional Options パターンを使っている。
+        <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithReader</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">)</span><span class="p">,</span>
+        <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">)</span><span class="p">,</span>
+        <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithErrorWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">)</span><span class="p">,</span>
+    <span class="p">)</span><span class="p">)</span><span class="p">.</span><span class="nf">Exit</span><span class="p">(</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p><code>rwi.New()</code> の初期化は Functional Options パターンを使っている。
 Functional Options パターンについて詳しくは以下を参照のこと。</p>
-
 <ul>
 <li><a href="/golang/functional-options-pattern/">インスタンスの生成と Functional Options パターン</a></li>
 </ul>
-
-<h2 id="toc_3">cmd.Execute() 関数を改造する</h2>
-
+<h2 id="cmdexecute-">cmd.Execute() 関数を改造する</h2>
 <p>では <code>cmd.Execute()</code> 関数の改造を行おう。
 途中を省いて結果は以下の通り。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">var</span> <span class="p">(</span>
-    <span class="nx">cui</span> <span class="p">=</span> <span class="nx">rwi</span><span class="p">.</span><span class="nf">New</span><span class="p">()</span> <span class="c1">//CUI instance
+    <span class="nx">cui</span> <span class="p">=</span> <span class="nx">rwi</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="p">)</span> <span class="c1">//CUI instance
 </span><span class="c1"></span><span class="p">)</span>
 
 <span class="c1">//Execute is called from main function
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">Execute</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">rwi</span><span class="p">.</span><span class="nx">RWI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">exit</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">ExitCode</span><span class="p">)</span> <span class="p">{</span>
-    <span class="k">defer</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">Execute</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">rwi</span><span class="p">.</span><span class="nx">RWI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">exit</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">ExitCode</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">defer</span> <span class="kd">func</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
         <span class="c1">//panic hundling
-</span><span class="c1"></span>        <span class="k">if</span> <span class="nx">r</span> <span class="o">:=</span> <span class="nb">recover</span><span class="p">();</span> <span class="nx">r</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span><span class="c1"></span>        <span class="k">if</span> <span class="nx">r</span> <span class="o">:=</span> <span class="nb">recover</span><span class="p">(</span><span class="p">)</span><span class="p">;</span> <span class="nx">r</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="nx">cui</span><span class="p">.</span><span class="nf">OutputErrln</span><span class="p">(</span><span class="s">&#34;Panic:&#34;</span><span class="p">,</span> <span class="nx">r</span><span class="p">)</span>
             <span class="k">for</span> <span class="nx">depth</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="p">;</span> <span class="nx">depth</span><span class="o">++</span> <span class="p">{</span>
                 <span class="nx">pc</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="nx">line</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">Caller</span><span class="p">(</span><span class="nx">depth</span><span class="p">)</span>
                 <span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
                     <span class="k">break</span>
                 <span class="p">}</span>
-                <span class="nx">cui</span><span class="p">.</span><span class="nf">OutputErrln</span><span class="p">(</span><span class="s">&#34; -&gt;&#34;</span><span class="p">,</span> <span class="nx">depth</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">FuncForPC</span><span class="p">(</span><span class="nx">pc</span><span class="p">).</span><span class="nf">Name</span><span class="p">(),</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">line</span><span class="p">)</span>
+                <span class="nx">cui</span><span class="p">.</span><span class="nf">OutputErrln</span><span class="p">(</span><span class="s">&#34; -&gt;&#34;</span><span class="p">,</span> <span class="nx">depth</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">FuncForPC</span><span class="p">(</span><span class="nx">pc</span><span class="p">)</span><span class="p">.</span><span class="nf">Name</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">line</span><span class="p">)</span>
             <span class="p">}</span>
             <span class="nx">exit</span> <span class="p">=</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Abnormal</span>
         <span class="p">}</span>
-    <span class="p">}()</span>
+    <span class="p">}</span><span class="p">(</span><span class="p">)</span>
 
     <span class="c1">//execution
 </span><span class="c1"></span>    <span class="nx">cui</span> <span class="p">=</span> <span class="nx">ui</span>
     <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">SetArgs</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span>
-    <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">SetOutput</span><span class="p">(</span><span class="nx">ui</span><span class="p">.</span><span class="nf">ErrorWriter</span><span class="p">())</span>
+    <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">SetOutput</span><span class="p">(</span><span class="nx">ui</span><span class="p">.</span><span class="nf">ErrorWriter</span><span class="p">(</span><span class="p">)</span><span class="p">)</span>
     <span class="nx">exit</span> <span class="p">=</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Normal</span>
-    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">Execute</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">Execute</span><span class="p">(</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">exit</span> <span class="p">=</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Abnormal</span>
     <span class="p">}</span>
     <span class="k">return</span>
-<span class="p">}</span></code></pre></div>
-<p>前半は <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">panic</a> 時のハンドリングで，スタック追跡できるようにしている。
+<span class="p">}</span>
+</code></pre></div><p>前半は <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">panic</a> 時のハンドリングで，スタック追跡できるようにしている。
 <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">panic</a> 時のハンドリングについて詳しくは以下を参照のこと。</p>
-
 <ul>
 <li><a href="/golang/stack-trace-and-panic-handling/">スタック追跡とパニック・ハンドリング</a></li>
 </ul>
-
-<p>後半では <code>cmd.rootCmd</code> に引数と標準出力をセットしてから <code>cmd.rootCmd.Execute()</code> 関数を起動している<sup class="footnote-ref" id="fnref:so1"><a href="#fn:so1">2</a></sup>。
+<p>後半では <code>cmd.rootCmd</code> に引数と標準出力をセットしてから <code>cmd.rootCmd.Execute()</code> 関数を起動している<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。
 エラー時は <code>os.Exit()</code> 関数で強制終了するのではなく，ちゃんとステータスを返すようにした。</p>
-
 <p>そうそう。
 <code>cmd.RootCmd</code> ではパッケージ外から直接操作できてしまうので <code>cmd.rootCmd</code> と小文字にしている。
 小さなことからコツコツと（笑）</p>
-
 <p>これで <code>main()</code> 関数もこのように書き換えることができる。</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
     <span class="nx">cmd</span><span class="p">.</span><span class="nf">Execute</span><span class="p">(</span>
         <span class="nx">rwi</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span>
-            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithReader</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">),</span>
-            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">),</span>
-            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithErrorWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">),</span>
-        <span class="p">),</span>
-        <span class="nx">os</span><span class="p">.</span><span class="nx">Args</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
-    <span class="p">).</span><span class="nf">Exit</span><span class="p">()</span>
-<span class="p">}</span></code></pre></div>
-<h2 id="toc_4">サブコマンドの追加</h2>
-
+            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithReader</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">)</span><span class="p">,</span>
+            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">)</span><span class="p">,</span>
+            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithErrorWriter</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">)</span><span class="p">,</span>
+        <span class="p">)</span><span class="p">,</span>
+        <span class="nx">os</span><span class="p">.</span><span class="nx">Args</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="p">]</span><span class="p">,</span>
+    <span class="p">)</span><span class="p">.</span><span class="nf">Exit</span><span class="p">(</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><h2 id="heading1">サブコマンドの追加</h2>
 <p>ではいよいよサブコマンド <code>show</code> を追加する。
 サブコマンドの追加は <code>main.go</code> のあるフォルダで以下のコマンドを実行する。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cobra add show</code></pre></div>
-<p>これにより <code>cmd/show.go</code> ファイルが追加された。
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ cobra add show
+</code></pre></div><p>これにより <code>cmd/show.go</code> ファイルが追加された。
 これも中身はコメントが山ほどあるので，整理したものを以下に示す。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
 
@@ -447,15 +419,15 @@ Functional Options パターンについて詳しくは以下を参照のこと�
     <span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;show&#34;</span><span class="p">,</span>
     <span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment for show sub-command&#34;</span><span class="p">,</span>
     <span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment for show sub-command&#34;</span><span class="p">,</span>
-    <span class="nx">Run</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">Run</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;show called&#34;</span><span class="p">)</span>
-    <span class="p">},</span>
+    <span class="p">}</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">init</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">init</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
     <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">AddCommand</span><span class="p">(</span><span class="nx">showCmd</span><span class="p">)</span>
-<span class="p">}</span></code></pre></div>
-<p>この状態で実際に動かしてみるとこうなる。</p>
+<span class="p">}</span>
+</code></pre></div><p>この状態で実際に動かしてみるとこうなる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run main.go -h
 Long comment
 
@@ -482,9 +454,8 @@ Flags:
   -h, --help   help for show
 
 $ go run main.go show
-show called</code></pre></div>
-<h3 id="toc_5">オプションの追加</h3>
-
+show called
+</code></pre></div><h3 id="heading2">オプションの追加</h3>
 <p>このコードに対してオプションを追加していく。
 こんな感じでいいだろう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
@@ -498,16 +469,16 @@ show called</code></pre></div>
     <span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;show&#34;</span><span class="p">,</span>
     <span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment for show sub-command&#34;</span><span class="p">,</span>
     <span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment for show sub-command&#34;</span><span class="p">,</span>
-    <span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-        <span class="nx">i</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">GetInt</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">)</span>
+    <span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="nx">i</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">GetInt</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">err</span>
         <span class="p">}</span>
-        <span class="nx">b</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">GetBool</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">)</span>
+        <span class="nx">b</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">GetBool</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">err</span>
         <span class="p">}</span>
-        <span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">GetString</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">)</span>
+        <span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">GetString</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">)</span>
         <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">err</span>
         <span class="p">}</span>
@@ -516,19 +487,18 @@ show called</code></pre></div>
         <span class="nx">cui</span><span class="p">.</span><span class="nf">Outputln</span><span class="p">(</span><span class="s">&#34;Boolean option value:&#34;</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="kc">nil</span>
-    <span class="p">},</span>
+    <span class="p">}</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">init</span><span class="p">()</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">init</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
     <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">AddCommand</span><span class="p">(</span><span class="nx">showCmd</span><span class="p">)</span>
 
-    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">IntP</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">,</span> <span class="s">&#34;i&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#34;integer option&#34;</span><span class="p">)</span>
-    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">BoolP</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">,</span> <span class="s">&#34;b&#34;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="s">&#34;boolean option&#34;</span><span class="p">)</span>
-    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">StringP</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">,</span> <span class="s">&#34;s&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;string option&#34;</span><span class="p">)</span>
-<span class="p">}</span></code></pre></div>
-<p><code>cmd.showCmd</code> 内の <code>Run</code> が <code>RunE</code> に変わってる点に注目。
+    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">IntP</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">,</span> <span class="s">&#34;i&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#34;integer option&#34;</span><span class="p">)</span>
+    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">BoolP</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">,</span> <span class="s">&#34;b&#34;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="s">&#34;boolean option&#34;</span><span class="p">)</span>
+    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">StringP</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">,</span> <span class="s">&#34;s&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;string option&#34;</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p><code>cmd.showCmd</code> 内の <code>Run</code> が <code>RunE</code> に変わってる点に注目。
 これにより，関数内で error が発生した場合に，それを返り値で渡すことができる。</p>
-
 <p>試しにちょろんと動かしてみよう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run main.go show -h
 Long comment for show sub-command
@@ -545,19 +515,14 @@ Flags:
 $ go run main.go show -i 123 -s 日本語 -b
 Integer option value: 123
  String option value: 日本語
-Boolean option value: true</code></pre></div>
-<p>おおっ。
+Boolean option value: true
+</code></pre></div><p>おおっ。
 なんか動いてるような気がする。</p>
-
 <p>じゃあテストを始めようか。</p>
-
-<h2 id="toc_6">cobra.Command を返す関数を作る。</h2>
-
+<h2 id="cobracommand-">cobra.Command を返す関数を作る。</h2>
 <p>と言いたいところだけど，このままではまだテストができない。
 何故かというと， <code>cmd.rootCmd</code> も <code>cmd.showCmd</code> も static な変数として定義されているので，そのままテストを繰り返すと前回の状態が残ってしまって正しいテストにならないからだ。</p>
-
 <p>じゃあどうすればいいかというと， <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions"><code>cobra</code></a>.<code>Command</code> を返す関数を作って，その中で <code>cmd.rootCmd</code> や <code>cmd.showCmd</code> に相当するインスタンスを作ればいいのである。</p>
-
 <p>じゃあ，まずは <code>cmd/root.go</code> の完全版から。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
 
@@ -571,53 +536,53 @@ Boolean option value: true</code></pre></div>
 <span class="p">)</span>
 
 <span class="kd">var</span> <span class="p">(</span>
-    <span class="nx">cui</span> <span class="p">=</span> <span class="nx">rwi</span><span class="p">.</span><span class="nf">New</span><span class="p">()</span> <span class="c1">//CUI instance
+    <span class="nx">cui</span> <span class="p">=</span> <span class="nx">rwi</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="p">)</span> <span class="c1">//CUI instance
 </span><span class="c1"></span><span class="p">)</span>
 
 <span class="c1">//newRootCmd returns cobra.Command instance for root command
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">newRootCmd</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">rwi</span><span class="p">.</span><span class="nx">RWI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span> <span class="p">{</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">newRootCmd</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">rwi</span><span class="p">.</span><span class="nx">RWI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span> <span class="p">{</span>
     <span class="nx">cui</span> <span class="p">=</span> <span class="nx">ui</span>
     <span class="nx">rootCmd</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">{</span>
         <span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;cli-demo&#34;</span><span class="p">,</span>
         <span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment&#34;</span><span class="p">,</span>
         <span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment&#34;</span><span class="p">,</span>
-        <span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+        <span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">errors</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="s">&#34;no command&#34;</span><span class="p">)</span>
-        <span class="p">},</span>
+        <span class="p">}</span><span class="p">,</span>
     <span class="p">}</span>
     <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">SetArgs</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span>
-    <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">SetOutput</span><span class="p">(</span><span class="nx">ui</span><span class="p">.</span><span class="nf">ErrorWriter</span><span class="p">())</span>
+    <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">SetOutput</span><span class="p">(</span><span class="nx">ui</span><span class="p">.</span><span class="nf">ErrorWriter</span><span class="p">(</span><span class="p">)</span><span class="p">)</span>
 
-    <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">AddCommand</span><span class="p">(</span><span class="nf">newShowCmd</span><span class="p">())</span>
+    <span class="nx">rootCmd</span><span class="p">.</span><span class="nf">AddCommand</span><span class="p">(</span><span class="nf">newShowCmd</span><span class="p">(</span><span class="p">)</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="nx">rootCmd</span>
 <span class="p">}</span>
 
 <span class="c1">//Execute is called from main function
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">Execute</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">rwi</span><span class="p">.</span><span class="nx">RWI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">exit</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">ExitCode</span><span class="p">)</span> <span class="p">{</span>
-    <span class="k">defer</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">Execute</span><span class="p">(</span><span class="nx">ui</span> <span class="o">*</span><span class="nx">rwi</span><span class="p">.</span><span class="nx">RWI</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">exit</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">ExitCode</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">defer</span> <span class="kd">func</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
         <span class="c1">//panic hundling
-</span><span class="c1"></span>        <span class="k">if</span> <span class="nx">r</span> <span class="o">:=</span> <span class="nb">recover</span><span class="p">();</span> <span class="nx">r</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span><span class="c1"></span>        <span class="k">if</span> <span class="nx">r</span> <span class="o">:=</span> <span class="nb">recover</span><span class="p">(</span><span class="p">)</span><span class="p">;</span> <span class="nx">r</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="nx">cui</span><span class="p">.</span><span class="nf">OutputErrln</span><span class="p">(</span><span class="s">&#34;Panic:&#34;</span><span class="p">,</span> <span class="nx">r</span><span class="p">)</span>
             <span class="k">for</span> <span class="nx">depth</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="p">;</span> <span class="nx">depth</span><span class="o">++</span> <span class="p">{</span>
                 <span class="nx">pc</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="nx">line</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">Caller</span><span class="p">(</span><span class="nx">depth</span><span class="p">)</span>
                 <span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
                     <span class="k">break</span>
                 <span class="p">}</span>
-                <span class="nx">cui</span><span class="p">.</span><span class="nf">OutputErrln</span><span class="p">(</span><span class="s">&#34; -&gt;&#34;</span><span class="p">,</span> <span class="nx">depth</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">FuncForPC</span><span class="p">(</span><span class="nx">pc</span><span class="p">).</span><span class="nf">Name</span><span class="p">(),</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">line</span><span class="p">)</span>
+                <span class="nx">cui</span><span class="p">.</span><span class="nf">OutputErrln</span><span class="p">(</span><span class="s">&#34; -&gt;&#34;</span><span class="p">,</span> <span class="nx">depth</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">FuncForPC</span><span class="p">(</span><span class="nx">pc</span><span class="p">)</span><span class="p">.</span><span class="nf">Name</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">src</span><span class="p">,</span> <span class="s">&#34;:&#34;</span><span class="p">,</span> <span class="nx">line</span><span class="p">)</span>
             <span class="p">}</span>
             <span class="nx">exit</span> <span class="p">=</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Abnormal</span>
         <span class="p">}</span>
-    <span class="p">}()</span>
+    <span class="p">}</span><span class="p">(</span><span class="p">)</span>
 
     <span class="c1">//execution
 </span><span class="c1"></span>    <span class="nx">exit</span> <span class="p">=</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Normal</span>
-    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">newRootCmd</span><span class="p">(</span><span class="nx">ui</span><span class="p">,</span> <span class="nx">args</span><span class="p">).</span><span class="nf">Execute</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">newRootCmd</span><span class="p">(</span><span class="nx">ui</span><span class="p">,</span> <span class="nx">args</span><span class="p">)</span><span class="p">.</span><span class="nf">Execute</span><span class="p">(</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">exit</span> <span class="p">=</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Abnormal</span>
     <span class="p">}</span>
     <span class="k">return</span>
-<span class="p">}</span></code></pre></div>
-<p>次は <code>cmd/show.go</code> の完全版。</p>
+<span class="p">}</span>
+</code></pre></div><p>次は <code>cmd/show.go</code> の完全版。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
 
 <span class="kn">import</span> <span class="p">(</span>
@@ -625,21 +590,21 @@ Boolean option value: true</code></pre></div>
 <span class="p">)</span>
 
 <span class="c1">//newShowCmd returns cobra.Command instance for show sub-command
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">newShowCmd</span><span class="p">()</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span> <span class="p">{</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">newShowCmd</span><span class="p">(</span><span class="p">)</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span> <span class="p">{</span>
     <span class="nx">showCmd</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">{</span>
         <span class="nx">Use</span><span class="p">:</span>   <span class="s">&#34;show&#34;</span><span class="p">,</span>
         <span class="nx">Short</span><span class="p">:</span> <span class="s">&#34;Short comment for show sub-command&#34;</span><span class="p">,</span>
         <span class="nx">Long</span><span class="p">:</span>  <span class="s">&#34;Long comment for show sub-command&#34;</span><span class="p">,</span>
-        <span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-            <span class="nx">i</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">GetInt</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">)</span>
+        <span class="nx">RunE</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">cmd</span> <span class="o">*</span><span class="nx">cobra</span><span class="p">.</span><span class="nx">Command</span><span class="p">,</span> <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+            <span class="nx">i</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">GetInt</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">)</span>
             <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
                 <span class="k">return</span> <span class="nx">err</span>
             <span class="p">}</span>
-            <span class="nx">b</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">GetBool</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">)</span>
+            <span class="nx">b</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">GetBool</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">)</span>
             <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
                 <span class="k">return</span> <span class="nx">err</span>
             <span class="p">}</span>
-            <span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">GetString</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">)</span>
+            <span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">GetString</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">)</span>
             <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
                 <span class="k">return</span> <span class="nx">err</span>
             <span class="p">}</span>
@@ -648,20 +613,18 @@ Boolean option value: true</code></pre></div>
             <span class="nx">cui</span><span class="p">.</span><span class="nf">Outputln</span><span class="p">(</span><span class="s">&#34;Boolean option value:&#34;</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="kc">nil</span>
-        <span class="p">},</span>
+        <span class="p">}</span><span class="p">,</span>
     <span class="p">}</span>
 
-    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">IntP</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">,</span> <span class="s">&#34;i&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#34;integer option&#34;</span><span class="p">)</span>
-    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">BoolP</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">,</span> <span class="s">&#34;b&#34;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="s">&#34;boolean option&#34;</span><span class="p">)</span>
-    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">().</span><span class="nf">StringP</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">,</span> <span class="s">&#34;s&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;string option&#34;</span><span class="p">)</span>
+    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">IntP</span><span class="p">(</span><span class="s">&#34;integer&#34;</span><span class="p">,</span> <span class="s">&#34;i&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#34;integer option&#34;</span><span class="p">)</span>
+    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">BoolP</span><span class="p">(</span><span class="s">&#34;boolean&#34;</span><span class="p">,</span> <span class="s">&#34;b&#34;</span><span class="p">,</span> <span class="kc">false</span><span class="p">,</span> <span class="s">&#34;boolean option&#34;</span><span class="p">)</span>
+    <span class="nx">showCmd</span><span class="p">.</span><span class="nf">Flags</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">StringP</span><span class="p">(</span><span class="s">&#34;string&#34;</span><span class="p">,</span> <span class="s">&#34;s&#34;</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="s">&#34;string option&#34;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="nx">showCmd</span>
-<span class="p">}</span></code></pre></div>
-<p>なんで <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> が最初からこういう雛形を作ってくれないかというと，おそらく <code>cobra add</code> コマンドで <code>cmd/root.go</code> を触るわけにはいかないため（たぶん既にユーザが触ってる）， static 変数にして <code>init()</code> 関数でコマンドを繋げるような組み方しかできなかったんだと思う。
+<span class="p">}</span>
+</code></pre></div><p>なんで <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> が最初からこういう雛形を作ってくれないかというと，おそらく <code>cobra add</code> コマンドで <code>cmd/root.go</code> を触るわけにはいかないため（たぶん既にユーザが触ってる）， static 変数にして <code>init()</code> 関数でコマンドを繋げるような組み方しかできなかったんだと思う。
 でも手作業でこういう雛形を作ってしまえば以後はコピペでいくらでも量産できるので，テストのことを考えれば，面倒でも最初に手間を掛けたほうがいいかもしれない。</p>
-
-<h2 id="toc_7">テストを書く</h2>
-
+<h2 id="heading3">テストを書く</h2>
 <p>ようやくテストが書けるよ。
 とりあえず正常系のみ。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">cmd</span>
@@ -675,71 +638,65 @@ Boolean option value: true</code></pre></div>
 <span class="p">)</span>
 
 <span class="kd">func</span> <span class="nf">TestShowNormal</span><span class="p">(</span><span class="nx">t</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span> <span class="p">{</span>
-    <span class="nx">testCases</span> <span class="o">:=</span> <span class="p">[]</span><span class="kd">struct</span> <span class="p">{</span>
-        <span class="nx">args</span> <span class="p">[]</span><span class="kt">string</span>
+    <span class="nx">testCases</span> <span class="o">:=</span> <span class="p">[</span><span class="p">]</span><span class="kd">struct</span> <span class="p">{</span>
+        <span class="nx">args</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span>
         <span class="nx">want</span> <span class="kt">string</span>
-    <span class="p">}{</span>
-        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">,</span> <span class="s">&#34;-s&#34;</span><span class="p">,</span> <span class="s">&#34;日本語&#34;</span><span class="p">,</span> <span class="s">&#34;-b&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: 日本語\nBoolean option value: true\n&#34;</span><span class="p">},</span>
-        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">,</span> <span class="s">&#34;-s&#34;</span><span class="p">,</span> <span class="s">&#34;日本語&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: 日本語\nBoolean option value: false\n&#34;</span><span class="p">},</span>
-        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: \nBoolean option value: false\n&#34;</span><span class="p">},</span>
-        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">},</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 0\n String option value: \nBoolean option value: false\n&#34;</span><span class="p">},</span>
+    <span class="p">}</span><span class="p">{</span>
+        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">,</span> <span class="s">&#34;-s&#34;</span><span class="p">,</span> <span class="s">&#34;日本語&#34;</span><span class="p">,</span> <span class="s">&#34;-b&#34;</span><span class="p">}</span><span class="p">,</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: 日本語\nBoolean option value: true\n&#34;</span><span class="p">}</span><span class="p">,</span>
+        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">,</span> <span class="s">&#34;-s&#34;</span><span class="p">,</span> <span class="s">&#34;日本語&#34;</span><span class="p">}</span><span class="p">,</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: 日本語\nBoolean option value: false\n&#34;</span><span class="p">}</span><span class="p">,</span>
+        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="s">&#34;123&#34;</span><span class="p">}</span><span class="p">,</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 123\n String option value: \nBoolean option value: false\n&#34;</span><span class="p">}</span><span class="p">,</span>
+        <span class="p">{</span><span class="nx">args</span><span class="p">:</span> <span class="p">[</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;show&#34;</span><span class="p">}</span><span class="p">,</span> <span class="nx">want</span><span class="p">:</span> <span class="s">&#34;Integer option value: 0\n String option value: \nBoolean option value: false\n&#34;</span><span class="p">}</span><span class="p">,</span>
     <span class="p">}</span>
 
     <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">c</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">testCases</span> <span class="p">{</span>
         <span class="nx">out</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
         <span class="nx">errOut</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
         <span class="nx">ui</span> <span class="o">:=</span> <span class="nx">rwi</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span>
-            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithWriter</span><span class="p">(</span><span class="nx">out</span><span class="p">),</span>
-            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithErrorWriter</span><span class="p">(</span><span class="nx">errOut</span><span class="p">),</span>
+            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithWriter</span><span class="p">(</span><span class="nx">out</span><span class="p">)</span><span class="p">,</span>
+            <span class="nx">rwi</span><span class="p">.</span><span class="nf">WithErrorWriter</span><span class="p">(</span><span class="nx">errOut</span><span class="p">)</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="nx">exit</span> <span class="o">:=</span> <span class="nf">Execute</span><span class="p">(</span><span class="nx">ui</span><span class="p">,</span> <span class="nx">c</span><span class="p">.</span><span class="nx">args</span><span class="p">)</span>
         <span class="k">if</span> <span class="nx">exit</span> <span class="o">!=</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Normal</span> <span class="p">{</span>
             <span class="nx">t</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() err = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">exit</span><span class="p">,</span> <span class="nx">exitcode</span><span class="p">.</span><span class="nx">Normal</span><span class="p">)</span>
         <span class="p">}</span>
-        <span class="k">if</span> <span class="nx">out</span><span class="p">.</span><span class="nf">String</span><span class="p">()</span> <span class="o">!=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">want</span> <span class="p">{</span>
-            <span class="nx">t</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() Stdout = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">out</span><span class="p">.</span><span class="nf">String</span><span class="p">(),</span> <span class="nx">c</span><span class="p">.</span><span class="nx">want</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nx">out</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="p">)</span> <span class="o">!=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">want</span> <span class="p">{</span>
+            <span class="nx">t</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() Stdout = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">out</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="nx">c</span><span class="p">.</span><span class="nx">want</span><span class="p">)</span>
         <span class="p">}</span>
-        <span class="k">if</span> <span class="nx">errOut</span><span class="p">.</span><span class="nf">String</span><span class="p">()</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
-            <span class="nx">t</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() Stderr = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">errOut</span><span class="p">.</span><span class="nf">String</span><span class="p">(),</span> <span class="s">&#34;&#34;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nx">errOut</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="p">)</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+            <span class="nx">t</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Execute() Stderr = \&#34;%v\&#34;, want \&#34;%v\&#34;.&#34;</span><span class="p">,</span> <span class="nx">errOut</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">)</span>
         <span class="p">}</span>
     <span class="p">}</span>
-<span class="p">}</span></code></pre></div>
-<p>標準出力と標準エラー出力を <a href="https://golang.org/pkg/bytes/" title="bytes - The Go Programming Language"><code>bytes</code></a>.<code>Buffer</code> で代替えしているのがお分かりだろうか。
+<span class="p">}</span>
+</code></pre></div><p>標準出力と標準エラー出力を <a href="https://golang.org/pkg/bytes/" title="bytes - The Go Programming Language"><code>bytes</code></a>.<code>Buffer</code> で代替えしているのがお分かりだろうか。
 これなら CLI でもかなりの部分をテストでカバーできる。
 ここには挙げていないが，当然パイプのテストも可能である。</p>
-
-<h2 id="toc_8"><a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> で <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> を管理する</h2>
-
+<h2 id="dep--spf13cobra-"><a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> で <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> を管理する</h2>
 <p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> をはじめとする外部パッケージを <a href="https://github.com/golang/dep" title="golang/dep: Go dependency management tool">dep</a> を使って <code>vendor/</code> 配下に置くのなら， <code>Gopkg.toml</code> の記述は以下でいいだろう。</p>
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spf13/cobra&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.0.*&#34;</span>
 
-<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.7.*&#34;</span>
 
-<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/pkg/errors&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.8.*&#34;</span>
 
 <span class="p">[</span><span class="nx">prune</span><span class="p">]</span>
   <span class="nx">go</span><span class="err">-</span><span class="nx">tests</span> <span class="p">=</span> <span class="kc">true</span>
-  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span></code></pre></div>
-<p>ちなみに今回のデモのパッケージ依存関係はこんな感じになっている。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep status -dot | dot -Tpng -o dependency.png</code></pre></div>
-<figure style='margin:0 auto;text-align:center;'>
+  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span>
+</code></pre></div><p>ちなみに今回のデモのパッケージ依存関係はこんな感じになっている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep status -dot | dot -Tpng -o dependency.png
+</code></pre></div><figure style='margin:0 auto;text-align:center;'>
 <a href="dependency.png"><img src="dependency.png" srcset="dependency.png 754w" sizes="(min-width:600px) 500px, 80vw" alt=""></a></figure>
-
-<h2 id="toc_9">ブックマーク</h2>
-
+<h2 id="heading4">ブックマーク</h2>
 <ul>
 <li><a href="https://qiita.com/tkit/items/3cdeafcde2bd98612428">Golangのコマンドライブラリcobraを使って少しうまく実装する - Qiita</a> : <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions"><code>cobra</code></a>.<code>Command</code> の関数化のアイデアはこちらからいただいた。感謝</li>
 <li><a href="https://qiita.com/izumin5210/items/b06a81002a6934c05185">cobra / pflags でフラグをパースせずに args に残す - Qiita</a></li>
 </ul>
-
-<h2 id="toc_10">参考図書</h2>
-
+<h2 id="heading5">参考図書</h2>
 <div class="hreview">
   <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="123" alt="photo"></a></div>
   <dl class="fn">
@@ -753,7 +710,6 @@ Boolean option value: true</code></pre></div>
   <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。</p>
   <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2018-10-20">2018-10-20</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
 </div>
-
 <div class="hreview">
   <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/B07VPSXF6N?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1"><img src="https://m.media-amazon.com/images/I/51jif840ScL._SL160_.jpg" width="113" alt="photo"></a></div>
   <dl class="fn">
@@ -767,17 +723,17 @@ Boolean option value: true</code></pre></div>
   <p class="description">改訂2版の目玉は7章の「データベースの扱い方」が追加されたことだろう。他の章では，大まかな構成は1版と同じだが細かい部分が変わっていて Go 1.12 への言及まであるのには驚いた。</p>
   <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2019-08-12">2019-08-12</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
 </div>
-<div class="footnotes">
-
-<hr />
-
+<section class="footnotes" role="doc-endnotes">
+<hr>
 <ol>
-<li id="fn:gocli1">コードを見れば分かると思うが <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> には最小限のコードしかないので，たとえば複数の <a href="http://golang.org/ref/spec#Go_statements">goroutine</a> が動いている状態で単一の入出力インスタンスを取り回すとか考えたくもない。なので，取り扱いには十分注意すること。その代わり <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> では <a href="https://creativecommons.org/publicdomain/zero/1.0/" title="Creative Commons — CC0 1.0 Universal">CC0</a> つまり著作者人格権も含めて完全に権利を放棄しているので，自由に使っていただいて構わない。
- <a class="footnote-return" href="#fnref:gocli1"><sup>[return]</sup></a></li>
-<li id="fn:so1"><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions"><code>cobra</code></a>.<code>Command</code> には出力先がひとつしかなく何故か標準出力と標準エラー出力を区別していない。そこで <code>cmd.rootCmd</code> には標準エラー出力をセットして標準出力へのアクセスは <code>cui</code> を <code>cmd</code> パッケージ内のどのメソッドからも参照できるようにした（つまり，少なくとも <code>cmd</code> パッケージ内は単一の <a href="http://golang.org/ref/spec#Go_statements">goroutine</a> で動くことが前提）。 <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> 側が標準出力と標準エラー出力をちゃんと区別してくれれば，もう少しスマートにできるんだけどねぇ。（あと標準入力用の Reader も付けて欲しい。まぁなくても何とかなってるけど<code>w</code>）
- <a class="footnote-return" href="#fnref:so1"><sup>[return]</sup></a></li>
+<li id="fn:1" role="doc-endnote">
+<p>コードを見れば分かると思うが <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> には最小限のコードしかないので，たとえば複数の <a href="http://golang.org/ref/spec#Go_statements">goroutine</a> が動いている状態で単一の入出力インスタンスを取り回すとか考えたくもない。なので，取り扱いには十分注意すること。その代わり <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> では <a href="https://creativecommons.org/publicdomain/zero/1.0/" title="Creative Commons — CC0 1.0 Universal">CC0</a> つまり著作者人格権も含めて完全に権利を放棄しているので，自由に使っていただいて構わない。</p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p><a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions"><code>cobra</code></a>.<code>Command</code> には出力先がひとつしかなく何故か標準出力と標準エラー出力を区別していない。そこで <code>cmd.rootCmd</code> には標準エラー出力をセットして標準出力へのアクセスは <code>cui</code> を <code>cmd</code> パッケージ内のどのメソッドからも参照できるようにした（つまり，少なくとも <code>cmd</code> パッケージ内は単一の <a href="http://golang.org/ref/spec#Go_statements">goroutine</a> で動くことが前提）。 <a href="https://github.com/spf13/cobra" title="spf13/cobra: A Commander for modern Go CLI interactions">spf13/cobra</a> 側が標準出力と標準エラー出力をちゃんと区別してくれれば，もう少しスマートにできるんだけどねぇ。（あと標準入力用の Reader も付けて欲しい。まぁなくても何とかなってるけど<code>w</code>）</p>
+</li>
 </ol>
-</div>
+</section>
 
 </section>
 
@@ -856,7 +812,7 @@ Boolean option value: true</code></pre></div>
 <li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.59.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.60.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>

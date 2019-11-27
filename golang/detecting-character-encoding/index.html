@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.59.1" />
+<meta name="generator" content="Hugo 0.60.0" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -167,49 +167,38 @@
 </nav>
 
 <section>
-
-
 <p>以前に洒落で作った「<a href="/golang/make-link-with-markdown-format/" title="Markdown 形式のリンクを生成するツールを作ってみた">Markdown 形式のリンクを生成するツール</a>」が思いのほか便利で重宝しているのだが，実際に使ってみると EUC-JP や Shift-JIS な日本語サイトが今だにあって，最初は手で修正していたのだが，だんだん面倒臭くなってきたので変換ロジックを入れることにした。</p>
-
 <p><a href="/golang/transform-character-encoding/" title="文字エンコーディング変換">文字エンコーディングを変換する</a>のはいいのだが，そのためには元の文字列の文字エンコーディングが分かってないといけない。
-HTML の中の &quot;charset” を見て変換する手もあるのだが， HTML のバージョンによってお作法が違うし，そもそもそれが正しいとは限らない。
+HTML の中の &ldquo;charset” を見て変換する手もあるのだが， HTML のバージョンによってお作法が違うし，そもそもそれが正しいとは限らない。
 あぁ，これみんな苦労してるやつだよね。</p>
-
 <p>文字列が UTF-8 かどうかは <a href="https://golang.org/pkg/unicode/utf8/" title="utf8 - The Go Programming Language"><code>utf8</code></a>.<code>ValidString()</code> 関数で分かるので，そこから強引に各種文字エンコーディング変換を試すという力技もあるが，あんまりスマートじゃない。
 それは最後の手段に取っておくとして，まずは文字エンコーディング検出ができるパッケージを誰か公開してないか探してみた。
 したら，ありましたよ。</p>
-
 <ul>
 <li><a href="https://github.com/saintfish/chardet">chardet/detector_test.go at master · saintfish/chardet</a></li>
 </ul>
-
 <p>しかも，これを使って簡易 nkf を <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>で公開しておられる方もいた。</p>
-
 <ul>
 <li><a href="http://moxtsuan.hatenablog.com/entry/nkf-go">Go言語でnkfみたいなやつ - How to spend the terminal</a>
-
 <ul>
 <li><a href="https://github.com/moxtsuan/go-nkf">moxtsuan/go-nkf: tiny nkf(Only JIS, SJIS, EUC-JP, UTF-8)</a></li>
-</ul></li>
 </ul>
-
+</li>
+</ul>
 <p><a href="https://github.com/moxtsuan/go-nkf" title="moxtsuan/go-nkf: tiny nkf(Only JIS, SJIS, EUC-JP, UTF-8)">moxtsuan/go-nkf</a> は今回の目的にはオーバースペックなので，参考にしつつも自前で <a href="https://github.com/saintfish/chardet" title="saintfish/chardet: Charset detector library for golang derived from ICU">saintfish/chardet</a> を組み込んでみることにした。
 具体的には <a href="https://github.com/spiegel-im-spiegel/mklink/blob/master/charencode.go" title="mklink/charencode.go at master · spiegel-im-spiegel/mklink"><code>charencode.go</code></a> というファイルだ。</p>
-
 <p>まず文字エンコーディングの検出部分はこんな感じに書ける。</p>
-
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">import</span> <span class="s">&#34;github.com/saintfish/chardet&#34;</span>
 
 <span class="c1">//DetectCharEncode returns character encoding
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">DetectCharEncode</span><span class="p">(</span><span class="nx">body</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="nx">CharEncode</span> <span class="p">{</span>
-<span class="hl">	<span class="nx">det</span> <span class="o">:=</span> <span class="nx">chardet</span><span class="p">.</span><span class="nf">NewTextDetector</span><span class="p">()</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">DetectCharEncode</span><span class="p">(</span><span class="nx">body</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="nx">CharEncode</span> <span class="p">{</span>
+<span class="hl">	<span class="nx">det</span> <span class="o">:=</span> <span class="nx">chardet</span><span class="p">.</span><span class="nf">NewTextDetector</span><span class="p">(</span><span class="p">)</span>
 </span><span class="hl">	<span class="nx">res</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">det</span><span class="p">.</span><span class="nf">DetectBest</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span>
 </span>	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
 		<span class="k">return</span> <span class="nx">CharUnknown</span>
 	<span class="p">}</span>
 	<span class="k">return</span> <span class="nf">TypeofCharEncode</span><span class="p">(</span><span class="nx">res</span><span class="p">.</span><span class="nx">Charset</span><span class="p">)</span>
 <span class="p">}</span></code></pre></div>
-
 <p>関数内の最初の2行で <a href="https://github.com/saintfish/chardet" title="saintfish/chardet: Charset detector library for golang derived from ICU">saintfish/chardet</a> による文字エンコーディング検出を行っている。
 結果は <code>res.Charset</code> に文字列（！）で格納されるのだが，文字列で取り回すのはあんまりなので</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">//CharEncode is type of character encoding
@@ -228,11 +217,10 @@ HTML の中の &quot;charset” を見て変換する手もあるのだが， HT
 </span><span class="c1"></span>	<span class="nx">CharEUCJP</span>
 	<span class="c1">//CharISO2022JP is ISO-2022-JP
 </span><span class="c1"></span>	<span class="nx">CharISO2022JP</span>
-<span class="p">)</span></code></pre></div>
-<p>という enum 型を作って，最終的にはこれを返すようにしている。
+<span class="p">)</span>
+</code></pre></div><p>という enum 型を作って，最終的にはこれを返すようにしている。
 これを見て分かるように今のところは Shift-JIS, EUC-JP, ISO-2022-JP のみ対応している。
 中国語とか韓国語とかは知らんぷりする（笑）</p>
-
 <p><code>DetectCharEncode()</code> 関数の結果を使って実際に UTF-8 へ変換する。
 こんな感じ。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">import</span> <span class="p">(</span>
@@ -245,52 +233,43 @@ HTML の中の &quot;charset” を見て変換する手もあるのだが， HT
 <span class="p">)</span>
 
 <span class="c1">//ToUTF8 returns string with UTF-8 encoding
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">ToUTF8</span><span class="p">(</span><span class="nx">body</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">ToUTF8</span><span class="p">(</span><span class="nx">body</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
 	<span class="kd">var</span> <span class="nx">trans</span> <span class="nx">transform</span><span class="p">.</span><span class="nx">Transformer</span>
 	<span class="k">switch</span> <span class="nf">DetectCharEncode</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span> <span class="p">{</span>
 	<span class="k">case</span> <span class="nx">CharUTF8</span><span class="p">,</span> <span class="nx">CharISO8859_1</span><span class="p">:</span>
 		<span class="k">return</span> <span class="nb">string</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span>
 	<span class="k">case</span> <span class="nx">CharShiftJIS</span><span class="p">:</span>
-		<span class="nx">trans</span> <span class="p">=</span> <span class="nx">japanese</span><span class="p">.</span><span class="nx">ShiftJIS</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">()</span>
+		<span class="nx">trans</span> <span class="p">=</span> <span class="nx">japanese</span><span class="p">.</span><span class="nx">ShiftJIS</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">(</span><span class="p">)</span>
 	<span class="k">case</span> <span class="nx">CharEUCJP</span><span class="p">:</span>
-		<span class="nx">trans</span> <span class="p">=</span> <span class="nx">japanese</span><span class="p">.</span><span class="nx">EUCJP</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">()</span>
+		<span class="nx">trans</span> <span class="p">=</span> <span class="nx">japanese</span><span class="p">.</span><span class="nx">EUCJP</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">(</span><span class="p">)</span>
 	<span class="k">case</span> <span class="nx">CharISO2022JP</span><span class="p">:</span>
-		<span class="nx">trans</span> <span class="p">=</span> <span class="nx">japanese</span><span class="p">.</span><span class="nx">ISO2022JP</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">()</span>
+		<span class="nx">trans</span> <span class="p">=</span> <span class="nx">japanese</span><span class="p">.</span><span class="nx">ISO2022JP</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">(</span><span class="p">)</span>
 	<span class="k">default</span><span class="p">:</span>
 		<span class="k">return</span> <span class="s">&#34;&#34;</span>
 	<span class="p">}</span>
 	<span class="nx">buf</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span><span class="p">)</span>
-	<span class="nx">io</span><span class="p">.</span><span class="nf">Copy</span><span class="p">(</span><span class="nx">buf</span><span class="p">,</span> <span class="nx">transform</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">body</span><span class="p">),</span> <span class="nx">trans</span><span class="p">))</span>
-	<span class="k">return</span> <span class="nx">buf</span><span class="p">.</span><span class="nf">String</span><span class="p">()</span>
-<span class="p">}</span></code></pre></div>
-<p>UTF-8 および ISO-8859-1 (Latin-1) は素通し。
+	<span class="nx">io</span><span class="p">.</span><span class="nf">Copy</span><span class="p">(</span><span class="nx">buf</span><span class="p">,</span> <span class="nx">transform</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span><span class="p">,</span> <span class="nx">trans</span><span class="p">)</span><span class="p">)</span>
+	<span class="k">return</span> <span class="nx">buf</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p>UTF-8 および ISO-8859-1 (Latin-1) は素通し。
 他は decoder を作って変換を行っている。</p>
-
 <p>これを組み込んで実際に動かしてみた。
 とりあえず ITmedia (Shift-JIS) とはてなダイアリー（EUC-JP）のサイトで確認したが，ちゃんと動いてるっぽい。
 ただ，やっぱり時々失敗するんだよねー。
 まぁこれはしょうがないか。</p>
-
-<p>失敗が多いようなら最終手段（片っ端から変換を試す）を執ることにしよう<sup class="footnote-ref" id="fnref:cnv1"><a href="#fn:cnv1">1</a></sup>。
+<p>失敗が多いようなら最終手段（片っ端から変換を試す）を執ることにしよう<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。
 あっ，コードの再利用は（こんなんでよければ）ご自由に。</p>
-
-<h2 id="toc_0">追記（2017-12-04）</h2>
-
+<h2 id="20171204">追記（2017-12-04）</h2>
 <p>この記事を書いた後いろいろ試してみたのだが，やっぱり Shift-JIS と EUC-JP の誤判定が多い。
 で，上の検出と変換部分を別パッケージにしていろいろ調べてみた。</p>
-
 <ul>
 <li><a href="https://github.com/spiegel-im-spiegel/text">spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang</a></li>
 </ul>
-
 <p>このパッケージでは <code>detect</code>, <code>encode</code>, <code>decode</code>, <code>convert</code> と機能毎にサブパッケージに分けたので多少使いやすいのではないかと思う。</p>
-
 <p>で，どうも短い文字列だと誤判定する確率が爆上がりする。
 <a href="https://github.com/saintfish/chardet" title="saintfish/chardet: Charset detector library for golang derived from ICU">saintfish/chardet</a> では可能性の高い（？）文字エンコーディング候補から順に配列の形で返すのだが（上のコードの <code>DetectBest()</code> 関数では配列の最上位のものを返す），短い文字列では候補を絞りきれず誤判定になってしまうようだ。</p>
-
 <p>苦肉の策として文字エンコーディング候補のうち日本語のエンコーディングを優先して選ぶ関数を作った。
 これで <a href="https://github.com/spiegel-im-spiegel/mklink/blob/master/charencode.go" title="mklink/charencode.go at master · spiegel-im-spiegel/mklink"><code>charencode.go</code></a> はこんな感じになった。</p>
-
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">mklink</span>
 
 <span class="kn">import</span> <span class="p">(</span>
@@ -298,7 +277,7 @@ HTML の中の &quot;charset” を見て変換する手もあるのだが， HT
 <span class="p">)</span>
 
 <span class="c1">//ToUTF8 returns string with UTF-8 encoding
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">ToUTF8</span><span class="p">(</span><span class="nx">body</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
+</span><span class="c1"></span><span class="kd">func</span> <span class="nf">ToUTF8</span><span class="p">(</span><span class="nx">body</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
 	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
 		<span class="k">return</span> <span class="s">&#34;&#34;</span>
 	<span class="p">}</span>
@@ -308,48 +287,38 @@ HTML の中の &quot;charset” を見て変換する手もあるのだが， HT
 	<span class="p">}</span>
 	<span class="k">return</span> <span class="nb">string</span><span class="p">(</span><span class="nx">utf8Text</span><span class="p">)</span>
 <span class="p">}</span></code></pre></div>
-
 <p>これで他言語の文字エンコーディングと間違える確率は減ったが，今回はページのタイトルだけを対象にしていたので，やっぱり Shift-JIS と EUC-JP とで判定がとっちらかってしまう。
 というところで力尽きた。</p>
-
 <p>そういや UTF-8 から ISO-2022-JP への encode でバグ見つけちゃったよ。</p>
-
 <p>ISO-2022-JP のルールでは行末で必ず US-ASCII に戻さないといけない（1BH 28H 42H のシーケンスを出力する）のだが，文字列の末尾に改行がない場合に US-ASCII に戻していない。</p>
-
 <p>まっ，日本語圏の人しか使わないエンコーディングだし，今は日本語圏の人でも使ってる人は殆どおらんじゃろう。
 メールも今は UTF-8 が主流だし。
 メールメッセージで末尾に改行がないという状況もないしね（実際にはメールメッセージへの電子署名で影響が出るのだが）。</p>
-
 <p>というわけで，標準パッケージでもないし，実害はないので放置する（これが15年くらい前なら煩く言うところだったろうけど）。</p>
-
-<h2 id="toc_1">追記（2017-12-06）</h2>
-
+<h2 id="20171206">追記（2017-12-06）</h2>
 <p>タイムリーなことに Web ページの文字エンコーディングを簡単に取得する方法について書かれた記事が上がっていた。</p>
-
 <ul>
 <li><a href="https://mattn.kaoriya.net/software/lang/go/20171205164150.htm">Big Sky :: Golang で HTTP コンテンツの charset 判定をするには</a></li>
 </ul>
-
 <p>HTML の charset 設定だけを見るんじゃなくてレスポンスのヘッダとか色々見て総合判断しているらしい。
 具体的にはこんな感じになる。</p>
-
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">resp</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">http</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="nx">url</span><span class="p">)</span>
 <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
     <span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
 <span class="p">}</span>
-<span class="k">defer</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Body</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+<span class="k">defer</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Body</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
 
-<span class="nx">link</span><span class="p">.</span><span class="nx">Location</span> <span class="p">=</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Request</span><span class="p">.</span><span class="nx">URL</span><span class="p">.</span><span class="nf">String</span><span class="p">()</span>
+<span class="nx">link</span><span class="p">.</span><span class="nx">Location</span> <span class="p">=</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Request</span><span class="p">.</span><span class="nx">URL</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="p">)</span>
 
 <span class="hl"><span class="nx">br</span> <span class="o">:=</span> <span class="nx">bufio</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Body</span><span class="p">)</span>
 </span><span class="hl"><span class="kd">var</span> <span class="nx">r</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Reader</span> <span class="p">=</span> <span class="nx">br</span>
-</span><span class="hl"><span class="k">if</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">err2</span> <span class="o">:=</span> <span class="nx">br</span><span class="p">.</span><span class="nf">Peek</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span> <span class="nx">err2</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span> <span class="c1">//next 1024 bytes without advancing the reader.
-</span></span><span class="hl"><span class="c1"></span>    <span class="nx">enc</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">charset</span><span class="p">.</span><span class="nf">DetermineEncoding</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;content-type&#34;</span><span class="p">))</span>
+</span><span class="hl"><span class="k">if</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">err2</span> <span class="o">:=</span> <span class="nx">br</span><span class="p">.</span><span class="nf">Peek</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span><span class="p">;</span> <span class="nx">err2</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span> <span class="c1">//next 1024 bytes without advancing the reader.
+</span></span><span class="hl"><span class="c1"></span>    <span class="nx">enc</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">charset</span><span class="p">.</span><span class="nf">DetermineEncoding</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;content-type&#34;</span><span class="p">)</span><span class="p">)</span>
 </span><span class="hl">    <span class="k">if</span> <span class="nx">enc</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span><span class="hl">        <span class="nx">r</span> <span class="p">=</span> <span class="nx">enc</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">().</span><span class="nf">Reader</span><span class="p">(</span><span class="nx">br</span><span class="p">)</span>
+</span><span class="hl">        <span class="nx">r</span> <span class="p">=</span> <span class="nx">enc</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">Reader</span><span class="p">(</span><span class="nx">br</span><span class="p">)</span>
 </span><span class="hl">    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span> <span class="p">&gt;</span> <span class="mi">0</span> <span class="p">{</span>
-</span><span class="hl">        <span class="k">if</span> <span class="nx">enc</span> <span class="o">:=</span> <span class="nx">encoding</span><span class="p">.</span><span class="nf">GetEncoding</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span> <span class="nx">enc</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span><span class="hl">            <span class="nx">r</span> <span class="p">=</span> <span class="nx">enc</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">().</span><span class="nf">Reader</span><span class="p">(</span><span class="nx">br</span><span class="p">)</span>
+</span><span class="hl">        <span class="k">if</span> <span class="nx">enc</span> <span class="o">:=</span> <span class="nx">encoding</span><span class="p">.</span><span class="nf">GetEncoding</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span><span class="p">;</span> <span class="nx">enc</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span><span class="hl">            <span class="nx">r</span> <span class="p">=</span> <span class="nx">enc</span><span class="p">.</span><span class="nf">NewDecoder</span><span class="p">(</span><span class="p">)</span><span class="p">.</span><span class="nf">Reader</span><span class="p">(</span><span class="nx">br</span><span class="p">)</span>
 </span><span class="hl">        <span class="p">}</span>
 </span><span class="hl">    <span class="p">}</span>
 </span><span class="hl"><span class="p">}</span>
@@ -357,25 +326,18 @@ HTML の中の &quot;charset” を見て変換する手もあるのだが， HT
 <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
     <span class="k">return</span> <span class="nx">link</span><span class="p">,</span> <span class="nx">err</span>
 <span class="p">}</span></code></pre></div>
-
 <p>これを自前でやると相当に面倒臭いので忌避していたのだが，パッケージがちゃんとあるんだねぇ。
 助かりました。</p>
-
 <p>これで <a href="https://github.com/saintfish/chardet" title="saintfish/chardet: Charset detector library for golang derived from ICU">saintfish/chardet</a> を使って文字エンコーディングを検出するコードがまるっと要らなくなったけど，いろいろと勉強になったので良しとしよう。
 そして <a href="https://github.com/mattn/go-encoding">mattn/go-encoding</a> を導入したおかげで何気に対応する文字エンコードディングが増えてしまった（笑）</p>
-
 <p>というわけで「<a href="/golang/make-link-with-markdown-format/" title="Markdown 形式のリンクを生成するツールを作ってみた">Markdown 形式のリンクを生成するツール</a>」の v0.1.10 が絶賛リリース中です。</p>
-
 <ul>
 <li><a href="https://github.com/spiegel-im-spiegel/mklink/releases/tag/v0.1.10">Release v0.1.10 · spiegel-im-spiegel/mklink · GitHub</a></li>
 </ul>
-
 <p><a href="https://github.com/spiegel-im-spiegel/text" title="spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang">spiegel-im-spiegel/text</a> は他のことに再利用しているので，こっちも問題なし。
 やっぱ文字エンコーディングの変換は苦労するなぁ。
 旧 JIS とかイラわんだけマシだけど。</p>
-
-<h2 id="toc_2">参考図書</h2>
-
+<h2 id="heading">参考図書</h2>
 <div class="hreview">
   <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="123" alt="photo"></a></div>
   <dl class="fn">
@@ -389,15 +351,14 @@ HTML の中の &quot;charset” を見て変換する手もあるのだが， HT
   <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。</p>
   <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2018-10-20">2018-10-20</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
 </div>
-<div class="footnotes">
-
-<hr />
-
+<section class="footnotes" role="doc-endnotes">
+<hr>
 <ol>
-<li id="fn:cnv1">よく考えたら，この手は使えない。たとえば ISO-2022-JP は7ビット・エンコーディングなので <a href="https://golang.org/pkg/unicode/utf8/" title="utf8 - The Go Programming Language"><code>utf8</code></a>.<code>ValidString()</code> 関数でチェックしても valid になるに決まってるし（制御コードは無視するようだ），間違ったエンコーディングで無理やり UTF-8 に decode した結果も valid になるに決まっている <code>orz</code>
- <a class="footnote-return" href="#fnref:cnv1"><sup>[return]</sup></a></li>
+<li id="fn:1" role="doc-endnote">
+<p>よく考えたら，この手は使えない。たとえば ISO-2022-JP は7ビット・エンコーディングなので <a href="https://golang.org/pkg/unicode/utf8/" title="utf8 - The Go Programming Language"><code>utf8</code></a>.<code>ValidString()</code> 関数でチェックしても valid になるに決まってるし（制御コードは無視するようだ），間違ったエンコーディングで無理やり UTF-8 に decode した結果も valid になるに決まっている <code>orz</code></p>
+</li>
 </ol>
-</div>
+</section>
 
 </section>
 
@@ -476,7 +437,7 @@ HTML の中の &quot;charset” を見て変換する手もあるのだが， HT
 <li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.59.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.60.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>

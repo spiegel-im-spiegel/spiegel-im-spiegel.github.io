@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.59.1" />
+<meta name="generator" content="Hugo 0.60.0" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -167,13 +167,9 @@
 </nav>
 
 <section>
-
-
 <p>（この記事は <a href="https://qiita.com/spiegel-im-spiegel/items/e931ad1a7565d02d179e">Qiita とのマルチポスト</a>です。
 まぁ，向こうは草稿版だけど）</p>
-
 <p>久しぶりに <a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> を使おうと最新版（<a href="https://github.com/Masterminds/glide/releases/tag/v0.13.0" title="Release 0.13.0 · Masterminds/glide">0.13.0</a>）を見に行ったら “<strong>Consider switching to <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a></strong>” とか書いてあるじゃない。</p>
-
 <figure lang="en">
 <blockquote>
 <q>Glide is used by a great number of projects and will continue to get support for some time.
@@ -183,47 +179,35 @@ Please consider trying dep on your project or converting to dep.</q>
 </blockquote>
 <figcaption>via <q><a href="https://github.com/Masterminds/glide/releases/tag/v0.13.0">Release 0.13.0</a></q></figcaption>
 </figure>
-
 <p>まじすか。</p>
-
 <p>つまり「依存関係（Vendoring）管理ツールとしては <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> を推奨するけど移行できない人のために当面はサポートを続けるよ（でも将来は分からん）」という解釈でいいのだろうか。</p>
-
 <p><a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> は <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>開発プロジェクトの公式ツールで，2017年の始めくらいに日本でも話題になったような気がするが，私は <a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> で完全に満足していたのでスルーしていた。
 こんなことになるなんて。
 ならもう <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> に移行するしかないぢゃん。</p>
-
 <p>とはいえ，いきなり本番環境に投入するのは怖いので，なにか適当なテストケースはないか，と自分のリポジトリを漁ってたら丁度いいのがあったよ。</p>
-
 <ul>
 <li><a href="https://github.com/spiegel-im-spiegel/pi">spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.</a></li>
 </ul>
-
 <p>これって<a href="/golang/estimate-of-pi/">モンテカルロ法で遊んでた</a>ときに作ったものだ。
 最悪ぶっ壊れてもいいので，これ使って試してみるか。</p>
-
-<h2 id="toc_0"><a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> の取得</h2>
-
+<h2 id="dep-"><a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> の取得</h2>
 <p>まず <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> の取得から始めないとだが，リポジトリ自体は <code>go get</code> コマンドで取得できる。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go get -u github.com/golang/dep/cmd/dep</code></pre></div>
-<p>これをこのまま使ってもいいのだが，<a href="https://github.com/golang/dep/releases" title="Releases · golang/dep">リリースページ</a>にビルド済みのモジュールが置かれているので，ありがたくこれを使わせてもらおう。</p>
-
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go get -u github.com/golang/dep/cmd/dep
+</code></pre></div><p>これをこのまま使ってもいいのだが，<a href="https://github.com/golang/dep/releases" title="Releases · golang/dep">リリースページ</a>にビルド済みのモジュールが置かれているので，ありがたくこれを使わせてもらおう。</p>
 <p>最新版（現時点で <a href="https://github.com/golang/dep/releases/tag/v0.4.1" title="Release v0.4.1 · golang/dep">v0.4.1</a>）には Windows 用のモジュール <code>dep-windows-amd64.exe</code> もある。
 これを <code>dep.exe</code> にリネームして使う。</p>
-
 <p>万が一があっては困るのでモジュールの SHA256 ハッシュ値を確認しておく（こういうのこそ OpenPGP を使ってくれないものか）。
-Windows ユーザで Windows 8.1 以降であれば PowerShell（4.0 以上）で <a href="http://technet.microsoft.com/en-us/library/dn520872.aspx"><code>Get-FileHash</code></a> コマンドレットが使える<sup class="footnote-ref" id="fnref:ps1"><a href="#fn:ps1">1</a></sup>。</p>
-<div class="highlight"><pre class="chroma"><code class="language-powershell" data-lang="powershell"><span class="n">PS</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Users</span><span class="p">\</span><span class="n">username</span><span class="p">\</span><span class="n">Downloads</span><span class="p">&gt;</span> <span class="nb">Get-FileHash</span> <span class="n">dep-windows-amd64</span><span class="p">.</span><span class="n">exe</span> <span class="n">-Algorithm</span> <span class="n">SHA256</span> <span class="p">|</span> <span class="nb">Format-List</span>
+Windows ユーザで Windows 8.1 以降であれば PowerShell（4.0 以上）で <a href="http://technet.microsoft.com/en-us/library/dn520872.aspx"><code>Get-FileHash</code></a> コマンドレットが使える<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
+<div class="highlight"><pre class="chroma"><code class="language-powershell" data-lang="powershell"><span class="n">PS</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Users</span><span class="p">\</span><span class="n">username</span><span class="p">\</span><span class="n">Downloads</span><span class="p">&gt;</span> <span class="nb">Get-FileHash</span> <span class="n">dep</span><span class="n">-windows</span><span class="n">-amd64</span><span class="p">.</span><span class="n">exe</span> <span class="n">-Algorithm</span> <span class="n">SHA256</span> <span class="p">|</span> <span class="nb">Format-List</span>
 
 <span class="n">Algorithm</span> <span class="err">:</span> <span class="n">SHA256</span>
 <span class="n">Hash</span>      <span class="err">:</span> <span class="n">F6E6A872C54D5AE7536AC71FD5BCAC9F4E7B8A1DAFA1EF7C23866E2F3069FE4E</span>
-<span class="n">Path</span>      <span class="err">:</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Users</span><span class="p">\</span><span class="n">username</span><span class="p">\</span><span class="n">Downloads</span><span class="p">\</span><span class="n">dep-windows-amd64</span><span class="p">.</span><span class="n">exe</span></code></pre></div>
-<p>これを <code>dep-windows-amd64.exe.sha256</code> に記載されている値と比較する。
+<span class="n">Path</span>      <span class="err">:</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Users</span><span class="p">\</span><span class="n">username</span><span class="p">\</span><span class="n">Downloads</span><span class="p">\</span><span class="n">dep</span><span class="n">-windows</span><span class="n">-amd64</span><span class="p">.</span><span class="n">exe</span>
+</code></pre></div><p>これを <code>dep-windows-amd64.exe.sha256</code> に記載されている値と比較する。
 改竄されてなければ同じ値になるはずである。
 目視は辛いのでテキストエディタ等の検索機能を使えばいいだろう。</p>
-
 <div class="box"><strong>【2017-10-31 追記】</strong> だんだん面倒になってきたので<a href="https://github.com/spiegel-im-spiegel/hash" title="spiegel-im-spiegel/hash: Calculating Hash Value">ハッシュ値を計算するツール</a>を作った。
 詳しくは「<a href="/golang/calculating-hash-value/">Hash 値を計算するパッケージを作ってみた</a>」を参照のこと。</div>
-
 <!--
 Windows ユーザには（`sha256sum` といった）標準ツールがないのが痛いのだが， [7-Zip] があるなら，これを使ってハッシュ値を確認できる。
 
@@ -254,16 +238,15 @@ Everything is Ok
 
 <div class="box"><p><a href="http://www.nyaos.org/index.cgi?p=NYAGOS" title="NYAOS.ORG - NYAGOS">NYAGOS</a> を使っている人なら <code>.nyagos</code> ファイルに</p>
 <div class="highlight"><pre class="chroma"><code class="language-lua" data-lang="lua"><span class="n">alias</span> <span class="p">{</span>
-    <span class="n">sha1sum</span><span class="o">=</span><span class="s1">&#39;%COMSPEC% /c </span><span class="se">\&#34;</span><span class="s1">%PROGRAMFILES%/7-Zip/7z.exe</span><span class="se">\&#34;</span><span class="s1"> h -scrcSHA1 $*&#39;</span><span class="p">,</span>
-    <span class="n">sha256sum</span><span class="o">=</span><span class="s1">&#39;%COMSPEC% /c </span><span class="se">\&#34;</span><span class="s1">%PROGRAMFILES%/7-Zip/7z.exe</span><span class="se">\&#34;</span><span class="s1"> h -scrcSHA256 $*&#39;</span><span class="p">,</span>
-<span class="p">}</span></code></pre></div>
-<p>とか記述しておけば</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ sha256sum dep-windows-amd64</code></pre></div>
-<p>で同じ結果が得られる。
+    <span class="n">sha1sum</span><span class="o">=</span><span class="s1">&#39;</span><span class="s1">%COMSPEC% /c </span><span class="se">\&#34;</span><span class="s1">%PROGRAMFILES%/7-Zip/7z.exe</span><span class="se">\&#34;</span><span class="s1"> h -scrcSHA1 $*</span><span class="s1">&#39;</span><span class="p">,</span>
+    <span class="n">sha256sum</span><span class="o">=</span><span class="s1">&#39;</span><span class="s1">%COMSPEC% /c </span><span class="se">\&#34;</span><span class="s1">%PROGRAMFILES%/7-Zip/7z.exe</span><span class="se">\&#34;</span><span class="s1"> h -scrcSHA256 $*</span><span class="s1">&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div><p>とか記述しておけば</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ sha256sum dep-windows-amd64
+</code></pre></div><p>で同じ結果が得られる。
 改竄の有無を確認するためにファイルのハッシュ値を調べることはよくあるので準備しておくとよい。</p>
 </div>
 -->
-
 <p>実行モジュールの動作確認もしておく。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep
 Dep is a tool for managing dependencies for Go projects
@@ -293,11 +276,9 @@ dep:
  git hash    : 37d9ea0a
  go version  : go1.9.1
  go compiler : gc
- platform    : windows/amd64</code></pre></div>
-<h2 id="toc_1"><a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> から <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> への移行</h2>
-
+ platform    : windows/amd64
+</code></pre></div><h2 id="glide--dep-"><a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> から <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> への移行</h2>
 <p>お試し用の <a href="https://github.com/spiegel-im-spiegel/pi" title="spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.">spiegel-im-spiegel/pi</a> をビルド可能な適当な場所に置く。</p>
-
 <p>このパッケージの <code>glide.yaml</code> はこんな感じになっている。</p>
 <div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">package<span class="p">:</span><span class="w"> </span>github.com/spiegel-im-spiegel/pi<span class="w">
 </span><span class="w"></span>import<span class="p">:</span><span class="w">
@@ -306,8 +287,8 @@ dep:
 </span><span class="w"></span>-<span class="w"> </span>package<span class="p">:</span><span class="w"> </span>github.com/pkg/errors<span class="w">
 </span><span class="w"></span>-<span class="w"> </span>package<span class="p">:</span><span class="w"> </span>github.com/seehuhn/mt19937<span class="w">
 </span><span class="w"></span>-<span class="w"> </span>package<span class="p">:</span><span class="w"> </span>github.com/davidminor/gorand<span class="w">
-</span><span class="w"></span>-<span class="w"> </span>package<span class="p">:</span><span class="w"> </span>github.com/davidminor/uint128</code></pre></div>
-<p>また <code>glide.lock</code> はこんな感じ。</p>
+</span><span class="w"></span>-<span class="w"> </span>package<span class="p">:</span><span class="w"> </span>github.com/davidminor/uint128<span class="w">
+</span></code></pre></div><p>また <code>glide.lock</code> はこんな感じ。</p>
 <div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">hash<span class="p">:</span><span class="w"> </span>d570123d6231810c51dd17e415673df221fb2dec7ef6ab45cd34093002a87cbb<span class="w">
 </span><span class="w"></span>updated<span class="p">:</span><span class="w"> </span><span class="ld">2016-11-16T17:28:38.2997832</span><span class="m">+09</span><span class="p">:</span><span class="m">00</span><span class="w">
 </span><span class="w"></span>imports<span class="p">:</span><span class="w">
@@ -329,8 +310,8 @@ dep:
 </span><span class="w">  </span>version<span class="p">:</span><span class="w"> </span>5ccb023bc27df288a957c5e994cd44fd19619465<span class="w">
 </span><span class="w"></span>-<span class="w"> </span>name<span class="p">:</span><span class="w"> </span>github.com/spiegel-im-spiegel/gocli<span class="w">
 </span><span class="w">  </span>version<span class="p">:</span><span class="w"> </span>5929f04fb8e4a19ac29fdf658866f9441f339cd9<span class="w">
-</span><span class="w"></span>testImports<span class="p">:</span><span class="w"> </span><span class="p">[]</span></code></pre></div>
-<p>この状態で <code>dep init</code> コマンドを実行する。</p>
+</span><span class="w"></span>testImports<span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="p">]</span><span class="w">
+</span></code></pre></div><p>この状態で <code>dep init</code> コマンドを実行する。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep init
 Importing configuration from glide. These are only initial constraints, and are further refined during the solve process.                                                                             
 Detected glide configuration files...                                                              
@@ -349,63 +330,62 @@ Converting from glide.yaml and glide.lock...
   Locking in master (98c0ea5) for direct dep github.com/seehuhn/mt19937                            
   Using ^0.3.0 as constraint for direct dep github.com/spiegel-im-spiegel/gocli                    
   Locking in v0.3.0 (5929f04) for direct dep github.com/spiegel-im-spiegel/gocli                   
-  Locking in  (189780b) for direct dep github.com/davidminor/gorand                                </code></pre></div>
-<p>実は <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> パッケージの最新版は v0.5.0 だが， <code>glide.lock</code> の内容を読み取って，ちゃんと v0.3.0 のものを取ってきているようだ。
+  Locking in  (189780b) for direct dep github.com/davidminor/gorand                                
+</code></pre></div><p>実は <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> パッケージの最新版は v0.5.0 だが， <code>glide.lock</code> の内容を読み取って，ちゃんと v0.3.0 のものを取ってきているようだ。
 偉いぞ！</p>
-
 <p><code>dep init</code> コマンドにより <a href="https://golang.github.io/dep/docs/Gopkg.toml.html" title="Gopkg.toml · dep"><code>Gopkg.toml</code></a> および <a href="https://golang.github.io/dep/docs/Gopkg.lock.html" title="Gopkg.lock · dep"><code>Gopkg.lock</code></a> の2つのファイルと <code>vendor/</code> フォルダが作成される。
 このうち <a href="https://golang.github.io/dep/docs/Gopkg.toml.html" title="Gopkg.toml · dep"><code>Gopkg.toml</code></a> の内容は以下の通り。</p>
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/seehuhn/mt19937&#34;</span>
 
-<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.3.0&#34;</span>
 
 <span class="p">[</span><span class="nx">prune</span><span class="p">]</span>
   <span class="nx">go</span><span class="err">-</span><span class="nx">tests</span> <span class="p">=</span> <span class="kc">true</span>
-  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span></code></pre></div>
-<p>そして <a href="https://golang.github.io/dep/docs/Gopkg.lock.html" title="Gopkg.lock · dep"><code>Gopkg.lock</code></a> の内容は以下の通り。</p>
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span>
+</code></pre></div><p>そして <a href="https://golang.github.io/dep/docs/Gopkg.lock.html" title="Gopkg.lock · dep"><code>Gopkg.lock</code></a> の内容は以下の通り。</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/davidminor/gorand&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;lcg&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;189780b8053a44a111339a4248394fd844c1da40&#34;</span>
 
-<span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/davidminor/uint128&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;.&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;5745f1bf80414e0ad2670e85d6aece8c58031def&#34;</span>
 
-<span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/inconshreveable/mousetrap&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;.&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;76626ae9c91c4f2a10f34cad8ce83ea42c93bb75&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;v1.0&#34;</span>
 
-<span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/pkg/errors&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;.&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;248dadf4e9068a0b3e79f02ed0a610d935de5302&#34;</span>
 
-<span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/seehuhn/mt19937&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;.&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;98c0ea580d2f3c5a171acf4d4f15321b72209d08&#34;</span>
 
-<span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spf13/cobra&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;.&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;6b74a60562f5c1c920299b8f02d153e16f4897fc&#34;</span>
 
-<span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spf13/pflag&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;.&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;5ccb023bc27df288a957c5e994cd44fd19619465&#34;</span>
 
-<span class="p">[[</span><span class="nx">projects</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">projects</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
   <span class="nx">packages</span> <span class="p">=</span> <span class="p">[</span><span class="s2">&#34;.&#34;</span><span class="p">]</span>
   <span class="nx">revision</span> <span class="p">=</span> <span class="s2">&#34;5929f04fb8e4a19ac29fdf658866f9441f339cd9&#34;</span>
@@ -416,13 +396,11 @@ Converting from glide.yaml and glide.lock...
   <span class="nx">analyzer</span><span class="err">-</span><span class="nx">version</span> <span class="p">=</span> <span class="mi">1</span>
   <span class="nx">inputs</span><span class="err">-</span><span class="nx">digest</span> <span class="p">=</span> <span class="s2">&#34;3f9a0c0024e81ba251efaa0cb0014694f8315add84c7e8044a346f370e3e088e&#34;</span>
   <span class="nx">solver</span><span class="err">-</span><span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;gps-cdcl&#34;</span>
-  <span class="nx">solver</span><span class="err">-</span><span class="nx">version</span> <span class="p">=</span> <span class="mi">1</span></code></pre></div>
-<p><code>glide.lock</code> と <a href="https://golang.github.io/dep/docs/Gopkg.lock.html" title="Gopkg.lock · dep"><code>Gopkg.lock</code></a> の内容がマッチしているのが分かると思う。</p>
-
+  <span class="nx">solver</span><span class="err">-</span><span class="nx">version</span> <span class="p">=</span> <span class="mi">1</span>
+</code></pre></div><p><code>glide.lock</code> と <a href="https://golang.github.io/dep/docs/Gopkg.lock.html" title="Gopkg.lock · dep"><code>Gopkg.lock</code></a> の内容がマッチしているのが分かると思う。</p>
 <div class="box"><strong>【2018-02-02 追記】</strong> dep v0.4 から挙動が変わった？
 どうやら <code>dep init</code> 時点でリビジョン管理が必要と判断されるパッケージのみ <code>Gopkg.toml</code> に記載される感じ。
 それ以外でリビジョン管理が必要なものは手動で <code>Gopkg.toml</code> に記述する必要があるかも。</div>
-
 <p>念のため <code>dep status</code> も見ておこう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep status
 PROJECT                               CONSTRAINT     VERSION        REVISION  LATEST   PKGS USED
@@ -433,8 +411,8 @@ github.com/pkg/errors                 *                             248dadf     
 github.com/seehuhn/mt19937            branch master  branch master  98c0ea5   98c0ea5  1
 github.com/spf13/cobra                *                             6b74a60            1
 github.com/spf13/pflag                *                             5ccb023            1
-github.com/spiegel-im-spiegel/gocli   ^0.3.0         v0.3.0         5929f04   v0.3.0   1</code></pre></div>
-<p>ビルドもちゃんと通る。</p>
+github.com/spiegel-im-spiegel/gocli   ^0.3.0         v0.3.0         5929f04   v0.3.0   1
+</code></pre></div><p>ビルドもちゃんと通る。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go build -v .
 github.com/spiegel-im-spiegel/pi/vendor/github.com/davidminor/uint128
 github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/pflag
@@ -450,36 +428,34 @@ github.com/spiegel-im-spiegel/pi/plot
 github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/cobra
 github.com/spiegel-im-spiegel/pi/estmt
 github.com/spiegel-im-spiegel/pi/cmd
-github.com/spiegel-im-spiegel/pi</code></pre></div>
-<p>というわけで， <code>glide.yaml</code> と <code>glide.lock</code> が正しい状態で残っていれば問題なく <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> に移行できそうだ。</p>
-
-<h2 id="toc_2">依存関係の管理</h2>
-
+github.com/spiegel-im-spiegel/pi
+</code></pre></div><p>というわけで， <code>glide.yaml</code> と <code>glide.lock</code> が正しい状態で残っていれば問題なく <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> に移行できそうだ。</p>
+<h2 id="heading">依存関係の管理</h2>
 <p><a href="https://golang.github.io/dep/docs/Gopkg.toml.html" title="Gopkg.toml · dep"><code>Gopkg.toml</code></a> を以下のように修正してみる。</p>
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/davidminor/gorand&#34;</span>
   <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span>
 
-<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/pkg/errors&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.8.*&#34;</span>
 
-<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/seehuhn/mt19937&#34;</span>
   <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span>
 
-<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spf13/cobra&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.0.*&#34;</span>
 
-<span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
   <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.3.*&#34;</span>
 
 <span class="p">[</span><span class="nx">prune</span><span class="p">]</span>
   <span class="nx">go</span><span class="err">-</span><span class="nx">tests</span> <span class="p">=</span> <span class="kc">true</span>
-  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span></code></pre></div>
-<p>この状態で <code>dep ensure</code> コマンドを実行しステータスを見ると，以下のような感じになる。</p>
+  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span>
+</code></pre></div><p>この状態で <code>dep ensure</code> コマンドを実行しステータスを見ると，以下のような感じになる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep status
 PROJECT                               CONSTRAINT     VERSION        REVISION  LATEST   PKGS USED
 github.com/davidminor/gorand          branch master  branch master  283446f   283446f  1
@@ -489,57 +465,48 @@ github.com/pkg/errors                 ^0.8.0         v0.8.0         645ef00   v0
 github.com/seehuhn/mt19937            branch master  branch master  98c0ea5   98c0ea5  1
 github.com/spf13/cobra                ^0.0.1         v0.0.1         7b2c5ac   v0.0.1   1
 github.com/spf13/pflag                *                             5ccb023            1
-github.com/spiegel-im-spiegel/gocli   ^0.3.0         v0.3.0         5929f04   v0.3.0   1</code></pre></div>
-<p>たとえば</p>
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+github.com/spiegel-im-spiegel/gocli   ^0.3.0         v0.3.0         5929f04   v0.3.0   1
+</code></pre></div><p>たとえば</p>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/davidminor/gorand&#34;</span>
-  <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span></code></pre></div>
-<p>であれば <a href="https://github.com/davidminor/gorand" title="davidminor/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation">github.com/davidminor/gorand</a> パッケージで master ブランチの最新コミットを取ってくる。
+  <span class="nx">branch</span> <span class="p">=</span> <span class="s2">&#34;master&#34;</span>
+</code></pre></div><p>であれば <a href="https://github.com/davidminor/gorand" title="davidminor/gorand: Basic golang implementation of a permuted congruential generator for pseudorandom number generation">github.com/davidminor/gorand</a> パッケージで master ブランチの最新コミットを取ってくる。
 また</p>
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
-  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.3.*&#34;</span></code></pre></div>
-<p>であれば <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> パッケージで v0.3.x の最新バージョンを取ってくる<sup class="footnote-ref" id="fnref:v1"><a href="#fn:v1">2</a></sup>。</p>
-
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.3.*&#34;</span>
+</code></pre></div><p>であれば <a href="https://github.com/spiegel-im-spiegel/gocli" title="spiegel-im-spiegel/gocli: Command line interface">spiegel-im-spiegel/gocli</a> パッケージで v0.3.x の最新バージョンを取ってくる<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。</p>
 <p><code>[prune]</code> 指定では <code>vendor/</code> フォルダから除外するパッケージやファイルを指定する。</p>
 <div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="nx">prune</span><span class="p">]</span>
   <span class="nx">go</span><span class="err">-</span><span class="nx">tests</span> <span class="p">=</span> <span class="kc">true</span>
-  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span></code></pre></div>
-<p><code>go-tests</code> はテスト用のファイル（<code>*_test.go</code>）を <code>unused-packages</code> は未使用のパッケージを指す。
+  <span class="nx">unused</span><span class="err">-</span><span class="nx">packages</span> <span class="p">=</span> <span class="kc">true</span>
+</code></pre></div><p><code>go-tests</code> はテスト用のファイル（<code>*_test.go</code>）を <code>unused-packages</code> は未使用のパッケージを指す。
 なお，値は <code>true</code> 以外はエラーになるようだ。
 たとえば未使用パッケージも含めたいのであれば <code>unused-packages = false</code> とするのではなく記述自体を削除する。</p>
 <div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="nx">prune</span><span class="p">]</span>
-  <span class="nx">go</span><span class="err">-</span><span class="nx">tests</span> <span class="p">=</span> <span class="kc">true</span></code></pre></div>
-<h2 id="toc_3">依存関係の視覚化</h2>
-
+  <span class="nx">go</span><span class="err">-</span><span class="nx">tests</span> <span class="p">=</span> <span class="kc">true</span>
+</code></pre></div><h2 id="heading1">依存関係の視覚化</h2>
 <p><code>dep status</code> コマンドには結果を DOT 言語で吐き出すオプションがあるようだ。
 <a href="http://graphviz.org/" title="Graphviz - Graph Visualization Software">Graphviz</a> があれば，この出力結果を画像データに変換できる。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep status -dot | dot -Tpng -o pi-dependency.png</code></pre></div>
-<p>結果はこんな感じ。</p>
-
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep status -dot | dot -Tpng -o pi-dependency.png
+</code></pre></div><p>結果はこんな感じ。</p>
 <figure style='margin:0 auto;text-align:center;'>
 <a href="./pi-dependency.png"><img src="./pi-dependency.png" srcset="./pi-dependency.png 1275w" sizes="(min-width:600px) 500px, 80vw" alt="pi-dependency.png"></a>
 <figcaption><a href="./pi-dependency.png">pi-dependency.png</a></figcaption>
 </figure>
-
 <p>ブラボー！</p>
-
-<h2 id="toc_4">リポジトリへのパスを直接指定する</h2>
-
+<h2 id="heading2">リポジトリへのパスを直接指定する</h2>
 <p>GitHub みたいな有名 SaaS に置いてあるパッケージなら <a href="https://golang.github.io/dep/docs/Gopkg.toml.html" title="Gopkg.toml · dep"><code>Gopkg.toml</code></a> に</p>
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
-  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.3.*&#34;</span></code></pre></div>
-<p>とか書けば適切に処理してくれるけど，有名でない SaaS ディレクトリや職場 LAN のリポジトリ上のパッケージではこうはいかないこともある。
+  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.3.*&#34;</span>
+</code></pre></div><p>とか書けば適切に処理してくれるけど，有名でない SaaS ディレクトリや職場 LAN のリポジトリ上のパッケージではこうはいかないこともある。
 こういう場合には，以下に示す通り，直接リポジトリへの（プロトコルを含めた）パスを指定する。</p>
-
-<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[[</span><span class="nx">constraint</span><span class="p">]]</span>
+<div class="highlight"><pre class="chroma"><code class="language-toml" data-lang="toml"><span class="p">[</span><span class="p">[</span><span class="nx">constraint</span><span class="p">]</span><span class="p">]</span>
   <span class="nx">name</span> <span class="p">=</span> <span class="s2">&#34;github.com/spiegel-im-spiegel/gocli&#34;</span>
 <span class="hl">  <span class="nx">source</span> <span class="p">=</span> <span class="s2">&#34;git@github.com:spiegel-im-spiegel/gocli.git&#34;</span>
 </span>  <span class="nx">version</span> <span class="p">=</span> <span class="s2">&#34;0.3.* &#34;</span></code></pre></div>
-
 <p>これで <code>dep ensure</code> すれば</p>
-
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ dep ensure -v
 
 ...
@@ -552,28 +519,21 @@ github.com/spiegel-im-spiegel/gocli   ^0.3.0         v0.3.0         5929f04   v0
 (6/8) Wrote github.com/davidminor/uint128@master
 (7/8) Wrote github.com/spf13/cobra@6b74a60562f5c1c920299b8f02d153e16f4897fc
 (8/8) Wrote github.com/seehuhn/mt19937@master</code></pre></div>
-
 <p>といった感じになる。
 ちゃんと指定したリポジトリからパッケージを取得してきているのが分かるだろう。</p>
-
-<h2 id="toc_5">Go 1.9 から glide novendor は必要なくなった</h2>
-
+<h2 id="go-19--glide-novendor-">Go 1.9 から glide novendor は必要なくなった</h2>
 <p>Vendoring で一番あつかいに困るのがテストで，たとえば安直に</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go test -v ./...</code></pre></div>
-<p>とかやると <code>vendor/</code> フォルダ以下のパッケージまでテスト・シーケンスが走ってしまうのが困りものであった。
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go test -v ./...
+</code></pre></div><p>とかやると <code>vendor/</code> フォルダ以下のパッケージまでテスト・シーケンスが走ってしまうのが困りものであった。
 このため <a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> にはこれを回避する <code>glide novendor</code> コマンドがあって</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go test -v $(glide novendor)</code></pre></div>
-<p>とすることで <code>vendor/</code> フォルダへのテストを回避できるようになっていたのだ<sup class="footnote-ref" id="fnref:tst1"><a href="#fn:tst1">3</a></sup>。</p>
-
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go test -v $(glide novendor)
+</code></pre></div><p>とすることで <code>vendor/</code> フォルダへのテストを回避できるようになっていたのだ<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>。</p>
 <p>ところがところが！！</p>
-
 <p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a> 1.9 からは <code>./...</code> の扱いが変更になり</p>
-
 <figure lang="en">
 <blockquote>“By popular request, <code>./...</code> no longer matches packages in <code>vendor</code> directories in tools accepting package names, such as <code>go test</code>.”</blockquote>
 <figcaption>via <q><a href="https://golang.org/doc/go1.9#vendor-dotdotdot">Go 1.9 Release Notes</a></q></figcaption>
 </figure>
-
 <p>ということで <code>./...</code> に <code>vendor/</code> フォルダ以下が含まれないことになったのだ。
 たとえば <a href="https://github.com/spiegel-im-spiegel/pi" title="spiegel-im-spiegel/pi: Estimate of Pi with Monte Carlo method.">spiegel-im-spiegel/pi</a> パッケージの場合は</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go list ./...
@@ -583,8 +543,8 @@ github.com/spiegel-im-spiegel/pi/estmt
 github.com/spiegel-im-spiegel/pi/gencmplx
 github.com/spiegel-im-spiegel/pi/genpi
 github.com/spiegel-im-spiegel/pi/plot
-github.com/spiegel-im-spiegel/pi/qq</code></pre></div>
-<p>となる。
+github.com/spiegel-im-spiegel/pi/qq
+</code></pre></div><p>となる。
 逆に <code>vendor/</code> フォルダも含めたいなら</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go list ./... ./vendor/...
 github.com/spiegel-im-spiegel/pi
@@ -605,41 +565,45 @@ github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/cobra/cobra
 github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/cobra/cobra/cmd
 github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/cobra/doc
 github.com/spiegel-im-spiegel/pi/vendor/github.com/spf13/pflag
-github.com/spiegel-im-spiegel/pi/vendor/github.com/spiegel-im-spiegel/gocli</code></pre></div>
-<p>とすればよい。
+github.com/spiegel-im-spiegel/pi/vendor/github.com/spiegel-im-spiegel/gocli
+</code></pre></div><p>とすればよい。
 こっちのほうが遥かに扱いやすいよね。</p>
-
 <p>これでまたひとつ <a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> が「要らない子」になる理由が増えてしまったのだった。</p>
-
-<h2 id="toc_6">ブックマーク</h2>
-
+<h2 id="heading3">ブックマーク</h2>
 <ul>
-<li><a href="https://dev.classmethod.jp/go/dep/">Goオフィシャルチーム作成の依存関係管理ツール dep を試してみた ｜ Developers.IO</a></li>
-<li><a href="https://mattn.kaoriya.net/software/lang/go/20170125023240.htm">Big Sky :: golang オフィシャル謹製のパッケージ依存解決ツール「dep」</a></li>
-
-<li><p><a href="https://qiita.com/noppefoxwolf/items/49bd460034a5c84e1956">[go]depでブランチ指定 - Qiita</a></p>
-
+<li>
+<p><a href="https://dev.classmethod.jp/go/dep/">Goオフィシャルチーム作成の依存関係管理ツール dep を試してみた ｜ Developers.IO</a></p>
+</li>
+<li>
+<p><a href="https://mattn.kaoriya.net/software/lang/go/20170125023240.htm">Big Sky :: golang オフィシャル謹製のパッケージ依存解決ツール「dep」</a></p>
+</li>
+<li>
+<p><a href="https://qiita.com/noppefoxwolf/items/49bd460034a5c84e1956">[go]depでブランチ指定 - Qiita</a></p>
 <ul>
 <li><a href="https://golang.github.io/dep/docs/ensure-mechanics.html">Models and Mechanisms · dep</a></li>
-</ul></li>
-
-<li><p><a href="/golang/gopath-pollution/">GOPATH 汚染問題</a></p></li>
-
-<li><p><a href="/golang/package-visualization-tool/">パッケージの依存状況の視覚化</a></p></li>
 </ul>
-<div class="footnotes">
-
-<hr />
-
+</li>
+<li>
+<p><a href="/golang/gopath-pollution/">GOPATH 汚染問題</a></p>
+</li>
+<li>
+<p><a href="/golang/package-visualization-tool/">パッケージの依存状況の視覚化</a></p>
+</li>
+</ul>
+<section class="footnotes" role="doc-endnotes">
+<hr>
 <ol>
-<li id="fn:ps1">Windows 7 の場合は “<a href="https://www.microsoft.com/ja-jp/download/details.aspx?id=40855">Windows Management Framework 4.0</a>” をインストールすることで PowerShell 4.0 にアップグレードできる。
- <a class="footnote-return" href="#fnref:ps1"><sup>[return]</sup></a></li>
-<li id="fn:v1"><a href="https://golang.github.io/dep/docs/Gopkg.toml.html" title="Gopkg.toml · dep"><code>Gopkg.toml</code></a> のバージョンの考え方は “<a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a>” に従っている。ワイルドカード等を使ったバージョン指定については <a href="https://github.com/Masterminds/semver" title="Masterminds/semver: Work with Semantic Versions in Go">Masterminds/semver</a> パッケージを参照するとよい。
- <a class="footnote-return" href="#fnref:v1"><sup>[return]</sup></a></li>
-<li id="fn:tst1"><a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> を使わない場合は <code>go test -v $(go list ./... | grep -v /vendor/)</code> とかする。どのみち Windows のコマンドプロンプトでは無理だけど（笑）
- <a class="footnote-return" href="#fnref:tst1"><sup>[return]</sup></a></li>
+<li id="fn:1" role="doc-endnote">
+<p>Windows 7 の場合は “<a href="https://www.microsoft.com/ja-jp/download/details.aspx?id=40855">Windows Management Framework 4.0</a>” をインストールすることで PowerShell 4.0 にアップグレードできる。</p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p><a href="https://golang.github.io/dep/docs/Gopkg.toml.html" title="Gopkg.toml · dep"><code>Gopkg.toml</code></a> のバージョンの考え方は “<a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a>” に従っている。ワイルドカード等を使ったバージョン指定については <a href="https://github.com/Masterminds/semver" title="Masterminds/semver: Work with Semantic Versions in Go">Masterminds/semver</a> パッケージを参照するとよい。</p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p><a href="https://github.com/Masterminds/glide" title="Masterminds/glide">glide</a> を使わない場合は <code>go test -v $(go list ./... | grep -v /vendor/)</code> とかする。どのみち Windows のコマンドプロンプトでは無理だけど（笑）</p>
+</li>
 </ol>
-</div>
+</section>
 
 </section>
 
@@ -718,7 +682,7 @@ github.com/spiegel-im-spiegel/pi/vendor/github.com/spiegel-im-spiegel/gocli</cod
 <li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.59.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.60.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>

@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.59.1" />
+<meta name="generator" content="Hugo 0.60.0" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -167,41 +167,27 @@
 </nav>
 
 <section>
-
-
 <p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コンパイラの<a href="/release/2018/09/go-1_11-ise-released/" title="Go 1.11 のリリースと「モジュール」機能の実験的サポート">バージョン 1.11</a>から搭載された「モジュール対応モード」だが，少し試してみてそれなりに使えそうなので，この記事である程度まとめておくことにした。
 これからも何かあればこの記事に加筆・修正していく予定である。</p>
-
 <p>なお，モジュール対応モードは 1.11 時点で preliminary support に過ぎないため，以降のバージョンで大きな変更が行われるかもしれない。
 したがってこの記事はバージョン 1.12 以降で大幅に書き替える可能性がる。</p>
-
-<h2 id="toc_0">用語の整理</h2>
-
+<h2 id="heading">用語の整理</h2>
 <p>まず最初に用語の定義をしておく。</p>
-
-<h3 id="toc_1">GOPATH モードとモジュール対応モード</h3>
-
-<p>バージョン 1.11 以降からは <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コンパイラは以下の2つのモードのどちらかで動作する<sup class="footnote-ref" id="fnref:cmd1"><a href="#fn:cmd1">1</a></sup>。</p>
-
+<h3 id="gopath-">GOPATH モードとモジュール対応モード</h3>
+<p>バージョン 1.11 以降からは <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コンパイラは以下の2つのモードのどちらかで動作する<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
 <ul>
 <li><strong>GOPATH モード (GOPATH mode)</strong> : バージョン 1.10 までの動作モード。標準ライブラリを除く全てのパッケージの管理とビルドを <code>$GOPATH</code> 以下のディレクトリで行う。パッケージの管理はリポジトリの最新リビジョンのみが対象となる</li>
 <li><strong>モジュール対応モード (module-aware mode)</strong> : 標準ライブラリを除く全てのパッケージをモジュールとして管理する。モジュールの管理とビルドは任意のディレクトリで可能で，モジュールはリポジトリのバージョンタグまたはリビジョン毎に管理される</li>
 </ul>
-
-<h3 id="toc_2">「モジュール」とは</h3>
-
+<h3 id="heading1">「モジュール」とは</h3>
 <p>モジュール対応モードでは，標準ライブラリを除くパッケージを「モジュール（module）」として管理する。
-パッケージが <a href="https://git-scm.com/" title="Git">git</a> 等のバージョン管理ツールで管理されている場合はバージョン毎に異なるモジュールと見なされる。
+パッケージが <a href="https://git-scm.com/">git</a> 等のバージョン管理ツールで管理されている場合はバージョン毎に異なるモジュールと見なされる。
 つまりモジュールの実体は「パッケージ＋バージョン」ということになる。</p>
-
 <p>ただしコード上ではパッケージとモジュールの間に区別はなく，したがってソースコードを書き換える必要はない。
 モジュールはソースコードではなく <code>go.mod</code> ファイルで管理される。</p>
-
-<h2 id="toc_3">環境変数 $GO111MODULE</h2>
-
+<h2 id="-go111module">環境変数 $GO111MODULE</h2>
 <p>バージョン 1.11 では2つのモードの切り替えのために環境変数 <code>$GO111MODULE</code> でモードを指定する。
 環境変数 <code>$GO111MODULE</code> は以下の値をとり得る。</p>
-
 <table>
 <thead>
 <tr>
@@ -209,96 +195,73 @@
 <th>内容</th>
 </tr>
 </thead>
-
 <tbody>
 <tr>
 <td><code>on</code></td>
 <td>常にモジュール対応モードで動作する</td>
 </tr>
-
 <tr>
 <td><code>off</code></td>
 <td>常に GOPATH モードで動作する</td>
 </tr>
-
 <tr>
 <td><code>auto</code></td>
 <td><code>$GOPATH</code> 以下のディレクトリにあるパッケージは GOPATH モードで，それ以外はモジュール対応モードで動作する</td>
 </tr>
 </tbody>
 </table>
-
 <p>バージョン 1.11 では，環境変数 <code>$GO111MODULE</code> の既定値には <code>auto</code> が設定されている。
 独自の開発環境や IDE を使用しているためモジュール対応モードへの移行が難しい場合には <code>$GO111MODULE</code> を <code>off</code> にするとよいだろう。</p>
-
 <div class="box">【追記 2019-03-24】 <a href="https://text.baldanders.info/release/2019/02/go-1_12-is-released/">Go 1.12</a> でも引き続き <code>auto</code> が規定値になっている。
 なお 1.13 からはモジュール対応モードが既定になるらしい。
 そうなれば環境変数 <code>$GO111MODULE</code> はお役御免になるかな。</div>
-
-<h2 id="toc_4">モジュール対応モード移行への準備</h2>
-
+<h2 id="heading2">モジュール対応モード移行への準備</h2>
 <p>本格的にモジュール対応モードへ移行する前に，以下の準備を行う。</p>
-
-<h3 id="toc_5"><a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a> によるバージョン管理</h3>
-
-<p>モジュールのバージョンははリポジトリのリビジョン番号またはバージョンタグによって管理されるが，バージョンタグに関しては <a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a> のルールに則ってバージョン番号を設定することが推奨されている<sup class="footnote-ref" id="fnref:sv1"><a href="#fn:sv1">2</a></sup>。</p>
-
+<h3 id="semantic-versioning-"><a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a> によるバージョン管理</h3>
+<p>モジュールのバージョンははリポジトリのリビジョン番号またはバージョンタグによって管理されるが，バージョンタグに関しては <a href="http://semver.org/" title="Semantic Versioning 2.0.0 | Semantic Versioning">Semantic Versioning</a> のルールに則ってバージョン番号を設定することが推奨されている<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。</p>
 <figure style='margin:0 auto;text-align:center;'>
 <a href="https://research.swtch.com/vgo-import"><img src="https://research.swtch.com/impver.png" srcset="https://research.swtch.com/impver.png 500w" sizes="(min-width:600px) 500px, 80vw" alt="Semantic Import Versioning"></a>
 <figcaption><a href="https://research.swtch.com/vgo-import">Semantic Import Versioning</a></figcaption>
 </figure>
-
 <p>このように後方互換性のない変更がある場合にはメジャーバージョンを，後方互換性が担保された変更や追加についてはマイナーバージョンを，不具合や脆弱性の修正については第3位のパッチバージョンを上げるようにする。
-またメジャーバージョンを上げる際には，図のようにディレクトリを分離するか，旧バージョン用にブランチを切るのがよいだろう<sup class="footnote-ref" id="fnref:sv2"><a href="#fn:sv2">3</a></sup>。</p>
-
+またメジャーバージョンを上げる際には，図のようにディレクトリを分離するか，旧バージョン用にブランチを切るのがよいだろう<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>。</p>
 <p>バージョンタグによってバージョン管理を行うのであればきちんとルールを決めて管理する必要がある。
-リポジトリ管理に <a href="https://git-scm.com/" title="Git">Git</a> を使うのであれば Git Flow や GitHub Flow などが参考になるかも知れない。</p>
-
+リポジトリ管理に <a href="https://git-scm.com/">Git</a> を使うのであれば Git Flow や GitHub Flow などが参考になるかも知れない。</p>
 <ul>
 <li><a href="http://nvie.com/posts/a-successful-git-branching-model/">A successful Git branching model » nvie.com</a></li>
 <li><a href="http://danielkummer.github.io/git-flow-cheatsheet/">git-flow cheatsheet</a> （<a href="http://danielkummer.github.io/git-flow-cheatsheet/index.ja_JP.html">日本語</a>）</li>
 <li><a href="http://scottchacon.com/2011/08/31/github-flow.html">GitHub Flow – Scott Chacon</a> （<a href="https://gist.github.com/Gab-km/3705015">日本語訳</a>）</li>
 </ul>
-
 <p><a href="https://github.com/">GitHub</a> 等の SaaS ではバージョンタグを使ったリリース管理がやりやすいように構成されているし，上手く使ってほしい。</p>
-
-<h3 id="toc_6">なにはさておき go.mod ファイルを作成する</h3>
-
+<h3 id="-gomod-">なにはさておき go.mod ファイルを作成する</h3>
 <p>モジュール対応モードでは <code>go.mod</code> ファイルでモジュール管理を行う。
 そういうわけで，なにはさておき <code>go.mod</code> ファイルを作ってしまおう。</p>
-
 <p>適当なディレクトリで以下のコマンドを実行する。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go mod init hello
-go: creating new go.mod: module hello</code></pre></div>
-<p>ここで <code>hello</code> というのがモジュール名（厳密にはモジュール・パス）になる。
+go: creating new go.mod: module hello
+</code></pre></div><p>ここで <code>hello</code> というのがモジュール名（厳密にはモジュール・パス）になる。
 モジュール名は <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の名前として使えるものであれば何でもいいが，パッケージ名（厳密にはパッケージ・パス）と合わせておくと面倒がない。
 たとえば <a href="https://github.com/">GitHub</a> に <code>github.com/my/package</code> というパッケージを公開するのであれば，モジュール名も</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go mod init github.com/my/package
-go: creating new go.mod: module github.com/my/package</code></pre></div>
-<p>としておくのがいいだろう。</p>
-
+go: creating new go.mod: module github.com/my/package
+</code></pre></div><p>としておくのがいいだろう。</p>
 <p>コンパイル時に参照する <code>go.mod</code> ファイルがどこにあるかは環境変数 <code>$GOMOD</code> を見ればよい。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go env GOMOD
-/home/username/workspace/gpgpdump/go.mod</code></pre></div>
-<p>カレント・ディレクトリに <code>go.mod</code> ファイルがない場合は親ディレクトリに遡って探すようだ。
+/home/username/workspace/gpgpdump/go.mod
+</code></pre></div><p>カレント・ディレクトリに <code>go.mod</code> ファイルがない場合は親ディレクトリに遡って探すようだ。
 まぁ，サブパッケージはディレクトリで階層化されているから当然なんだけど。</p>
-
-<p>なお，カレント・ディレクトリにも親ディレクトリを遡っても <code>go.mod</code> ファイルがない場合は <code>/dev/null</code> （Windows 環境では <code>NUL</code>）を空の <code>go.mod</code> ファイルと見なして処理を継続する<sup class="footnote-ref" id="fnref:go112a"><a href="#fn:go112a">4</a></sup>。</p>
+<p>なお，カレント・ディレクトリにも親ディレクトリを遡っても <code>go.mod</code> ファイルがない場合は <code>/dev/null</code> （Windows 環境では <code>NUL</code>）を空の <code>go.mod</code> ファイルと見なして処理を継続する<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go env GOMOD
-/dev/null</code></pre></div>
-<h4 id="toc_7"><a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> からの移行</h4>
-
+/dev/null
+</code></pre></div><h4 id="dep-"><a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> からの移行</h4>
 <p>既存のパッケージに <code>go.mod</code> ファイルを追加する場合も同様の操作でよい。
 なお <a href="https://golang.github.io/dep/" title="dep · Dependency management for Go">dep</a> を使ってパッケージ管理を行っている場合は <code>Gopkg.lock</code> ファイルを読んで <code>go.mod</code> ファイルに組み込んでくれる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go mod init github.com/spiegel-im-spiegel/gpgpdump
 go: creating new go.mod: module github.com/spiegel-im-spiegel/gpgpdump
-go: copying requirements from Gopkg.lock</code></pre></div>
-<p>なんて便利！</p>
-
-<h4 id="toc_8">go.mod の内容</h4>
-
+go: copying requirements from Gopkg.lock
+</code></pre></div><p>なんて便利！</p>
+<h4 id="gomod-">go.mod の内容</h4>
 <p>ここで作成した <code>go.mod</code> ファイルの中身を見てみよう。</p>
-
 <p>たとえば <code>github.com/spiegel-im-spiegel/gpgpdump</code> パッケージの <code>go.mod</code> ファイルの内容は以下の通り。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">module github.com/spiegel-im-spiegel/gpgpdump
 
@@ -312,10 +275,9 @@ require (
 	github.com/spiegel-im-spiegel/gocli v0.9.4
 	golang.org/x/crypto v0.0.0-20190320223903-b7391e95e576
 	golang.org/x/xerrors v0.0.0-20190315151331-d61658bd2e18
-)</code></pre></div>
-<p><code>module</code> や <code>require</code> は命令（directive）と呼ばれるもので，これらの命令を使ってモジュールの管理を行う。
+)
+</code></pre></div><p><code>module</code> や <code>require</code> は命令（directive）と呼ばれるもので，これらの命令を使ってモジュールの管理を行う。
 <code>go.mod</code> ファイルの記述で使える命令は以下の通り。</p>
-
 <table>
 <thead>
 <tr>
@@ -323,61 +285,48 @@ require (
 <th>記述例</th>
 </tr>
 </thead>
-
 <tbody>
 <tr>
 <td><code>module</code></td>
 <td><code>module my/thing</code></td>
 </tr>
-
 <tr>
 <td><code>go</code></td>
 <td><code>1.12</code></td>
 </tr>
-
 <tr>
 <td><code>require</code></td>
 <td><code>require other/thing v1.0.2</code></td>
 </tr>
-
 <tr>
 <td><code>exclude</code></td>
 <td><code>exclude old/thing v1.2.3</code></td>
 </tr>
-
 <tr>
 <td><code>replace</code></td>
 <td><code>replace bad/thing v1.4.5 =&gt; good/thing v1.4.5</code></td>
 </tr>
 </tbody>
 </table>
-
 <p><code>module</code> はカレント以下のディレクトリにあるパッケージに対するモジュール名を定義する。
 前述したようにモジュール名（モジュール・パス）はパッケージ名（パッケージ・パス）と合わせておくほうが面倒がない。</p>
-
 <p><code>go</code> は対応する <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>のバージョンを指定する。
 マイナーバージョンまで指定すれば OK だが，指定しなくても動作に支障はない。
 おそらく将来的に <code>go.mod</code> ファイルの後方互換性が確保できなくなった場合の保険だろう。</p>
-
 <p><code>require</code> はカレントのモジュールが要求するモジュール名とバージョンを指定する。
 つまり <code>require</code> で指定したモジュールが，カレント・モジュールが依存する外部モジュールとなるわけだ。</p>
-
 <p><code>exclude</code> は管理から除外するモジュールを指定する。
 不具合等で特定のバージョンのモジュールを使いたくないときなどに使える。</p>
-
 <p><code>replace</code> はモジュール名の置き換えである。
 パッケージ・パスのリダイレクトなどで名前と実体が一致しないときなどに使える。
-たとえば以下のような感じ<sup class="footnote-ref" id="fnref:ltst1"><a href="#fn:ltst1">5</a></sup>。</p>
+たとえば以下のような感じ<sup id="fnref:5"><a href="#fn:5" class="footnote-ref" role="doc-noteref">5</a></sup>。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">module md2html
 
 require gopkg.in/russross/blackfriday.v2 latest
-replace gopkg.in/russross/blackfriday.v2 latest =&gt; github.com/russross/blackfriday/v2 latest</code></pre></div>
-<p>この件については後ほど詳しく説明する。</p>
-
-<h2 id="toc_9">モジュール対応モードで使う主なコマンド</h2>
-
+replace gopkg.in/russross/blackfriday.v2 latest =&gt; github.com/russross/blackfriday/v2 latest
+</code></pre></div><p>この件については後ほど詳しく説明する。</p>
+<h2 id="heading3">モジュール対応モードで使う主なコマンド</h2>
 <p>それではモジュール対応モードで色々と操作してみよう。</p>
-
 <p><code>go build</code> や <code>go test</code> や <code>go run</code> のようなコマンドは，モジュール対応モードでも変わりなく使える。
 ビルド時に必要なモジュールは自動的にダウンロードされるため，事前に <code>go get -u ./...</code> みたいなことはしなくていいようだ。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run hello.go
@@ -387,9 +336,8 @@ go: finding rsc.io/sampler v1.3.0
 go: finding golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c
 go: downloading rsc.io/sampler v1.3.0
 go: downloading golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c
-Hello, world.</code></pre></div>
-<p>なお <code>go get</code> の挙動については後ほど詳しく紹介する。</p>
-
+Hello, world.
+</code></pre></div><p>なお <code>go get</code> の挙動については後ほど詳しく紹介する。</p>
 <p><code>go list</code> コマンドは <code>-m</code> オプションを付けることでモジュールに対応した。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go list -m -u all
 go: finding github.com/pkg/errors v0.8.0
@@ -408,10 +356,9 @@ github.com/pkg/errors v0.8.0
 github.com/spf13/cobra v0.0.3
 github.com/spf13/pflag v1.0.2
 github.com/spiegel-im-spiegel/gocli v0.8.0
-golang.org/x/crypto v0.0.0-20180816225734-aabede6cba87 [v0.0.0-20180910181607-0e37d006457b]</code></pre></div>
-<p>実行結果から <code>github.com/BurntSushi/toml</code> と <code>golang.org/x/crypto</code> には新しいバージョンがあることが分かる。
+golang.org/x/crypto v0.0.0-20180816225734-aabede6cba87 [v0.0.0-20180910181607-0e37d006457b]
+</code></pre></div><p>実行結果から <code>github.com/BurntSushi/toml</code> と <code>golang.org/x/crypto</code> には新しいバージョンがあることが分かる。
 この情報を基に <code>go.mod</code> を調整していけばいいだろう。</p>
-
 <p>新しく追加されたモジュール対応モード用のコマンド <code>go mod</code> はこんな感じ。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go help mod
 Go mod provides access to operations on modules.
@@ -436,21 +383,16 @@ The commands are:
         verify      verify dependencies have expected content
         why         explain why packages or modules are needed
 
-Use &#34;go help mod &lt;command&gt;&#34; for more information about a command.</code></pre></div>
-<p><code>go mod init</code> は既に紹介したとおり。
+Use &#34;go help mod &lt;command&gt;&#34; for more information about a command.
+</code></pre></div><p><code>go mod init</code> は既に紹介したとおり。
 他によく使うものといえば <code>go mod download</code> と <code>go mod graph</code> だろうか。</p>
-
 <p><code>go mod download</code> は <code>go get -u ./...</code> の代わりに使える。
 <code>go mod graph</code> はモジュール間の依存関係を調べるときに使えるだろう。</p>
-
 <ul>
 <li><a href="/golang/go-mod-graph/">“go mod graph” を視覚化する</a></li>
 </ul>
-
 <p><code>go mod edit</code> は <code>go.mod</code> ファイルを編集するためのコマンドだが手で書いたほうが早い（笑） まぁ何らかのバッチ処理で使える感じだろうか。</p>
-
-<h2 id="toc_10">モジュール間の依存関係の構造化</h2>
-
+<h2 id="heading4">モジュール間の依存関係の構造化</h2>
 <p>以下のコードに対して</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
 
@@ -460,20 +402,19 @@ Use &#34;go help mod &lt;command&gt;&#34; for more information about a command.<
     <span class="s">&#34;rsc.io/quote&#34;</span>
 <span class="p">)</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">quote</span><span class="p">.</span><span class="nf">Hello</span><span class="p">())</span>
-<span class="p">}</span></code></pre></div>
-<p><code>go.mod</code> ファイルの内容が以下の通りだとする。</p>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">quote</span><span class="p">.</span><span class="nf">Hello</span><span class="p">(</span><span class="p">)</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p><code>go.mod</code> ファイルの内容が以下の通りだとする。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">module hello
 
-require rsc.io/quote v1.5.2</code></pre></div>
-<p>これに対して <code>go mod graph</code> コマンドを実行すると以下のようになる。</p>
+require rsc.io/quote v1.5.2
+</code></pre></div><p>これに対して <code>go mod graph</code> コマンドを実行すると以下のようになる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go mod graph
 hello rsc.io/quote@v1.5.2
 rsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0
-rsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c</code></pre></div>
-<p>これを図式化すると以下のようになるだろう。</p>
-
+rsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
+</code></pre></div><p>これを図式化すると以下のようになるだろう。</p>
 <figure style='margin:0 auto;text-align:center;'>
 <div class="mermaid">
 graph TD
@@ -486,30 +427,19 @@ graph TD
   quote--"rsc.io/quote@v1.5.2/go.mod"-->sampler
   sampler--"rsc.io/sampler@v1.3.0/go.mod"-->text
 </div></figure>
-
-<p><code>hello</code> モジュールは <code>go.mod</code> より <code>rsc.io/quote@v1.5.2</code> モジュールを参照している。
-<code>rsc.io/quote@v1.5.2</code> モジュールは自身の <code>go.mod</code> より <code>rsc.io/sampler@v1.3.0</code> モジュールを参照している。
-同じように <code>rsc.io/sampler@v1.3.0</code> モジュールからも依存モジュールを参照しているわけだ。</p>
-
-<p><code>hello/go.mod</code> には <code>rsc.io/sampler@v1.3.0</code> 等のモジュールについての記述はないが， <code>rsc.io/quote@v1.5.2/go.mod</code> や <code>rsc.io/sampler@v1.3.0/go.mod</code> の記述から依存関係を階層的に取得することができる。</p>
-
+<p><code>hello</code> モジュールは <code>go.mod</code> より <a href="mailto:%60rsc.io/quote@v1.5.2">`rsc.io/quote@v1.5.2</a><code> モジュールを参照している。</code><a href="mailto:rsc.io/quote@v1.5.2">rsc.io/quote@v1.5.2</a><code>モジュールは自身の</code>go.mod<code>より</code><a href="mailto:rsc.io/sampler@v1.3.0">rsc.io/sampler@v1.3.0</a><code>モジュールを参照している。 同じように</code><a href="mailto:rsc.io/sampler@v1.3.0">rsc.io/sampler@v1.3.0</a>` モジュールからも依存モジュールを参照しているわけだ。</p>
+<p><code>hello/go.mod</code> には <a href="mailto:%60rsc.io/sampler@v1.3.0">`rsc.io/sampler@v1.3.0</a><code>等のモジュールについての記述はないが，</code><a href="mailto:rsc.io/quote@v1.5.2">rsc.io/quote@v1.5.2</a>/go.mod<code>や</code><a href="mailto:rsc.io/sampler@v1.3.0">rsc.io/sampler@v1.3.0</a>/go.mod` の記述から依存関係を階層的に取得することができる。</p>
 <p>このようにモジュールごとに <code>go.mod</code> ファイルを記述していくことで依存関係の構造化を実現できる。</p>
-
 <ul>
 <li><a href="https://research.swtch.com/vgo-mvs">research!rsc: Minimal Version Selection (Go &amp; Versioning, Part 4)</a></li>
 </ul>
-
 <p>だからみんな。なにはさておき <code>go.mod</code> ファイルを作成するんだ！</p>
-
-<h2 id="toc_11">モジュールのキャッシュとビルド・キャッシュ</h2>
-
+<h2 id="heading5">モジュールのキャッシュとビルド・キャッシュ</h2>
 <p>パッケージのコンパイル結果は環境変数 <code>$GOCACHE</code> の示すディレクトリにキャッシュされる。
 モジュール対応モードではモジュール単位でキャッシュされるようだ。
 したがって <code>$GOCACHE</code> の値は <code>off</code> にせず，正しいディレクトリを指定する必要がある。</p>
-
 <p><a href="https://text.baldanders.info/release/2019/02/go-1_12-is-released/">Go 1.12</a> からは <code>$GOCACHE</code> を <code>off</code> にできなくなった。
 <code>off</code> をセットするとビルドに失敗するようだ。</p>
-
 <figure lang="en">
 <blockquote>
 <q>The <a href="https://golang.org/cmd/go/#hdr-Build_and_test_caching">build cache</a> is now required as a step toward eliminating <code>$GOPATH/pkg</code>.
@@ -517,21 +447,17 @@ Setting the environment variable <code>GOCACHE=off</code> will cause go commands
 </blockquote>
 <figcaption>via <q><a href="https://golang.org/doc/go1.12">Go 1.12 Release Notes - The Go Programming Language</a></q></figcaption>
 </figure>
-
-<p><code>$GOCACHE</code> の値は <code>go env</code> コマンドで確認できる<sup class="footnote-ref" id="fnref:bc1"><a href="#fn:bc1">6</a></sup>。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go env GOCACHE</code></pre></div>
-<p>ビルド・キャッシュをクリアするには以下のコマンドを実行する。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go clean -cache</code></pre></div>
-<p>ダウンロードしたモジュールのソースコードは今のところ <code>$GOPATH/pkg/mod</code> 以下に格納される。
+<p><code>$GOCACHE</code> の値は <code>go env</code> コマンドで確認できる<sup id="fnref:6"><a href="#fn:6" class="footnote-ref" role="doc-noteref">6</a></sup>。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go env GOCACHE
+</code></pre></div><p>ビルド・キャッシュをクリアするには以下のコマンドを実行する。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go clean -cache
+</code></pre></div><p>ダウンロードしたモジュールのソースコードは今のところ <code>$GOPATH/pkg/mod</code> 以下に格納される。
 モジュールのソースコードを含めて全てのキャッシュをクリアするには以下のコマンドを実行する。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go clean -modcache</code></pre></div>
-<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コンパイラの将来バージョンでは <code>$GOPATH/pkg</code> を廃止する予定があるようで，その場合にはソースコード・キャッシュの置き場が変更される可能性がある。</p>
-
-<h2 id="toc_12">モジュール対応モード in Travis CI</h2>
-
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go clean -modcache
+</code></pre></div><p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>コンパイラの将来バージョンでは <code>$GOPATH/pkg</code> を廃止する予定があるようで，その場合にはソースコード・キャッシュの置き場が変更される可能性がある。</p>
+<h2 id="-in-travis-ci">モジュール対応モード in Travis CI</h2>
 <p>CI (Continuous Integration) サービスのひとつである <a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> は <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>にも対応しているが，処理対象のパッケージを <code>$GOPATH/src</code> 以下に展開するため GOPATH モードで処理が走ってしまう。
 そこで <code>.travis.yml</code> ファイルを以下のように書き換えて強引にモジュール対応モードにする。</p>
-
 <div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">language<span class="p">:</span><span class="w"> </span>go<span class="w">
 </span><span class="w">
 </span><span class="w"></span>go<span class="p">:</span><span class="w">
@@ -546,17 +472,13 @@ Setting the environment variable <code>GOCACHE=off</code> will cause go commands
 </span><span class="w">
 </span><span class="w"></span>script<span class="p">:</span><span class="w">
 </span><span class="w"></span>-<span class="w"> </span>go<span class="w"> </span>test<span class="w"> </span>./...</code></pre></div>
-
 <p>環境変数の設定部分に注目してほしい。</p>
-
-<h3 id="toc_13"><a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> による Deploy</h3>
-
+<h3 id="goreleaser--deploy"><a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> による Deploy</h3>
 <p><a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> を使って<a href="https://text.baldanders.info/golang/cross-compiling-in-travis-ci-with-goreleaser/" title="Travis CI でクロス・コンパイル（GoReleaser 編）">複数の実行モジュールをビルド</a>するには <code>.goreleaser.yml</code> ファイルの <code>builds</code> 項目に環境変数の設定を追加しておけば安心である。</p>
 <div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">builds<span class="p">:</span><span class="w">
 </span><span class="w"></span>-<span class="w"> </span>env<span class="p">:</span><span class="w">
-</span><span class="w">  </span>-<span class="w"> </span>GO111MODULE=on</code></pre></div>
-<p><a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> で <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> を使って deploy を行うには <code>.travis.yml</code> ファイルを以下のように記述すれば良い。</p>
-
+</span><span class="w">  </span>-<span class="w"> </span>GO111MODULE=on<span class="w">
+</span></code></pre></div><p><a href="https://travis-ci.org/" title="Travis CI - Test and Deploy Your Code with Confidence">Travis CI</a> で <a href="https://goreleaser.com/" title="GoReleaser | Deliver Go binaries as fast and easily as possible">GoReleaser</a> を使って deploy を行うには <code>.travis.yml</code> ファイルを以下のように記述すれば良い。</p>
 <div class="highlight"><pre class="chroma"><code class="language-yaml" data-lang="yaml">language<span class="p">:</span><span class="w"> </span>go<span class="w">
 </span><span class="w">
 </span><span class="w"></span>go<span class="p">:</span><span class="w">
@@ -579,11 +501,8 @@ Setting the environment variable <code>GOCACHE=off</code> will cause go commands
 </span></span><span class="hl"><span class="w">  </span>on<span class="p">:</span><span class="w">
 </span></span><span class="hl"><span class="w">    </span>tags<span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span><span class="hl"><span class="w">    </span>condition<span class="p">:</span><span class="w"> </span>$TRAVIS_OS_NAME<span class="w"> </span>=<span class="w"> </span>linux</span></code></pre></div>
-
-<h2 id="toc_14">モジュール・パスとパッケージ・パスが一致しない場合</h2>
-
-<p>先ほど少し紹介したが <code>gopkg.in/russross/blackfriday.v2</code> パッケージをモジュールとして記述する例を挙げてみる<sup class="footnote-ref" id="fnref:bf1"><a href="#fn:bf1">7</a></sup>。</p>
-
+<h2 id="heading6">モジュール・パスとパッケージ・パスが一致しない場合</h2>
+<p>先ほど少し紹介したが <code>gopkg.in/russross/blackfriday.v2</code> パッケージをモジュールとして記述する例を挙げてみる<sup id="fnref:7"><a href="#fn:7" class="footnote-ref" role="doc-noteref">7</a></sup>。</p>
 <p>まず以下のコードを書く。ファイル名は <code>md2html.go</code> とでもしておこう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
 
@@ -595,43 +514,39 @@ Setting the environment variable <code>GOCACHE=off</code> will cause go commands
     <span class="s">&#34;gopkg.in/russross/blackfriday.v2&#34;</span>
 <span class="p">)</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nx">md</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ioutil</span><span class="p">.</span><span class="nf">ReadFile</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">md</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ioutil</span><span class="p">.</span><span class="nf">ReadFile</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
 
     <span class="nx">html</span> <span class="o">:=</span> <span class="nx">blackfriday</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="nx">md</span><span class="p">)</span>
-    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nb">string</span><span class="p">(</span><span class="nx">html</span><span class="p">))</span>
-<span class="p">}</span></code></pre></div>
-<p><code>md2html.go</code> に対して以下のようにモジュール定義を行う。</p>
+    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nb">string</span><span class="p">(</span><span class="nx">html</span><span class="p">)</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div><p><code>md2html.go</code> に対して以下のようにモジュール定義を行う。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">module md2html
 
-require gopkg.in/russross/blackfriday.v2 latest</code></pre></div>
-<p>では実際にコンパイル&amp;実行してみよう。</p>
+require gopkg.in/russross/blackfriday.v2 latest
+</code></pre></div><p>では実際にコンパイル&amp;実行してみよう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run md2html.go hello.md
 go: finding gopkg.in/russross/blackfriday.v2 v2.0.1
 go: gopkg.in/russross/blackfriday.v2@v2.0.1: go.mod has non-....v2 module path &#34;github.com/russross/blackfriday/v2&#34; at revision v2.0.1
-go: error loading module requirements</code></pre></div>
-<p>おおう。
+go: error loading module requirements
+</code></pre></div><p>おおう。
 エラーになってしまった。
 <code>github.com/russross/blackfriday/v2</code> なんてパスはねーよ！ とお怒りのようだ。</p>
-
 <p>パス名 <code>gopkg.in/russross/blackfriday.v2</code> は <code>github.com/russross/blackfriday</code> の alias で v2 のコードは v2 ブランチで管理されている。
 v2 ブランチにある <code>go.mod</code> ファイルを見てみると</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">module github.com/russross/blackfriday/v2</code></pre></div>
-<p>と記されているが，実際に v2 ブランチの <a href="https://github.com/russross/blackfriday/tree/v2"><code>github.com/russross/blackfriday</code></a> に <code>v2</code> ディレクトリは存在しない。
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">module github.com/russross/blackfriday/v2
+</code></pre></div><p>と記されているが，実際に v2 ブランチの <a href="https://github.com/russross/blackfriday/tree/v2"><code>github.com/russross/blackfriday</code></a> に <code>v2</code> ディレクトリは存在しない。
 このパスの不一致がエラーの原因のようである。</p>
-
 <p>この不一致を解消するために <code>replace</code> を追加する。
 具体的には以下のように記述する。</p>
-
 <div class="highlight"><pre class="chroma"><code class="language-tex" data-lang="tex">module md2html
 
 require gopkg.in/russross/blackfriday.v2 latest
 <span class="hl">replace gopkg.in/russross/blackfriday.v2 latest =&gt; github.com/russross/blackfriday/v2 latest</span></code></pre></div>
-
 <p>では，この状態でコンパイル&amp;実行してみよう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run md2html.go hello.md
 go: finding github.com/russross/blackfriday/v2 v2.0.1
@@ -640,17 +555,13 @@ go: finding github.com/shurcooL/sanitized_anchor_name latest
 go: downloading github.com/shurcooL/sanitized_anchor_name v0.0.0-20170918181015-86672fcb3f95
 &lt;h1&gt;Hello&lt;/h1&gt;
 
-&lt;p&gt;Hello, World!&lt;/p&gt;</code></pre></div>
-<p>というわけでうまく動作したようだ。</p>
-
-<h2 id="toc_15">バージョンを指定して go get を実行する</h2>
-
+&lt;p&gt;Hello, World!&lt;/p&gt;
+</code></pre></div><p>というわけでうまく動作したようだ。</p>
+<h2 id="-go-get-">バージョンを指定して go get を実行する</h2>
 <div class="box">【追記 2019-02-26】 <a href="https://text.baldanders.info/release/2019/02/go-1_12-is-released/">Go 1.12</a> からはダミーの <code>go.mod</code> ファイルは必要なくなった。
 任意の場所で <code>go get</code> コマンドを起動できる。
 ブラボー！</div>
-
 <p>たとえば私の自作ツールである <a href="https://github.com/spiegel-im-spiegel/gpgpdump" title="spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer">gpgpdump</a> を自前でビルドすることを考える。</p>
-
 <p>GOPATH モードでパッケージをダウンロードし実行ファイルをビルドするには以下のコマンドを実行すればよい。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go get -v github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump
 github.com/spiegel-im-spiegel/gpgpdump (download)
@@ -663,9 +574,8 @@ net
 github.com/spf13/pflag
 github.com/spf13/cobra
 github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump/facade
-github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump</code></pre></div>
-<p>ダウンロードした <code>github.com/spiegel-im-spiegel/gpgpdump</code> パッケージのソースコードとコンパイル結果（実行ファイルを含む）は <code>$GOPATH</code> 以下に格納される。</p>
-
+github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump
+</code></pre></div><p>ダウンロードした <code>github.com/spiegel-im-spiegel/gpgpdump</code> パッケージのソースコードとコンパイル結果（実行ファイルを含む）は <code>$GOPATH</code> 以下に格納される。</p>
 <p>では，モジュール対応モードでバージョンを指定して <a href="https://github.com/spiegel-im-spiegel/gpgpdump" title="spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer">gpgpdump</a> をビルドしてみよう。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ export GO111MODULE=on
 
@@ -696,14 +606,13 @@ go: downloading github.com/spf13/pflag v1.0.3
 go: downloading github.com/inconshreveable/mousetrap v1.0.0
 go: extracting golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
 go: extracting github.com/inconshreveable/mousetrap v1.0.0
-go: extracting github.com/spf13/pflag v1.0.3</code></pre></div>
-<p>おおっ，上手くいった。
+go: extracting github.com/spf13/pflag v1.0.3
+</code></pre></div><p>おおっ，上手くいった。
 ソースコードは <code>$GOPATH/pkg/mod</code> 以下に，ビルド結果の実行ファイルは <code>$GOPATH/bin</code> に格納されるようだ。</p>
-
 <p>ちなみに <code>path@version</code> 形式でモジュールを指定できるのは <code>go get</code> コマンドのみらしい。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump@latest
-package github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump@latest: can only use path@version syntax with &#39;go get&#39;</code></pre></div>
-<p>ただし，バージョン指定を省略して latest バージョンで <code>go build</code> や <code>go run</code> コマンドを使うことはできるようだ。</p>
+package github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump@latest: can only use path@version syntax with &#39;go get&#39;
+</code></pre></div><p>ただし，バージョン指定を省略して latest バージョンで <code>go build</code> や <code>go run</code> コマンドを使うことはできるようだ。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go clean -modcache
 
 $ go run github.com/spiegel-im-spiegel/gpgpdump/cli/gpgpdump -h
@@ -748,44 +657,51 @@ Flags:
   -p, --private   dumps private packets (tag 60-63)
   -t, --toml      output with TOML format
   -u, --utc       output with UTC time
-  -v, --version   output version of gpgpdump</code></pre></div>
-<p>こりゃあ，便利だ。
+  -v, --version   output version of gpgpdump
+</code></pre></div><p>こりゃあ，便利だ。
 上手く活用しましょう。</p>
-
-<h2 id="toc_16">ブックマーク</h2>
-
+<h2 id="heading7">ブックマーク</h2>
 <ul>
-<li><a href="https://github.com/golang/go/wiki/Modules">Modules · golang/go Wiki · GitHub</a></li>
-
-<li><p><a href="https://blog.golang.org/using-go-modules">Using Go Modules - The Go Blog</a></p>
-
+<li>
+<p><a href="https://github.com/golang/go/wiki/Modules">Modules · golang/go Wiki · GitHub</a></p>
+</li>
+<li>
+<p><a href="https://blog.golang.org/using-go-modules">Using Go Modules - The Go Blog</a></p>
 <ul>
 <li><a href="https://blog.golang.org/migrating-to-go-modules">Migrating to Go Modules - The Go Blog</a></li>
 <li><a href="https://blog.golang.org/publishing-go-modules">Publishing Go Modules - The Go Blog</a></li>
 <li><a href="https://blog.golang.org/v2-go-modules">Go Modules: v2 and Beyond - The Go Blog</a></li>
-</ul></li>
-
-<li><p><a href="/release/2018/09/go-1_11-ise-released/">Go 1.11 のリリースと「モジュール」機能の実験的サポート</a></p></li>
-
-<li><p><a href="https://qiita.com/spiegel-im-spiegel/items/5cb1587cb55d6f6a34d7">GOPATH モードからモジュール対応モードへ移行せよ</a></p></li>
-
-<li><p><a href="https://www.wantedly.com/companies/wantedly/post_articles/132270">Go 1.11 の modules・vgo を試す - 実際に使っていく上で考えないといけないこと #golang | Wantedly Engineer Blog</a></p></li>
-
-<li><p><a href="https://qiita.com/k-motoyan/items/4213d5ef09963ffea489">Goモジュールモードでモジュール内に作ったモジュールを扱う - Qiita</a></p></li>
-
-<li><p><a href="https://budougumi0617.github.io/2019/02/15/go-modules-on-go112/">Go Modulesの概要とGo1.12に含まれるModulesに関する変更 #golangjp #go112party - My External Storage</a></p></li>
-
-<li><p><a href="https://qiita.com/Tommy_/items/32d2d0d9f56365ee61fc">GoにおけるSemantic versioningとgo.modにある+incompatibleについて - Qiita</a></p></li>
-
-<li><p><a href="/golang/gopath-pollution/">GOPATH 汚染問題</a></p></li>
-
-<li><p><a href="/golang/go-and-versioning/">vgo (Versioned Go) に関する覚え書き</a></p></li>
-
-<li><p><a href="/golang/versioning-of-go-modules/">Go モジュールのバージョン管理</a></p></li>
 </ul>
-
-<h2 id="toc_17">参考図書</h2>
-
+</li>
+<li>
+<p><a href="/release/2018/09/go-1_11-ise-released/">Go 1.11 のリリースと「モジュール」機能の実験的サポート</a></p>
+</li>
+<li>
+<p><a href="https://qiita.com/spiegel-im-spiegel/items/5cb1587cb55d6f6a34d7">GOPATH モードからモジュール対応モードへ移行せよ</a></p>
+</li>
+<li>
+<p><a href="https://www.wantedly.com/companies/wantedly/post_articles/132270">Go 1.11 の modules・vgo を試す - 実際に使っていく上で考えないといけないこと #golang | Wantedly Engineer Blog</a></p>
+</li>
+<li>
+<p><a href="https://qiita.com/k-motoyan/items/4213d5ef09963ffea489">Goモジュールモードでモジュール内に作ったモジュールを扱う - Qiita</a></p>
+</li>
+<li>
+<p><a href="https://budougumi0617.github.io/2019/02/15/go-modules-on-go112/">Go Modulesの概要とGo1.12に含まれるModulesに関する変更 #golangjp #go112party - My External Storage</a></p>
+</li>
+<li>
+<p><a href="https://qiita.com/Tommy_/items/32d2d0d9f56365ee61fc">GoにおけるSemantic versioningとgo.modにある+incompatibleについて - Qiita</a></p>
+</li>
+<li>
+<p><a href="/golang/gopath-pollution/">GOPATH 汚染問題</a></p>
+</li>
+<li>
+<p><a href="/golang/go-and-versioning/">vgo (Versioned Go) に関する覚え書き</a></p>
+</li>
+<li>
+<p><a href="/golang/versioning-of-go-modules/">Go モジュールのバージョン管理</a></p>
+</li>
+</ul>
+<h2 id="heading8">参考図書</h2>
 <div class="hreview">
   <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&linkCode=ogi&th=1&psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="123" alt="photo"></a></div>
   <dl class="fn">
@@ -799,27 +715,32 @@ Flags:
   <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。</p>
   <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2018-10-20">2018-10-20</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
 </div>
-<div class="footnotes">
-
-<hr />
-
+<section class="footnotes" role="doc-endnotes">
+<hr>
 <ol>
-<li id="fn:cmd1">「GOPATH モード」および「モジュール対応モード」の名称は “<a href="https://golang.org/cmd/go/" title="go - The Go Programming Language">Command go</a>” の記述から抜き出した。 <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>って用語の表記に微妙なブレがあるのがイマイチだよなぁ。
- <a class="footnote-return" href="#fnref:cmd1"><sup>[return]</sup></a></li>
-<li id="fn:sv1">リビジョン番号によるバージョン管理も可能だが， <code>v0.0.0-20180816225734-aabede6cba87</code> のような擬似バージョン番号に置き換えられるため，モジュールのインポート時の運用が煩雑になり推奨できない。
- <a class="footnote-return" href="#fnref:sv1"><sup>[return]</sup></a></li>
-<li id="fn:sv2">異なるメジャーバージョンを同一ディレクトリの同一ブランチで管理していると <code>go.mod</code> のバージョン番号部分に勝手に “<code>+incompatible</code>” が付加されてめっさカッコ悪くなる（笑）
- <a class="footnote-return" href="#fnref:sv2"><sup>[return]</sup></a></li>
-<li id="fn:go112a"><code>/dev/null</code> ファイルの仮定は <a href="https://text.baldanders.info/release/2019/02/go-1_12-is-released/">Go 1.12</a> から有効になっている。
- <a class="footnote-return" href="#fnref:go112a"><sup>[return]</sup></a></li>
-<li id="fn:ltst1">バージョンに <code>latest</code> を指定すると，コンパイラ側で最新バージョン（またはリビジョン）を探して，最新の番号に置き換えてくれる。 <code>go build</code> や <code>go test</code> などを実行するたびに <code>go.mod</code> ファイルの <code>latest</code> 表記が書き換えられるので注意すること。
- <a class="footnote-return" href="#fnref:ltst1"><sup>[return]</sup></a></li>
-<li id="fn:bc1">Windows 環境では <code>$GOCACHE</code> の既定値は <code>%USERPROFILE%\AppData\Local\go-build</code> となっているようだ。
- <a class="footnote-return" href="#fnref:bc1"><sup>[return]</sup></a></li>
-<li id="fn:bf1"><code>gopkg.in/russross/blackfriday.v2</code> パッケージは Markdown コードを HTML 等の書式に変換するパッケージである（参考：<a href="https://text.baldanders.info/golang/using-blackfriday-v2/">Markdown パーサ blackfriday.v2 で遊ぶ</a>）。
- <a class="footnote-return" href="#fnref:bf1"><sup>[return]</sup></a></li>
+<li id="fn:1" role="doc-endnote">
+<p>「GOPATH モード」および「モジュール対応モード」の名称は “<a href="https://golang.org/cmd/go/" title="go - The Go Programming Language">Command go</a>” の記述から抜き出した。 <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>って用語の表記に微妙なブレがあるのがイマイチだよなぁ。</p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>リビジョン番号によるバージョン管理も可能だが， <code>v0.0.0-20180816225734-aabede6cba87</code> のような擬似バージョン番号に置き換えられるため，モジュールのインポート時の運用が煩雑になり推奨できない。</p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p>異なるメジャーバージョンを同一ディレクトリの同一ブランチで管理していると <code>go.mod</code> のバージョン番号部分に勝手に “<code>+incompatible</code>” が付加されてめっさカッコ悪くなる（笑）</p>
+</li>
+<li id="fn:4" role="doc-endnote">
+<p><code>/dev/null</code> ファイルの仮定は <a href="https://text.baldanders.info/release/2019/02/go-1_12-is-released/">Go 1.12</a> から有効になっている。</p>
+</li>
+<li id="fn:5" role="doc-endnote">
+<p>バージョンに <code>latest</code> を指定すると，コンパイラ側で最新バージョン（またはリビジョン）を探して，最新の番号に置き換えてくれる。 <code>go build</code> や <code>go test</code> などを実行するたびに <code>go.mod</code> ファイルの <code>latest</code> 表記が書き換えられるので注意すること。</p>
+</li>
+<li id="fn:6" role="doc-endnote">
+<p>Windows 環境では <code>$GOCACHE</code> の既定値は <code>%USERPROFILE%\AppData\Local\go-build</code> となっているようだ。</p>
+</li>
+<li id="fn:7" role="doc-endnote">
+<p><code>gopkg.in/russross/blackfriday.v2</code> パッケージは Markdown コードを HTML 等の書式に変換するパッケージである（参考：<a href="https://text.baldanders.info/golang/using-blackfriday-v2/">Markdown パーサ blackfriday.v2 で遊ぶ</a>）。</p>
+</li>
 </ol>
-</div>
+</section>
 
 </section>
 
@@ -898,7 +819,7 @@ Flags:
 <li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.59.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.60.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>
