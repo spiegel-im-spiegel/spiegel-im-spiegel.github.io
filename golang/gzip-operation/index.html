@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.64.1" />
+<meta name="generator" content="Hugo 0.65.2" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -171,15 +171,15 @@
 </ul>
 <p>この記事を見て「んん？」となったので，覚え書きとして <a href="https://golang.org/pkg/compress/gzip/" title="gzip - The Go Programming Language"><code>gzip</code></a> パッケージについて紹介する。</p>
 <p><a href="http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811" title="gzip のやり方 - Qiita">リンク先の記事</a>で挙げられているコードは以下の通り。</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">body</span> <span class="kt">string</span><span class="p">)</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span> <span class="p">{</span>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">body</span> <span class="kt">string</span><span class="p">)</span> <span class="p">[]</span><span class="kt">byte</span> <span class="p">{</span>
     <span class="kd">var</span> <span class="nx">b</span> <span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span>
     <span class="nx">gw</span> <span class="o">:=</span> <span class="nx">gzip</span><span class="p">.</span><span class="nf">NewWriter</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">b</span><span class="p">)</span>
-    <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="p">[</span><span class="p">]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span><span class="p">)</span><span class="p">;</span> <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Write</span><span class="p">([]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">body</span><span class="p">));</span> <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="o">...</span>
     <span class="p">}</span>
-    <span class="nx">gw</span><span class="p">.</span><span class="nf">Flush</span><span class="p">(</span><span class="p">)</span>
-    <span class="nx">gw</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nx">b</span><span class="p">.</span><span class="nf">Bytes</span><span class="p">(</span><span class="p">)</span>
+    <span class="nx">gw</span><span class="p">.</span><span class="nf">Flush</span><span class="p">()</span>
+    <span class="nx">gw</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nx">b</span><span class="p">.</span><span class="nf">Bytes</span><span class="p">()</span>
 <span class="p">}</span>
 </code></pre></div><p>ここで <code>gw.Close()</code> 関数を <a href="http://blog.golang.org/defer-panic-and-recover" title="Defer, Panic, and Recover - The Go Blog">defer</a> 指定すると返ってくるバイト列が不完全なデータになってしまう，という話。
 これは，<a href="http://qiita.com/ta_ta_ta_miya/items/3a1cba3a13418b732811" title="gzip のやり方 - Qiita">リンク先の記事</a>で指摘されている通り， <a href="https://golang.org/pkg/compress/gzip/" title="gzip - The Go Programming Language"><code>gzip</code></a><code>.Writer.Close()</code> 関数で gzip のフッタデータをフラッシュしているからである。</p>
@@ -194,14 +194,14 @@
 <p>関数の再利用性を考えるのなら，関数内でバッファを生成してバッファ処理の結果を返すのはあまり筋がよろしくない。
 また圧縮データを書き込む先はメモリバッファじゃなくてファイルかもしれない。</p>
 <p>ゆえに関数をこう書き換える。</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">dst</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">,</span> <span class="nx">content</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">dst</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">,</span> <span class="nx">content</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
     <span class="nx">zw</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gzip</span><span class="p">.</span><span class="nf">NewWriterLevel</span><span class="p">(</span><span class="nx">dst</span><span class="p">,</span> <span class="nx">gzip</span><span class="p">.</span><span class="nx">BestCompression</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="k">return</span> <span class="nx">err</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">content</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">content</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="k">return</span> <span class="nx">err</span>
     <span class="p">}</span>
     <span class="k">return</span> <span class="kc">nil</span>
@@ -218,30 +218,30 @@
     <span class="s">&#34;os&#34;</span>
 <span class="p">)</span>
 
-<span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">dst</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">,</span> <span class="nx">content</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">dst</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">,</span> <span class="nx">content</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
     <span class="nx">zw</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gzip</span><span class="p">.</span><span class="nf">NewWriterLevel</span><span class="p">(</span><span class="nx">dst</span><span class="p">,</span> <span class="nx">gzip</span><span class="p">.</span><span class="nx">BestCompression</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="k">return</span> <span class="nx">err</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">content</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">content</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="k">return</span> <span class="nx">err</span>
     <span class="p">}</span>
     <span class="k">return</span> <span class="kc">nil</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
-    <span class="nx">content</span> <span class="o">:=</span> <span class="p">[</span><span class="p">]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;Hello world\n&#34;</span><span class="p">)</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">content</span> <span class="o">:=</span> <span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;Hello world\n&#34;</span><span class="p">)</span>
 
     <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="s">&#34;test.txt.gz&#34;</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">file</span><span class="p">,</span> <span class="nx">content</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">file</span><span class="p">,</span> <span class="nx">content</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
@@ -265,22 +265,22 @@
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="k">return</span> <span class="nx">err</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">zr</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">zr</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
     <span class="nx">io</span><span class="p">.</span><span class="nf">Copy</span><span class="p">(</span><span class="nx">dst</span><span class="p">,</span> <span class="nx">zr</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="kc">nil</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;test.txt.gz&#34;</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">readGzip</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">,</span> <span class="nx">file</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">readGzip</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">,</span> <span class="nx">file</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
@@ -304,13 +304,13 @@
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="k">return</span> <span class="nx">err</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">zw</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
     <span class="nx">tw</span> <span class="o">:=</span> <span class="nx">tar</span><span class="p">.</span><span class="nf">NewWriter</span><span class="p">(</span><span class="nx">zw</span><span class="p">)</span>
-    <span class="k">defer</span> <span class="nx">tw</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">tw</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
     <span class="nx">filepath</span><span class="p">.</span><span class="nf">Walk</span><span class="p">(</span><span class="nx">rt</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">info</span> <span class="nx">os</span><span class="p">.</span><span class="nx">FileInfo</span><span class="p">,</span> <span class="nx">err</span> <span class="kt">error</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-        <span class="k">if</span> <span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="nx">info</span><span class="p">.</span><span class="nf">IsDir</span><span class="p">()</span> <span class="p">{</span>
             <span class="k">return</span> <span class="kc">nil</span>
         <span class="p">}</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span>
@@ -324,14 +324,14 @@
             <span class="k">return</span> <span class="nx">e</span>
         <span class="p">}</span>
 
-        <span class="k">if</span> <span class="nx">e</span> <span class="o">:=</span> <span class="nx">tw</span><span class="p">.</span><span class="nf">WriteHeader</span><span class="p">(</span><span class="nx">hd</span><span class="p">)</span><span class="p">;</span> <span class="nx">e</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="nx">e</span> <span class="o">:=</span> <span class="nx">tw</span><span class="p">.</span><span class="nf">WriteHeader</span><span class="p">(</span><span class="nx">hd</span><span class="p">);</span> <span class="nx">e</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">e</span>
         <span class="p">}</span>
-        <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">e</span> <span class="o">:=</span> <span class="nx">tw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">content</span><span class="p">)</span><span class="p">;</span> <span class="nx">e</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">e</span> <span class="o">:=</span> <span class="nx">tw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">content</span><span class="p">);</span> <span class="nx">e</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">e</span>
         <span class="p">}</span>
         <span class="k">return</span> <span class="kc">nil</span>
-    <span class="p">}</span><span class="p">)</span>
+    <span class="p">})</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="k">return</span> <span class="nx">err</span>
     <span class="p">}</span>
@@ -339,15 +339,15 @@
     <span class="k">return</span> <span class="kc">nil</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
     <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="s">&#34;test.tar.gz&#34;</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">makeTarGzip</span><span class="p">(</span><span class="nx">file</span><span class="p">,</span> <span class="s">&#34;./&#34;</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">makeTarGzip</span><span class="p">(</span><span class="nx">file</span><span class="p">,</span> <span class="s">&#34;./&#34;</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
@@ -356,18 +356,18 @@
 <p>実は最初の <code>makeGzip()</code> には別解がある。
 要するに <a href="https://golang.org/pkg/compress/gzip/" title="gzip - The Go Programming Language"><code>gzip</code></a> 処理部分を関数スコープで囲ってしまえばいいのだ。
 実際にはこんな感じ。</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">body</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">(</span><span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">body</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">([]</span><span class="kt">byte</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
     <span class="kd">var</span> <span class="nx">b</span> <span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span>
-    <span class="nx">err</span> <span class="o">:=</span> <span class="kd">func</span><span class="p">(</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+    <span class="nx">err</span> <span class="o">:=</span> <span class="kd">func</span><span class="p">()</span> <span class="kt">error</span> <span class="p">{</span>
         <span class="nx">gw</span> <span class="o">:=</span> <span class="nx">gzip</span><span class="p">.</span><span class="nf">NewWriter</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">b</span><span class="p">)</span>
-        <span class="k">defer</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+        <span class="k">defer</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">body</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">err</span>
         <span class="p">}</span>
         <span class="k">return</span> <span class="kc">nil</span>
-    <span class="p">}</span><span class="p">(</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nx">b</span><span class="p">.</span><span class="nf">Bytes</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="nx">err</span>
+    <span class="p">}()</span>
+    <span class="k">return</span> <span class="nx">b</span><span class="p">.</span><span class="nf">Bytes</span><span class="p">(),</span> <span class="nx">err</span>
 <span class="p">}</span>
 </code></pre></div><p>完全なコードはこんな感じになる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
@@ -379,29 +379,29 @@
     <span class="s">&#34;os&#34;</span>
 <span class="p">)</span>
 
-<span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">body</span> <span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">(</span><span class="p">[</span><span class="p">]</span><span class="kt">byte</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">body</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">([]</span><span class="kt">byte</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
     <span class="kd">var</span> <span class="nx">b</span> <span class="nx">bytes</span><span class="p">.</span><span class="nx">Buffer</span>
-    <span class="nx">err</span> <span class="o">:=</span> <span class="kd">func</span><span class="p">(</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+    <span class="nx">err</span> <span class="o">:=</span> <span class="kd">func</span><span class="p">()</span> <span class="kt">error</span> <span class="p">{</span>
         <span class="nx">gw</span> <span class="o">:=</span> <span class="nx">gzip</span><span class="p">.</span><span class="nf">NewWriter</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">b</span><span class="p">)</span>
-        <span class="k">defer</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+        <span class="k">defer</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">body</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">gw</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">body</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
             <span class="k">return</span> <span class="nx">err</span>
         <span class="p">}</span>
         <span class="k">return</span> <span class="kc">nil</span>
-    <span class="p">}</span><span class="p">(</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nx">b</span><span class="p">.</span><span class="nf">Bytes</span><span class="p">(</span><span class="p">)</span><span class="p">,</span> <span class="nx">err</span>
+    <span class="p">}()</span>
+    <span class="k">return</span> <span class="nx">b</span><span class="p">.</span><span class="nf">Bytes</span><span class="p">(),</span> <span class="nx">err</span>
 <span class="p">}</span>
 
-<span class="kd">func</span> <span class="nf">main</span><span class="p">(</span><span class="p">)</span> <span class="p">{</span>
-    <span class="nx">content</span> <span class="o">:=</span> <span class="p">[</span><span class="p">]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;Hello world\n&#34;</span><span class="p">)</span>
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">content</span> <span class="o">:=</span> <span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;Hello world\n&#34;</span><span class="p">)</span>
 
     <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="s">&#34;test.txt.gz&#34;</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
-    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">(</span><span class="p">)</span>
+    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
 
     <span class="nx">z</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">makeGzip</span><span class="p">(</span><span class="nx">content</span><span class="p">)</span>
     <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
@@ -409,7 +409,7 @@
         <span class="k">return</span>
     <span class="p">}</span>
 
-    <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">z</span><span class="p">)</span><span class="p">;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">z</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
         <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
         <span class="k">return</span>
     <span class="p">}</span>
@@ -521,7 +521,7 @@
 <li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.64.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.65.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>
