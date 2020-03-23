@@ -130,7 +130,7 @@
 	"keywords": "programming, rust, ownership, reference, lifetime",
 	"image": "https://text.baldanders.info/images/attention/rustacean-flat-gesture.png",
 	"datePublished": "2020-03-07T15:51:00+00:00",
-	"dateModified": "2020-03-08T00:33:08+00:00",
+	"dateModified": "2020-03-23T19:47:20+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -260,8 +260,12 @@
 </span></code></pre></div><p>変数と参照の関係を図式化するとこんな感じだろうか。</p>
 <figure style='margin:0 auto;text-align:center;'>
 <a href="./references-and-borrowing.png"><img src="./references-and-borrowing.png" srcset="./references-and-borrowing.png 500w" sizes="(min-width:600px) 500px, 80vw" alt=""></a></figure>
-<p><code>display_person()</code> 関数の引数である参照変数 <code>p</code> は，値を直接参照しているのではなく，値の所有権を持つ変数 <code>p1</code> を参照している点がポイントである。
-このことを示す例を挙げてみよう。</p>
+<p><code>display_person()</code> 関数の引数である参照変数 <code>p</code> は，値を直接参照しているのではなく，値の所有権を持つ変数 <code>p1</code> を参照している点がポイントである。</p>
+<h2>参照のライフタイム</h2>
+<p>参照には必ずライフタイム（lifetime）が存在する<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。
+基本的には参照が発生してから最後に参照変数が使われたところまでがライフタイムとなる。
+全ての参照のライフタイムが満了すれば参照元変数の値を移動または解放できる（ヒープの解放タイミングはコンパイラが決定する）。</p>
+<p>もう少し詳しく見てみよう。</p>
 <h3>参照されている変数の値の所有権は移動できない</h3>
 <p>先程の <code>main()</code> 関数を少し弄って</p>
 <div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
@@ -289,9 +293,9 @@
 </span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;{}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">p3</span><span class="p">.</span><span class="n">name</span><span class="p">);</span><span class="w"> </span><span class="c1">//Output: Alice
 </span><span class="c1"></span><span class="p">}</span><span class="w">
 </span></code></pre></div><p>問題なく動く。
-これは参照変数 <code>p2</code> のライフタイム（lifetime）が <code>display_person()</code> 関数実行完了をもって満了しているため。
+これは参照変数 <code>p2</code> のライフタイムが <code>display_person()</code> 関数実行完了をもって満了しているため。
 その後の <code>let p3 = p1;</code> 宣言文では <code>p1</code> を参照している変数はないので問題なく所有権を移動できる。</p>
-<h3>変数のライフタイムを超えた参照はできない</h3>
+<h3>参照元変数のスコープを超えた参照はできない</h3>
 <p>ちょっとへんてこりんなコードだが</p>
 <div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">long_p</span><span class="p">;</span><span class="w">
@@ -306,7 +310,7 @@
 </span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;{}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">display_person</span><span class="p">(</span><span class="n">long_p</span><span class="p">));</span><span class="w">
 </span><span class="w"></span><span class="p">}</span><span class="w">
 </span></code></pre></div><p>これもコンパイル・エラーになる。</p>
-<p>変数 <code>p1</code> のライフタイムは</p>
+<p>変数 <code>p1</code> のスコープは</p>
 <div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">long_p</span><span class="p">;</span><span class="w">
 </span><span class="w">    </span><span class="p">{</span><span class="w">
@@ -319,7 +323,7 @@
 </span></span><span class="w">    </span><span class="p">}</span><span class="w">
 </span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;{}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">display_person</span><span class="p">(</span><span class="n">long_p</span><span class="p">));</span><span class="w">
 </span><span class="w"></span><span class="p">}</span><span class="w">
-</span></code></pre></div><p>このスコープだが，参照変数 <code>long_p</code> のライフタイムは <code>main()</code> 関数全域に及ぶため，最後の</p>
+</span></code></pre></div><p>となるが， <code>p1</code> を参照している <code>long_p</code> のライフタイムは最後の</p>
 <div class="highlight"><pre class="chroma"><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">long_p</span><span class="p">;</span><span class="w">
 </span><span class="w">    </span><span class="p">{</span><span class="w">
@@ -332,8 +336,8 @@
 </span><span class="w">    </span><span class="p">}</span><span class="w">
 </span><span class="hl"><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;{}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">display_person</span><span class="p">(</span><span class="n">long_p</span><span class="p">));</span><span class="w">
 </span></span><span class="w"></span><span class="p">}</span><span class="w">
-</span></code></pre></div><p><code>println!</code> マクロ実行時で，元の変数 <code>p1</code> のライフタイムは満了しているのに参照変数 <code>long_p</code> はまだ生きているという不整合が発生しているわけだ。</p>
-<p>コンパイル・エラーのメッセージだけ見ても分かりにくいかもしれないが，変数のライフタイムを頭に入れながら考えれば分かりやすいだろう。
+</span></code></pre></div><p><code>println!</code> マクロ実行時まで続くため不整合が発生しているわけだ。</p>
+<p>コンパイル・エラーのメッセージだけ見ても分かりにくいかもしれないが，参照のライフタイムを頭に入れながら考えれば分かりやすいだろう。
 ちょっとした数理パズルだと思えばいい（笑）</p>
 <h2>ライフタイム注釈</h2>
 <p>ここでもうひとつ関数を考えてみる。</p>
@@ -409,6 +413,14 @@
 </span><span class="w">    </span><span class="n">println</span><span class="o">!</span><span class="p">(</span><span class="s">&#34;{}&#34;</span><span class="p">,</span><span class="w"> </span><span class="n">display_person</span><span class="p">(</span><span class="n">younger</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">p2</span><span class="p">)));</span><span class="w"> </span><span class="c1">//Output: Bob (18)
 </span><span class="c1"></span><span class="p">}</span><span class="w">
 </span></code></pre></div><p>よーし，うむうむ，よーし。</p>
+<h2>ブックマーク</h2>
+<ul>
+<li><a href="https://github.com/rust-lang/rfcs/pull/2094">non-lexical lifetimes by nikomatsakis · Pull Request #2094 · rust-lang/rfcs · GitHub</a>
+<ul>
+<li><a href="https://ubnt-intrepid.github.io/blog/2017/12/01/rfc-2094-ja/">RFC 2094 (non-lexical lifetime) の非公式訳 | ubnt-intrepid&rsquo;s blog</a></li>
+</ul>
+</li>
+</ul>
 <h2>参考図書</h2>
 <div class="hreview">
   <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4048930702?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51YLqKD4N5L._SL160_.jpg" width="124" alt="photo"></a></div>
@@ -423,6 +435,14 @@
   <p class="description"><a href="https://doc.rust-lang.org/book/">公式ドキュメント</a>の日本語版。索引がちゃんとしているので，紙の本を買っておいて手元に置いておくのが吉。</p>
   <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2020-02-24">2020-02-24</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
 </div> <!-- プログラミング言語Rust 公式ガイド -->
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>Lifetime の日本語表記はサイトや参考書によって「生存期間」とカタカナの「ライフタイム」の間で揺れているようだ。ただし「ライフタイム注釈」という語については揺れがないようなので，この記事に限っては「ライフタイム」で統一する。 <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
 
 </section>
 
@@ -468,7 +488,7 @@
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2020-03-08</time>
+		in <time property='dc:dateCopyrighted'>2020-03-08</time> (revised in 2020-03-24)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social">
 	<li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li>
