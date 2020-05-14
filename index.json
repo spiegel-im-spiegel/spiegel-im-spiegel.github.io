@@ -5,6 +5,17 @@
   "description": "帰ってきた「しっぽのさきっちょ」",
   "entry": [
     {
+      "title": "Go 1.14.3 がリリースされた",
+      "section": "release",
+      "description": "セキュリティ・アップデートはなし。",
+      "author": "Spiegel",
+      "license": "http://creativecommons.org/licenses/by-sa/4.0/",
+      "url": "https://text.baldanders.info/release/2020/05/go-1_14_3-is-released/",
+      "published": "2020-05-14T23:55:24+00:00",
+      "update": "2020-05-14T23:57:21+00:00",
+      "content": "Go 1.14.3 がリリースされた。\n Subject: Go 1.14.3 and Go 1.13.11 are released - Google group  セキュリティ・アップデートはなし。\ngo1.14.3 (released 2020/05/14) includes fixes to cgo, the compiler, the runtime, and the go/doc and math/big packages. See the Go 1.14.3 milestone on our issue tracker for details. via Release History - The Go Programming Language  例によって Ubuntu の APT で管理している Go コンパイラは古いので，ダウンロードページからバイナリ（go1.14.3.linux-amd64.tar.gz）を取ってきて手動でインストールすることを強く推奨する。\n$ cd /usr/local/src $ sudo curl \u0026#34;https://dl.google.com/go/go1.14.3.linux-amd64.tar.gz\u0026#34; -O $ cd .. $ sudo unlink go # 以前の Go が入っている場合 $ sudo tar xvf src/go1.14.3.linux-amd64.tar.gz $ sudo mv go go1.14.3 $ sudo ln -s go1.14.3 go $ go version # /usr/local/go/bin にパスが通っている場合 go version go1.14.3 linux/amd64 アップデートは計画的に。\n参考図書  プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES) Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳) 丸善出版 2016-06-20 単行本（ソフトカバー） 4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN) 評価\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;  著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K\u0026amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。\nreviewed by Spiegel on 2016-07-13 (powered by PA-APIv5)\n "
+    },
+    {
       "title": "ついカッとなって機種変した，反省はしない",
       "section": "remark",
       "description": "もはやスマホにこれ以上パラダイム・シフトの夢を見ることはないし，スペックも最小限で無問題。",
@@ -102,17 +113,6 @@
       "published": "2020-04-24T05:33:05+00:00",
       "update": "2020-04-24T05:33:18+00:00",
       "content": "全国非常事態宣言の折，皆様いかがお過ごしでしょうか。 完全失業中の私は，家族からは白い目で見られ，かといって気晴らしの外出も自粛ムードでままならず，涙目状態です。 どなたか松江で仕事ください。\nというわけで，今回はストレス発散な話。 つかですね，\n The Go Playgroundの実行結果に画像を出力する - My External Storage  という記事を見て自分でも試してみようかな，と。\nGo Playground で Display image を選択すると以下のコードが表示され，実行すると favicon 画像データが表示される。\n Display image: The Go Playground  画像表示の核心部分は以下のコードのようだ。\n// displayImage renders an image to the playground\u0026#39;s console by // base64-encoding the encoded image and printing it to stdout // with the prefix \u0026#34;IMAGE:\u0026#34;. func displayImage(m image.Image) { var buf bytes.Buffer err := png.Encode(\u0026amp;buf, m) if err != nil { panic(err) } fmt.Println(\u0026#34;IMAGE:\u0026#34; + base64.StdEncoding.EncodeToString(buf.Bytes())) } image.Image インスタンスを PNG 形式でエンコードし，さらに BASE64 形式で文字符号化する。 これに \u0026quot;IMAGE:\u0026quot; を頭にくっつけて「表示」すればいいようだ。 当然ながら Go Playground 特有の機能なので，他の環境では機能しない（機能されては困るw）。\nリモートのファイルを表示できれば面白かったのだが，残念ながら Go Playground では TCP/IP によるリモートアクセスが潰されている（まぁアクセスできたら踏み台し放題になっちゃうからしないんだろうけど）。\nそこで画像データをあらかじめ文字列符号化してソースコードに埋め込めば\nvar imageFromBase64 = `...` func getimage() (image.Image, error) { img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imageFromBase64))) return img, err } func main() { img, err := getimage() if err != nil { fmt.Fprintln(os.Stderr, err) return } displayImage(img) } てな感じで任意の画像を表示できるだろう1。 たとえば，こんな感じ。\n Display image: The Go Playground  ここで画像データのスケール変換をやってみる。 以前書いた「Go 言語で画像のサイズ変更：定義済み draw.Scaler の比較」を参考に main() 関数を以下のように書き換える。\nfunc scale(src image.Image, rect image.Rectangle, scaler draw.Scaler) image.Image { dst := image.NewRGBA(rect) scaler.Scale(dst, rect, src, src.Bounds(), draw.Over, nil) return dst } func main() { img, err := getimage() if err != nil { fmt.Fprintln(os.Stderr, err) return } //scale down \tdisplayImage(scale(img, image.Rect(0, 0, 80, 80), draw.NearestNeighbor)) } いちばん（速くて）変換性能が悪い draw.NearestNeighbor を使ってみた（笑）\n結果はこんな感じ。\n Display image: The Go Playground  よーし，うむうむ，よーし。\nブックマーク  Go 言語で画像のサイズを変更する  参考図書  プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES) Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳) 丸善出版 2016-06-20 単行本（ソフトカバー） 4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN) 評価\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;  著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K\u0026amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。\nreviewed by Spiegel on 2016-07-13 (powered by PA-APIv5)\n   大きな画像を Go Playground で表示しようとすると失敗（タイムアウト？）する場合がある。また複数の画像は表示できないっぽい。 \u0026#x21a9;\u0026#xfe0e;\n   "
-    },
-    {
-      "title": "Git v2.26.2 のリリース【セキュリティ・アップデート】",
-      "section": "release",
-      "description": " 前回の CVE-2020-5260 が直りきってなかったってことでいいのかな？",
-      "author": "Spiegel",
-      "license": "http://creativecommons.org/licenses/by-sa/4.0/",
-      "url": "https://text.baldanders.info/release/2020/04/git-2_26_2-is-released/",
-      "published": "2020-04-21T00:12:19+00:00",
-      "update": "2020-04-21T07:42:22+00:00",
-      "content": "Git v2.26.2 を含む複数のバージョンがリリースされた。\n [Announce] Git v2.26.2 and others  対象となるのは 2.17.x から 2.26.x までの各マイナーバージョン。 前回の CVE-2020-5260 が直りきってなかったってことでいいのかな？\nThese releases address the security issue CVE-2020-11008, which is similar to the recently addressed CVE-2020-5260. via Git v2.26.2 and others  CVE-2020-5260 と同様ということは深刻度も「緊急」ちうことかな。 CVE-2020-5260 については，前のリリース記事を参考にどうぞ。\nCVE-2020-11008 未稿\nアップデートは\u0026hellip; Ubuntu であれば PPA 版リポジトリを利用することをおすすめする。\n PPA から Git をインストールする  アップデートは計画的に。\nブックマーク  Release Git for Windows 2.26.2 · git-for-windows/git · GitHub  "
     }
   ]
 }
