@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.71.1" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="canonical" href="https://text.baldanders.info/remark/2020/06/upgrade-openssh-key/">
+<script src="//kit.fontawesome.com/152e339e63.js"></script>
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Inconsolata%3a400,700%7cNoto+Sans+JP%3a400,700%7cNoto+Sans%3a400,700%7cNoto+Serif%7cNoto+Serif+JP&display=swap" type='text/css'>
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/main.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info.css" type='text/css'>
+<link rel="stylesheet" href="/css/chroma-styles.css">
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+	processEscapes: true,
+    tags: 'ams',
+    macros: {
+      ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1],
+      tcdegree: ['\\unicode{xb0}'],
+      tccelsius: ['\\unicode{x2103}'],
+      tcperthousand: ['\\unicode{x2030}'],
+      tcmu: ['\\unicode{x3bc}'],
+      tcohm: ['\\unicode{x3a9}']
+    }
+  },
+  
+  
+  
+  
+  
+  chtml: {
+    matchFontHeight: false,
+    displayAlign: "left",
+    displayIndent: "2em"
+  }
+};
+</script>
+<script id="MathJax-script" async src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<title>OpenSSH 鍵をアップグレードする（さようなら SHA-1） — しっぽのさきっちょ | text.Baldanders.info</title>
+<meta property="og:title" content="OpenSSH 鍵をアップグレードする（さようなら SHA-1） — しっぽのさきっちょ | text.Baldanders.info">
+<meta name="description" content="どうせ鍵を新調するのなら楕円曲線暗号で構成するのがいいよね。">
+<meta property="og:description" content="どうせ鍵を新調するのなら楕円曲線暗号で構成するのがいいよね。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/kitten.jpg">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="keywords" content="security, risk, openssh, cryptography, hash, sha-1, gnupg, ecc">
+<link rel='prev' href='https://text.baldanders.info/remark/2020/06/ephemeris/' title='2020年6月の暦' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/remark/",
+	"url": "https://text.baldanders.info/remark/",
+	"inLanguage": "ja",
+	"name": "しっぽのさきっちょ",
+	"description": "帰ってきた「しっぽのさきっちょ」。とりとめのない四方山話。",
+	"image": "https://text.baldanders.info/images/attention/remark.jpg",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/remark/2020/06/upgrade-openssh-key/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/remark/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/remark/2020/06/upgrade-openssh-key/",
+	"url": "https://text.baldanders.info/remark/2020/06/upgrade-openssh-key/",
+	"mainEntityOfPage": "https://text.baldanders.info/remark/2020/06/upgrade-openssh-key/",
+	"inLanguage": "ja",
+	"name": "OpenSSH 鍵をアップグレードする（さようなら SHA-1）",
+	"description": "どうせ鍵を新調するのなら楕円曲線暗号で構成するのがいいよね。",
+	"headline": "どうせ鍵を新調するのなら楕円曲線暗号で構成するのがいいよね。",
+	"keywords": "security, risk, openssh, cryptography, hash, sha-1, gnupg, ecc",
+	"image": "https://text.baldanders.info/images/attention/kitten.jpg",
+	"datePublished": "2020-06-01T07:12:32+00:00",
+	"dateModified": "2020-06-01T07:12:48+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/remark/">しっぽのさきっちょ</a>
+</nav>
+<article>
+<h1>OpenSSH 鍵をアップグレードする（さようなら SHA-1）</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/cryptography/">cryptography</a> #<a href="/tags/ecc/">ecc</a> #<a href="/tags/gnupg/">gnupg</a> #<a href="/tags/hash/">hash</a> #<a href="/tags/openssh/">openssh</a> #<a href="/tags/risk/">risk</a> #<a href="/tags/security/">security</a> #<a href="/tags/sha-1/">sha-1</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-square"></i></span>&nbsp;:&nbsp;
+		<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fremark%2f2020%2f06%2fupgrade-openssh-key%2f" target="_blank"><span class="facebook-color"><i class="fab fa-facebook-square" aria-hidden="true"></i></span></a>
+		<a href="http://twitter.com/share?text=OpenSSH%20%e9%8d%b5%e3%82%92%e3%82%a2%e3%83%83%e3%83%97%e3%82%b0%e3%83%ac%e3%83%bc%e3%83%89%e3%81%99%e3%82%8b%ef%bc%88%e3%81%95%e3%82%88%e3%81%86%e3%81%aa%e3%82%89%20SHA-1%ef%bc%89+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fremark%2f2020%2f06%2fupgrade-openssh-key%2f" target="_blank"><span class="twitter-color"><i class="fab fa-twitter-square" aria-hidden="true"></i></span></a>
+		<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fremark%2f2020%2f06%2fupgrade-openssh-key%2f&amp;title=OpenSSH%20%e9%8d%b5%e3%82%92%e3%82%a2%e3%83%83%e3%83%97%e3%82%b0%e3%83%ac%e3%83%bc%e3%83%89%e3%81%99%e3%82%8b%ef%bc%88%e3%81%95%e3%82%88%e3%81%86%e3%81%aa%e3%82%89%20SHA-1%ef%bc%89" target="_blank"><span class="pocket-color"><i class="fab fa-get-pocket" aria-hidden="true"></i></span></a>
+		
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2020/06/upgrade-openssh-key/index.html">GitHub Page</a>
+</nav>
+
+<section><div>
+<div class="noextension">
+<a href="https://baldanders.info/noextension/" title="「著作権の保護期間延長に反対します」に関するブックマーク | Baldanders.info"><img src="/images/noextension.png" alt="no extension" width="165" height="50" /></a>
+</div>
+<p>2020-05-27 に <a href="https://www.openssh.com/">OpenSSH</a> 8.3 がリリースされた。</p>
+<ul>
+<li><a href="https://lwn.net/Articles/821544/">OpenSSH 8.3 released (and ssh-rsa deprecation notice) [LWN.net]</a></li>
+</ul>
+<p>この中で “Future deprecation notice” として</p>
+<figure lang="en">
+<blockquote><q>It is now possible to perform chosen-prefix attacks against the SHA-1 algorithm for less than USD$50K. For this reason, we will be disabling the “ssh-rsa” public key signature algorithm by default in a near-future release</q>.</blockquote>
+<figcaption>via <q><a href="https://lwn.net/Articles/821544/">OpenSSH 8.3 released (and ssh-rsa deprecation notice)</a></q></figcaption>
+</figure>
+<p>と書かれていて<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>，古い RSA 鍵はそろそろ交換したほうがよさそうである。
+もっともクライアント側に限れば，新規に RSA 鍵を作る分には特に問題ないようだ<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ ssh-keygen -t rsa
+Generating public/private rsa key pair.
+Enter file in which to save the key (/home/username/.ssh/id_rsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/username/.ssh/id_rsa
+Your public key has been saved in /home/username/.ssh/id_rsa.pub
+The key fingerprint is:
+SHA256:qufsNjgco3QZNjE4eupwQiT6mD8fr2a7nXmU3ybxFHo username@hostname
+The key&#39;s randomart image is:
++---[RSA 3072]----+
+|   .             |
+|..o o            |
+|+. . o           |
+|o.. +       .    |
+|.* . +  S. . .   |
+|* + =  .o o E    |
+|o= +.+.. . *     |
+| .+ **+o. o +    |
+|   =*XOo   o     |
++----[SHA256]-----+
+</code></pre></div><p>ハッシュ・アルゴリズムが SHA256 以上になってるか，がポイント。</p>
+<p>でも，まぁ，どうせ鍵を新調するのなら楕円曲線暗号（Elliptic Curve Cryptography; ECC）で構成するのがいいよね。
+ちうわけで，ECC 鍵を作って登録するところまでやってみる。
+ちゃんとメモっておかないと忘れるんだよねぇ（笑）</p>
+<h2>前提条件</h2>
+<p>今回は <a href="https://www.ubuntu.com/" title="The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu">Ubuntu</a> 環境下での作業とし鍵管理を <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> で行うものとする。
+Windows 環境の場合は以下の拙文を参考にどうぞ。</p>
+<ul>
+<li><a href="https://text.baldanders.info/openpgp/using-gnupg-for-windows-2/">GnuPG for Windows : gpg-agent について</a></li>
+</ul>
+<p><a href="https://www.openssh.com/">OpenSSH</a> と <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> を連携させるには <code>~/.gupg/gpg-agent.conf</code> ファイルに <code>enable-ssh-support</code> オプションをセットする。
+他に有効なオプションとしては</p>
+<table>
+<thead>
+<tr>
+<th>オプション名</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default-cache-ttl-ssh</code></td>
+<td>直前にアクセスしたキャッシュ・エントリの有効期間を秒単位で指定する。 既定値は 1800</td>
+</tr>
+<tr>
+<td><code>max-cache-ttl-ssh</code></td>
+<td>キャッシュ・エントリの有効期間の最大値を秒単位で指定する。 アクセスの有無にかかわらずこの期間が過ぎるとキャッシュがクリアされる。 既定値は 7200</td>
+</tr>
+</tbody>
+</table>
+<p>がある。
+たとえばこんな感じで記述すればいいだろう。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">enable-ssh-support
+default-cache-ttl-ssh 1800
+max-cache-ttl-ssh 7200
+</code></pre></div><p>あとは <code>SSH_AUTH_SOCK</code> 環境変数を以下のように書き換えればOK。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+</code></pre></div><p><code>~/.bashrc</code> 等に追記しておけばよいだろう。</p>
+<h2><a href="https://www.openssh.com/">OpenSSH</a> 鍵の生成</h2>
+<p><a href="https://www.openssh.com/">OpenSSH</a> 鍵を生成するには <code>ssh-keygen</code> コマンドを使う。
+たとえばこんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ ssh-keygen -t ecdsa -b 256 -C &#34;alice@example.com&#34;
+Generating public/private ecdsa key pair.
+Enter file in which to save the key (/home/username/.ssh/id_ecdsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/username/.ssh/id_ecdsa
+Your public key has been saved in /home/username/.ssh/id_ecdsa.pub
+The key fingerprint is:
+SHA256:DtXgQm9rz7Dc5M5yWu/CNVo341o1rcfN9UCyYu+SZU4 alice@example.com
+The key&#39;s randomart image is:
++---[ECDSA 256]---+
+|      . .        |
+|     . o o       |
+|      . = . . .  |
+|       + .   +  .|
+|      . S + . ..+|
+|       = X oE +*=|
+|        +.*X.+oo*|
+|        .+Bo.... |
+|        .+o+=.   |
++----[SHA256]-----+
+</code></pre></div><p>これで作成された <code>id_ecdsa</code> および <code>id_ecdsa.pub</code> ファイルが鍵ファイルである。
+ちなみに <code>id_ecdsa</code> ファイルには秘密鍵， <code>id_ecdsa.pub</code> ファイルには公開鍵が格納されている。</p>
+<p><code>-t</code> オプションで鍵種別を， <code>-b</code> で鍵長（ビット数）をセットする。
+鍵種別と鍵長の組み合わせと，それぞれに対するセキュリティ強度（ビット数）は以下の通り。</p>
+<div>
+<figure>
+<style>
+main table.sshkeys th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.sshkeys td  {
+  vertical-align:middle;
+  //text-align: center;
+}
+</style>
+<table class="sshkeys">
+<thead>
+<tr>
+<th>鍵種別</th>
+<th>鍵長</th>
+<th>強度</th>
+<th>楕円曲線名</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td rowspan="3"><code>dsa</code></td>
+  <td class="right">3072</td>
+  <td class="right">128</td>
+  <td rowspan="3">&mdash;</td>
+</tr>
+<tr>
+  <td class="right">7680</td>
+  <td class="right">256</td>
+</tr>
+<tr>
+  <td class="right">15360</td>
+  <td class="right">256</td>
+</tr>
+<tr>
+  <td rowspan="3"><code>ecdsa</code> / <code>ecdsa-sk</code></td>
+  <td class="right">256</td>
+  <td class="right">128</td>
+  <td><code>nistp256</code></td>
+</tr>
+<tr>
+  <td class="right">384</td>
+  <td class="right">256</td>
+  <td><code>nistp384</code></td>
+</tr>
+<tr>
+  <td class="right">521</td>
+  <td class="right">256</td>
+  <td><code>nistp521</code></td>
+</tr>
+<tr>
+<td><code>ed25519</code> / <code>ed25519-sk</code></td>
+  <td class="right">&mdash;</td>
+  <td class="right">128</td>
+  <td><code>ed25519</code></td>
+</tr>
+<tr>
+  <td rowspan="3"><code>rsa</code></td>
+  <td class="right">3072</td>
+  <td class="right">128</td>
+  <td rowspan="3">&mdash;</td>
+</tr>
+<tr>
+  <td class="right">7680</td>
+  <td class="right">256</td>
+</tr>
+<tr>
+  <td class="right">15360</td>
+  <td class="right">256</td>
+</tr>
+</tbody>
+</table>
+</figure>
+</div>
+<p>この組み合わせのいずれかであれば2031年以降も問題なく使える。
+なお <code>ecdsa-sk</code> および <code>ed25519-sk</code> は認証デバイスに登録する際に使うらしい（今回は割愛する）。</p>
+<p>余談だが楕円曲線 <code>ed25519</code> に対応する電子署名アルゴリズムは EdDSA で <a href="https://tools.ietf.org/html/rfc8032" title="RFC 8032 - Edwards-Curve Digital Signature Algorithm (EdDSA)">RFC 8032</a> で規定されている。
+なんで鍵種別を <code>eddsa</code> としなかったのかは知らない。
+紛らわしかったのかな？</p>
+<h3>楕円曲線と鍵長</h3>
+<p>（「<a href="https://text.baldanders.info/openpgp/using-ecc-with-gnupg/">そろそろ GnuPG でも ECC を標準で使うのがいいんじゃないかな</a>」より抜粋）</p>
+<p>ここでちょっと横道に逸れて鍵長の話をしておく。</p>
+<p>たとえば RSA の（平文 $M$ から暗号文 $C$ への）暗号化は以下の式で表される。</p>
+<div class="box">
+\[
+    C = M^e \bmod n
+\]
+</div>
+<p>$(e, n)$ のセットが公開鍵で， $n$ のサイズが鍵長に相当する。
+実際の計算はともかく，感覚としては分かりやすいよね。</p>
+<p>ECC の場合は暗号化の前に，まずベースとなる楕円曲線の（素数 $q$ で決められる）素体（prime fields）を決めなければならない<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>。
+これは以下の式で表される。</p>
+<div class="box">
+\[
+    E : y^2 \equiv x^3 + ax + b \pmod{q}
+\]
+</div>
+<p>この素体上の有理点の数（位数）を $\#E$ とした時の $\#E$ のサイズが鍵長に相当する。
+$(a,b,q)$ といったパラメータを眺めただけでは鍵長が分からないというのが面倒臭い感じである<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>。</p>
+<p>そこで ECC の場合は楕円曲線を表すパラメータのセットが標準化されている。
+<a href="https://www.openssh.com/">OpenSSH</a> の場合は <code>nistp256</code>, <code>nistp384</code>, <code>nistp521</code>, <code>ed25519</code> といった楕円曲線名に対応している。
+つまり楕円曲線名から楕円曲線の種類を特定し，そこから鍵長も分かる，というわけだ。</p>
+<h2><a href="https://www.openssh.com/">OpenSSH</a> 鍵の登録（クライアント側）</h2>
+<p>本題に戻る。
+作成した <a href="https://www.openssh.com/">OpenSSH</a> 鍵ファイル <code>id_ecdsa</code> および <code>id_ecdsa.pub</code> を登録しよう。</p>
+<p>クライアント側は <code>ssh-add</code> コマンドを使って秘密鍵ファイル <code>id_ecdsa</code> の内容を <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> の鍵束に永続的に登録できる。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ ssh-add ./id_ecdsa
+Enter passphrase for ./id_ecdsa: 
+Identity added: ./id_ecdsa (alice@example.com)
+</code></pre></div><p>この時 <code>ssh-add</code> コマンドによるパスフレーズ入力とは別に <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> の鍵束への登録用のパスフレーズを求められる（確認を含めて2回入力する必要あり）。</p>
+<figure style='margin:0 auto;text-align:center;'>
+<a href="./pinentry.png"><img src="./pinentry.png" srcset="./pinentry.png 500w" sizes="(min-width:600px) 500px, 80vw" alt=""></a></figure>
+<p>ここで設定するパスフレーズは <code>id_ecdsa</code> ファイルに対するものとは管理が異なるので注意。
+というか <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> の鍵束に登録したら <code>id_ecdsa</code> ファイルは不要になる。</p>
+<p>登録した <a href="https://www.openssh.com/">OpenSSH</a> 秘密鍵の実体は <code>~/.gnupg/private-keys-v1.d/</code> ディレクトリにある。
+また <code>~/.gnupg/sshcontrol</code> ファイルに  <a href="https://www.openssh.com/">OpenSSH</a> 秘密鍵の情報が追記される。
+こんな感じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"># ECDSA key added on: 2020-06-01 14:05:35
+# Fingerprints:  MD5:e4:5b:66:a6:03:9a:a4:0e:f2:1b:a5:04:72:93:f3:f0
+#                SHA256:DtXgQm9rz7Dc5M5yWu/CNVo341o1rcfN9UCyYu+SZU4
+A5353D587000D820669B0BD55A0B4AD6897458DB 0
+</code></pre></div><p><code>ssh-add -l</code> コマンドでも登録した鍵を確認できる。</p>
+<h2><a href="https://www.openssh.com/">OpenSSH</a> 鍵の登録（サーバ側）</h2>
+<p>ログイン先のサーバに公開鍵ファイル <code>id_ecdsa.pub</code> の中身を登録する。
+つっても，どうにかして <code>id_ecdsa.pub</code> ファイルをサーバにアップロードして</p>
+<pre><code>$ cat ./id_ecdsa.pub &gt;&gt; ~/.ssh/authorized_keys
+</code></pre><p>と <code>authorized_keys</code> ファイルに追記すればよい。
+追記ではなく内容を書き換えるなら</p>
+<pre><code>$ cat ./id_ecdsa.pub &gt; ~/.ssh/authorized_keys
+</code></pre><p>でもよい。
+書き換えるなら以前のファイルのバックアップはとってね。
+パーミッションの設定も忘れずに。</p>
+<pre><code>$ chamod 700 ~/.ssh
+$ chamod 600 ~/.ssh/authorized_keys
+</code></pre><p>老婆心ながら，新しい鍵でログインできることを確認するまでは接続中のセッションは切らないこと。
+設定を間違えてログイン不能になったら悲惨だからねぇ。</p>
+<h3>各種 <a href="https://git-scm.com/">Git</a> リポジトリ・サービスに公開鍵を登録する</h3>
+<p><a href="https://github.com/">GitHub</a> ではリポジトリのアクセスに <a href="https://www.openssh.com/">OpenSSH</a> 認証が使える。
+<a href="https://www.openssh.com/">OpenSSH</a> 認証に使う公開鍵は設定の “<a href="https://github.com/settings/keys">SSH and GPG keys</a>” で登録する（複数登録可能）。</p>
+<p><a href="https://bitbucket.org/product/">Bitbucket</a> や <a href="https://gitlab.com/">GitLab</a> などの各種 <a href="https://git-scm.com/">git</a> リポジトリ・サービスでも同様に <a href="https://www.openssh.com/">OpenSSH</a> 公開鍵を登録できる。</p>
+<p>よしゃあ！ これで作業完了。</p>
+<h2>ブックマーク</h2>
+<ul>
+<li>
+<p><a href="https://orumin.blogspot.com/2020/05/ssh-rsa.html">ssh-rsa，非推奨のお知らせ</a></p>
+</li>
+<li>
+<p><a href="https://japan.zdnet.com/article/35154545/">OpenSSH、将来のリリースでssh-rsa公開鍵の署名アルゴリズムをデフォルトで無効に - ZDNet Japan</a></p>
+</li>
+<li>
+<p><a href="https://text.baldanders.info/remark/2017/10/key-parameters/">暗号鍵関連の各種変数について</a></p>
+</li>
+<li>
+<p><a href="https://text.baldanders.info/remark/2020/01/sayonara-sha-1/">（何度目かの）さようなら SHA-1</a></p>
+</li>
+</ul>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51ZRZ62WKCL._SL160_.jpg" width="108" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">暗号化 プライバシーを救った反乱者たち</a></dt>
+    <dd>スティーブン・レビー (著), 斉藤 隆央 (翻訳)</dd>
+    <dd>紀伊國屋書店 2002-02-16</dd>
+    <dd>単行本</dd>
+    <dd>4314009071 (ASIN), 9784314009072 (EAN), 4314009071 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-03-09">2015-03-09</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 暗号化 プライバシーを救った反乱者たち -->
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg" width="113" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">暗号技術入門 第3版　秘密の国のアリス</a></dt>
+    <dd>結城 浩 (著)</dd>
+    <dd>SBクリエイティブ 2015-08-25 (Release 2015-09-17)</dd>
+    <dd>Kindle版</dd>
+    <dd>B015643CPE (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-09-20">2015-09-20</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 暗号技術入門 第3版 -->
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>実は同様の問題は <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> でも指摘されていて，半年前にリリースされた 2.2.18 で対応済みである（<a href="https://text.baldanders.info/release/2019/11/gnupg-2_2_18-is-released/">GnuPG 2.2.18 リリース： さようなら SHA-1</a>） <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>ちなみに，私は2011年に作った RSA 鍵を使っているが，ハッシュ・アルゴリズムは SHA256 だった。少なくとも10年以内に作った鍵なら問題なさそう？ あとは鍵長かねぇ。 <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p>素体ではなく「標数2の体（binary fields）」を使う場合もあるが，ここでは割愛する。 <a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:4" role="doc-endnote">
+<p>楕円曲線と楕円曲線暗号については結城浩さんの『<a href="https://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/">暗号技術入門 第3版</a>』の付録に比較的分かりやすい解説が載っている。同じく結城浩さんの『<a href="https://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/">数学ガール ガロア理論</a>』が何となく分かれば楕円曲線についても何となく分かると思う。大丈夫。私も何となくしか分かっていない（笑） <a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2020/06/ephemeris/">2020年6月の暦</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "textbaldandersinfo" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+<p>Web ブラウザとその設定によってはコメント機能をホストしている <a href="https://disqus.com/">Disqus</a> のコードを「追跡コード」としてブロックする場合があります。</p>
+<p>フィードバックの手段として Twitter, Facebook または電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2020-06-01</time>
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social">
+	<li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li>
+	<li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li>
+	
+	
+	
+	<li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li>
+	<li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li>
+	
+	
+</ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fremark%2f2020%2f06%2fupgrade-openssh-key%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://scrapbox.io/spiegel-branch/'>Scrapbox</a></li>
+<li><a href='http://qiita.com/spiegel-im-spiegel'>Qiita</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.71.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
