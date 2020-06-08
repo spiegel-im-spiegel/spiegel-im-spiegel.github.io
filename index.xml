@@ -2,13 +2,355 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2020-06-08:/</id>
-	<updated>2020-06-08T08:32:39+00:00</updated>
+	<id>tag:text.Baldanders.info,2020-06-09:/</id>
+	<updated>2020-06-08T15:14:30+00:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>LuaLaTeX で PDF/A を構成する</title>
+		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2020/06/pdfa-with-luatex/" />
+		<id>tag:text.Baldanders.info,2020-06-09:/remark/2020/06/pdfa-with-luatex/</id>
+		<published>2020-06-08T15:14:11+00:00</published>
+		<updated>2020-06-08T15:14:30+00:00</updated>
+		<summary>pdfx パッケージを使って PDF/A-2u を構成してみる。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;今回は $\mathrm{Lua\LaTeX}$ で PDF/A を構成してみる。&lt;/p&gt;
+&lt;h2&gt;PDF/A とは&lt;/h2&gt;
+&lt;p&gt;PDF/A とは可搬性と永続性を考慮した PDF 構成で， ISO 19005 シリーズとして定義されている。
+PDF/A の種別は大まかに&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;PDF/A-1 : ISO 19005-1 (PDF 1.4 相当)
+&lt;ul&gt;
+&lt;li&gt;PDF/A-1a : PDF/A-1 レベルA&lt;/li&gt;
+&lt;li&gt;PDF/A-1b : PDF/A-1 レベルB&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;PDF/A-2 : ISO 19005-2 (PDF 1.7 相当)
+&lt;ul&gt;
+&lt;li&gt;PDF/A-2a : PDF/A-2 レベルA&lt;/li&gt;
+&lt;li&gt;PDF/A-2b : PDF/A-2 レベルB&lt;/li&gt;
+&lt;li&gt;PDF/A-2u : PDF/A-2 レベルU&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;PDF/A-3 : ISO 19005-3 (PDF/A-2 拡張)
+&lt;ul&gt;
+&lt;li&gt;PDF/A-2a : PDF/A-2 レベルA&lt;/li&gt;
+&lt;li&gt;PDF/A-2b : PDF/A-2 レベルB&lt;/li&gt;
+&lt;li&gt;PDF/A-2u : PDF/A-2 レベルU&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;といった感じに分かれている。&lt;/p&gt;
+&lt;p&gt;まず PDF/A-1 については&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;カラーの再現性の保証&lt;/li&gt;
+&lt;li&gt;フォント埋め込み&lt;/li&gt;
+&lt;li&gt;XMPメタデータの埋め込み&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;が要求され，逆に暗号化によるアクセス制限やコードの埋め込み等は禁止されている。&lt;/p&gt;
+&lt;p&gt;PDF/A-2 では PDF/A 文書の添付や圧縮機能の一部などが許容されている。
+更に PDF/A-3 では任意のドキュメント・データの埋め込みが許容されているが，さすがにこれは可搬性や永続性の観点からは要らない機能と言えるだろう。&lt;/p&gt;
+&lt;p&gt;これらの条件に加えてレベルUでは ToUnicode CMap による Unicode 対応が要求され（テキスト抽出等に必要），最高レベルのAではタグによる論理構造の埋め込みも要求される。&lt;/p&gt;
+&lt;p&gt;論理構造の埋め込みはちょっと辛いし（論理構造をきちんと設計するのは大変）そもそも今回使用する &lt;code&gt;pdfx&lt;/code&gt; パッケージではレベルAの要求を完全には満たせないらしいので，レベルBまたはUの PDF/A を構成することを考える。&lt;/p&gt;
+&lt;h2&gt;最初の LuaLaTeX テキスト&lt;/h2&gt;
+&lt;p&gt;手始めに以下の $\mathrm{Lua\LaTeX}$ テキストを用意してみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-latex&#34; data-lang=&#34;latex&#34;&gt;&lt;span class=&#34;k&#34;&gt;\documentclass&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;ltjsarticle&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\usepackage&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;[deluxe,nfssonly]&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;luatexja-preset&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\renewcommand&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\emph&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;[1]&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\textsf&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\textgt&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;#1&lt;span class=&#34;nb&#34;&gt;}}}&lt;/span&gt; &lt;span class=&#34;c&#34;&gt;% 強調をゴシック体と Sans Serif に変更する
+&lt;/span&gt;&lt;span class=&#34;c&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\title&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\emph&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;はじめてのLua&lt;span class=&#34;k&#34;&gt;\TeX&lt;/span&gt;-ja&lt;span class=&#34;nb&#34;&gt;}}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\author&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;Spiegel&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\date&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;2020-06-08&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;\begin&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;document&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;\maketitle&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;\section&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;はじめてのLua&lt;span class=&#34;k&#34;&gt;\TeX&lt;/span&gt;-ja&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+
+ちゃんとLua&lt;span class=&#34;k&#34;&gt;\TeX&lt;/span&gt;-jaで日本語が出るかな？
+
+&lt;span class=&#34;k&#34;&gt;\subsection&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;出たかな？&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+
+長い文章を入力するとちゃんと右端のところで折り返されるかな？
+大丈夫そうな気がするけど．ちょっと不安だけど何事も挑戦だよね．
+
+&lt;span class=&#34;k&#34;&gt;\end&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;document&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これを処理した結果がこんな感じ。&lt;/p&gt;
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;a href=&#34;./output.png&#34;&gt;&lt;img src=&#34;./output.png&#34; srcset=&#34;./output.png 815w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
+&lt;p&gt;ちなみに &lt;code&gt;pdfinfo&lt;/code&gt; で中身を見ると，こんな感じになっている&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pdfinfo sample.pdf 
+Creator:        TeX
+Producer:       LuaTeX-1.12.0
+CreationDate:   Mon Jun  8 20:36:09 2020 JST
+ModDate:        Mon Jun  8 20:36:09 2020 JST
+Tagged:         no
+UserProperties: no
+Suspects:       no
+Form:           none
+JavaScript:     no
+Pages:          1
+Encrypted:      no
+Page size:      595.276 x 841.89 pts (A4)
+Page rot:       0
+File size:      26856 bytes
+Optimized:      no
+PDF version:    1.5
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;PDF version が 1.5 である点に注目。&lt;/p&gt;
+&lt;h2&gt;pdfx パッケージとメタデータの追加&lt;/h2&gt;
+&lt;p&gt;PDF/A を構成するために &lt;code&gt;pdfx&lt;/code&gt; パッケージとメタデータを追加する。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-latex&#34; data-lang=&#34;latex&#34;&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;c&#34;&gt;% XMPメタデータ
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;c&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\RequirePackage&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;filecontents&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;k&#34;&gt;\begin&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;filecontents*&lt;span class=&#34;nb&#34;&gt;}{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\jobname&lt;/span&gt;.xmpdata&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;\Title&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;はじめてのLuaTeX-ja&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;\Subject&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;ちゃんとLuaTeX-jaで日本語が出るかな？&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;\Author&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;Spiegel&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;k&#34;&gt;\end&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;filecontents*&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\documentclass&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;ltjsarticle&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\usepackage&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;[deluxe,nfssonly]&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;luatexja-preset&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\renewcommand&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\emph&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;[1]&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\textsf&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\textgt&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;#1&lt;span class=&#34;nb&#34;&gt;}}}&lt;/span&gt; &lt;span class=&#34;c&#34;&gt;% 強調をゴシック体と Sans Serif に変更する
+&lt;/span&gt;&lt;span class=&#34;c&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;k&#34;&gt;\usepackage&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;[a-2u]&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;pdfx&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;   &lt;span class=&#34;c&#34;&gt;% PDF/A-2u を構成
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;c&#34;&gt;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\pdfvariable&lt;/span&gt; omitcidset=1 &lt;span class=&#34;c&#34;&gt;% LuaTeX で PDF/A-2 を作る際に必要
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;c&#34;&gt;&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\title&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\emph&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;はじめてのLua&lt;span class=&#34;k&#34;&gt;\TeX&lt;/span&gt;-ja&lt;span class=&#34;nb&#34;&gt;}}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\author&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;Spiegel&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;k&#34;&gt;\date&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;2020-06-08&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+
+&lt;span class=&#34;k&#34;&gt;\begin&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;document&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;XMPメタデータの指定を &lt;code&gt;\documentclass&lt;/code&gt; の前に記述するのがポイント。&lt;/p&gt;
+&lt;p&gt;これを処理して中身を見るとこんな感じになった。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pdfinfo sample.pdf 
+&lt;span class=&#34;hl&#34;&gt;Title:          はじめてのLuaTeX-ja
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;Subject:        ちゃんとLuaTeX-jaで日本語が出るかな？
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;Author:         Spiegel
+&lt;/span&gt;Creator:        LaTeX with hyperref
+Producer:       LuaTeX
+CreationDate:   Mon Jun  8 20:36:09 2020 JST
+ModDate:        Mon Jun  8 20:36:09 2020 JST
+Tagged:         no
+UserProperties: no
+Suspects:       no
+Form:           none
+JavaScript:     no
+Pages:          1
+Encrypted:      no
+Page size:      595.276 x 841.89 pts (A4)
+Page rot:       0
+File size:      40669 bytes
+Optimized:      no
+&lt;span class=&#34;hl&#34;&gt;PDF version:    1.4
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;PDF subtype:    PDF/A-2u:2010
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Title:         ISO 19005 - Electronic document file format for long-term preservation (PDF/A)
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Abbreviation:  PDF/A-2
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Subtitle:      Part 2: Use of ISO 32000-1
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Standard:      ISO 19005-2
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Conformance:   Level U, Unicode support
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Title, Subject, および Author のメタデータが追加され， PDF version が 1.4 の PDF/A-2u として構成されているのが分かる。&lt;/p&gt;
+&lt;h3&gt;filecontents 環境で設定可能な XMP メタデータ項目&lt;/h3&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-latex&#34; data-lang=&#34;latex&#34;&gt;&lt;span class=&#34;k&#34;&gt;\begin&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;filecontents*&lt;span class=&#34;nb&#34;&gt;}{&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;\jobname&lt;/span&gt;.xmpdata&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+  ...
+&lt;span class=&#34;k&#34;&gt;\end&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;{&lt;/span&gt;filecontents*&lt;span class=&#34;nb&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;環境で指定できる主な項目は以下の通り。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;項目名&lt;/th&gt;
+&lt;th&gt;XMP 要素&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Author&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;dc:creator&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;\sep&lt;/code&gt; で複数指定可能&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Title&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;dc:title&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Language&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;dc:language&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;ja-JP&lt;/code&gt; など，&lt;code&gt;\sep&lt;/code&gt; で複数指定可能&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Keywords&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;dc:subject&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;\sep&lt;/code&gt; で複数指定可能&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Publisher&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;dc:publisher&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;\sep&lt;/code&gt; で複数指定可能&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Subject&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;dc:description&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;著作権情報を載せる場合には以下の項目も使える。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;項目名&lt;/th&gt;
+&lt;th&gt;XMP 要素&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Copyright&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;dc:rights&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;利用規約等&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\CopyrightURL&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;xmpRights:WebStatement&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Copyrighted&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;xmpRights:Marked&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;公有の場合は &lt;code&gt;False&lt;/code&gt; をセットする&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\Owner&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;xmpRights:Owner&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;\sep&lt;/code&gt; で複数指定可能&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;\CertificateURL&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;xmpRights:Certificate&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;その他，設定可能な項目については &lt;a href=&#34;https://www.ctan.org/pkg/pdfx&#34;&gt;&lt;code&gt;pdfx&lt;/code&gt; パッケージのドキュメント&lt;/a&gt;を参照のこと。&lt;/p&gt;
+&lt;p&gt;なお，メタデータを含む $\mathrm{Lua\LaTeX}$ テキストを処理するとメタデータの内容を &lt;code&gt;*.xmpdata&lt;/code&gt; ファイルに吐き出すようだが，メタデータを変更したらこのファイルをいったん削除してから再処理する必要がある（上書きで変更しないみたい）。
+また，実際に PDF ファイルに埋め込まれる XMP メタデータの内容は &lt;code&gt;pdfa.xmpi&lt;/code&gt; に出力されるので参考になると思う。&lt;/p&gt;
+&lt;p&gt;更に生成済みの PDF に対しては&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pdfinfo -meta sample.pdf
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;で XMP メタデータを抽出できる。&lt;/p&gt;
+&lt;h2&gt;日本語の ToUnicode CMap はなくても大丈夫（らしい）&lt;/h2&gt;
+&lt;p&gt;レベルUの要件として PDF に ToUnicode CMap が埋め込まれている必要があるが，&lt;a href=&#34;https://github.com/trueroad/HaranoAjiFonts&#34; title=&#34;trueroad/HaranoAjiFonts: 原ノ味フォント&#34;&gt;原ノ味フォント&lt;/a&gt;のような Adobe-Japan1 フォントについては例外のようだ。&lt;/p&gt;
+&lt;p&gt;試しに &lt;a href=&#34;https://github.com/trueroad/pdf-rm-tuc&#34; title=&#34;trueroad/pdf-rm-tuc: Remove ToUnicode CMap from PDF&#34;&gt;&lt;code&gt;pdf-rm-tuc&lt;/code&gt;&lt;/a&gt; コマンドで日本語フォントの ToUnicode CMap を削除してみる&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pdf-rm-tuc --newline-before-endstream sample.pdf sample-tuc.pdf
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;PDF/A ドキュメントを処理する場合は &lt;code&gt;--newline-before-endstream&lt;/code&gt; オプションが必須になるらしいので注意。&lt;/p&gt;
+&lt;p&gt;これで&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pdffonts sample-tuc.pdf 
+name                                 type              encoding         emb sub uni object ID
+------------------------------------ ----------------- ---------------- --- --- --- ---------
+JKVWEI+LMRoman10-Regular             CID Type 0C       Identity-H       yes yes yes     22  0
+&lt;span class=&#34;hl&#34;&gt;IECCEF+HaranoAjiMincho-Regular       CID Type 0C       Identity-H       yes yes no      23  0
+&lt;/span&gt;XKBUGM+LMSans17-Regular              CID Type 0C       Identity-H       yes yes yes     24  0
+&lt;span class=&#34;hl&#34;&gt;JYWTWW+HaranoAjiGothic-Regular       CID Type 0C       Identity-H       yes yes no      25  0
+&lt;/span&gt;RHMEBC+LMRoman12-Regular             CID Type 0C       Identity-H       yes yes yes     26  0
+RHDCZK+LMSans12-Regular              CID Type 0C       Identity-H       yes yes yes     27  0
+
+$ pdfinfo sample-tuc.pdf 
+Title:          はじめてのLuaTeX-ja
+Subject:        ちゃんとLuaTeX-jaで日本語が出るかな？
+Author:         Spiegel
+Creator:        LaTeX with hyperref
+Producer:       LuaTeX
+CreationDate:   Mon Jun  8 20:36:09 2020 JST
+ModDate:        Mon Jun  8 20:36:09 2020 JST
+Tagged:         no
+UserProperties: no
+Suspects:       no
+Form:           none
+JavaScript:     no
+Pages:          1
+Encrypted:      no
+Page size:      595.276 x 841.89 pts (A4)
+Page rot:       0
+File size:      39154 bytes
+Optimized:      no
+PDF version:    1.4
+PDF subtype:    PDF/A-2u:2010
+    Title:         ISO 19005 - Electronic document file format for long-term preservation (PDF/A)
+    Abbreviation:  PDF/A-2
+    Subtitle:      Part 2: Use of ISO 32000-1
+    Standard:      ISO 19005-2
+    Conformance:   Level U, Unicode support
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;のように PDF/A-2u を維持しつつ日本語の ToUnicode CMap を削除することができた。
+念のため，この PDF ファイルを &lt;a href=&#34;https://verapdf.org/&#34; title=&#34;veraPDF | Industry Supported PDF/A Validation&#34;&gt;veraPDF&lt;/a&gt; で検査してみたが “PDF/A-2U validation profile” でちゃんとパスしたので本当に問題ないのだろう。&lt;/p&gt;
+&lt;p&gt;さらに &lt;a href=&#34;https://github.com/trueroad/pdf-rm-tuc&#34; title=&#34;trueroad/pdf-rm-tuc: Remove ToUnicode CMap from PDF&#34;&gt;&lt;code&gt;pdf-rm-tuc&lt;/code&gt;&lt;/a&gt; コマンドに &lt;code&gt;--linearize&lt;/code&gt; および &lt;code&gt;--object-streams=generate&lt;/code&gt; オプションを付けて実行すると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pdf-rm-tuc --newline-before-endstream --linearize --object-streams=generate sample.pdf sample-tuc.pdf
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;PDF version 1.5 のドキュメントとして出力される。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pdfinfo sample-tuc.pdf 
+Title:          はじめてのLuaTeX-ja
+Subject:        ちゃんとLuaTeX-jaで日本語が出るかな？
+Author:         Spiegel
+Creator:        LaTeX with hyperref
+Producer:       LuaTeX
+CreationDate:   Mon Jun  8 20:36:09 2020 JST
+ModDate:        Mon Jun  8 20:36:09 2020 JST
+Tagged:         no
+UserProperties: no
+Suspects:       no
+Form:           none
+JavaScript:     no
+Pages:          1
+Encrypted:      no
+Page size:      595.276 x 841.89 pts (A4)
+Page rot:       0
+File size:      34742 bytes
+&lt;span class=&#34;hl&#34;&gt;Optimized:      yes
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;PDF version:    1.5
+&lt;/span&gt;PDF subtype:    PDF/A-2u:2010
+    Title:         ISO 19005 - Electronic document file format for long-term preservation (PDF/A)
+    Abbreviation:  PDF/A-2
+    Subtitle:      Part 2: Use of ISO 32000-1
+    Standard:      ISO 19005-2
+    Conformance:   Level U, Unicode support
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;よーし，うむうむ，よーし。&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/4774187054?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51E5K7B53aL._SL160_.jpg&#34; width=&#34;127&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4774187054?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;[改訂第7版]LaTeX2ε美文書作成入門&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;奥村 晴彦 (著), 黒木 裕介 (著)&lt;/dd&gt;
+    &lt;dd&gt;技術評論社 2017-01-24&lt;/dd&gt;
+    &lt;dd&gt;大型本&lt;/dd&gt;
+    &lt;dd&gt;4774187054 (ASIN), 9784774187051 (EAN), 4774187054 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;ついに第7版が登場。紙の本で買って常に側に置いておくのが吉。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2017-09-27&#34;&gt;2017-09-27&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- [改訂第7版]LaTeX2ε美文書作成入門 --&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&lt;code&gt;pdfinfo&lt;/code&gt; および &lt;code&gt;pdffonts&lt;/code&gt; は &lt;a href=&#34;https://poppler.freedesktop.org/&#34;&gt;Poppler&lt;/a&gt; のコマンド。 Windows 版 &lt;a href=&#34;http://www.tug.org/texlive/&#34; title=&#34;TeX Live - TeX Users Group&#34;&gt;TeX Live&lt;/a&gt; には既定で同梱されているらしい。他のプラットフォームについては「&lt;a href=&#34;https://texwiki.texjp.org/?Poppler&#34;&gt;Poppler - TeX Wiki&lt;/a&gt;」を参考に導入すればいいだろう。 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/trueroad/pdf-rm-tuc&#34; title=&#34;trueroad/pdf-rm-tuc: Remove ToUnicode CMap from PDF&#34;&gt;&lt;code&gt;pdf-rm-tuc&lt;/code&gt;&lt;/a&gt; コマンドの導入については拙文「&lt;a href=&#34;https://text.baldanders.info/remark/2020/06/remove-tounicode-cmap-from-pdf/&#34;&gt;LuaTeX で生成した PDF から ToUnicode CMap を除去する&lt;/a&gt;」を参考にどうぞ。 &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</content>
+	</entry><entry>
 		<title>LuaTeX で生成した PDF から ToUnicode CMap を除去する</title>
 		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2020/06/remove-tounicode-cmap-from-pdf/" />
@@ -1214,48 +1556,6 @@ x64
 &lt;li&gt;&lt;a href=&#34;https://qiita.com/satokaz/items/cb45d82f6f8f1e24c0d6&#34;&gt;VS Code でドキュメントの空白文字を見やすくしてみる - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://www.atmarkit.co.jp/ait/articles/1708/23/news026.html&#34;&gt;Visual Studio Codeの設定「虎の巻」：IDE編 (1/3)：特集：Visual Studio Codeを使いこなそう！ - ＠IT&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
-</content>
-	</entry><entry>
-		<title>とりあえず ATOM エディタ内ターミナルを x-terminal に乗り換えた</title>
-		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2020/05/x-terminal-with-atom/" />
-		<id>tag:text.Baldanders.info,2020-05-28:/remark/2020/05/x-terminal-with-atom/</id>
-		<published>2020-05-28T02:23:04+00:00</published>
-		<updated>2020-05-28T02:30:42+00:00</updated>
-		<summary>ATOM における Electron の外れっぷりはどうにかならないのかなぁ。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;先週， &lt;a href=&#34;https://atom.io/&#34;&gt;ATOM&lt;/a&gt; エディタの &lt;a href=&#34;https://github.com/atom/atom/releases/tag/v1.47.0&#34; title=&#34;Release 1.47.0 · atom/atom&#34;&gt;1.47 がリリース&lt;/a&gt;され &lt;a href=&#34;https://electronjs.org/&#34; title=&#34;Electron | Build cross platform desktop apps with JavaScript, HTML, and CSS.&#34;&gt;Electron&lt;/a&gt; も v5 ベースに上がったのだが，またもや &lt;a href=&#34;https://atom.io/packages/platformio-ide-terminal&#34;&gt;platformio-ide-terminal&lt;/a&gt; が動かなくなった。
-今回はちゃんとリビルドできてるのに。&lt;/p&gt;
-&lt;p&gt;一週間待ったが &lt;a href=&#34;https://atom.io/packages/platformio-ide-terminal&#34;&gt;platformio-ide-terminal&lt;/a&gt; がアップデートされる気配がないので，諦めて他のパッケージを物色することにした。
-まぁ，今は Linux/&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; なので Windows の頃よりは選択肢が多いだろう。&lt;/p&gt;
-&lt;p&gt;ちうわけで幾つか試した結果，以下のパッケージに乗り換えた。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://atom.io/packages/x-terminal&#34;&gt;x-terminal&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;このパッケージは atom-xterm からの fork らしいのだが，本家はメンテされなくなって久しいようだ。
-&lt;a href=&#34;https://atom.io/packages/x-terminal&#34;&gt;x-terminal&lt;/a&gt; の方はマメにアップデートされているようなので，しばらくはこちらを使ってみることにする。&lt;/p&gt;
-&lt;p&gt;しかし &lt;a href=&#34;https://atom.io/&#34;&gt;ATOM&lt;/a&gt; における &lt;a href=&#34;https://electronjs.org/&#34; title=&#34;Electron | Build cross platform desktop apps with JavaScript, HTML, and CSS.&#34;&gt;Electron&lt;/a&gt; の外れっぷりはどうにかならないのかなぁ。
-v5 なんかとっくの昔にサポートから外れてるっちうねん。
-この機会に真剣に VS Code への乗り換えを検討したほうがええかもしらん&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://forest.watch.impress.co.jp/docs/news/1254642.html&#34;&gt;アプリフレームワーク「Electron 9」が公開 ～「PDFium」ベースのPDFリーダーが有効化 - 窓の杜&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;5年前に秀丸から &lt;a href=&#34;https://atom.io/&#34;&gt;ATOM&lt;/a&gt; に&lt;a href=&#34;https://text.baldanders.info/remark/2015/atom-editor/&#34; title=&#34;ATOM Editor に関するメモ&#34;&gt;乗り換えた&lt;/a&gt;のだが，当時 VS Code は登場したばかりでチューニングの仕方とかよく分からなかったのだ。まぁ GitHub は Microsoft に買収されちゃったし &lt;a href=&#34;https://atom.io/&#34;&gt;ATOM&lt;/a&gt; はそのうちなくなって VS Code に一本化されちゃうのかもねぇ。 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/section&gt;
 </content>
 	</entry>
 </feed>
