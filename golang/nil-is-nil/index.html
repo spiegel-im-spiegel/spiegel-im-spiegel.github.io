@@ -127,7 +127,7 @@
 	"keywords": "golang, programming, null, interface, error",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2019-08-17T23:46:56+00:00",
-	"dateModified": "2020-08-25T03:24:23+00:00",
+	"dateModified": "2020-08-25T06:13:33+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -163,7 +163,9 @@
 <ul>
 <li><a href="https://qiita.com/momotaro98/items/ee2aea840017266e659d">Goのnilは(nil, nil)という(型, 値)ペアのインターフェースだと把握すれば混乱しない - Qiita</a></li>
 </ul>
-<p>という記事を見かけたが，おそらくは <code>nil</code> の理解のための方便として意図的に書かれていると思われ，それはそれで悪くないのだが，微妙に危険な香りがするので私なりの解説を記しておく。</p>
+<p>という記事を見かけた。
+おそらくは <code>nil</code> の理解のための方便として意図的に書かれているのだろう。
+それはそれで悪くないのだが，微妙に危険な香りがするので私なりの解説を記しておく。</p>
 <h2>nil は nil</h2>
 <p>たとえば <code>fmt.Printf()</code> 関数などで <code>nil</code> の型と値を取ろうとすると</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;Type: %T, Value: %v&#34;</span><span class="p">,</span> <span class="kc">nil</span><span class="p">,</span> <span class="kc">nil</span><span class="p">)</span>
@@ -193,7 +195,7 @@
 <span class="p">}</span>
 </code></pre></div><p>みたいな感じに書ければ分かりやすかったのかもしれないが，シンプルを旨とする <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>でそんな迂遠な表現がとられるわけもなく，敢えて「<code>nil</code> との同値性（equality）」という表現をとっているわけだ（偏見）。</p>
 <h3>nil と比較可能な型</h3>
-<p><code>nil</code> と比較可能（comparable）な型は以下の通り（ポインタ型を除く）。</p>
+<p><code>nil</code> と <code>==</code> または <code>!=</code> で比較可能（comparable）な型は以下の通り（ポインタ型を除く）。</p>
 <ul>
 <li>slice 型</li>
 <li>map 型</li>
@@ -201,8 +203,8 @@
 <li>channel 型</li>
 <li>interface 型</li>
 </ul>
-<p>このうち slice, map, および関数の各型は <code>nil</code> との同値性のみ検証できる。
-さらに interface 型はクセが強い（笑）ので注意が必要である。</p>
+<p>このうち slice, map, および関数の各型は <code>nil</code> との同値性のみ検証できる（<code>nil</code> でないオブジェクト同士は単純比較できない<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>）。
+また interface 型はクセが強い（笑）型なので，後述の通り，取り扱いには若干の注意が必要である。</p>
 <h2>interface 型は，型と値への参照を属性に持つ</h2>
 <p>まずは，以下の簡単なコードを考えてみる。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
@@ -228,7 +230,7 @@
 	<span class="c1">// Output:
 </span><span class="c1"></span>	<span class="c1">// 11001000
 </span><span class="c1"></span><span class="p">}</span>
-</code></pre></div><p>変数 <code>b</code> を図式化してみよう<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>。
+</code></pre></div><p>変数 <code>b</code> を図式化してみよう<sup id="fnref:5"><a href="#fn:5" class="footnote-ref" role="doc-noteref">5</a></sup>。
 こんな感じ。</p>
 <figure lang="en">
 <blockquote class="nobox lightmode" style='margin:0 auto;text-align:center;'>
@@ -243,7 +245,7 @@
 <span class="hl">	<span class="nx">s</span> <span class="o">:=</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Stringer</span><span class="p">(</span><span class="nx">b</span><span class="p">)</span>
 </span><span class="hl">	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">s</span><span class="p">.</span><span class="nf">String</span><span class="p">())</span>
 </span><span class="p">}</span></code></pre></div>
-<p>ちなみに <a href="https://golang.org/pkg/fmt/" title="fmt - The Go Programming Language"><code>fmt</code></a><code>.Stringer</code> 型は以下に定義される interface 型である。</p>
+<p>ちなみに <a href="https://pkg.go.dev/fmt" title="fmt package · pkg.go.dev"><code>fmt</code></a><code>.Stringer</code> 型は以下に定義される interface 型である。</p>
 <div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">type</span> <span class="nx">Stringer</span> <span class="kd">interface</span> <span class="p">{</span>
         <span class="nf">String</span><span class="p">()</span> <span class="kt">string</span>
 <span class="p">}</span>
@@ -340,13 +342,16 @@
 <p>もちろんこれは言語仕様上の話で実装上は何らかの値をとる。大昔のC言語なんかでは「<code>#define NULL ((void*)0)</code>」みたいな記述もあったが，さすがにそーゆーのはない（よね？）。 <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:2" role="doc-endnote">
-<p>そういう意味では最初に紹介した記事で “Goのnilは(nil, nil)” という部分は間違いではないだろう。 <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+<p>「型も値も持たない」という意味では最初に紹介した記事の “Goのnilは(nil, nil)” は間違いではなと思う。 <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:3" role="doc-endnote">
 <p>拙文「<a href="https://text.baldanders.info/remark/2016/11/null-safety/">「null 安全」について</a>」を参照のこと。 <a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 <li id="fn:4" role="doc-endnote">
-<p>引用元の記事（“<a href="https://research.swtch.com/interfaces">Go Data Structures: Interfaces</a>”）では 1 word = 32 bits のシステムとして解説されているのでご注意を。 <a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+<p>slice 型と map 型については <a href="https://golang.org/pkg/fmt/" title="fmt - The Go Programming Language"><code>reflect</code></a><code>.DeepEqual()</code> 関数で <code>nil</code> 以外のオブジェクトと比較可能である。 <a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:5" role="doc-endnote">
+<p>引用元の記事（“<a href="https://research.swtch.com/interfaces">Go Data Structures: Interfaces</a>”）では 1 word = 32 bits のシステムとして解説されているのでご注意を。 <a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 </ol>
 </section>
