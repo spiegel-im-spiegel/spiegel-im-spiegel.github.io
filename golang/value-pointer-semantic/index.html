@@ -126,7 +126,7 @@
 	"keywords": "engineering, golang, pointer",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2020-12-26T06:08:29+00:00",
-	"dateModified": "2020-12-26T06:09:10+00:00",
+	"dateModified": "2020-12-27T12:57:14+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -260,17 +260,19 @@ ok      pointer    3.233s
 それでも（GC のオーバーヘッドを含めても）平均で100ナノ秒未満で済んでいるなら十分に優秀だと思うけどね。</p>
 <p><a href="https://medium.com/a-journey-with-go/-44b43b104963" title="Go: Should I Use a Pointer instead of a Copy of my Struct? | by Vincent Blanchon | A Journey With Go | Medium">元記事</a>でも解説されているが <a href="https://golang.org/" title="The Go Programming Language">Go</a> の GC は独立の goroutine で駆動するため，アーキテクチャ<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup> や使用するコア数の影響を大きく受ける。
 GC を含めてシビアな評価が必要なのであれば，その辺の環境を含めて考えるべきだろう。</p>
-<h2>コピーのコスト</h2>
+<h2>コピーのコスト（2020-1227 訂正）</h2>
 <p><a href="https://medium.com/a-journey-with-go/-44b43b104963" title="Go: Should I Use a Pointer instead of a Copy of my Struct? | by Vincent Blanchon | A Journey With Go | Medium">元記事</a>には続きがある。
 さきほどの構造体 <code>S</code> に対し</p>
 <figure lang="en">
-<blockquote class="nobox"><div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="p">(</span><span class="nx">s</span> <span class="nx">S</span><span class="p">)</span> <span class="nf">stack</span><span class="p">(</span><span class="nx">s1</span> <span class="nx">S</span><span class="p">)</span> <span class="p">{}</span>
+<blockquote class="nobox"><div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="c1">//go:noinline
+</span><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">s</span> <span class="nx">S</span><span class="p">)</span> <span class="nf">stack</span><span class="p">(</span><span class="nx">s1</span> <span class="nx">S</span><span class="p">)</span> <span class="p">{}</span>
 
-<span class="kd">func</span> <span class="p">(</span><span class="nx">s</span> <span class="o">*</span><span class="nx">S</span><span class="p">)</span> <span class="nf">heap</span><span class="p">(</span><span class="nx">s1</span> <span class="o">*</span><span class="nx">S</span><span class="p">)</span> <span class="p">{}</span>
+<span class="c1">//go:noinline
+</span><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">s</span> <span class="o">*</span><span class="nx">S</span><span class="p">)</span> <span class="nf">heap</span><span class="p">(</span><span class="nx">s1</span> <span class="o">*</span><span class="nx">S</span><span class="p">)</span> <span class="p">{}</span>
 </code></pre></div></blockquote>
 <figcaption><div>via <q><a href="https://medium.com/a-journey-with-go/-44b43b104963">Should I Use a Pointer instead of a Copy of my Struct?</a></q></div></figcaption>
 </figure>
-<p>というメソッドを用意してベンチマークテストを以下のように書き直す。</p>
+<p>というメソッドを用意してベンチマークテストを以下のように書き直す<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>。</p>
 <figure lang="en">
 <blockquote class="nobox"><div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">BenchmarkMemoryStack</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
     <span class="kd">var</span> <span class="nx">s</span> <span class="nx">S</span>
@@ -301,25 +303,24 @@ GC を含めてシビアな評価が必要なのであれば，その辺の環�
 <figcaption><div>via <q><a href="https://medium.com/a-journey-with-go/-44b43b104963">Should I Use a Pointer instead of a Copy of my Struct?</a></q></div></figcaption>
 </figure>
 <p><a href="https://golang.org/" title="The Go Programming Language">Go</a> の関数引数は値渡し（call by value）なので引数として渡す時点でコピーが発生するが <code>s.heap(s1)</code> はポインタ値がコピーされるだけなので，単純に考えれば <code>s.stack(s1)</code> のほうがコストが大きいように思える。</p>
-<p>しかし，これを実行すると</p>
+<p>実際にこれを実行すると</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go test ./... -bench Memory -benchmem
 goos: linux
 goarch: amd64
 pkg: pointer
-BenchmarkMemoryStack-4           4005        284168 ns/op           0 B/op           0 allocs/op
-BenchmarkMemoryHeap-4            4066        283066 ns/op           0 B/op           0 allocs/op
+BenchmarkMemoryStack-4   	     174	   6794688 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMemoryHeap-4    	     514	   2263913 ns/op	       0 B/op	       0 allocs/op
 PASS
-ok      pointer    2.354s
+ok  	pointer	3.285s
 </code></pre></div><p>てな感じになる。</p>
 <p>んー。
-<a href="https://medium.com/a-journey-with-go/-44b43b104963" title="Go: Should I Use a Pointer instead of a Copy of my Struct? | by Vincent Blanchon | A Journey With Go | Medium">元記事</a>とはだいぶ様子が違うねぇ。
-両者に有意の差はないようだ。
+<a href="https://medium.com/a-journey-with-go/-44b43b104963" title="Go: Should I Use a Pointer instead of a Copy of my Struct? | by Vincent Blanchon | A Journey With Go | Medium">元記事</a>とは少し違うが，3倍程度の差があるかな。
 これも表にまとめておこう。</p>
 <table>
 <thead>
 <tr>
 <th>関数名</th>
-<th style="text-align:right">実行時間<br>(ナノ秒)</th>
+<th style="text-align:right">実行時間<br>(μ秒)</th>
 <th style="text-align:right">Alloc<br>サイズ</th>
 <th style="text-align:right">Alloc<br>回数</th>
 </tr>
@@ -327,19 +328,19 @@ ok      pointer    2.354s
 <tbody>
 <tr>
 <td><code>BenchmarkMemoryStack</code></td>
-<td style="text-align:right">284,168</td>
+<td style="text-align:right">6.8</td>
 <td style="text-align:right">0</td>
 <td style="text-align:right">0</td>
 </tr>
 <tr>
 <td><code>BenchmarkMemoryHeap</code></td>
-<td style="text-align:right">283,066</td>
+<td style="text-align:right">2.3</td>
 <td style="text-align:right">0</td>
 <td style="text-align:right">0</td>
 </tr>
 </tbody>
 </table>
-<p>確か最近のバージョンアップでインスタンスのコピーがかなり改善されたと聞いているので，その辺が影響しているかもしれない。</p>
+<p>なお <code>//go:noinline</code> ディレクティブがないと最適化されてしまいほとんど差がなくなるようだ。</p>
 <h2>Interface のコスト</h2>
 <p>ではここで<a href="https://medium.com/a-journey-with-go/-44b43b104963" title="Go: Should I Use a Pointer instead of a Copy of my Struct? | by Vincent Blanchon | A Journey With Go | Medium">元記事</a>にはなかったテストを考えてみよう。</p>
 <p>構造体 <code>S</code> に以下のメソッドを追加し</p>
@@ -478,6 +479,9 @@ ok      pointer    4.392s
 <li id="fn:2" role="doc-endnote">
 <p>最近の goroutine はプリエンプティブ・マルチタスクが可能になったが，アーキテクチャによっては対応していない場合がある。 <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
+<li id="fn:3" role="doc-endnote">
+<p><a href="https://medium.com/a-journey-with-go/-44b43b104963" title="Go: Should I Use a Pointer instead of a Copy of my Struct? | by Vincent Blanchon | A Journey With Go | Medium">元記事</a>では <code>//go:noinline</code> ディレクティブがなかったが，これがないと最適化されしまうため，コードを変更している。 <a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
 </ol>
 </section>
 
@@ -505,7 +509,7 @@ ok      pointer    4.392s
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2020-12-26</time>
+		in <time property='dc:dateCopyrighted'>2020-12-26</time> (revised in 2020-12-27)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social"><li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li><li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li></ul>
 	</div>
