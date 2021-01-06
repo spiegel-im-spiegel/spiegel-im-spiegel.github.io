@@ -2,13 +2,287 @@
 	<title>List of openssh - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/openssh/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/openssh/index.xml" />
-	<id>tag:text.Baldanders.info,2020-11-23:/tags</id>
-	<updated>2020-11-23T11:02:44+09:00</updated>
+	<id>tag:text.Baldanders.info,2021-01-06:/tags</id>
+	<updated>2021-01-06T23:06:57+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>SSH の認証鍵を GunPG で作成・管理する</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/openpgp/ssh-key-management-with-gnupg/" />
+		<id>tag:text.Baldanders.info,2021-01-06:/openpgp/ssh-key-management-with-gnupg/</id>
+		<published>2021-01-06T14:06:57+00:00</published>
+		<updated>2021-01-06T14:07:52+00:00</updated>
+		<summary>新たに鍵を作成する場合や今までの鍵を破棄して作り直す場合などの状況があれば検討してもいいだろう。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;今回は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で作成した鍵を &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証鍵として使う方法について覚え書きとして記しておく。
+現時点で運用できている認証鍵を置き換えるメリットはないが，新たに鍵を作成する場合や今までの鍵を破棄して作り直す場合などの状況があれば検討してもいいだろう。&lt;/p&gt;
+&lt;p&gt;まず &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で作成する鍵は機能別に以下の4種類に分類される（ひとつの鍵で複数の機能を持たせることもできる）。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&#34;text-align:left&#34;&gt;機能&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;略称&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;署名&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;code&gt;S&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;証明&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;code&gt;C&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;認証&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;code&gt;A&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;暗号化&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;code&gt;E&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;このうち &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証鍵として使えるのは「認証」機能をもった鍵のみである。
+認証機能は電子署名用の鍵であれば任意に付与することができるが，専用の副鍵を追加するのがセオリーらしい。&lt;/p&gt;
+&lt;h2&gt;認証用の副鍵を追加する&lt;/h2&gt;
+&lt;p&gt;まず以下の &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 鍵があるとする（主鍵には &lt;code&gt;SC&lt;/code&gt;，副鍵には &lt;code&gt;E&lt;/code&gt; の機能が付いてる点に注目）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
+      011C720B03D2E1D6BCFA98391DFF44901121B61D
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   cv25519 2021-01-06 [E]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;この鍵に認証用の副鍵を追加する。
+鍵の追加には &lt;code&gt;--edit&lt;/code&gt; コマンドを使う。
+なお &lt;code&gt;--expert&lt;/code&gt; オプションと一緒に使うと幸せになれる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --expert --edit-key alice
+gpg (GnuPG) 2.2.26; Copyright (C) 2020 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+秘密鍵が利用できます。
+
+sec  ed25519/1DFF44901121B61D
+     作成: 2021-01-06  有効期限: 2021-01-13  利用法: SC  
+     信用: 究極        有効性: 究極
+ssb  cv25519/4FECD03BE5BE4454
+     作成: 2021-01-06  有効期限: 無期限      利用法: E   
+[  究極  ] (1). Alice &amp;lt;alice@example.com&amp;gt;
+
+gpg&amp;gt; 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ここで &lt;code&gt;addkey&lt;/code&gt; コマンドを入力する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg&amp;gt; addkey
+ご希望の鍵の種類を選択してください:
+   (3) DSA (署名のみ)
+   (4) RSA (署名のみ)
+   (5) Elgamal (暗号化のみ)
+   (6) RSA (暗号化のみ)
+   (7) DSA (機能をあなた自身で設定)
+   (8) RSA (機能をあなた自身で設定)
+  (10) ECC (署名のみ)
+&lt;span class=&#34;hl&#34;&gt;  (11) ECC (機能をあなた自身で設定)
+&lt;/span&gt;  (12) ECC (暗号化のみ)
+  (13) 既存の鍵
+  (14) カードに存在する鍵
+あなたの選択は? 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;今回は認証用の鍵の追加なので 7, 8, 11 のいずれかを選択する。
+ここは個人的な好みで ECC 鍵を選択しよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? 11
+
+鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
+&lt;span class=&#34;hl&#34;&gt;現在の認められた操作: Sign 
+&lt;/span&gt;
+   (S) 署名機能を反転する
+   (A) 認証機能を反転する
+   (Q) 完了
+
+   あなたの選択は? 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;現在は署名機能（Sign）のみ有効になっているが，欲しいのは認証機能のみなので &lt;code&gt;S&lt;/code&gt; と &lt;code&gt;A&lt;/code&gt; を一回づつ入力する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? s
+
+鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
+&lt;span class=&#34;hl&#34;&gt;現在の認められた操作: 
+&lt;/span&gt;
+   (S) 署名機能を反転する
+   (A) 認証機能を反転する
+   (Q) 完了
+
+あなたの選択は? a
+
+鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
+&lt;span class=&#34;hl&#34;&gt;現在の認められた操作: Authenticate 
+&lt;/span&gt;
+   (S) 署名機能を反転する
+   (A) 認証機能を反転する
+   (Q) 完了
+
+あなたの選択は? 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで認証機能（Authenticate）のみ有効になった。
+&lt;code&gt;Q&lt;/code&gt; を入力して次に進もう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? q
+ご希望の楕円曲線を選択してください:
+&lt;span class=&#34;hl&#34;&gt;   (1) Curve 25519
+&lt;/span&gt;   (3) NIST P-256
+   (4) NIST P-384
+   (5) NIST P-521
+   (6) Brainpool P-256
+   (7) Brainpool P-384
+   (8) Brainpool P-512
+   (9) secp256k1
+あなたの選択は? 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;個人的にお勧めの楕円曲線は “&lt;code&gt;Curve 25519&lt;/code&gt;” である。
+理由は以下の記事を参考のこと。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2020/06/eddsa/&#34;&gt;Edwards-curve Digital Signature Algorithm&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;では &lt;code&gt;1&lt;/code&gt; を入力して先に進む。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? 1
+鍵の有効期限を指定してください。
+&lt;span class=&#34;hl&#34;&gt;         0 = 鍵は無期限
+&lt;/span&gt;      &amp;lt;n&amp;gt;  = 鍵は n 日間で期限切れ
+      &amp;lt;n&amp;gt;w = 鍵は n 週間で期限切れ
+      &amp;lt;n&amp;gt;m = 鍵は n か月間で期限切れ
+      &amp;lt;n&amp;gt;y = 鍵は n 年間で期限切れ
+鍵の有効期間は? (0)0
+鍵は無期限です
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;有効期限は意味がないので無期限（&lt;code&gt;0&lt;/code&gt;）を選択する。
+理由は後述するのでちょっと待ってね。&lt;/p&gt;
+&lt;p&gt;最終確認をして鍵を生成する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;これで正しいですか? (y/N) y
+本当に作成しますか? (y/N) y         
+たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+成器に十分なエントロピーを供給する機会を与えることができます。
+
+sec  ed25519/1DFF44901121B61D
+     作成: 2021-01-06  有効期限: 2021-01-13  利用法: SC  
+     信用: 究極        有効性: 究極
+ssb  cv25519/4FECD03BE5BE4454
+     作成: 2021-01-06  有効期限: 無期限      利用法: E   
+ssb  ed25519/230D446E390C3E49
+     作成: 2021-01-06  有効期限: 無期限      利用法: A   
+[  究極  ] (1). Alice &amp;lt;alice@example.com&amp;gt;
+
+gpg&amp;gt; save
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;最後は &lt;code&gt;save&lt;/code&gt; コマンドを入力して結果を鍵束に保存する。
+これで&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
+pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
+      011C720B03D2E1D6BCFA98391DFF44901121B61D
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   cv25519 2021-01-06 [E]
+&lt;span class=&#34;hl&#34;&gt;sub   ed25519 2021-01-06 [A]
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;認証用の鍵が追加できた。&lt;/p&gt;
+&lt;h2&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; フォーマットの公開鍵を出力する。&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; フォーマットの公開鍵は &lt;code&gt;--export-ssh-key&lt;/code&gt; コマンドで出力できる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export-ssh-key alice
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFfjejx/Saej929myfZoBQAKgusPi2iiOxdZZfpCLxh5 openpgp:0x390C3E49
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このテキストをホスト機の &lt;code&gt;~/.ssh/authorized_keys&lt;/code&gt; ファイルに追記すれば仕込みは完了である。
+パーミッションの変更を忘れずに（笑）&lt;/p&gt;
+&lt;p&gt;この操作で分かると思うが &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; フォーマットで出力する時点で &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 鍵の情報はほぼ脱落している。
+だから「有効期限は意味がない」のよ。&lt;/p&gt;
+&lt;p&gt;ちなみにこの操作は公開鍵に対して行われる。
+たとえば，認証用の鍵を付加した &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 公開鍵をサーバ管理者に渡せば，サーバ管理者は集めた &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 公開鍵に署名して完全性を確保した後， &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; 認証用公開鍵を抽出して各ユーザのディレクトリにまとめてセットする，といったこともできるだろう。&lt;/p&gt;
+&lt;h2&gt;ローカル側の設定&lt;/h2&gt;
+&lt;p&gt;念のためローカル側の設定についても記しておく。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; では &lt;code&gt;ssh-agent&lt;/code&gt; を &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の &lt;code&gt;gpg-agent&lt;/code&gt; に置き換えることで鍵の管理を &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; 側に委譲できる。
+&lt;code&gt;gpg-agent&lt;/code&gt; は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; 秘密鍵管理の中核コンポーネントで，自身は Pinentry で入力したパスフレーズを一定期間キャッシュすることでユーザの鍵操作を省力化できる（秘密鍵自体のキャッシュは行わない）。&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;gpg-agent&lt;/code&gt; を &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; のエージェントとして有効にするには &lt;code&gt;~/.gnupg/gpg-agent.conf&lt;/code&gt; ファイルに &lt;code&gt;enable-ssh-support&lt;/code&gt; を書き加えればよい&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;enable-ssh-support
+default-cache-ttl-ssh 1800
+max-cache-ttl-ssh 7200
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;下2つのオプションは任意で，以下の意味を持つ。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;オプション名&lt;/th&gt;
+&lt;th&gt;内容&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;default-cache-ttl-ssh&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;直前にアクセスしたキャッシュ・エントリの有効期間を秒単位で指定する。 既定値は 1800&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;max-cache-ttl-ssh&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;キャッシュ・エントリの有効期間の最大値を秒単位で指定する。 アクセスの有無にかかわらずこの期間が過ぎるとキャッシュがクリアされる。 既定値は 7200&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;有効期間は大きすぎると漏洩リスクが高まるのでほどほどに（笑）&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵束の鍵を &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証鍵として使うには &lt;code&gt;~/.gnupg/sshcontrol&lt;/code&gt; ファイルへの登録が必要である。
+先ほど作成した鍵であればまず以下のコマンドで&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys --with-keygrip alice
+pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
+      011C720B03D2E1D6BCFA98391DFF44901121B61D
+      Keygrip = 97249ABEB2A2FD9E88F6723BB19D4F84B90E261A
+uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+sub   cv25519 2021-01-06 [E]
+      Keygrip = 96CB831965E1A7EB4705577D6A7CB7F9E05C8192
+sub   ed25519 2021-01-06 [A]
+&lt;span class=&#34;hl&#34;&gt;      Keygrip = F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;該当する鍵の keygrip 値を調べる。
+今回の例なら “&lt;code&gt;F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E&lt;/code&gt;” が該当する keygrip 値である。
+これを &lt;code&gt;~/.gnupg/sshcontrol&lt;/code&gt; ファイルに追記する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E 0 &amp;gt; ~/.gnupg/sshcontrol
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;ssh-add -L&lt;/code&gt; コマンドでこの鍵の内容が表示されればOK。&lt;/p&gt;
+&lt;p&gt;ちなみに keygrip 値の後ろの &lt;code&gt;0&lt;/code&gt; はキャッシュ期間（秒）を指すらしい。
+&lt;code&gt;0&lt;/code&gt; より大きければ &lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルの指定より優先されるってことかな。
+また行頭に &lt;code&gt;!&lt;/code&gt; マークを付けると鍵の使用を無効化できる。&lt;/p&gt;
+&lt;p&gt;念のため &lt;code&gt;sshcontrol&lt;/code&gt; ファイルも不用意に書き込みできないよう制限をかけておくとよいだろう。&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/openpgp/gnupg-cheat-sheet/&#34;&gt;GnuPG チートシート（鍵作成から失効まで）&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/openpgp/using-ecc-with-gnupg/&#34;&gt;そろそろ GnuPG でも ECC を標準で使うのがいいんじゃないかな&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2020/06/upgrade-openssh-key/&#34;&gt;OpenSSH 鍵をアップグレードする（さようなら SHA-1）&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51ZRZ62WKCL._SL160_.jpg&#34; width=&#34;108&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;暗号化 プライバシーを救った反乱者たち&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;スティーブン・レビー (著), 斉藤 隆央 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;紀伊國屋書店 2002-02-16&lt;/dd&gt;
+    &lt;dd&gt;単行本&lt;/dd&gt;
+    &lt;dd&gt;4314009071 (ASIN), 9784314009072 (EAN), 4314009071 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-03-09&#34;&gt;2015-03-09&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 暗号化 プライバシーを救った反乱者たち --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; width=&#34;113&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;結城 浩 (著)&lt;/dd&gt;
+    &lt;dd&gt;SBクリエイティブ 2015-08-25 (Release 2015-09-17)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B015643CPE (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 暗号技術入門 第3版 --&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Windows 環境ではもう少し面倒な設定が必要である。詳しくは拙文「&lt;a href=&#34;https://text.baldanders.info/openpgp/using-gnupg-for-windows-2/&#34;&gt;GnuPG for Windows : gpg-agent について&lt;/a&gt;」 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</content>
+	</entry><entry>
 		<title>Ubuntu 20.10 のアップグレードに失敗していた</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2020/11/upgrade-ubuntu-20_10/" />
 		<id>tag:text.Baldanders.info,2020-11-23:/remark/2020/11/upgrade-ubuntu-20_10/</id>
@@ -1555,301 +1829,6 @@ gcc -o git-credential-libsecret  git-credential-libsecret.o -lsecret-1 -lgio-2.0
 &lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/openpgp/git-commit-with-openpgp-signature/&#34;&gt;Git Commit で OpenPGP 署名を行う&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-</content>
-	</entry><entry>
-		<title>Windows 環境で作った GnuPG の鍵束を Ubuntu に移行する</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/04/move-gpg-keyring/" />
-		<id>tag:text.Baldanders.info,2019-04-07:/remark/2019/04/move-gpg-keyring/</id>
-		<published>2019-04-06T15:01:53+00:00</published>
-		<updated>2020-06-06T11:40:22+00:00</updated>
-		<summary>鍵束を Ubuntu 環境にコピーして OpenSSH 連携を確認するところまで。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;さて NAS に接続できてファイルのバックアップや移動が楽にできるようになった。
-次は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で遊んでみよう。&lt;/p&gt;
-&lt;h2&gt;なんぼなんでも古すぎるじゃろ&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; のディストリビューションには最初から &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; が入っているのだが&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --version
-gpg (GnuPG) 2.2.8
-libgcrypt 1.8.3
-Copyright (C) 2018 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-Home: /home/username/.gnupg
-サポートしているアルゴリズム:
-公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
-暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256,
-      TWOFISH, CAMELLIA128, CAMELLIA192, CAMELLIA256
-ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
-圧縮: 無圧縮, ZIP, ZLIB, BZIP2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;いやいや。
-なんぼなんでも古すぎるじゃろ&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
-確かに最後にセキュリティアップデートが行われたのは&lt;a href=&#34;https://text.baldanders.info/release/2018/06/gnupg-2_2_8-and-libgcrypt-1_8_3-are-released/&#34; title=&#34;GnuPG 2.2.8 および Libgcrypt 1.8.3 がリリース（セキュリティ・アップデート）&#34;&gt;2018年の 2.2.8 のとき&lt;/a&gt;だけどさ。
-あれから不具合の修正とかも結構あったのよ。&lt;/p&gt;
-&lt;p&gt;調べてみたら &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; や &lt;a href=&#34;https://www.debian.org/&#34; title=&#34;Debian -- The Universal Operating System&#34;&gt;Debian&lt;/a&gt; では &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; のアップデートに積極的ではない様子。
-まぁ使えないことはないので，最新版の導入は&lt;del&gt;諦めて&lt;/del&gt;もとい後々のお楽しみにとっておいて，今回はこの 2.2.8 を使っていろいろやってみることにする。&lt;/p&gt;
-&lt;h2&gt;なにはともあれ鍵を作らないと&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の使い方の概要は拙文「&lt;a href=&#34;https://text.baldanders.info/openpgp/gnupg-cheat-sheet/&#34;&gt;GnuPG チートシート&lt;/a&gt;」を参考にどうぞ。
-さっそく鍵を作ってみる。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-gen-key &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34; future-default - 1w
-gpg: ディレクトリ&amp;#39;/home/username/.gnupg&amp;#39;が作成されました
-gpg: keybox&amp;#39;/home/username/.gnupg/pubring.kbx&amp;#39;が作成されました
-たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
-す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
-成器に十分なエントロピーを供給する機会を与えることができます。
-gpg: /home/username/.gnupg/trustdb.gpg: 信用データベースができました
-gpg: 鍵7979662E697CDD8Aを究極的に信用するよう記録しました
-gpg: ディレクトリ&amp;#39;/home/username/.gnupg/openpgp-revocs.d&amp;#39;が作成されました
-gpg: 失効証明書を &amp;#39;/home/username/.gnupg/openpgp-revocs.d/E23197776C20290F831D97747979662E697CDD8A.rev&amp;#39; に保管しました。
-公開鍵と秘密鍵を作成し、署名しました。
-
-pub   ed25519 2019-04-04 [SC] [有効期限: 2019-04-11]
-      E23197776C20290F831D97747979662E697CDD8A
-uid                      Alice &amp;lt;alice@example.com&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;途中でパスフレーズを定義するために Pinentry が起動する。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./new-passphrase.png&#34;&gt;&lt;img src=&#34;./new-passphrase.png&#34; srcset=&#34;./new-passphrase.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;おおっ。
-これが &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; の Pinentry か。
-シンプルでよろしい。&lt;/p&gt;
-&lt;p&gt;鍵作成後の &lt;code&gt;~/.gnupg&lt;/code&gt; ディレクトリの中身はこうなっている。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ ls -al .gnupg/
-合計 28
-drwx------  4 username users 4096  4月  4 21:23 .
-drwxr-xr-x 16 username users 4096  4月  4 21:23 ..
-drwx------  2 username users 4096  4月  4 21:23 openpgp-revocs.d
-drwx------  2 username users 4096  4月  4 21:23 private-keys-v1.d
--rw-r--r--  1 username users  634  4月  4 21:23 pubring.kbx
--rw-------  1 username users   32  4月  4 21:23 pubring.kbx~
--rw-------  1 username users 1240  4月  4 21:23 trustdb.gpg
-
-$ ls -al .gnupg/private-keys-v1.d/
-合計 16
-drwx------ 2 username users 4096  4月  4 21:23 .
-drwx------ 4 username users 4096  4月  4 21:23 ..
--rw------- 1 username users  340  4月  4 21:23 6103D260692806ECD8FF194DD5A42A166ECFCA7C.key
--rw------- 1 username users  332  4月  4 21:23 D08B6C062AC8FA95D4526EDADBDA906A74D26D77.key
-
-$ ls -al .gnupg/openpgp-revocs.d/
-合計 12
-drwx------ 2 username users 4096  4月  4 21:23 .
-drwx------ 4 username users 4096  4月  4 21:23 ..
--rw------- 1 username users 1401  4月  4 21:23 E23197776C20290F831D97747979662E697CDD8A.rev
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ちなみに &lt;code&gt;openpgp-revocs.d&lt;/code&gt; ディレクトリには秘密鍵が， &lt;code&gt;openpgp-revocs.d&lt;/code&gt; ディレクトリには鍵の失効証明書が入っている。
-失効証明書は作った鍵を失効させるために使うもので，重要なデータなので取り扱いは慎重に。&lt;/p&gt;
-&lt;p&gt;これを見ると &lt;code&gt;~/.gnupg&lt;/code&gt; ディレクトリ以下のファイル・ディレクトリは他ユーザから見えないようにするのがいいみたいだね。&lt;/p&gt;
-&lt;p&gt;作った鍵を使って試しに適当なテキストを署名してみよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo Hello world | gpg -u alice --clear-sign
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA256
-
-Hello world
------BEGIN PGP SIGNATURE-----
-
-iIgEARYIADAWIQTiMZd3bCApD4Mdl3R5eWYuaXzdigUCXKX4dBIcYWxpY2VAZXhh
-bXBsZS5jb20ACgkQeXlmLml83YogagD6A6tRm+uEgphlYrORJBZ9oRmFpRzImXO6
-22I/HeiXTGkBALU1QLnv/xcPf1pMQRjpxM9SO/IupO/Zt9lryx4lFOAC
-=8DRi
------END PGP SIGNATURE-----
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このときも Pinentry が起動する。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./unlock-private-key.png&#34;&gt;&lt;img src=&#34;./unlock-private-key.png&#34; srcset=&#34;./unlock-private-key.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;よーし，うむうむ，よーし。&lt;/p&gt;
-&lt;h2&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の環境変数&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の環境変数は以下のコマンドで取得できるようだ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpgconf --list-dirs
-sysconfdir:/etc/gnupg
-bindir:/usr/bin
-libexecdir:/usr/lib/gnupg
-libdir:/usr/lib/x86_64-linux-gnu/gnupg
-datadir:/usr/share/gnupg
-localedir:/usr/share/locale
-socketdir:/run/user/1000/gnupg
-dirmngr-socket:/run/user/1000/gnupg/S.dirmngr
-agent-ssh-socket:/run/user/1000/gnupg/S.gpg-agent.ssh
-agent-extra-socket:/run/user/1000/gnupg/S.gpg-agent.extra
-agent-browser-socket:/run/user/1000/gnupg/S.gpg-agent.browser
-agent-socket:/run/user/1000/gnupg/S.gpg-agent
-homedir:/home/username/.gnupg
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;また shell 側の環境変数は&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ env | grep GPG
-GPG_AGENT_INFO=/run/user/1000/gnupg/S.gpg-agent:0:1
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;となっていて &lt;code&gt;GPG_AGENT_INFO&lt;/code&gt; に &lt;code&gt;agent-socket&lt;/code&gt; の値がセットされているのが分かる。
-古いバージョンで要ると言われた &lt;code&gt;GPG_TTY&lt;/code&gt; 環境変数は要らなそうである。&lt;/p&gt;
-&lt;p&gt;もし &lt;code&gt;GPG_AGENT_INFO&lt;/code&gt; に手動で値をセットするなら&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ export GPG_AGENT_INFO=$(gpgconf --list-dirs agent-socket):0:1
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;って感じでいいかな。&lt;/p&gt;
-&lt;p&gt;通信ソケットが置かれている &lt;code&gt;/run/user/1000/gnupg/&lt;/code&gt; ディレクトリはどうやら &lt;a href=&#34;https://specifications.freedesktop.org/basedir-spec/latest/&#34;&gt;XDG Base Directory Specification&lt;/a&gt; に準拠したディレクトリらしい。
-&lt;code&gt;XDG_RUNTIME_DIR&lt;/code&gt; 環境変数が&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ env | grep XDG_RUNTIME_DIR
-XDG_RUNTIME_DIR=/run/user/1000
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と定義されているので多分そうだろう（&lt;code&gt;1000&lt;/code&gt; は &lt;code&gt;username&lt;/code&gt; ユーザの UID）。
-環境変数 &lt;code&gt;XDG_RUNTIME_DIR&lt;/code&gt; で示されるディレクトリはユーザがログインしている間のみ存在が保証されているそうだ。&lt;/p&gt;
-&lt;h3&gt;Pinentry の定義&lt;/h3&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; では Pinentry として &lt;code&gt;pinentry-gnome3&lt;/code&gt; と &lt;code&gt;pinentry-curses&lt;/code&gt; が組み込まれているようだ。
-&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; インストール直後の既定は &lt;code&gt;pinentry-gnome3&lt;/code&gt; のようだが，これを切り替えるには&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo update-alternatives --config pinentry
-alternative pinentry (/usr/bin/pinentry を提供) には 2 個の選択肢があります。
-
-  選択肢    パス                    優先度  状態
-------------------------------------------------------------
-* 0            /usr/bin/pinentry-gnome3   90        自動モード
-  1            /usr/bin/pinentry-curses   50        手動モード
-  2            /usr/bin/pinentry-gnome3   90        手動モード
-
-現在の選択 [*] を保持するには &amp;lt;Enter&amp;gt;、さもなければ選択肢の番号のキーを押してください: 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とすればいいらしい。
-実際には&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ ls -lF /usr/bin/pinentry* 
-lrwxrwxrwx 1 root root    26  4月  2 21:13 /usr/bin/pinentry -&amp;gt; /etc/alternatives/pinentry*
--rwxr-xr-x 1 root root 63992  7月  6  2018 /usr/bin/pinentry-curses*
--rwxr-xr-x 1 root root 72184  7月  6  2018 /usr/bin/pinentry-gnome3*
-lrwxrwxrwx 1 root root    30  4月  2 21:13 /usr/bin/pinentry-x11 -&amp;gt; /etc/alternatives/pinentry-x11*
-
-$ ls -lF /etc/alternatives/pinentry*
-lrwxrwxrwx 1 root root 24  4月  2 21:13 /etc/alternatives/pinentry -&amp;gt; /usr/bin/pinentry-gnome3*
-lrwxrwxrwx 1 root root 24  4月  2 21:13 /etc/alternatives/pinentry-x11 -&amp;gt; /usr/bin/pinentry-gnome3*
-lrwxrwxrwx 1 root root 40  4月  2 21:13 /etc/alternatives/pinentry-x11.1.gz -&amp;gt; /usr/share/man/man1/pinentry-gnome3.1.gz
-lrwxrwxrwx 1 root root 40  4月  2 21:13 /etc/alternatives/pinentry.1.gz -&amp;gt; /usr/share/man/man1/pinentry-gnome3.1.gz
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;てな構成になっているみたい。&lt;/p&gt;
-&lt;h2&gt;Windows 環境で作った &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵束を &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; にコピーする&lt;/h2&gt;
-&lt;p&gt;では Windows 環境で作成・運用している &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵束を Unintu にコピーしてみよう。&lt;/p&gt;
-&lt;p&gt;必要なファイルは以下の通り。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;pubring.kbx&lt;/code&gt;： 公開鍵の鍵束&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;trustdb.gpg&lt;/code&gt;： &lt;a href=&#34;http://tools.ietf.org/html/rfc4880&#34; title=&#34;RFC 4880 - OpenPGP Message Format&#34;&gt;OpenPGP&lt;/a&gt; 用の信用データベース・ファイル&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;private-keys-v1.d/*.rev&lt;/code&gt;： 秘密鍵ファイル&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;openpgp-revocs.d/*.key&lt;/code&gt;： 失効証明書&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;tofu.db&lt;/code&gt;： &lt;a href=&#34;https://en.wikipedia.org/wiki/Trust_on_first_use&#34; title=&#34;Trust on first use - Wikipedia&#34;&gt;TOFU&lt;/a&gt; 用の信用データベース・ファイル（もしあれば）&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;gpg.conf&lt;/code&gt;： &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; 用の設定ファイル（もしあれば）&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;gpg-agent.conf&lt;/code&gt;： &lt;code&gt;gpg-agent&lt;/code&gt; 用の設定ファイル（もしあれば）&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;sshcontrol&lt;/code&gt;： &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; 認証用鍵の定義ファイル（もしあれば）&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;これらのファイルを &lt;code&gt;~/.gnupg&lt;/code&gt; ディレクトリにディレクトリ構造ごとコピーする（以前のファイルは削除しておいてね）。
-&lt;code&gt;chmod&lt;/code&gt; コマンドでアクセス権を設定するのも忘れずに。&lt;/p&gt;
-&lt;p&gt;&lt;code&gt;gpg.conf&lt;/code&gt;, &lt;code&gt;gpg-agent.conf&lt;/code&gt;, &lt;code&gt;sshcontrol&lt;/code&gt; 各ファイルの中身はテキストなのだが，改行コードが &lt;code&gt;CRLF&lt;/code&gt; になっているかもしれないのであらかじめ始末しておくこと&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;p&gt;これで完了。
-試しに私の鍵束に入っている &lt;a href=&#34;https://www.jpcert.or.jp/jpcert-pgp.html&#34; title=&#34;JPCERT コーディネーションセンター PGP公開鍵&#34;&gt;JPCERT/CC の公開鍵&lt;/a&gt;を表示してみた。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys jpcert
-pub   rsa2048 2009-06-02 [SCE]
-      FC8953BBDC65BD974BDAD1BD317D97A469ECE048
-uid           [  充分  ] JPCERT/CC &amp;lt;info@jpcert.or.jp&amp;gt;
-sub   rsa2048 2009-06-02 [E]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;よーし，うむうむ，よーし。&lt;/p&gt;
-&lt;h2&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; との連携&lt;/h2&gt;
-&lt;p&gt;Windows 環境では &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証用鍵を &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; にインポートして &lt;a href=&#34;http://www.chiark.greenend.org.uk/~sgtatham/putty/&#34; title=&#34;PuTTY: a free SSH and Telnet client&#34;&gt;PuTTY&lt;/a&gt; と連携させていたが，もちろん &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; の &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; とも連携できる。&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; と連携させるには &lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルに &lt;code&gt;enable-ssh-support&lt;/code&gt; オプションをセットすればいいのだが，これだけでは上手くいかないようだ。&lt;/p&gt;
-&lt;p&gt;いろいろ試行錯誤した挙げ句，なんの気なしに環境変数を見てみたら&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ env | grep SSH_AUTH_SOCK
-SSH_AUTH_SOCK=/run/user/1000/keyring/ssh
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と定義されていた。
-原因はお前かよ！ もっと早く気付け，自分 &lt;code&gt;orz&lt;/code&gt;&lt;/p&gt;
-&lt;p&gt;環境変数 &lt;code&gt;SSH_AUTH_SOCK&lt;/code&gt; を &lt;code&gt;gpg-agent&lt;/code&gt; のソケットに置き換えるには以下のコマンドラインを叩く。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;SSH_AUTH_SOCK&lt;/code&gt; の値は&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ env | grep SSH_AUTH_SOCK
-SSH_AUTH_SOCK=/run/user/1000/gnupg/S.gpg-agent.ssh
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;となった。&lt;/p&gt;
-&lt;p&gt;この状態でリモートホストに ssh 接続してみよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ ssh username@remotehost
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで Pinentry が起動して&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./ssh-login.png&#34;&gt;&lt;img src=&#34;./ssh-login.png&#34; srcset=&#34;./ssh-login.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;パスフレーズを入力後ログインできれば成功。
-&lt;code&gt;SSH_AUTH_SOCK&lt;/code&gt; 値の書き換えコマンドは &lt;code&gt;~/.bashrc&lt;/code&gt; ファイルにでも書いておけばいいだろうか。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;nb&#34;&gt;export&lt;/span&gt; -n SSH_AGENT_PID
-&lt;span class=&#34;nb&#34;&gt;export&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;SSH_AUTH_SOCK&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;gpgconf --list-dirs agent-ssh-socket&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ちなみに &lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルに設定できる &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; 連携関連のオプションは以下の通り。&lt;/p&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;オプション名&lt;/th&gt;
-&lt;th&gt;既定値&lt;/th&gt;
-&lt;th&gt;内容&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;enable-ssh-support&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;―&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;ssh-agent&lt;/code&gt; 互換プロトコルを有効にする&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;default-cache-ttl-ssh&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;1800&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;直前にアクセスしたキャッシュ・エントリの有効期間を秒単位で指定する&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;code&gt;max-cache-ttl-ssh&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;&lt;code&gt;7200&lt;/code&gt;&lt;/td&gt;
-&lt;td&gt;キャッシュ・エントリの有効期間の最大値を秒単位で指定する。 アクセスの有無にかかわらずこの期間が過ぎるとキャッシュがクリアされる&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;p&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; との連携を調べ始め，試行錯誤してここまでたどり着くまでに3時間くらいかかっちまったよ。
-&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の公式サイトも含めて資料がなさすぎるんだよ。
-特に日本語の記事は内容が古すぎて壊滅状態。
-いかに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; が使われてないか分かるよなぁ。&lt;/p&gt;
-&lt;p&gt;まっ，とにかく， &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; でも（バージョンの問題に目をつぶれば）普通に &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; が使えることが分かったので今回はよしとする。&lt;/p&gt;
-&lt;p&gt;これでようやく git を使う準備ができた。
-まだまだ道のりは遠い。&lt;/p&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2013/04/ubuntu-10-xdg-base-directory.html&#34;&gt;Ubuntu フォルダー構造 その10 - XDG Base Directory Specificationについて - kledgeb&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://wiki.archlinux.org/index.php/GNOME/Keyring&#34;&gt;GNOME/Keyring - ArchWiki&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://unix.stackexchange.com/questions/236746/change-pinentry-program-temporarily-with-gpg-agent&#34;&gt;Change pinentry program temporarily with gpg-agent - Unix &amp;amp; Linux Stack Exchange&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://incenp.org/notes/2015/gnupg-for-ssh-authentication.html&#34;&gt;Using GnuPG (2.1) for SSH authentication&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://pkgs.org/download/gnupg&#34;&gt;Gnupg Download (DEB, RPM, TGZ, TXZ, XZ)&lt;/a&gt; : こうやって見ると最新バージョンに追随しているディストリビューションの方が珍しいのか&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/openpgp/using-gnupg-for-windows-1/&#34;&gt;GnuPG for Windows インストール編&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/openpgp/using-gnupg-for-windows-2/&#34;&gt;GnuPG for Windows : gpg-agent について&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/openpgp/gnupg-cheat-sheet/&#34;&gt;GnuPG チートシート（鍵作成から失効まで）&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;参考図書&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; width=&#34;113&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl class=&#34;fn&#34;&gt;
-    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;結城 浩 (著)&lt;/dd&gt;
-    &lt;dd&gt;SBクリエイティブ 2015-08-25 (Release 2015-09-17)&lt;/dd&gt;
-    &lt;dd&gt;Kindle版&lt;/dd&gt;
-    &lt;dd&gt;B015643CPE (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 暗号技術入門 第3版 --&gt;
-&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; 19.04 では v2.2.12 までサポートしていた。それでもまだ古いけど &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; はパッケージ管理などで中核のツールとして使われるため運用が特に保守的なんだそうだ。まぁしょうがないか。 &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; は複数のコンポーネントで成り立っているのでうかつに弄りたくないというのはよく分かる。 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;改行コードを始末するなら拙作の「&lt;a href=&#34;https://github.com/spiegel-im-spiegel/text&#34; title=&#34;spiegel-im-spiegel/text: Encoding/Decoding Text Package by Golang&#34;&gt;nkf っぽいなにか&lt;/a&gt;」をどうぞ。コマンドラインで &lt;code&gt;gonkf nwline gpg.conf&lt;/code&gt; とすれば改行コードを LF に変換してくれる。以上宣伝でした（笑） &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/section&gt;
 </content>
 	</entry>
 </feed>
