@@ -127,7 +127,7 @@
 	"keywords": "openpgp, gnupg, ubuntu, install",
 	"image": "https://text.baldanders.info/images/attention/openpgp.png",
 	"datePublished": "2021-01-01T04:18:27+00:00",
-	"dateModified": "2021-01-02T01:24:00+00:00",
+	"dateModified": "2021-01-06T11:29:55+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -377,7 +377,7 @@ homedir:/home/username/.gnupg
 $ sudo ln -s /etc/alternatives/pinentry pinentry
 </code></pre></div><p>こんな感じかな。
 Pinentry は下手に弄ると絶対にドツボにはまるので今回は既存のものを使う。</p>
-<h2>ソケットががが&hellip;</h2>
+<h2>ソケットががが（2021-01-06 変更）</h2>
 <p>上の <code>gpgconf --list-dirs</code> で示されるソケットについて</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">socketdir:/run/user/1000/gnupg
 dirmngr-socket:/run/user/1000/gnupg/S.dirmngr
@@ -386,18 +386,41 @@ agent-extra-socket:/run/user/1000/gnupg/S.gpg-agent.extra
 agent-browser-socket:/run/user/1000/gnupg/S.gpg-agent.browser
 agent-socket:/run/user/1000/gnupg/S.gpg-agent
 </code></pre></div><p>そもそも <code>/run/user/1000/</code> ディレクトリ<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> はブート時（？）に毎回初期化されるのだが，どうやら <code>/usr/bin/</code> ディレクトリ以下のオリジナル・コンポーネントを使って初期化してるみたいで，そのままだと <code>/usr/bin/gpg-agent</code> のほうが常駐してしまう。</p>
-<p>これでは面白くないし <code>gpg-agent</code> 経由でなにか操作をする度に <code>gpg-agent</code> のバージョンが古いと怒られるので，以下のコマンドでソケットを再作成する。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ gpgconf --kill all
+<p>で，いろいろ調べてみたんだけど <code>/usr/lib/systemd/user/gpg-agent.service</code> ファイルの内容が</p>
+<div class="highlight"><pre class="chroma"><code class="language-ini" data-lang="ini"><span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">GnuPG cryptographic agent and passphrase cache</span>
+<span class="na">Documentation</span><span class="o">=</span><span class="s">man:gpg-agent(1)</span>
+<span class="na">Requires</span><span class="o">=</span><span class="s">gpg-agent.socket</span>
+
+<span class="k">[Service]</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/gpg-agent --supervised</span>
+<span class="na">ExecReload</span><span class="o">=</span><span class="s">/usr/bin/gpgconf --reload gpg-agent</span>
+</code></pre></div><p>とかなっているのが原因のようだ。
+最後の2行を</p>
+<div class="highlight"><pre class="chroma"><code class="language-ini" data-lang="ini"><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/local/bin/gpg-agent --supervised</span>
+<span class="na">ExecReload</span><span class="o">=</span><span class="s">/usr/local/bin/gpgconf --reload gpg-agent</span>
+</code></pre></div><p>と変更したらちゃんと <code>/usr/local/bin/gpg-agent</code> のほうが起動するようになった。
+これでしばらく様子見だな。</p>
+<!--
+これでは面白くないし `gpg-agent` 経由でなにか操作をする度に `gpg-agent` のバージョンが古いと怒られるので，以下のコマンドでソケットを再作成する。
+
+```text
+$ gpgconf --kill all
 $ gpgconf --remove-socketdir
 $ gpgconf --create-socketdir
 $ gpg-connect-agent --quiet /bye
-</code></pre></div><p>これで <code>/usr/local/</code> ディレクトリ以下のコンポーネントに対応したソケットを再作成してくれる。
-下３行はまとめて <code>~/.bashrc</code> 等に書いておくといいかもしれない。
-いずれにせよ，かなりダサいやり方という自覚はありますよ。</p>
-<p>これ，最初のソケット初期化時にやってくれないかなぁ。
-<a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> のサイトにはそもそもあまり情報がないし，ググっても情報が上手く見つけられなくて困っている。</p>
-<p>どなたか情報をご存知でしたら教えてください <abbr class="emoji-chars" title="ペコン">&#x1f647;</abbr></p>
-<p>最後に動作確認。</p>
+```
+
+これで `/usr/local/` ディレクトリ以下のコンポーネントに対応したソケットを再作成してくれる。
+下３行はまとめて `~/.bashrc` 等に書いておくといいかもしれない。
+いずれにせよ，かなりダサいやり方という自覚はありますよ。
+
+これ，最初のソケット初期化時にやってくれないかなぁ。
+[GnuPG] のサイトにはそもそもあまり情報がないし，ググっても情報が上手く見つけられなくて困っている。
+
+どなたか情報をご存知でしたら教えてください <abbr class="emoji-chars" title="ペコン">&#x1f647;</abbr>
+-->
+<h2>最後に動作確認</h2>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ echo hello world | gpg -a -s -u mykey
 -----BEGIN PGP MESSAGE-----
 
@@ -454,7 +477,7 @@ AZj6RwcY/scanE3cwbVrv0v/zA7njR1J8d7vTjwP28EmLvzWVuPhqnaG/4kBz24f
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2021-01-01</time> (revised in 2021-01-02)
+		in <time property='dc:dateCopyrighted'>2021-01-01</time> (revised in 2021-01-06)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social"><li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li><li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li></ul>
 	</div>
