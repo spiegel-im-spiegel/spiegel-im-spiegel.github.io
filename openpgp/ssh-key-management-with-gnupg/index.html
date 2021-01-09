@@ -127,7 +127,7 @@
 	"keywords": "openpgp, openssh, management, cryptography",
 	"image": "https://text.baldanders.info/images/attention/openpgp.png",
 	"datePublished": "2021-01-06T14:06:57+00:00",
-	"dateModified": "2021-01-06T14:22:05+00:00",
+	"dateModified": "2021-01-09T02:08:25+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -275,7 +275,8 @@ gpg&gt;
    (8) Brainpool P-512
    (9) secp256k1
 あなたの選択は? 
-</code></pre></div><p>個人的にお勧めの楕円曲線は “<code>Curve 25519</code>” である。
+</code></pre></div><p><a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> の認証用には <code>1</code> から <code>5</code> の楕円曲線のいずれかを選択する。
+個人的なお勧めは <code>1</code> の “<code>Curve 25519</code>” である。
 理由は以下の記事を参考のこと。</p>
 <ul>
 <li><a href="https://text.baldanders.info/remark/2020/06/eddsa/">Edwards-curve Digital Signature Algorithm</a></li>
@@ -328,11 +329,28 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFfjejx/Saej929myfZoBQAKgusPi2iiOxdZZfpCLxh5
 だから「有効期限は意味がない」のよ。</p>
 <p>ちなみにこの操作は公開鍵に対して行われる。
 たとえば，認証用の鍵を付加した <a href="http://openpgp.org/">OpenPGP</a> 公開鍵をサーバ管理者に渡せば，サーバ管理者は集めた <a href="http://openpgp.org/">OpenPGP</a> 公開鍵に署名して完全性を確保した後， <a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> 認証用公開鍵を抽出して各ユーザのディレクトリにまとめてセットする，といったこともできるだろう。</p>
-<h2>ローカル側の設定</h2>
+<h2>ローカル側の設定 【2020-01-09 変更・追記あり】</h2>
 <p>念のためローカル側の設定についても記しておく。</p>
+<h3>ssh-agent を gpg-agent に置き換える</h3>
 <p><a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> では <code>ssh-agent</code> を <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> の <code>gpg-agent</code> に置き換えることで鍵の管理を <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> 側に委譲できる。
 <code>gpg-agent</code> は <a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> 秘密鍵管理の中核コンポーネントで，自身は Pinentry で入力したパスフレーズを一定期間キャッシュすることでユーザの鍵操作を省力化できる（秘密鍵自体のキャッシュは行わない）。</p>
-<p><code>gpg-agent</code> を <a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> のエージェントとして有効にするには <code>~/.gnupg/gpg-agent.conf</code> ファイルに <code>enable-ssh-support</code> を書き加えればよい<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
+<p>この記事では Ubuntu での設定方法を挙げておく<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
+<p>どうも (Ubuntu を含む) Debian 系のディストリビューションでは SSH 接続に <code>ssh-agent</code> を使うよう構成されているようで， <code>gpg-agent</code> に置き換えるためにはいくつか設定を換える必要があるようだ。</p>
+<p>まず <code>/etc/X11/Xsession.options</code> ファイル。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text"># $Id: Xsession.options 189 2005-06-11 00:04:27Z branden $
+#
+# configuration options for /etc/X11/Xsession
+# See Xsession.options(5) for an explanation of the available options.
+allow-failsafe
+allow-user-resources
+allow-user-xsession
+use-ssh-agent
+use-session-dbus
+</code></pre></div><p>この中の <code>use-ssh-agent</code> を <code>no-use-ssh-agent</code> に置き換える。</p>
+<p>次に <code>/etc/xdg/autostart/gnome-keyring-ssh.desktop</code> ファイルを <code>~/.config/autostart/</code> ディレクトリにコピーし</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">Hidden=true
+</code></pre></div><p>を書き加える。</p>
+<p>最後に <code>~/.gnupg/gpg-agent.conf</code> ファイルに <code>enable-ssh-support</code> を書き加える。</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">enable-ssh-support
 default-cache-ttl-ssh 1800
 max-cache-ttl-ssh 7200
@@ -356,6 +374,7 @@ max-cache-ttl-ssh 7200
 </tbody>
 </table>
 <p>有効期間は大きすぎると漏洩リスクが高まるのでほどほどに（笑）</p>
+<h3><a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> 認証鍵の登録</h3>
 <p><a href="https://gnupg.org/" title="The GNU Privacy Guard">GnuPG</a> の鍵束の鍵を <a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> の認証鍵として使うには <code>~/.gnupg/sshcontrol</code> ファイルへの登録が必要である。
 先ほど作成した鍵であれば，まず以下のコマンドで</p>
 <div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ gpg --list-keys --with-keygrip alice
@@ -413,7 +432,7 @@ sub   ed25519 2021-01-06 [A]
 <hr>
 <ol>
 <li id="fn:1" role="doc-endnote">
-<p>Windows 環境ではもう少し面倒な設定が必要である。詳しくは拙文「<a href="/openpgp/using-gnupg-for-windows-2/">GnuPG for Windows : gpg-agent について</a>」 <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+<p>Windows 環境での設定手順については拙文「<a href="/openpgp/using-gnupg-for-windows-2/">GnuPG for Windows : gpg-agent について</a>」を参考にどうぞ。 <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 </ol>
 </section>
@@ -442,7 +461,7 @@ sub   ed25519 2021-01-06 [A]
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2021-01-06</time>
+		in <time property='dc:dateCopyrighted'>2021-01-06</time> (revised in 2021-01-09)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social"><li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li><li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li></ul>
 	</div>
