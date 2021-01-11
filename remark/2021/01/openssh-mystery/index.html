@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.80.0" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="canonical" href="https://text.baldanders.info/remark/2021/01/openssh-mystery/">
+<script src="//kit.fontawesome.com/152e339e63.js"></script>
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Inconsolata%3a500,700%7cNoto+Sans+JP%3a500,700%7cNoto+Sans%3a500,700%7cNoto+Serif%7cNoto+Serif+JP&display=swap" type='text/css'>
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+	processEscapes: true,
+    tags: 'ams',
+    macros: {
+      ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1],
+      tcdegree: ['\\unicode{xb0}'],
+      tccelsius: ['\\unicode{x2103}'],
+      tcperthousand: ['\\unicode{x2030}'],
+      tcmu: ['\\unicode{x3bc}'],
+      tcohm: ['\\unicode{x3a9}']
+    }
+  },
+  
+  
+  
+  
+  
+  chtml: {
+    matchFontHeight: false,
+    displayAlign: "left",
+    displayIndent: "2em"
+  }
+};
+</script>
+<script id="MathJax-script" async src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<title>OpenSSH 完全に理解した（笑） | text.Baldanders.info</title>
+<meta property="og:title" content="OpenSSH 完全に理解した（笑）">
+<meta name="description" content="どうやら OpenSSH に対する理解が足りないと気付いたので，知ってること気付いたこと等を書き出してみる。">
+<meta property="og:description" content="どうやら OpenSSH に対する理解が足りないと気付いたので，知ってること気付いたこと等を書き出してみる。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/kitten.jpg">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="keywords" content="openssh, cryptography, hash">
+<link rel='prev' href='https://text.baldanders.info/remark/2021/01/holiday-in-2021/' title='2021年の祝日・休日に関する注意喚起' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/remark/",
+	"url": "https://text.baldanders.info/remark/",
+	"inLanguage": "ja",
+	"name": "しっぽのさきっちょ",
+	"description": "帰ってきた「しっぽのさきっちょ」。とりとめのない四方山話。",
+	"image": "https://text.baldanders.info/images/attention/remark.jpg",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/remark/2021/01/openssh-mystery/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/remark/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/remark/2021/01/openssh-mystery/",
+	"url": "https://text.baldanders.info/remark/2021/01/openssh-mystery/",
+	"mainEntityOfPage": "https://text.baldanders.info/remark/2021/01/openssh-mystery/",
+	"inLanguage": "ja",
+	"name": "OpenSSH 完全に理解した（笑）",
+	"description": "どうやら OpenSSH に対する理解が足りないと気付いたので，知ってること気付いたこと等を書き出してみる。",
+	"headline": "どうやら OpenSSH に対する理解が足りないと気付いたので，知ってること気付いたこと等を書き出してみる。",
+	"keywords": "openssh, cryptography, hash",
+	"image": "https://text.baldanders.info/images/attention/kitten.jpg",
+	"datePublished": "2021-01-11T07:31:17+00:00",
+	"dateModified": "2021-01-11T07:31:32+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/remark/">しっぽのさきっちょ</a>
+</nav>
+<article>
+<h1>OpenSSH 完全に理解した（笑）</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/cryptography/">cryptography</a> #<a href="/tags/hash/">hash</a> #<a href="/tags/openssh/">openssh</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-square"></i></span>&nbsp;:&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fremark%2f2021%2f01%2fopenssh-mystery%2f" target="_blank"><span class="facebook-color"><i class="fab fa-facebook-square" aria-hidden="true"></i></span></a>&nbsp;<a href="http://twitter.com/share?text=OpenSSH%20%e5%ae%8c%e5%85%a8%e3%81%ab%e7%90%86%e8%a7%a3%e3%81%97%e3%81%9f%ef%bc%88%e7%ac%91%ef%bc%89+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fremark%2f2021%2f01%2fopenssh-mystery%2f" target="_blank"><span class="twitter-color"><i class="fab fa-twitter-square" aria-hidden="true"></i></span></a>
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2021/01/openssh-mystery/index.html">GitHub Page</a>
+</nav>
+
+<section><div>
+<div class="noextension">
+<a href="https://baldanders.info/public-domain-locked/" title="Public Domain Locked... | Baldanders.info"><img src="/images/Locked-150.png" alt="no extension" width="150" /></a>
+</div>
+<p>使ってみたかったんだ，このフレーズ（笑）</p>
+<p>めでたくも<a href="https://text.baldanders.info/remark/2020/12/github-discussions/" title="ようやく Disqus を捨てれるよ">フィードバック先移行</a>後，はじめてのフィードバックを頂いた。
+どうやら <a href="https://www.openssh.com/">OpenSSH</a> に対する理解が足りないと気付いたので，知ってること気付いたこと等を書き出してみる。</p>
+<p>「ここ違うよ」とかいうのがありましたら<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions" title="Discussions · spiegel-im-spiegel/github-pages-env">フィードバック</a>にてご指摘いただけると有り難いです。</p>
+<p><a href="https://www.openssh.com/">OpenSSH</a> に関する本とかあればよかったんだけどねぇ。
+日本語の本はみんな出版年がエラく古いし，しかも「使い方」は書いてあっても中で何してるかについてはあまり言及されてない感じ？ とっかに「Inside OpenSSH」みたいな本があればいいのに（笑）</p>
+<h2><a href="https://www.openssh.com/">OpenSSH</a> 暗号化通信の手順</h2>
+<p><a href="https://www.openssh.com/">OpenSSH</a> におけるサーバ-クライアント間の暗号化通信の手順は大雑把に</p>
+<ol>
+<li>サーバ-クライアント間で使える暗号スイートの確認</li>
+<li>鍵交換アルゴリズムによるシークレットの導出とセッション鍵の生成</li>
+<li>セッション鍵による暗号化通信の開始</li>
+<li>クライアント認証</li>
+</ol>
+<p>となっているようだ。
+以降でひとつづつ見ていこう。</p>
+<h2>鍵交換アルゴリズムとハッシュ・アルゴリズム</h2>
+<p>暗号化通信を行うためにはサーバ-クライアント間でセッション鍵（共通鍵）を共有する必要がある。
+（昔はともかく）今の <a href="https://www.openssh.com/">OpenSSH</a> ではセッション鍵の取得に Diffie-Hellman 鍵交換アルゴリズムまたはそのバリエーションを使う。
+Diffie-Hellman 鍵交換アルゴリズムは公開鍵暗号の一種だがセッションの開始ごとに使い捨ての鍵ペアを生成する（筈）ので，ユーザがそれを意識することはないだろう。</p>
+<p>鍵交換アルゴリズムで得られる共有データを「シークレット」と呼ぶことがある。
+<a href="https://www.openssh.com/">OpenSSH</a> ではシークレットをハッシュ化した値をセンション鍵として使っているようだ。</p>
+<p>したがってセッション鍵の共有には鍵交換アルゴリズムとハッシュ・アルゴリズムの2つが必要となる。
+<a href="https://www.openssh.com/">OpenSSH</a> でサポートしてる暗号スイートは以下の通り。</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>鍵交換</th>
+<th>ハッシュ</th>
+<th style="text-align:center">推奨</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>curve25519-sha256</code></td>
+<td>ECDH (curve25519)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 7.4 以降</td>
+</tr>
+<tr>
+<td><code>diffie-hellman-group1-sha1</code></td>
+<td>DH (1024 bits)</td>
+<td>SHA1</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>diffie-hellman-group14-sha1</code></td>
+<td>DH (2048 bits)</td>
+<td>SHA1</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>diffie-hellman-group14-sha256</code></td>
+<td>DH (2048 bits)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 7.3 以降</td>
+</tr>
+<tr>
+<td><code>diffie-hellman-group16-sha512</code></td>
+<td>DH (4096 bits)</td>
+<td>SHA2-512</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 7.3 以降</td>
+</tr>
+<tr>
+<td><code>diffie-hellman-group18-sha512</code></td>
+<td>DH (8192 bits)</td>
+<td>SHA2-512</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 7.3 以降</td>
+</tr>
+<tr>
+<td><code>diffie-hellman-group-exchange-sha1</code></td>
+<td>Custom DH (?)</td>
+<td>SHA1</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>diffie-hellman-group-exchange-sha256</code></td>
+<td>Custom DH (?)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 5.4 以降</td>
+</tr>
+<tr>
+<td><code>ecdh-sha2-nistp256</code></td>
+<td>ECDH (NIST curve P-256)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 5.7 以降</td>
+</tr>
+<tr>
+<td><code>ecdh-sha2-nistp384</code></td>
+<td>ECDH (NIST curve P-384)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 5.7 以降</td>
+</tr>
+<tr>
+<td><code>ecdh-sha2-nistp521</code></td>
+<td>ECDH (NIST curve P-521)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 5.7 以降</td>
+</tr>
+</tbody>
+</table>
+<p>SHA-1 は危殆化が叫ばれて久しく，既に推奨されていない。
+このブログでもあちこちで書いているが Zenn の以下の記事でまとめているので興味のある人はどうぞ。</p>
+<ul>
+<li><a href="https://zenn.dev/spiegel/articles/20201025-sayonara-sha1">さようなら SHA-1</a></li>
+</ul>
+<p>ECDH (Elliptic Curve Diffie–Hellman) は Diffie-Hellman 鍵交換アルゴリズムの楕円曲線版と考えてもらって構わない。</p>
+<p>ECDH で使用する楕円曲線のうち NIST 推奨パラメータ（curve P-256/384/521）は微妙に評判が悪いようで，推奨しないところがあった。
+どうも NIST 発のアルゴリズムは使いたくないということのようだ。
+まぁ NSA 絡みで度々やらかしてるから信用がないんだろうな（笑）</p>
+<p>これらの暗号スイートの選択と優先順位はサーバ側で設定するのでユーザが意識することはない。
+強いて言うなら古いバージョンは使うなってことくらいか。</p>
+<h2>共通鍵暗号アルゴリズムと暗号モード</h2>
+<p>実際の暗号化通信はセッション鍵を使った共通鍵暗号アルゴリズムで行う。
+AE (Authenticated Encryption) が有効な場合は AE が優先される</p>
+<p><a href="https://www.openssh.com/">OpenSSH</a> でサポートしてる共通鍵暗号アルゴリズムと暗号モードは以下の通り。</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>共通鍵暗号</th>
+<th>暗号モード</th>
+<th style="text-align:center">推奨</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>3des-cbc</code></td>
+<td>TripleDES</td>
+<td>CBC</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>aes128-cbc</code></td>
+<td>AES-128</td>
+<td>CBC</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>aes192-cbc</code></td>
+<td>AES-192</td>
+<td>CBC</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>aes256-cbc</code></td>
+<td>AES-256</td>
+<td>CBC</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>aes128-ctr</code></td>
+<td>AES-128</td>
+<td>CTR</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td></td>
+</tr>
+<tr>
+<td><code>aes192-ctr</code></td>
+<td>AES-192</td>
+<td>CTR</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td></td>
+</tr>
+<tr>
+<td><code>aes256-ctr</code></td>
+<td>AES-256</td>
+<td>CTR</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td></td>
+</tr>
+<tr>
+<td><code>aes128-gcm</code>@openssh.com</td>
+<td>AES-128</td>
+<td>GCM</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 6.2 以降</td>
+</tr>
+<tr>
+<td><code>aes256-gcm</code>@openssh.com</td>
+<td>AES-256</td>
+<td>GCM</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 6.2 以降</td>
+</tr>
+<tr>
+<td><code>arcfour</code></td>
+<td>ARCFOUR (40?)</td>
+<td>—</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>arcfour128</code></td>
+<td>ARCFOUR (128)</td>
+<td>—</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>arcfour256</code></td>
+<td>ARCFOUR (256)</td>
+<td>—</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>blowfish-cbc</code></td>
+<td>Blowfish (64)</td>
+<td>CBC</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>cast128-cbc</code></td>
+<td>CAST (128)</td>
+<td>CBC</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>chacha20-poly1305</code>@openssh.com</td>
+<td>ChaCha20</td>
+<td>Poly1305</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 6.5 以降</td>
+</tr>
+</tbody>
+</table>
+<p>ARCFOUR ってのはいわゆる RC4 ストリーム暗号のこと。
+RC4 は公式にはアルゴリズムを公開していないため “Alleged RC FOUR” の意味で ARCFOUR という名称が使われているようだ。</p>
+<p>RC4 および CBC モードは危殆化が報告されて久しく，推奨されない。
+また TripleDES, Blowfish, CAST は暗号強度不足のため，これも推奨されない。</p>
+<p>これらの暗号スイートの選択と優先順位はサーバ側で設定するのでユーザが意識することはない。
+ただし，優先順位としては AEAD (Authenticated Encryption with Associated Data; 認証付き暗号) として機能する GCM や ChaCha20-Poly1305 がより推奨されているらしい。</p>
+<h2>メッセージ認証符号</h2>
+<p>GCM や ChaCha20-Poly1305 以外の AEAD として機能しない暗号モードの場合は MAC (Message Authentication Code; メッセージ認証符号) を組み合わせる。
+組み合わせ方としては</p>
+<ul>
+<li>Encrypt-then-MAC (<a href="https://www.openssh.com/">OpenSSH</a> 6.2 以降)</li>
+<li>MAC-then-encrypt</li>
+<li>Encrypt-and-MAC</li>
+</ul>
+<p>のいずれかを選択できるらしい。
+Encrypt-then-MAC であれば AEAD として機能する。
+<a href="https://www.openssh.com/">OpenSSH</a> でサポートしてる MAC アルゴリズムとハッシュ・アルゴリズムの組み合わせは以下の通り。</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>MAC</th>
+<th>ハッシュ</th>
+<th style="text-align:center">推奨</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hmac-md5</code></td>
+<td>HMAC</td>
+<td>MD5</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>hmac-md5-96</code></td>
+<td>HMAC</td>
+<td>MD5</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>hmac-sha1</code></td>
+<td>HMAC</td>
+<td>SHA1</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>hmac-sha1-96</code></td>
+<td>HMAC</td>
+<td>SHA1</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>hmac-sha2-256</code></td>
+<td>HMAC</td>
+<td>SHA2-256</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 5.9 以降</td>
+</tr>
+<tr>
+<td><code>hmac-sha2-512</code></td>
+<td>HMAC</td>
+<td>SHA2-512</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 5.9 以降</td>
+</tr>
+<tr>
+<td><code>umac-64</code></td>
+<td>UMAC-64</td>
+<td>(Universal Hash)</td>
+<td style="text-align:center"></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 4.7 以降</td>
+</tr>
+<tr>
+<td><code>umac-128</code></td>
+<td>UMAC-128</td>
+<td>(Universal Hash)</td>
+<td style="text-align:center"></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 6.2 以降</td>
+</tr>
+</tbody>
+</table>
+<p>それぞれの名称の後ろに <code>-etm</code>@openssh.com と付くと Encrypt-then-MAC で動作する。</p>
+<p>MD5 は危殆化が報告されて久しく，推奨されない。
+SHA1 は HMAC に関しては2031年以降も “Acceptable” であるとされているが，他の暗号スイートとの組み合わせで考えると避けたほうがいいかもしれない。</p>
+<p>UMAC は <a href="https://tools.ietf.org/html/rfc4418" title="RFC 4418 - UMAC: Message Authentication Code using Universal Hashing">RFC 4418</a> で規定されている。
+この中で</p>
+<figure lang="en">
+<blockquote><q>Likewise, 32-, 96-, and 128-bit tags cannot be forged with more than 1/2^30, 1/2^90, and 1/2^120 probability plus the   probability of a successful attack against AES as a pseudorandom permutation</q>.</blockquote>
+<figcaption><div>via <q><a href="https://tools.ietf.org/html/rfc4418">UMAC: Message Authentication Code using Universal Hashing</a></q></div></figcaption>
+</figure>
+<p>とあるので UMAC-64 や UMAC-128 はセキュリティ強度不足なんじゃないかと思うのだが，どうだろう。</p>
+<p>これらの暗号スイートの選択と優先順位はサーバ側で設定するのでユーザが意識することはない。</p>
+<h2>電子署名アルゴリズムとハッシュ・アルゴリズム</h2>
+<p>クライアント認証で公開鍵暗号を用いる場合は，ユーザ側で認証鍵ペアを生成し，公開鍵をあらかじめサーバ側と共有する必要がある。
+また公開鍵暗号を用いたクライアント認証ではハッシュ・アルゴリズムも用いる。
+<a href="https://www.openssh.com/">OpenSSH</a> でサポートしてるクライアント認証の暗号スイートは以下の通り。</p>
+<table>
+<thead>
+<tr>
+<th>名称（サーバ側）</th>
+<th>電子署名</th>
+<th>ハッシュ</th>
+<th style="text-align:center">推奨</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ssh-ed25519</code></td>
+<td>EdDSA (edwards25519)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td></td>
+</tr>
+<tr>
+<td><code>sk-ssh-ed25519</code>@openssh.com</td>
+<td>EdDSA (edwards25519)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 8.2 以降</td>
+</tr>
+<tr>
+<td><code>ssh-rsa</code></td>
+<td>RSA</td>
+<td>SHA1</td>
+<td style="text-align:center"></td>
+<td>廃止予定</td>
+</tr>
+<tr>
+<td><code>rsa-sha2-256</code></td>
+<td>RSA</td>
+<td>SHA2-256</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 7.2 以降</td>
+</tr>
+<tr>
+<td><code>rsa-sha2-512</code></td>
+<td>RSA</td>
+<td>SHA2-512</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 7.2 以降</td>
+</tr>
+<tr>
+<td><code>ssh-dss</code></td>
+<td>DSA</td>
+<td>SHA1</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp256</code></td>
+<td>ECDSA (NIST curve P-256)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp384</code></td>
+<td>ECDSA (NIST curve P-384)</td>
+<td>SHA2-384</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ecdsa-sha2-nistp521</code></td>
+<td>ECDSA (NIST curve P-521)</td>
+<td>SHA2-512</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>sk-ecdsa-sha2-nistp256</code>@openssh.com</td>
+<td>ECDSA (NIST curve P-256)</td>
+<td>SHA2-256</td>
+<td style="text-align:center"></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 8.2 以降</td>
+</tr>
+</tbody>
+</table>
+<p>頭に <code>sk-</code> が付いているものは暗号デバイスに対応している。</p>
+<p><code>ssh-rsa</code> は将来バージョンで廃止が決まっている。</p>
+<p><a href="https://www.openssh.com/">OpenSSH</a> では FIPS 186-3 以降の DSA に対応してないようで，鍵長が1024ビットしか対応してない（これも NIST 嫌悪か？）。
+もちろん推奨できない。</p>
+<p>NIST 推奨パラメータを使った ECDSA も（ECDH と同じく）微妙に評判が悪い。
+あと ECDSA は電子署名時に乱数を使うのだが，この実装をサボると脆弱性の元となる。
+実際に，2013年に発覚した<a href="https://www.cryptrec.go.jp/topics/cryptrec-er-0001-2013.html" title="擬似乱数生成アルゴリズム Dual_EC_DRBG について | CRYPTREC">疑似乱数生成器 Dual EC DRBG の脆弱性</a>では， NSA が絡んでいたこともあって，一気に ECDSA 忌避が強まったらしい。</p>
+<p>以上はサーバ側の設定の話だが，ユーザ側では <code>ssh-keygen</code> コマンドを使って認証鍵を生成する必要がある。</p>
+<p>認証鍵の生成では鍵種別（<code>-t</code> オプション）と鍵長（<code>-b</code> オプション）を指定する。
+組み合わせは以下の通り。</p>
+<table>
+<thead>
+<tr>
+<th>鍵種別</th>
+<th>鍵長</th>
+<th>アルゴリズム</th>
+<th style="text-align:center">推奨</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rsa</code></td>
+<td>1024以上<br>（既定3072）</td>
+<td>RSA</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td>3072ビット以上推奨</td>
+</tr>
+<tr>
+<td><code>dsa</code></td>
+<td>1024</td>
+<td>DSA</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ed25519</code></td>
+<td>—</td>
+<td>EdDSA (edwards25519)</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ed25519-sk</code></td>
+<td>—</td>
+<td>EdDSA (edwards25519)</td>
+<td style="text-align:center"><span><i class="fas fa-check"></i></span></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 8.2 以降</td>
+</tr>
+<tr>
+<td><code>ecdsa</code></td>
+<td>256（既定）</td>
+<td>ECDSA (NIST curve P-256)</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ecdsa</code></td>
+<td>384</td>
+<td>ECDSA (NIST curve P-384)</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ecdsa</code></td>
+<td>521</td>
+<td>ECDSA (NIST curve P-521)</td>
+<td style="text-align:center"></td>
+<td></td>
+</tr>
+<tr>
+<td><code>ecdsa-sk</code></td>
+<td>—</td>
+<td>ECDSA (NIST curve P-256)</td>
+<td style="text-align:center"></td>
+<td><a href="https://www.openssh.com/">OpenSSH</a> 8.2 以降</td>
+</tr>
+</tbody>
+</table>
+<p>これは私が盛大に勘違いしていたのだが，たとえば</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ ssh-keygen -t rsa
+Generating public/private rsa key pair.
+Enter file in which to save the key (/home/username/.ssh/id_rsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/username/.ssh/id_rsa
+Your public key has been saved in /home/username/.ssh/id_rsa.pub
+The key fingerprint is:
+SHA256:qufsNjgco3QZNjE4eupwQiT6mD8fr2a7nXmU3ybxFHo username@hostname
+The key&#39;s randomart image is:
++---[RSA 3072]----+
+|   .             |
+|..o o            |
+|+. . o           |
+|o.. +       .    |
+|.* . +  S. . .   |
+|* + =  .o o E    |
+|o= +.+.. . *     |
+| .+ **+o. o +    |
+|   =*XOo   o     |
++----[SHA256]-----+
+</code></pre></div><p>てな感じに鍵を作ったときに表示される <code>SHA256</code> は署名時ではなく，鍵指紋のハッシュ・アルゴリズムを指しているらしい。
+実際の電子署名でどのハッシュ・アルゴリズムを使うのかはサーバ-クライアント間のネゴシエーションで決まるのかな（？）</p>
+<h2>【おまけ】 各種アルゴリズムのセキュリティ強度</h2>
+<p>（「<a href="https://text.baldanders.info/remark/2017/10/key-parameters/">暗号鍵関連の各種変数について</a>」より抜粋）</p>
+<p>おまけとして各種アルゴリズムのセキュリティ強度を挙げておく。</p>
+<h3>各種暗号アルゴリズムとセキュリティ強度の関係</h3>
+<p>最初は種暗号アルゴリズムの鍵長とセキュリティ強度の関係を示す表。
+単位は全てビットである。</p>
+<p><figure lang="en">
+<style>
+main table.nist2 th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.nist2 td  {
+  vertical-align:middle;
+  text-align: center;
+}
+</style>
+<table class="nist2">
+<thead>
+<tr>
+<th>Security<br>Strength</th>
+<th>Symmetric<br> key<br> algorithms</th>
+<th>FFC<br>(DSA, DH,<br>MQV)</th>
+<th>IFC<br>(RSA)</th>
+<th>ECC<br>(ECDSA,<br>EdDSA, DH,<br>MQV)</th>
+</tr>
+</thead>
+<tbody>
+<tr><td> $\le 80$ </td><td>2TDEA</td><td> $L=1024$ <br> $N=160$ </td><td> $k=1024$ </td> <td> $f = 160\text{ - }223$ </td></tr>
+<tr><td> $112$ </td><td>3TDEA</td><td> $L=2048$ <br> $N=224$ </td><td>$k=2048$</td> <td>$f = 224\text{ - }255$</td></tr>
+<tr><td> $128$ </td><td>AES-128</td><td> $L=3072$ <br> $N=256$ </td><td>$k=3072$</td> <td>$f = 256\text{ - }383$</td></tr>
+<tr><td> $192$ </td><td>AES-192</td><td> $L=7680$ <br> $N=384$ </td><td>$k=7680$</td> <td>$f = 384\text{ - }511$</td></tr>
+<tr><td> $256$ </td><td>AES-256</td><td> $L=15360$ <br> $N=512$ </td><td>$k=15360$</td><td>$f=512+$</td></tr>
+</tbody>
+</table>
+<figcaption><div>Comparable security strengths of symmetric block cipher and asymmetric-key algorithms (via <q><a href='https://doi.org/10.6028/NIST.SP.800-57pt1r5'>SP 800-57 Part 1 Revision 5 <sup><i class='far fa-file-pdf'></i></sup></a></q> 5.6.1.1)</div></figcaption>
+</figure> <!-- 要 MathJax --></p>
+<h3>ハッシュ・アルゴリズムとセキュリティ強度の関係</h3>
+<p>次はハッシュ・アルゴリズムとセキュリティ強度の関係を示す表。</p>
+<p><figure lang='en'>
+<style>
+main table.nist3 th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.nist3 td  {
+   
+  text-align: center;
+}
+</style>
+<table class="nist3">
+<thead>
+<tr>
+<th>Security <br>Strength</th>
+<th>Digital Signatures and Other<br>Applications Requiring Collision<br>Resistance</th>
+<th>HMAC, KMAC,<br>Key Derivation Functions,<br>Random Bit Generation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> $\le 8$0</td>
+<td>SHA-1</td>
+<td>&nbsp;</td>
+</tr><tr>
+<td>$112$</td>
+<td>SHA-224, SHA-512/224, SHA3-224</td>
+<td>&nbsp;</td>
+</tr><tr>
+<td>$128$</td>
+<td>SHA-256, SHA-512/256, SHA3-256</td>
+<td>SHA-1, KMAC128</td>
+</tr><tr>
+<td>$192$</td>
+<td>SHA-384, SHA3-384</td>
+<td>SHA-224, SHA-512/224, SHA3-224</td>
+</tr><tr>
+<td>$\ge 256$</td>
+<td>SHA-512, SHA3-512</td>
+<td>SHA-256, SHA-512/256, SHA-384, SHA-512, SHA3-256, SHA3-384, SHA3-512, KMAC256</td>
+</tr>
+</tbody>
+</table>
+<figcaption><div>Maximum security strengths for hash and hash-based functions (via <q><a href='https://doi.org/10.6028/NIST.SP.800-57pt1r5'>SP 800-57 Part 1 Revision 5 <sup><i class='far fa-file-pdf'></i></sup></a></q> 5.6.1.2)</div></figcaption>
+</figure> <!-- 要 MathJax --></p>
+<h3>セキュリティ強度と有効期限</h3>
+<p>こちらはセキュリティ強度の有効期限を表したものだ。</p>
+<p><figure lang='en'>
+<style>
+main table.nist4 th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.nist4 td  {
+  vertical-align:middle;
+  text-align: center;
+}
+</style>
+<table class="nist4">
+<thead>
+<tr>
+<th colspan='2'>Security Strength</th>
+<th>Through<br> 2030</th>
+<th>2031 and<br> Beyond</th>
+</tr>
+</thead>
+<tbody>
+<tr><td rowspan='2'>$\lt 112$</td><td>Applying</td>                       <td colspan='2'>Disallowed</td></tr>
+<tr>                              <td>Processing</td>                     <td colspan='2'>Legacy use</td></tr>
+<tr><td rowspan='2'>$112$</td>    <td>Applying</td>                       <td rowspan='2'>Acceptable</td><td>Disallowed</td></tr>
+<tr>                              <td>Processing</td>                                                    <td>Legacy use</td></tr>
+<tr><td>$128$</td>                <td rowspan='3'>Applying/Processing</td><td>Acceptable</td><td>Acceptable</td></tr>
+<tr><td>$192$</td>                                                        <td>Acceptable</td><td>Acceptable</td></tr>
+<tr><td>$256$</td>                                                        <td>Acceptable</td><td>Acceptable</td></tr>
+</tbody>
+</table>
+<figcaption><div>Security-strength time frames (via <q><a href='https://doi.org/10.6028/NIST.SP.800-57pt1r5'>SP 800-57 Part 1 Revision 5 <sup><i class='far fa-file-pdf'></i></sup></a></q> 5.6.3)</div></figcaption>
+</figure> <!-- 要 MathJax --></p>
+<p>各用語はそれぞれ</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">用語</th>
+<th style="text-align:left">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Applying</td>
+<td style="text-align:left">適用</td>
+</tr>
+<tr>
+<td style="text-align:left">Processing</td>
+<td style="text-align:left">処理</td>
+</tr>
+<tr>
+<td style="text-align:left">Acceptable</td>
+<td style="text-align:left">許容</td>
+</tr>
+<tr>
+<td style="text-align:left">Legacy use</td>
+<td style="text-align:left">許容（レガシー使用のみ）</td>
+</tr>
+<tr>
+<td style="text-align:left">Disallowed</td>
+<td style="text-align:left">禁止</td>
+</tr>
+</tbody>
+</table>
+<p>という意味だ。
+例を挙げると，セキュリティ強度112ビットの暗号スイート（Cipher Suites）を適用する場合は2030年までは許容するけど2031年以降は禁止。
+すでに暗号化されているデータを復号したい場合でも2031年以降はレガシー・システムしか許容しない，ということになる。</p>
+<h2>ブックマーク</h2>
+<ul>
+<li><a href="https://tex2e.github.io/blog/crypto/chacha20poly1305">ChaCha20-Poly1305の解説と実装 | 晴耕雨読</a></li>
+<li><a href="https://support.conoha.jp/v/openssh/">OpenSSHの認証に証明書を使う方法｜ConoHa VPSサポート</a></li>
+</ul>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51ZRZ62WKCL._SL160_.jpg" width="108" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">暗号化 プライバシーを救った反乱者たち</a></dt>
+    <dd>スティーブン・レビー (著), 斉藤 隆央 (翻訳)</dd>
+    <dd>紀伊國屋書店 2002-02-16</dd>
+    <dd>単行本</dd>
+    <dd>4314009071 (ASIN), 9784314009072 (EAN), 4314009071 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-03-09">2015-03-09</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 暗号化 プライバシーを救った反乱者たち -->
+<div class="hreview">
+  <div class="photo"><a class="item url" href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg" width="113" alt="photo"></a></div>
+  <dl class="fn">
+    <dt><a href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">暗号技術入門 第3版　秘密の国のアリス</a></dt>
+    <dd>結城 浩 (著)</dd>
+    <dd>SBクリエイティブ 2015-08-25 (Release 2015-09-17)</dd>
+    <dd>Kindle版</dd>
+    <dd>B015643CPE (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-09-20">2015-09-20</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 暗号技術入門 第3版 -->
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2021/01/holiday-in-2021/">2021年の祝日・休日に関する注意喚起</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>GitHub に<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>他のフィードバック手段として Twitter, Facebook または電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2021-01-11</time>
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li><li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/site-policy/'>Site Policy</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fremark%2f2021%2f01%2fopenssh-mystery%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.80.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>

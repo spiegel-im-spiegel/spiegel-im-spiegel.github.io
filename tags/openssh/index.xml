@@ -2,13 +2,746 @@
 	<title>List of openssh - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/openssh/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/openssh/index.xml" />
-	<id>tag:text.Baldanders.info,2021-01-10:/tags</id>
-	<updated>2021-01-10T11:53:13+09:00</updated>
+	<id>tag:text.Baldanders.info,2021-01-11:/tags</id>
+	<updated>2021-01-11T16:31:17+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>OpenSSH 完全に理解した（笑）</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2021/01/openssh-mystery/" />
+		<id>tag:text.Baldanders.info,2021-01-11:/remark/2021/01/openssh-mystery/</id>
+		<published>2021-01-11T07:31:17+00:00</published>
+		<updated>2021-01-11T07:31:32+00:00</updated>
+		<summary>どうやら OpenSSH に対する理解が足りないと気付いたので，知ってること気付いたこと等を書き出してみる。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;使ってみたかったんだ，このフレーズ（笑）&lt;/p&gt;
+&lt;p&gt;めでたくも&lt;a href=&#34;https://text.baldanders.info/remark/2020/12/github-discussions/&#34; title=&#34;ようやく Disqus を捨てれるよ&#34;&gt;フィードバック先移行&lt;/a&gt;後，はじめてのフィードバックを頂いた。
+どうやら &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; に対する理解が足りないと気付いたので，知ってること気付いたこと等を書き出してみる。&lt;/p&gt;
+&lt;p&gt;「ここ違うよ」とかいうのがありましたら&lt;a href=&#34;https://github.com/spiegel-im-spiegel/github-pages-env/discussions&#34; title=&#34;Discussions · spiegel-im-spiegel/github-pages-env&#34;&gt;フィードバック&lt;/a&gt;にてご指摘いただけると有り難いです。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; に関する本とかあればよかったんだけどねぇ。
+日本語の本はみんな出版年がエラく古いし，しかも「使い方」は書いてあっても中で何してるかについてはあまり言及されてない感じ？ とっかに「Inside OpenSSH」みたいな本があればいいのに（笑）&lt;/p&gt;
+&lt;h2&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 暗号化通信の手順&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; におけるサーバ-クライアント間の暗号化通信の手順は大雑把に&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;サーバ-クライアント間で使える暗号スイートの確認&lt;/li&gt;
+&lt;li&gt;鍵交換アルゴリズムによるシークレットの導出とセッション鍵の生成&lt;/li&gt;
+&lt;li&gt;セッション鍵による暗号化通信の開始&lt;/li&gt;
+&lt;li&gt;クライアント認証&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;となっているようだ。
+以降でひとつづつ見ていこう。&lt;/p&gt;
+&lt;h2&gt;鍵交換アルゴリズムとハッシュ・アルゴリズム&lt;/h2&gt;
+&lt;p&gt;暗号化通信を行うためにはサーバ-クライアント間でセッション鍵（共通鍵）を共有する必要がある。
+（昔はともかく）今の &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; ではセッション鍵の取得に Diffie-Hellman 鍵交換アルゴリズムまたはそのバリエーションを使う。
+Diffie-Hellman 鍵交換アルゴリズムは公開鍵暗号の一種だがセッションの開始ごとに使い捨ての鍵ペアを生成する（筈）ので，ユーザがそれを意識することはないだろう。&lt;/p&gt;
+&lt;p&gt;鍵交換アルゴリズムで得られる共有データを「シークレット」と呼ぶことがある。
+&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; ではシークレットをハッシュ化した値をセンション鍵として使っているようだ。&lt;/p&gt;
+&lt;p&gt;したがってセッション鍵の共有には鍵交換アルゴリズムとハッシュ・アルゴリズムの2つが必要となる。
+&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; でサポートしてる暗号スイートは以下の通り。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;名称&lt;/th&gt;
+&lt;th&gt;鍵交換&lt;/th&gt;
+&lt;th&gt;ハッシュ&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;推奨&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;curve25519-sha256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ECDH (curve25519)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 7.4 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;diffie-hellman-group1-sha1&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;DH (1024 bits)&lt;/td&gt;
+&lt;td&gt;SHA1&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;diffie-hellman-group14-sha1&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;DH (2048 bits)&lt;/td&gt;
+&lt;td&gt;SHA1&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;diffie-hellman-group14-sha256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;DH (2048 bits)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 7.3 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;diffie-hellman-group16-sha512&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;DH (4096 bits)&lt;/td&gt;
+&lt;td&gt;SHA2-512&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 7.3 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;diffie-hellman-group18-sha512&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;DH (8192 bits)&lt;/td&gt;
+&lt;td&gt;SHA2-512&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 7.3 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;diffie-hellman-group-exchange-sha1&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Custom DH (?)&lt;/td&gt;
+&lt;td&gt;SHA1&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;diffie-hellman-group-exchange-sha256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Custom DH (?)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 5.4 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdh-sha2-nistp256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ECDH (NIST curve P-256)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 5.7 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdh-sha2-nistp384&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ECDH (NIST curve P-384)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 5.7 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdh-sha2-nistp521&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ECDH (NIST curve P-521)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 5.7 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;SHA-1 は危殆化が叫ばれて久しく，既に推奨されていない。
+このブログでもあちこちで書いているが Zenn の以下の記事でまとめているので興味のある人はどうぞ。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/spiegel/articles/20201025-sayonara-sha1&#34;&gt;さようなら SHA-1&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;ECDH (Elliptic Curve Diffie–Hellman) は Diffie-Hellman 鍵交換アルゴリズムの楕円曲線版と考えてもらって構わない。&lt;/p&gt;
+&lt;p&gt;ECDH で使用する楕円曲線のうち NIST 推奨パラメータ（curve P-256/384/521）は微妙に評判が悪いようで，推奨しないところがあった。
+どうも NIST 発のアルゴリズムは使いたくないということのようだ。
+まぁ NSA 絡みで度々やらかしてるから信用がないんだろうな（笑）&lt;/p&gt;
+&lt;p&gt;これらの暗号スイートの選択と優先順位はサーバ側で設定するのでユーザが意識することはない。
+強いて言うなら古いバージョンは使うなってことくらいか。&lt;/p&gt;
+&lt;h2&gt;共通鍵暗号アルゴリズムと暗号モード&lt;/h2&gt;
+&lt;p&gt;実際の暗号化通信はセッション鍵を使った共通鍵暗号アルゴリズムで行う。
+AE (Authenticated Encryption) が有効な場合は AE が優先される&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; でサポートしてる共通鍵暗号アルゴリズムと暗号モードは以下の通り。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;名称&lt;/th&gt;
+&lt;th&gt;共通鍵暗号&lt;/th&gt;
+&lt;th&gt;暗号モード&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;推奨&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;3des-cbc&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;TripleDES&lt;/td&gt;
+&lt;td&gt;CBC&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes128-cbc&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;AES-128&lt;/td&gt;
+&lt;td&gt;CBC&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes192-cbc&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;AES-192&lt;/td&gt;
+&lt;td&gt;CBC&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes256-cbc&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;AES-256&lt;/td&gt;
+&lt;td&gt;CBC&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes128-ctr&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;AES-128&lt;/td&gt;
+&lt;td&gt;CTR&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes192-ctr&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;AES-192&lt;/td&gt;
+&lt;td&gt;CTR&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes256-ctr&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;AES-256&lt;/td&gt;
+&lt;td&gt;CTR&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes128-gcm&lt;/code&gt;@openssh.com&lt;/td&gt;
+&lt;td&gt;AES-128&lt;/td&gt;
+&lt;td&gt;GCM&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 6.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;aes256-gcm&lt;/code&gt;@openssh.com&lt;/td&gt;
+&lt;td&gt;AES-256&lt;/td&gt;
+&lt;td&gt;GCM&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 6.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;arcfour&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ARCFOUR (40?)&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;arcfour128&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ARCFOUR (128)&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;arcfour256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ARCFOUR (256)&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;blowfish-cbc&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;Blowfish (64)&lt;/td&gt;
+&lt;td&gt;CBC&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;cast128-cbc&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;CAST (128)&lt;/td&gt;
+&lt;td&gt;CBC&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;chacha20-poly1305&lt;/code&gt;@openssh.com&lt;/td&gt;
+&lt;td&gt;ChaCha20&lt;/td&gt;
+&lt;td&gt;Poly1305&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 6.5 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;ARCFOUR ってのはいわゆる RC4 ストリーム暗号のこと。
+RC4 は公式にはアルゴリズムを公開していないため “Alleged RC FOUR” の意味で ARCFOUR という名称が使われているようだ。&lt;/p&gt;
+&lt;p&gt;RC4 および CBC モードは危殆化が報告されて久しく，推奨されない。
+また TripleDES, Blowfish, CAST は暗号強度不足のため，これも推奨されない。&lt;/p&gt;
+&lt;p&gt;これらの暗号スイートの選択と優先順位はサーバ側で設定するのでユーザが意識することはない。
+ただし，優先順位としては AEAD (Authenticated Encryption with Associated Data; 認証付き暗号) として機能する GCM や ChaCha20-Poly1305 がより推奨されているらしい。&lt;/p&gt;
+&lt;h2&gt;メッセージ認証符号&lt;/h2&gt;
+&lt;p&gt;GCM や ChaCha20-Poly1305 以外の AEAD として機能しない暗号モードの場合は MAC (Message Authentication Code; メッセージ認証符号) を組み合わせる。
+組み合わせ方としては&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Encrypt-then-MAC (&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 6.2 以降)&lt;/li&gt;
+&lt;li&gt;MAC-then-encrypt&lt;/li&gt;
+&lt;li&gt;Encrypt-and-MAC&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;のいずれかを選択できるらしい。
+Encrypt-then-MAC であれば AEAD として機能する。
+&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; でサポートしてる MAC アルゴリズムとハッシュ・アルゴリズムの組み合わせは以下の通り。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;名称&lt;/th&gt;
+&lt;th&gt;MAC&lt;/th&gt;
+&lt;th&gt;ハッシュ&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;推奨&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;hmac-md5&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;HMAC&lt;/td&gt;
+&lt;td&gt;MD5&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;hmac-md5-96&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;HMAC&lt;/td&gt;
+&lt;td&gt;MD5&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;hmac-sha1&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;HMAC&lt;/td&gt;
+&lt;td&gt;SHA1&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;hmac-sha1-96&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;HMAC&lt;/td&gt;
+&lt;td&gt;SHA1&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;hmac-sha2-256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;HMAC&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 5.9 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;hmac-sha2-512&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;HMAC&lt;/td&gt;
+&lt;td&gt;SHA2-512&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 5.9 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;umac-64&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;UMAC-64&lt;/td&gt;
+&lt;td&gt;(Universal Hash)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 4.7 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;umac-128&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;UMAC-128&lt;/td&gt;
+&lt;td&gt;(Universal Hash)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 6.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;それぞれの名称の後ろに &lt;code&gt;-etm&lt;/code&gt;@openssh.com と付くと Encrypt-then-MAC で動作する。&lt;/p&gt;
+&lt;p&gt;MD5 は危殆化が報告されて久しく，推奨されない。
+SHA1 は HMAC に関しては2031年以降も “Acceptable” であるとされているが，他の暗号スイートとの組み合わせで考えると避けたほうがいいかもしれない。&lt;/p&gt;
+&lt;p&gt;UMAC は &lt;a href=&#34;https://tools.ietf.org/html/rfc4418&#34; title=&#34;RFC 4418 - UMAC: Message Authentication Code using Universal Hashing&#34;&gt;RFC 4418&lt;/a&gt; で規定されている。
+この中で&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote&gt;&lt;q&gt;Likewise, 32-, 96-, and 128-bit tags cannot be forged with more than 1/2^30, 1/2^90, and 1/2^120 probability plus the   probability of a successful attack against AES as a pseudorandom permutation&lt;/q&gt;.&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://tools.ietf.org/html/rfc4418&#34;&gt;UMAC: Message Authentication Code using Universal Hashing&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;とあるので UMAC-64 や UMAC-128 はセキュリティ強度不足なんじゃないかと思うのだが，どうだろう。&lt;/p&gt;
+&lt;p&gt;これらの暗号スイートの選択と優先順位はサーバ側で設定するのでユーザが意識することはない。&lt;/p&gt;
+&lt;h2&gt;電子署名アルゴリズムとハッシュ・アルゴリズム&lt;/h2&gt;
+&lt;p&gt;クライアント認証で公開鍵暗号を用いる場合は，ユーザ側で認証鍵ペアを生成し，公開鍵をあらかじめサーバ側と共有する必要がある。
+また公開鍵暗号を用いたクライアント認証ではハッシュ・アルゴリズムも用いる。
+&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; でサポートしてるクライアント認証の暗号スイートは以下の通り。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;名称（サーバ側）&lt;/th&gt;
+&lt;th&gt;電子署名&lt;/th&gt;
+&lt;th&gt;ハッシュ&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;推奨&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ssh-ed25519&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;EdDSA (edwards25519)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;sk-ssh-ed25519&lt;/code&gt;@openssh.com&lt;/td&gt;
+&lt;td&gt;EdDSA (edwards25519)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 8.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ssh-rsa&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;RSA&lt;/td&gt;
+&lt;td&gt;SHA1&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;廃止予定&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;rsa-sha2-256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;RSA&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 7.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;rsa-sha2-512&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;RSA&lt;/td&gt;
+&lt;td&gt;SHA2-512&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 7.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ssh-dss&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;DSA&lt;/td&gt;
+&lt;td&gt;SHA1&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdsa-sha2-nistp256&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-256)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdsa-sha2-nistp384&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-384)&lt;/td&gt;
+&lt;td&gt;SHA2-384&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdsa-sha2-nistp521&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-521)&lt;/td&gt;
+&lt;td&gt;SHA2-512&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;sk-ecdsa-sha2-nistp256&lt;/code&gt;@openssh.com&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-256)&lt;/td&gt;
+&lt;td&gt;SHA2-256&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 8.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;頭に &lt;code&gt;sk-&lt;/code&gt; が付いているものは暗号デバイスに対応している。&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;ssh-rsa&lt;/code&gt; は将来バージョンで廃止が決まっている。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; では FIPS 186-3 以降の DSA に対応してないようで，鍵長が1024ビットしか対応してない（これも NIST 嫌悪か？）。
+もちろん推奨できない。&lt;/p&gt;
+&lt;p&gt;NIST 推奨パラメータを使った ECDSA も（ECDH と同じく）微妙に評判が悪い。
+あと ECDSA は電子署名時に乱数を使うのだが，この実装をサボると脆弱性の元となる。
+実際に，2013年に発覚した&lt;a href=&#34;https://www.cryptrec.go.jp/topics/cryptrec-er-0001-2013.html&#34; title=&#34;擬似乱数生成アルゴリズム Dual_EC_DRBG について | CRYPTREC&#34;&gt;疑似乱数生成器 Dual EC DRBG の脆弱性&lt;/a&gt;では， NSA が絡んでいたこともあって，一気に ECDSA 忌避が強まったらしい。&lt;/p&gt;
+&lt;p&gt;以上はサーバ側の設定の話だが，ユーザ側では &lt;code&gt;ssh-keygen&lt;/code&gt; コマンドを使って認証鍵を生成する必要がある。&lt;/p&gt;
+&lt;p&gt;認証鍵の生成では鍵種別（&lt;code&gt;-t&lt;/code&gt; オプション）と鍵長（&lt;code&gt;-b&lt;/code&gt; オプション）を指定する。
+組み合わせは以下の通り。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;鍵種別&lt;/th&gt;
+&lt;th&gt;鍵長&lt;/th&gt;
+&lt;th&gt;アルゴリズム&lt;/th&gt;
+&lt;th style=&#34;text-align:center&#34;&gt;推奨&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;rsa&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;1024以上&lt;br&gt;（既定3072）&lt;/td&gt;
+&lt;td&gt;RSA&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;3072ビット以上推奨&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;dsa&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;1024&lt;/td&gt;
+&lt;td&gt;DSA&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ed25519&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td&gt;EdDSA (edwards25519)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ed25519-sk&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td&gt;EdDSA (edwards25519)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;span&gt;&lt;i class=&#34;fas fa-check&#34;&gt;&lt;/i&gt;&lt;/span&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 8.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdsa&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;256（既定）&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-256)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdsa&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;384&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-384)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdsa&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;521&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-521)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;ecdsa-sk&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;—&lt;/td&gt;
+&lt;td&gt;ECDSA (NIST curve P-256)&lt;/td&gt;
+&lt;td style=&#34;text-align:center&#34;&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 8.2 以降&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;これは私が盛大に勘違いしていたのだが，たとえば&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ ssh-keygen -t rsa
+Generating public/private rsa key pair.
+Enter file in which to save the key (/home/username/.ssh/id_rsa): 
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /home/username/.ssh/id_rsa
+Your public key has been saved in /home/username/.ssh/id_rsa.pub
+The key fingerprint is:
+SHA256:qufsNjgco3QZNjE4eupwQiT6mD8fr2a7nXmU3ybxFHo username@hostname
+The key&amp;#39;s randomart image is:
++---[RSA 3072]----+
+|   .             |
+|..o o            |
+|+. . o           |
+|o.. +       .    |
+|.* . +  S. . .   |
+|* + =  .o o E    |
+|o= +.+.. . *     |
+| .+ **+o. o +    |
+|   =*XOo   o     |
++----[SHA256]-----+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;てな感じに鍵を作ったときに表示される &lt;code&gt;SHA256&lt;/code&gt; は署名時ではなく，鍵指紋のハッシュ・アルゴリズムを指しているらしい。
+実際の電子署名でどのハッシュ・アルゴリズムを使うのかはサーバ-クライアント間のネゴシエーションで決まるのかな（？）&lt;/p&gt;
+&lt;h2&gt;【おまけ】 各種アルゴリズムのセキュリティ強度&lt;/h2&gt;
+&lt;p&gt;（「&lt;a href=&#34;https://text.baldanders.info/remark/2017/10/key-parameters/&#34;&gt;暗号鍵関連の各種変数について&lt;/a&gt;」より抜粋）&lt;/p&gt;
+&lt;p&gt;おまけとして各種アルゴリズムのセキュリティ強度を挙げておく。&lt;/p&gt;
+&lt;h3&gt;各種暗号アルゴリズムとセキュリティ強度の関係&lt;/h3&gt;
+&lt;p&gt;最初は種暗号アルゴリズムの鍵長とセキュリティ強度の関係を示す表。
+単位は全てビットである。&lt;/p&gt;
+&lt;p&gt;&lt;figure lang=&#34;en&#34;&gt;
+&lt;style&gt;
+main table.nist2 th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.nist2 td  {
+  vertical-align:middle;
+  text-align: center;
+}
+&lt;/style&gt;
+&lt;table class=&#34;nist2&#34;&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Security&lt;br&gt;Strength&lt;/th&gt;
+&lt;th&gt;Symmetric&lt;br&gt; key&lt;br&gt; algorithms&lt;/th&gt;
+&lt;th&gt;FFC&lt;br&gt;(DSA, DH,&lt;br&gt;MQV)&lt;/th&gt;
+&lt;th&gt;IFC&lt;br&gt;(RSA)&lt;/th&gt;
+&lt;th&gt;ECC&lt;br&gt;(ECDSA,&lt;br&gt;EdDSA, DH,&lt;br&gt;MQV)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt; $\le 80$ &lt;/td&gt;&lt;td&gt;2TDEA&lt;/td&gt;&lt;td&gt; $L=1024$ &lt;br&gt; $N=160$ &lt;/td&gt;&lt;td&gt; $k=1024$ &lt;/td&gt; &lt;td&gt; $f = 160\text{ - }223$ &lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt; $112$ &lt;/td&gt;&lt;td&gt;3TDEA&lt;/td&gt;&lt;td&gt; $L=2048$ &lt;br&gt; $N=224$ &lt;/td&gt;&lt;td&gt;$k=2048$&lt;/td&gt; &lt;td&gt;$f = 224\text{ - }255$&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt; $128$ &lt;/td&gt;&lt;td&gt;AES-128&lt;/td&gt;&lt;td&gt; $L=3072$ &lt;br&gt; $N=256$ &lt;/td&gt;&lt;td&gt;$k=3072$&lt;/td&gt; &lt;td&gt;$f = 256\text{ - }383$&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt; $192$ &lt;/td&gt;&lt;td&gt;AES-192&lt;/td&gt;&lt;td&gt; $L=7680$ &lt;br&gt; $N=384$ &lt;/td&gt;&lt;td&gt;$k=7680$&lt;/td&gt; &lt;td&gt;$f = 384\text{ - }511$&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt; $256$ &lt;/td&gt;&lt;td&gt;AES-256&lt;/td&gt;&lt;td&gt; $L=15360$ &lt;br&gt; $N=512$ &lt;/td&gt;&lt;td&gt;$k=15360$&lt;/td&gt;&lt;td&gt;$f=512+$&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;&lt;div&gt;Comparable security strengths of symmetric block cipher and asymmetric-key algorithms (via &lt;q&gt;&lt;a href=&#39;https://doi.org/10.6028/NIST.SP.800-57pt1r5&#39;&gt;SP 800-57 Part 1 Revision 5 &lt;sup&gt;&lt;i class=&#39;far fa-file-pdf&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/q&gt; 5.6.1.1)&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt; &lt;!-- 要 MathJax --&gt;&lt;/p&gt;
+&lt;h3&gt;ハッシュ・アルゴリズムとセキュリティ強度の関係&lt;/h3&gt;
+&lt;p&gt;次はハッシュ・アルゴリズムとセキュリティ強度の関係を示す表。&lt;/p&gt;
+&lt;p&gt;&lt;figure lang=&#39;en&#39;&gt;
+&lt;style&gt;
+main table.nist3 th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.nist3 td  {
+   
+  text-align: center;
+}
+&lt;/style&gt;
+&lt;table class=&#34;nist3&#34;&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Security &lt;br&gt;Strength&lt;/th&gt;
+&lt;th&gt;Digital Signatures and Other&lt;br&gt;Applications Requiring Collision&lt;br&gt;Resistance&lt;/th&gt;
+&lt;th&gt;HMAC, KMAC,&lt;br&gt;Key Derivation Functions,&lt;br&gt;Random Bit Generation&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt; $\le 8$0&lt;/td&gt;
+&lt;td&gt;SHA-1&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td&gt;$112$&lt;/td&gt;
+&lt;td&gt;SHA-224, SHA-512/224, SHA3-224&lt;/td&gt;
+&lt;td&gt;&amp;nbsp;&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td&gt;$128$&lt;/td&gt;
+&lt;td&gt;SHA-256, SHA-512/256, SHA3-256&lt;/td&gt;
+&lt;td&gt;SHA-1, KMAC128&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td&gt;$192$&lt;/td&gt;
+&lt;td&gt;SHA-384, SHA3-384&lt;/td&gt;
+&lt;td&gt;SHA-224, SHA-512/224, SHA3-224&lt;/td&gt;
+&lt;/tr&gt;&lt;tr&gt;
+&lt;td&gt;$\ge 256$&lt;/td&gt;
+&lt;td&gt;SHA-512, SHA3-512&lt;/td&gt;
+&lt;td&gt;SHA-256, SHA-512/256, SHA-384, SHA-512, SHA3-256, SHA3-384, SHA3-512, KMAC256&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;&lt;div&gt;Maximum security strengths for hash and hash-based functions (via &lt;q&gt;&lt;a href=&#39;https://doi.org/10.6028/NIST.SP.800-57pt1r5&#39;&gt;SP 800-57 Part 1 Revision 5 &lt;sup&gt;&lt;i class=&#39;far fa-file-pdf&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/q&gt; 5.6.1.2)&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt; &lt;!-- 要 MathJax --&gt;&lt;/p&gt;
+&lt;h3&gt;セキュリティ強度と有効期限&lt;/h3&gt;
+&lt;p&gt;こちらはセキュリティ強度の有効期限を表したものだ。&lt;/p&gt;
+&lt;p&gt;&lt;figure lang=&#39;en&#39;&gt;
+&lt;style&gt;
+main table.nist4 th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.nist4 td  {
+  vertical-align:middle;
+  text-align: center;
+}
+&lt;/style&gt;
+&lt;table class=&#34;nist4&#34;&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th colspan=&#39;2&#39;&gt;Security Strength&lt;/th&gt;
+&lt;th&gt;Through&lt;br&gt; 2030&lt;/th&gt;
+&lt;th&gt;2031 and&lt;br&gt; Beyond&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;&lt;td rowspan=&#39;2&#39;&gt;$\lt 112$&lt;/td&gt;&lt;td&gt;Applying&lt;/td&gt;                       &lt;td colspan=&#39;2&#39;&gt;Disallowed&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;                              &lt;td&gt;Processing&lt;/td&gt;                     &lt;td colspan=&#39;2&#39;&gt;Legacy use&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td rowspan=&#39;2&#39;&gt;$112$&lt;/td&gt;    &lt;td&gt;Applying&lt;/td&gt;                       &lt;td rowspan=&#39;2&#39;&gt;Acceptable&lt;/td&gt;&lt;td&gt;Disallowed&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;                              &lt;td&gt;Processing&lt;/td&gt;                                                    &lt;td&gt;Legacy use&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;$128$&lt;/td&gt;                &lt;td rowspan=&#39;3&#39;&gt;Applying/Processing&lt;/td&gt;&lt;td&gt;Acceptable&lt;/td&gt;&lt;td&gt;Acceptable&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;$192$&lt;/td&gt;                                                        &lt;td&gt;Acceptable&lt;/td&gt;&lt;td&gt;Acceptable&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;$256$&lt;/td&gt;                                                        &lt;td&gt;Acceptable&lt;/td&gt;&lt;td&gt;Acceptable&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;figcaption&gt;&lt;div&gt;Security-strength time frames (via &lt;q&gt;&lt;a href=&#39;https://doi.org/10.6028/NIST.SP.800-57pt1r5&#39;&gt;SP 800-57 Part 1 Revision 5 &lt;sup&gt;&lt;i class=&#39;far fa-file-pdf&#39;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/q&gt; 5.6.3)&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt; &lt;!-- 要 MathJax --&gt;&lt;/p&gt;
+&lt;p&gt;各用語はそれぞれ&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&#34;text-align:left&#34;&gt;用語&lt;/th&gt;
+&lt;th style=&#34;text-align:left&#34;&gt;意味&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;Applying&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;適用&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;Processing&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;処理&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;Acceptable&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;許容&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;Legacy use&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;許容（レガシー使用のみ）&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;Disallowed&lt;/td&gt;
+&lt;td style=&#34;text-align:left&#34;&gt;禁止&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;という意味だ。
+例を挙げると，セキュリティ強度112ビットの暗号スイート（Cipher Suites）を適用する場合は2030年までは許容するけど2031年以降は禁止。
+すでに暗号化されているデータを復号したい場合でも2031年以降はレガシー・システムしか許容しない，ということになる。&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://tex2e.github.io/blog/crypto/chacha20poly1305&#34;&gt;ChaCha20-Poly1305の解説と実装 | 晴耕雨読&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://support.conoha.jp/v/openssh/&#34;&gt;OpenSSHの認証に証明書を使う方法｜ConoHa VPSサポート&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51ZRZ62WKCL._SL160_.jpg&#34; width=&#34;108&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4314009071?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;暗号化 プライバシーを救った反乱者たち&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;スティーブン・レビー (著), 斉藤 隆央 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;紀伊國屋書店 2002-02-16&lt;/dd&gt;
+    &lt;dd&gt;単行本&lt;/dd&gt;
+    &lt;dd&gt;4314009071 (ASIN), 9784314009072 (EAN), 4314009071 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-03-09&#34;&gt;2015-03-09&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 暗号化 プライバシーを救った反乱者たち --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg&#34; width=&#34;113&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;暗号技術入門 第3版　秘密の国のアリス&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;結城 浩 (著)&lt;/dd&gt;
+    &lt;dd&gt;SBクリエイティブ 2015-08-25 (Release 2015-09-17)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B015643CPE (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2015-09-20&#34;&gt;2015-09-20&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 暗号技術入門 第3版 --&gt;
+</content>
+	</entry><entry>
 		<title>gpg-agent の設定： GnuPG in Ubuntu</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/openpgp/gpg-agent-in-ubuntu/" />
 		<id>tag:text.Baldanders.info,2021-01-10:/openpgp/gpg-agent-in-ubuntu/</id>
@@ -783,11 +1516,11 @@ APT で &lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt; を�
 &lt;/section&gt;
 </content>
 	</entry><entry>
-		<title>OpenSSH 鍵をアップグレードする（さようなら SHA-1）</title>
+		<title>OpenSSH 鍵をアップグレードする【2020-01-11 改訂】</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2020/06/upgrade-openssh-key/" />
 		<id>tag:text.Baldanders.info,2020-06-01:/remark/2020/06/upgrade-openssh-key/</id>
 		<published>2020-06-01T07:12:32+00:00</published>
-		<updated>2021-01-10T10:28:57+00:00</updated>
+		<updated>2021-01-11T07:31:32+00:00</updated>
 		<summary>どうせ鍵を新調するのなら楕円曲線暗号で構成するのがいいよね。</summary>
 		<author>
 			<name>Spiegel</name>
@@ -797,7 +1530,8 @@ APT で &lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt; を�
 	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
 
 
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;2020-05-27 に &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 8.3 がリリースされた。&lt;/p&gt;
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;strong&gt;【2020-01-11 改訂】&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;2020-05-27 に &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; 8.3 がリリースされた。&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://lwn.net/Articles/821544/&#34;&gt;OpenSSH 8.3 released (and ssh-rsa deprecation notice) [LWN.net]&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
@@ -806,9 +1540,16 @@ APT で &lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt; を�
 &lt;blockquote&gt;&lt;q&gt;It is now possible to perform chosen-prefix attacks against the SHA-1 algorithm for less than USD$50K. For this reason, we will be disabling the “ssh-rsa” public key signature algorithm by default in a near-future release&lt;/q&gt;.&lt;/blockquote&gt;
 &lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://lwn.net/Articles/821544/&#34;&gt;OpenSSH 8.3 released (and ssh-rsa deprecation notice)&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
 &lt;/figure&gt;
-&lt;p&gt;と書かれていて&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;，クライアント側はそろそろ古い RSA 鍵から交換したほうがよさそうである。
-もっとも最近のバージョン&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; で作った鍵であれば特に問題ないようだ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ ssh-keygen -t rsa
+&lt;p&gt;と書かれていてた&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+といっても，これはサーバ側の設定の話だそうでクライアントには関係ないそうだ（&lt;a href=&#34;https://github.com/spiegel-im-spiegel/github-pages-env/discussions/85&#34;&gt;フィードバック&lt;/a&gt;感謝）。&lt;/p&gt;
+&lt;!--
+クライアント側はそろそろ古い RSA 鍵から交換したほうがよさそうである。
+もっとも最近のバージョン[^sha1b] で作った鍵であれば特に問題ないようだ。
+
+[^sha1b]: ちなみに，私は2011年に作った RSA 鍵を使っているが，ハッシュ・アルゴリズムは SHA256 だった。少なくとも10年以内に作った鍵なら問題なさそう？ あとは鍵長かねぇ。
+
+```text
+$ ssh-keygen -t rsa
 Generating public/private rsa key pair.
 Enter file in which to save the key (/home/username/.ssh/id_rsa): 
 Enter passphrase (empty for no passphrase): 
@@ -817,7 +1558,7 @@ Your identification has been saved in /home/username/.ssh/id_rsa
 Your public key has been saved in /home/username/.ssh/id_rsa.pub
 The key fingerprint is:
 SHA256:qufsNjgco3QZNjE4eupwQiT6mD8fr2a7nXmU3ybxFHo username@hostname
-The key&amp;#39;s randomart image is:
+The key&#39;s randomart image is:
 +---[RSA 3072]----+
 |   .             |
 |..o o            |
@@ -829,9 +1570,13 @@ The key&amp;#39;s randomart image is:
 | .+ **+o. o +    |
 |   =*XOo   o     |
 +----[SHA256]-----+
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ハッシュ・アルゴリズムが SHA256 以上になっているか，がポイント。&lt;/p&gt;
-&lt;p&gt;でも，まぁ，どうせ鍵を新調するのなら楕円曲線暗号（Elliptic Curve Cryptography; ECC）で構成するのがいいよね。
-ちうわけで，ECC 鍵を作って登録するところまでやってみる。
+```
+
+ハッシュ・アルゴリズムが SHA256 以上になっているか，がポイント。
+--&gt;
+&lt;p&gt;もし2048ビット以下の古い RSA 鍵を使ってるなら替えどきかな。
+で，どうせ鍵を新調するのなら楕円曲線暗号（Elliptic Curve Cryptography; ECC）で構成するのがいいよね。&lt;/p&gt;
+&lt;p&gt;ちうわけで，ECC 鍵を作って登録するところまでやってみる。
 ちゃんとメモっておかないと忘れるので（笑）&lt;/p&gt;
 &lt;h2&gt;前提条件【2021-01-09 変更】&lt;/h2&gt;
 &lt;p&gt;今回は &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; 環境下での作業とし鍵管理を &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で行うものとする。
@@ -870,7 +1615,7 @@ The key&amp;#39;s randomart image is:
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで作成された &lt;code&gt;id_ecdsa&lt;/code&gt; および &lt;code&gt;id_ecdsa.pub&lt;/code&gt; ファイルが鍵ファイルである。
 ちなみに &lt;code&gt;id_ecdsa&lt;/code&gt; ファイルには秘密鍵， &lt;code&gt;id_ecdsa.pub&lt;/code&gt; ファイルには公開鍵が格納されている。&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;-t&lt;/code&gt; オプションで鍵種別を， &lt;code&gt;-b&lt;/code&gt; で鍵長（ビット数）をセットする。
-鍵種別と鍵長の組み合わせと，それぞれに対するセキュリティ強度（ビット数）は以下の通り&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+鍵種別と鍵長の組み合わせと，それぞれに対するセキュリティ強度（ビット数）は以下の通り&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
 &lt;div&gt;
 &lt;figure&gt;
 &lt;style&gt;
@@ -941,7 +1686,7 @@ main table.sshkeys td  {
 &lt;/div&gt;
 &lt;p&gt;この組み合わせの（&lt;code&gt;dsa&lt;/code&gt; 以外の）いずれかであれば2031年以降も問題なく使える。
 なお &lt;code&gt;ecdsa-sk&lt;/code&gt; および &lt;code&gt;ed25519-sk&lt;/code&gt; は暗号デバイスに登録する際に使うらしい（今回は割愛する）。&lt;/p&gt;
-&lt;p&gt;余談だが楕円曲線 &lt;code&gt;ed25519&lt;/code&gt; に対応する電子署名アルゴリズムは EdDSA と呼ばれ &lt;a href=&#34;https://tools.ietf.org/html/rfc8032&#34; title=&#34;RFC 8032 - Edwards-Curve Digital Signature Algorithm (EdDSA)&#34;&gt;RFC 8032&lt;/a&gt; で規定されている&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。
+&lt;p&gt;余談だが楕円曲線 &lt;code&gt;ed25519&lt;/code&gt; に対応する電子署名アルゴリズムは EdDSA と呼ばれ &lt;a href=&#34;https://tools.ietf.org/html/rfc8032&#34; title=&#34;RFC 8032 - Edwards-Curve Digital Signature Algorithm (EdDSA)&#34;&gt;RFC 8032&lt;/a&gt; で規定されている&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。
 なんで鍵種別を &lt;code&gt;eddsa&lt;/code&gt; としなかったのかは知らない。
 紛らわしかったのかな？&lt;/p&gt;
 &lt;h3&gt;楕円曲線と鍵長&lt;/h3&gt;
@@ -955,7 +1700,7 @@ main table.sshkeys td  {
 &lt;/div&gt;
 &lt;p&gt;$(e, n)$ のセットが公開鍵で， $n$ のサイズが鍵長に相当する。
 実際の計算はともかく，感覚としては分かりやすいよね。&lt;/p&gt;
-&lt;p&gt;ECC の場合は暗号化の前に，まずベースとなる楕円曲線の（素数 $q$ で決められる）素体（prime fields）を決めなければならない&lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。
+&lt;p&gt;ECC の場合は暗号化の前に，まずベースとなる楕円曲線の（素数 $q$ で決められる）素体（prime fields）を決めなければならない&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。
 これは以下の式で表される。&lt;/p&gt;
 &lt;div class=&#34;box&#34;&gt;
 \[
@@ -963,7 +1708,7 @@ main table.sshkeys td  {
 \]
 &lt;/div&gt;
 &lt;p&gt;この素体上の有理点の数（位数）を $\#E$ とした時の $\#E$ のサイズが鍵長に相当する。
-$(a,b,q)$ といったパラメータを眺めただけでは鍵長が分からないというのが面倒臭い感じである&lt;sup id=&#34;fnref:6&#34;&gt;&lt;a href=&#34;#fn:6&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;6&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+$(a,b,q)$ といったパラメータを眺めただけでは鍵長が分からないというのが面倒臭い感じである&lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
 &lt;p&gt;そこで ECC の場合は楕円曲線を表すパラメータのセットが標準化されている。
 &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; の場合は &lt;code&gt;nistp256&lt;/code&gt;, &lt;code&gt;nistp384&lt;/code&gt;, &lt;code&gt;nistp521&lt;/code&gt;, &lt;code&gt;ed25519&lt;/code&gt; といった楕円曲線名に対応している。
 つまり楕円曲線名から楕円曲線の種類を特定し，そこから鍵長も分かる，というわけだ。&lt;/p&gt;
@@ -1018,13 +1763,13 @@ $ chamod 600 ~/.ssh/authorized_keys
 &lt;p&gt;&lt;a href=&#34;https://japan.zdnet.com/article/35154545/&#34;&gt;OpenSSH、将来のリリースでssh-rsa公開鍵の署名アルゴリズムをデフォルトで無効に - ZDNet Japan&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://gist.github.com/artizirk/d09ce3570021b0f65469cb450bee5e29&#34;&gt;OpenPGP SSH access with Yubikey and GnuPG · GitHub&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
 &lt;p&gt;&lt;a href=&#34;https://support.conoha.jp/v/openssh/&#34;&gt;OpenSSHの認証に証明書を使う方法｜ConoHa VPSサポート&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
 &lt;p&gt;&lt;a href=&#34;https://qiita.com/aat00000/items/a7973b104be9bfd3bb5c&#34;&gt;SSHのCA認証 - Qiita&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://gist.github.com/artizirk/d09ce3570021b0f65469cb450bee5e29&#34;&gt;OpenPGP SSH access with Yubikey and GnuPG · GitHub&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
 &lt;p&gt;&lt;a href=&#34;https://developers.yubico.com/PIV/Guides/Securing_SSH_with_OpenPGP_or_PIV.html&#34;&gt;Securing SSH with OpenPGP or PIV&lt;/a&gt;&lt;/p&gt;
@@ -1079,19 +1824,16 @@ $ chamod 600 ~/.ssh/authorized_keys
 &lt;p&gt;実は同様の問題は &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; でも指摘されていて，半年前にリリースされた 2.2.18 で対応済みである（&lt;a href=&#34;https://text.baldanders.info/release/2019/11/gnupg-2_2_18-is-released/&#34;&gt;GnuPG 2.2.18 リリース： さようなら SHA-1&lt;/a&gt;） &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;ちなみに，私は2011年に作った RSA 鍵を使っているが，ハッシュ・アルゴリズムは SHA256 だった。少なくとも10年以内に作った鍵なら問題なさそう？ あとは鍵長かねぇ。 &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/github-pages-env/discussions/85&#34;&gt;フィードバック&lt;/a&gt;で教えていただいたが， &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; は FIPS 186-3 以降の DSA に対応していないそうで，1024ビットの鍵長しか選択できないらしい。なので，最近の &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; のデフォルト設定では DSA を無効にしているそうな。情報感謝です。あと &lt;code&gt;ecdsa-sk&lt;/code&gt; では鍵長の指定はできない（無視される）ようだ。256ビット（&lt;code&gt;nistp256&lt;/code&gt;）固定ってことかな？ &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://github.com/spiegel-im-spiegel/github-pages-env/discussions/85&#34;&gt;フィードバック&lt;/a&gt;で教えていただいたが， &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; は FIPS 186-3 以降の DSA に対応していないそうで，1024ビットの鍵長しか選択できないらしい。なので，最近の &lt;a href=&#34;https://www.openssh.com/&#34;&gt;OpenSSH&lt;/a&gt; のデフォルト設定では DSA を無効にしているそうな。情報感謝です。あと &lt;code&gt;ecdsa-sk&lt;/code&gt; では鍵長の指定はできない（無視される）ようだ。256ビット（&lt;code&gt;nistp256&lt;/code&gt;）固定ってことかな？ &lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;ed25519&lt;/code&gt; (edwards25519) は &lt;a href=&#34;http://cr.yp.to/ecdh.html&#34; title=&#34;Curve25519: high-speed elliptic-curve cryptography&#34;&gt;Curve25519&lt;/a&gt; と双有理同値な楕円曲線で，鍵長も  &lt;a href=&#34;http://cr.yp.to/ecdh.html&#34; title=&#34;Curve25519: high-speed elliptic-curve cryptography&#34;&gt;Curve25519&lt;/a&gt; と同じく256ビット（セキュリティ強度128ビット）と見積もられている。ちなみに &lt;a href=&#34;http://cr.yp.to/ecdh.html&#34; title=&#34;Curve25519: high-speed elliptic-curve cryptography&#34;&gt;Curve25519&lt;/a&gt; は ECDH 用の楕円曲線およびそのライブラリで，公有（public domain）のソフトウェアとして公開されている。また &lt;a href=&#34;https://text.baldanders.info/remark/2020/06/eddsa/&#34; title=&#34;Edwards-curve Digital Signature Algorithm&#34;&gt;EdDSA は FIPS 186-5 に組み込まれる予定&lt;/a&gt;になっていて，そうなれば正式に NIST 標準となる。 &lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;&lt;code&gt;ed25519&lt;/code&gt; (edwards25519) は &lt;a href=&#34;http://cr.yp.to/ecdh.html&#34; title=&#34;Curve25519: high-speed elliptic-curve cryptography&#34;&gt;Curve25519&lt;/a&gt; と双有理同値な楕円曲線で，鍵長も  &lt;a href=&#34;http://cr.yp.to/ecdh.html&#34; title=&#34;Curve25519: high-speed elliptic-curve cryptography&#34;&gt;Curve25519&lt;/a&gt; と同じく256ビット（セキュリティ強度128ビット）と見積もられている。ちなみに &lt;a href=&#34;http://cr.yp.to/ecdh.html&#34; title=&#34;Curve25519: high-speed elliptic-curve cryptography&#34;&gt;Curve25519&lt;/a&gt; は ECDH 用の楕円曲線およびそのライブラリで，公有（public domain）のソフトウェアとして公開されている。また &lt;a href=&#34;https://text.baldanders.info/remark/2020/06/eddsa/&#34; title=&#34;Edwards-curve Digital Signature Algorithm&#34;&gt;EdDSA は FIPS 186-5 に組み込まれる予定&lt;/a&gt;になっていて，そうなれば正式に NIST 標準となる。 &lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;素体ではなく「標数2の体（binary fields）」を使う場合もあるが，ここでは割愛する。 &lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:5&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;素体ではなく「標数2の体（binary fields）」を使う場合もあるが，ここでは割愛する。 &lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:6&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;楕円曲線と楕円曲線暗号については結城浩さんの『&lt;a href=&#34;https://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版&lt;/a&gt;』の付録に比較的分かりやすい解説が載っている。同じく結城浩さんの『&lt;a href=&#34;https://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/&#34;&gt;数学ガール ガロア理論&lt;/a&gt;』が何となく分かれば楕円曲線についても何となく分かると思う。大丈夫。私も何となくしか分かっていない（笑） &lt;a href=&#34;#fnref:6&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;楕円曲線と楕円曲線暗号については結城浩さんの『&lt;a href=&#34;https://www.amazon.co.jp/exec/obidos/ASIN/B015643CPE/baldandersinf-22/&#34;&gt;暗号技術入門 第3版&lt;/a&gt;』の付録に比較的分かりやすい解説が載っている。同じく結城浩さんの『&lt;a href=&#34;https://www.amazon.co.jp/exec/obidos/ASIN/B00L0PDMK4/baldandersinf-22/&#34;&gt;数学ガール ガロア理論&lt;/a&gt;』が何となく分かれば楕円曲線についても何となく分かると思う。大丈夫。私も何となくしか分かっていない（笑） &lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/section&gt;
@@ -1631,126 +2373,6 @@ Pro 版であれば4.08USD/月のサブスクリプション制で利用でき�
 &lt;ol&gt;
 &lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
 &lt;p&gt;JRE のインストールについては&lt;a href=&#34;https://text.baldanders.info/remark/2019/03/using-ubuntu/#jdk&#34;&gt;「Ubuntu で遊ぶ」の OpenJDK インストールの項&lt;/a&gt;を参照のこと。 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/section&gt;
-</content>
-	</entry><entry>
-		<title>Ubuntu 19.04 へのアップグレードを試す</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2019/04/upgrade-ubuntu-19_04/" />
-		<id>tag:text.Baldanders.info,2019-04-20:/remark/2019/04/upgrade-ubuntu-19_04/</id>
-		<published>2019-04-20T10:14:30+00:00</published>
-		<updated>2020-06-06T11:40:22+00:00</updated>
-		<summary>こういうアップグレードとかやると，いかに Windows がシステムとして駄目か分かるよな。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; 19.04 がリリースされたようだ。&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2019/04/ubuntu-1904-15-ubuntu-1904.html&#34;&gt;Ubuntu 19.04 その15 - Ubuntu 19.04がリリースされました・ディスクイメージのダウンロード - kledgeb&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;私が検証中の仮想環境&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt; でもソフトウェアの更新&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; 後に以下のメッセージが出た。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-esign.png&#34;&gt;&lt;img src=&#34;./upgrade-sign.png&#34; srcset=&#34;./upgrade-sign.png 645w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;折角なのでアップグレードを試してみるとするか（仕事用のマシンじゃないので LTS バージョンを使う気は更々ない）。&lt;/p&gt;
-&lt;h2&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; のアップグレード&lt;/h2&gt;
-&lt;p&gt;「アップグレード」ボタンを押すとリリースノートが表示される。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-relnote.png&#34;&gt;&lt;img src=&#34;./upgrade-relnote.png&#34; srcset=&#34;./upgrade-relnote.png 600w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;文章中の空白文字が詰められていて「なんじゃこりゃ」な画面だが（何かの署名かと思ったぜ&lt;code&gt;w&lt;/code&gt;），気にせず「アップグレード」ボタンを押す。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-prepare.png&#34;&gt;&lt;img src=&#34;./upgrade-prepare.png&#34; srcset=&#34;./upgrade-prepare.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;これでしばらく経過を眺めていると以下のワーニングが出る。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-warning1.png&#34;&gt;&lt;img src=&#34;./upgrade-warning1.png&#34; srcset=&#34;./upgrade-warning1.png 1533w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;どうも &lt;a href=&#34;http://www.ubuntulinux.jp/&#34;&gt;Ubuntu Japanese Team&lt;/a&gt; や他のサードパーティのリポジトリは外されてしまうらしい。
-まぁ，これはしょうがない。
-&lt;a href=&#34;#srclist&#34;&gt;あとで繋げばいいし&lt;/a&gt;。&lt;/p&gt;
-&lt;p&gt;処理を続けると確認画面が表示されるので追加・変更・削除されるソフトウェアを確認しておく。
-どうやら &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt;, &lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt;, &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; といったセキュリティ関連のツールもアップグレードされるようだ。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-confirm2.png&#34;&gt;&lt;img src=&#34;./upgrade-confirm2.png&#34; srcset=&#34;./upgrade-confirm2.png 1026w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-confirm3.png&#34;&gt;&lt;img src=&#34;./upgrade-confirm3.png&#34; srcset=&#34;./upgrade-confirm3.png 1026w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;確認して問題ないようなら「アップグレードを開始」ボタンを押して処理を続行する。
-アップグレードは時間がかかるのでお茶でも淹れてこよう。&lt;/p&gt;
-&lt;p&gt;途中でワーニングが出たりもしたが&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-warning2.png&#34;&gt;&lt;img src=&#34;./upgrade-warning2.png&#34; srcset=&#34;./upgrade-warning2.png 1190w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;気にせず最後まで終わらせる。
-終わったら（再起動しろとは言われなかったが）一応再起動しておく。&lt;/p&gt;
-&lt;p&gt;再起動後，気になっていたセキュリティ・ツールのバージョンをチェックしてみた。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --version
-gpg (GnuPG) 2.2.12
-libgcrypt 1.8.4
-Copyright (C) 2018 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-Home: /home/username/.gnupg
-サポートしているアルゴリズム:
-公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
-暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256,
-      TWOFISH, CAMELLIA128, CAMELLIA192, CAMELLIA256
-ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
-圧縮: 無圧縮, ZIP, ZLIB, BZIP2
-
-$ openssl version
-OpenSSL 1.1.1b  26 Feb 2019
-
-$ ssh -V
-OpenSSH_7.9p1 Ubuntu-10, OpenSSL 1.1.1b  26 Feb 2019
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;おおっ。
-&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; はまだちょっと古いが &lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt; と &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; は最新になっている。
-まぁこのくらいなら許容範囲だろう&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;h2 id=&#34;srclist&#34;&gt;サードパーティのリポジトリを再び有効にする&lt;/h2&gt;
-&lt;p&gt;アップグレード時に外されたサードパーティのリポジトリをチェックしておく。
-「ソフトウェアとアップデート」を開いて「他のソフトウェア」タブを見てみる。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./upgrade-srclist.png&#34;&gt;&lt;img src=&#34;./upgrade-srclist.png&#34; srcset=&#34;./upgrade-srclist.png 972w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;うん，外れてるね。
-&lt;a href=&#34;https://git-scm.com/&#34;&gt;Git&lt;/a&gt; と &lt;a href=&#34;https://www.mono-project.com/&#34;&gt;Mono&lt;/a&gt; のリポジトリは有効にしておく。
-&lt;a href=&#34;http://www.ubuntulinux.jp/&#34;&gt;Ubuntu Japanese Team&lt;/a&gt; のリポジトリも有効にしておけばいいかな。&lt;/p&gt;
-&lt;p&gt;これで &lt;code&gt;apt update&lt;/code&gt; と，必要に応じて &lt;code&gt;apt upgrade&lt;/code&gt; や &lt;code&gt;apt autoremove&lt;/code&gt; を行えば OK。&lt;/p&gt;
-&lt;h2&gt;しかし，なんだな。&lt;/h2&gt;
-&lt;p&gt;こういうアップグレードとかやると，いかに Windows がシステムとして駄目か分かるよな。
-パソコンでもスマホのような携帯端末でも定期的にアップデートされることを前提にハードウェアもソフトウェアも構成しないと駄目だということだよねぇ。&lt;/p&gt;
-&lt;p&gt;いまや Office ツールは Microsoft の独占というほどでもないし，大抵のことは Web インタフェースがあるのでブラウザがあればなんとかなる。
-と考えるとやはり Windows を捨てる選択は正解だなと改めて思う。
-他人に薦められるかと言えば，それは別問題だが（笑）&lt;/p&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2019/04/ubuntu-1810-172-ubuntu-1904.html&#34;&gt;Ubuntu 18.10 その172 - Ubuntu 19.04へアップグレードするには・アップグレードの注意事項 - kledgeb&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;http://www.ubuntulinux.jp/News/ubuntu1904-ja-remix&#34;&gt;Ubuntu 19.04 日本語 Remix リリース | Ubuntu Japanese Team&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://linuxfan.info/ubuntu-19-04-basic-settings&#34;&gt;Ubuntu 19.04のインストール直後にやっておきたいことまとめ | LFI&lt;/a&gt; : 「言語サポートの設定」はやっておいたほうがいいかも&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/install-git-from-ppa/&#34;&gt;PPA から Git をインストールする&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2019/04/mono-in-ubuntu/&#34;&gt;Ubuntu に Mono を導入する&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h3&gt;既に &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; 19.10 の話題が&lt;/h3&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2019/04/ubuntu-1910-2-libreofficesnap.html&#34;&gt;Ubuntu 19.10 その2 - LibreOfficeをSnapで提供する提案 - kledgeb&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2019/04/ubuntu-1910-3-geary.html&#34;&gt;Ubuntu 19.10 その3 - デフォルトのメールクライアントをGearyに変更する提案 - kledgeb&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;余談だが &lt;a href=&#34;https://www.virtualbox.org/&#34; title=&#34;Oracle VM VirtualBox&#34;&gt;VirtualBox&lt;/a&gt; でも 6.0.6 がリリースされている。アップデートは計画的に。 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; では「ソフトウェアの更新」で GUI によるソフトウェアのアップデートが可能である。また「ソフトウェアとアップデート」を使って更新の自動化や LivePatch の設定も可能だ。 &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;あとで確認したが，ちゃんと最新版が入ってるっぽい。 &lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.openssl.org/&#34;&gt;OpenSSL&lt;/a&gt; は 1.1.1 系の最新， &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; は 7.9 系の最新になっていた。 Facebook の TL で教えてもらったが， &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; はパッケージマネージャでパッケージの完全性検証に使われるため特に保守的な管理になっているらしい。まぁ脆弱性や不具合等は随時バックポートされているそうなので，バージョン番号であまり神経質にならないほうがいいのかも知れない。ただ &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の動向を追いかけている身としては何とか改善したい。でもそれは後々のお楽しみということで。 &lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/section&gt;
