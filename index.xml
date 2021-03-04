@@ -2,13 +2,135 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2021-02-28:/</id>
-	<updated>2021-03-02T21:31:16+00:00</updated>
+	<id>tag:text.Baldanders.info,2021-03-04:/</id>
+	<updated>2021-03-04T10:27:49+00:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>特殊形式による式評価について</title>
+		<category term="golang" label="golang" scheme="https://text.baldanders.info/golang/" />
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/special-forms/" />
+		<id>tag:text.Baldanders.info,2021-03-04:/golang/special-forms/</id>
+		<published>2021-03-04T10:27:13+00:00</published>
+		<updated>2021-03-04T10:27:49+00:00</updated>
+		<summary>Go の言語仕様を読みましょう（笑）</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://zenn.dev/dqneo/articles/436bb59d565be7&#34; title=&#34;Go言語における式の評価文脈を理解する&#34;&gt;元ネタが Zenn の記事&lt;/a&gt;だし小ネタだし，どちらで書こうか悩んだが，今まで書いたことがない切り口な気がするので，こっち側で。&lt;/p&gt;
+&lt;p&gt;いきなりだが，以下のコードを起点に話を始めよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Alice&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;18&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Teles&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Alice&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;])&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// Output
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// 18
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このコードをみて分かるように，インデックス式 &lt;code&gt;ageMap[x]&lt;/code&gt; の評価結果は &lt;code&gt;uint&lt;/code&gt; 型になっている（インデックス値が存在しない場合はゼロ値がセットされる）。
+まぁ，当たり前だよね。&lt;/p&gt;
+&lt;p&gt;ところが &lt;code&gt;ageMap[x]&lt;/code&gt; の評価結果を &lt;code&gt;(T, bool)&lt;/code&gt; の組（tuple）で受けることもできるのだ&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+これによってコードを&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Alice&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;18&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Teles&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;age&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ok&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Selene&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ok&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;age&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;unknown&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// Output
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// unknown
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と書き換えることでき， &lt;code&gt;ageMap[x]&lt;/code&gt; の評価に失敗した際の挙動を記述できる。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; の&lt;a href=&#34;https://golang.org/ref/spec&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;言語仕様&lt;/a&gt;では，これを「特殊形式（special form）」と呼んでいる（日本語が怪しいのはご容赦）。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;言語仕様&lt;/a&gt;を眺めてみると，この特殊形式が適用可能なのは以下の3つのみのようだ。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&#34;text-align:right&#34;&gt;#&lt;/th&gt;
+&lt;th&gt;Expressions&lt;/th&gt;
+&lt;th&gt;Normal Form&lt;/th&gt;
+&lt;th&gt;Special Form&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;1&lt;/td&gt;
+&lt;td&gt;Index Expression on Map&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo := bar[x]&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo, ok := bar[x]&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;2&lt;/td&gt;
+&lt;td&gt;Type Assertion&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo := bar.(T)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo, ok := bar.(T)&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;3&lt;/td&gt;
+&lt;td&gt;Receive Expression&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo := &amp;lt;-ch&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo, ok := &amp;lt;-ch&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;最初のはインデックス値 &lt;code&gt;x&lt;/code&gt; が map にない場合に &lt;code&gt;false&lt;/code&gt; になる。
+2番目は型 &lt;code&gt;T&lt;/code&gt; でのアサーションに失敗した場合に（panic を吐くことなく） &lt;code&gt;false&lt;/code&gt; になる。
+最後のはチャネル &lt;code&gt;ch&lt;/code&gt; が閉じている場合に &lt;code&gt;false&lt;/code&gt; になる。&lt;/p&gt;
+&lt;p&gt;他の式評価や関数の返り値ではこのようなことはできない。
+たとえば slice のインデックス式評価に特殊形式はない。
+インデックス値が範囲外なら単に panic が投げられるだけだ。&lt;/p&gt;
+&lt;p&gt;実は，特殊形式が上の3つの式評価でしか適用されないというのが分からなくて「どうして普通の関数の返り値とかではできないんだろう」とひとしきり悩んだことがあったのだった。
+&lt;a href=&#34;https://golang.org/ref/spec&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;言語仕様&lt;/a&gt;を読めっての（笑）&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://golang.org/ref/spec&#34;&gt;The Go Programming Language Specification - The Go Programming Language&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/hsaki/articles/gospecdictionary&#34;&gt;Goの言語仕様書精読のススメ &amp;amp; 英語彙集&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/dqneo/articles/436bb59d565be7&#34;&gt;Go言語における式の評価文脈を理解する&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;厳密には，特殊形式 &lt;code&gt;(T, bool)&lt;/code&gt; の2要素目は型付けなしの真偽値（untyped boolean）に評価される。「&lt;a href=&#34;https://zenn.dev/hsaki/articles/gospecdictionary#untyped&#34; title=&#34;Goの言語仕様書精読のススメ &amp;amp; 英語彙集&#34;&gt;型付けなし（untyped）&lt;/a&gt;」というのは &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; 特有の概念だそうで，具体的な型が決定される前の状態を指す。たとえば，定数 &lt;a href=&#34;https://golang.org/pkg/math/&#34; title=&#34;math - The Go Programming Language&#34;&gt;&lt;code&gt;math&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Pi&lt;/code&gt; は10進数64桁の小数点数で定義されている。型付けなし定数については『&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go&lt;/a&gt;』の3.6.2章にも解説がある。 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</content>
+	</entry><entry>
 		<title>GNKF: NKF ぽいなにか の v0.4.0 をリリースした</title>
 		<category term="release" label="release" scheme="https://text.baldanders.info/release/" />
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2021/02/gnkf-v0_4_0-is-released/" />
@@ -1430,130 +1552,6 @@ Deprecation といっても近い将来に（少なくともバージョン 1.x 
   &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
-</content>
-	</entry><entry>
-		<title>2021-02-21 のブックマーク</title>
-		<category term="bookmarks" label="bookmarks" scheme="https://text.baldanders.info/bookmarks/" />
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/bookmarks/2021/02/21-bookmarks/" />
-		<id>tag:text.Baldanders.info,2021-02-21:/bookmarks/2021/02/21-bookmarks/</id>
-		<published>2021-02-21T01:47:36+00:00</published>
-		<updated>2021-02-21T01:48:12+00:00</updated>
-		<summary>「アメリカでもプログラミングスクールに通ったがうまくいかなかった話があった」他</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;h2&gt;リリース情報&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/git-for-windows/git/releases/tag/v2.30.1.windows.1&#34; rel=&#34;nofollow&#34;&gt;Release Git for Windows 2.30.1 · git-for-windows/git · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/spf13/cobra/releases/tag/v1.1.2&#34; rel=&#34;nofollow&#34;&gt;Release v1.1.2 · spf13/cobra · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/spf13/cobra/releases/tag/v1.1.3&#34; rel=&#34;nofollow&#34;&gt;Release v1.1.3 · spf13/cobra · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/sonatype-nexus-community/nancy/releases/tag/v1.0.12&#34; rel=&#34;nofollow&#34;&gt;Release v1.0.12 · sonatype-nexus-community/nancy · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/zetamatta/go-readline-ny/releases/tag/v0.4.0&#34; rel=&#34;nofollow&#34;&gt;Release v0.4.0 · zetamatta/go-readline-ny · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.syntevo.com/blog/?p=5049&#34; rel=&#34;nofollow&#34;&gt;SmartGit 20.2.3 – syntevo blog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/sonatype-nexus-community/nancy/releases/tag/v1.0.15&#34; rel=&#34;nofollow&#34;&gt;Release v1.0.15 · sonatype-nexus-community/nancy · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/zetamatta/go-readline-ny/releases/tag/v0.4.1&#34; rel=&#34;nofollow&#34;&gt;Release v0.4.1 · zetamatta/go-readline-ny · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/zetamatta/go-readline-ny/releases/tag/v0.4.2&#34; rel=&#34;nofollow&#34;&gt;Release v0.4.2 · zetamatta/go-readline-ny · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/mattn/jvgrep/releases/tag/v5.8.9&#34; rel=&#34;nofollow&#34;&gt;Release Release v5.8.9 · mattn/jvgrep · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/zetamatta/go-readline-ny/releases/tag/v0.4.3&#34; rel=&#34;nofollow&#34;&gt;Release v0.4.3 · zetamatta/go-readline-ny · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/golangci/golangci-lint/releases/tag/v1.37.0&#34; rel=&#34;nofollow&#34;&gt;Release v1.37.0 · golangci/golangci-lint · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/mermaid-js/mermaid/releases/tag/8.9.1&#34; rel=&#34;nofollow&#34;&gt;Release 8.9.1 · mermaid-js/mermaid · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/zetamatta/nyagos/releases/tag/4.4.9_3&#34; rel=&#34;nofollow&#34;&gt;Release 4.4.9_3 · zetamatta/nyagos · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://gohugo.io/news/0.81.0-relnotes/&#34; rel=&#34;nofollow&#34;&gt;Hugo 0.81.0: The Smorgasbord Edition | Hugo&lt;/a&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/gohugoio/hugo/releases/tag/v0.81.0&#34; rel=&#34;nofollow&#34;&gt;Release v0.81.0 · gohugoio/hugo · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/golangci/golangci-lint/releases/tag/v1.37.1&#34; rel=&#34;nofollow&#34;&gt;Release v1.37.1 · golangci/golangci-lint · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;バベルのインターネット&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/monopoly/3244&#34; rel=&#34;nofollow&#34;&gt;問題はビッグテックが免責されていることじゃあない、寡占こそが問題なんだ | P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://jp.techcrunch.com/2021/02/11/2021-02-09-twitter-takes-actions-on-over-500-accounts-in-india-amid-government-warning/&#34; rel=&#34;nofollow&#34;&gt;Twitterがインド当局のさらなる警告を受け500以上のアカウントを停止  |  TechCrunch Japan&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;セキュリティ＆プライバシー関連&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2021/02/sonicwall-zero-day.html&#34; rel=&#34;nofollow&#34;&gt;SonicWall Zero-Day - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.bleepingcomputer.com/news/security/malicious-script-steals-credit-card-info-stolen-by-other-hackers/&#34; rel=&#34;nofollow&#34;&gt;Malicious script steals credit card info stolen by other hackers&lt;/a&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2021/02/web-credit-card-skimmer-steals-data-from-another-credit-card-skimmer.html&#34; rel=&#34;nofollow&#34;&gt;Web Credit Card Skimmer Steals Data from Another Credit Card Skimmer - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://piyolog.hatenadiary.jp/entry/2021/02/10/181319&#34; rel=&#34;nofollow&#34;&gt;米国で発生した浄水システムの不正操作についてまとめてみた - piyolog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.bloomberg.com/tosv2.html?vid=&amp;amp;uuid=a89a7f80-73e3-11eb-9394-ab2b50cabd8c&amp;amp;url=L2ZlYXR1cmVzLzIwMjEtc3VwZXJtaWNyby8=&#34; rel=&#34;nofollow&#34;&gt;Bloomberg - Are you a robot?&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2021/02/chinese-supply-chain-attack-on-computer-systems.html&#34; rel=&#34;nofollow&#34;&gt;Chinese Supply-Chain Attack on Computer Systems - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2021/02/attack-against-florida-water-treatment-facility.html&#34; rel=&#34;nofollow&#34;&gt;Attack against Florida Water Treatment Facility - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://news.mynavi.jp/article/20210214-1726115/&#34; rel=&#34;nofollow&#34;&gt;PostgreSQL 13.2、12.6、11.11、10.16、9.6.21、9.5.25公開 | TECH+&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://jp.techcrunch.com/2021/02/15/clubhouse-will-improve-security-to-china-spying-fears/&#34; rel=&#34;nofollow&#34;&gt;「Clubhouse」の音声データが中国当局に漏れる可能性が浮上、開発元はセキュリティ強化を実施  |  TechCrunch Japan&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.jpcert.or.jp/at/2021/at210009.html&#34; rel=&#34;nofollow&#34;&gt;FileZenの脆弱性（CVE-2021-20655）に関する注意喚起&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://gizmodo.com/barcode-scanning-app-for-android-pushed-malware-onto-mi-1846221452&#34; rel=&#34;nofollow&#34;&gt;Barcode Scanner Android App Pushed Malware Onto Millions&lt;/a&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2021/02/malicious-barcode-scanner-app.html&#34; rel=&#34;nofollow&#34;&gt;Malicious Barcode Scanner App - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.schneier.com/blog/archives/2021/02/browser-tracking-using-favicons.html&#34; rel=&#34;nofollow&#34;&gt;Browser Tracking Using Favicons - Schneier on Security&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://gigazine.net/news/20210217-salesforce-endgame/&#34; rel=&#34;nofollow&#34;&gt;AWSアカウント攻撃ツールをSalesforceがリリースするも速攻で削除される - GIGAZINE&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://forest.watch.impress.co.jp/docs/news/1306802.html&#34; rel=&#34;nofollow&#34;&gt;危険なバッファオーバーフロー脆弱性に対処した「Python 3.6.13/3.7.10」が公開 - 窓の杜&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.jpcert.or.jp/at/2021/at210010.html&#34; rel=&#34;nofollow&#34;&gt;ISC BIND 9の脆弱性（CVE-2020-8625）に関する注意喚起&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://gigazine.net/news/20210218-open-source-extensions-malware/&#34; rel=&#34;nofollow&#34;&gt;なぜ拡張機能にマルウェアが仕込まれる問題が後を絶たないのか？ - GIGAZINE&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;知財関連&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://p2ptk.org/copyright/3246&#34; rel=&#34;nofollow&#34;&gt;MP3・海賊版・アップルはいかにして音楽業界を変えてきたのか | P2Pとかその辺のお話R&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;Linux または Ubuntu に関する話題&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2021/02/ubuntu-2004-220-ubuntu-200420-ltslinux.html&#34; rel=&#34;nofollow&#34;&gt;Ubuntu 20.04 その220 - Ubuntu 20.04.2.0 LTSがリリースされました・Linux kernelがインストールされない不具合の修正 - kledgeb&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://kledgeb.blogspot.com/2021/02/ubuntu-2004-219-thunderbird.html&#34; rel=&#34;nofollow&#34;&gt;Ubuntu 20.04 その219 - Thunderbird 78の採用へ・Thunderbirdのメジャーアップデート - kledgeb&lt;/a&gt; : 結局 PGP/MIME を使いたいなら Thunderbird しか選択肢がなさそうなんだけど， Thunderbird はクソみたいな独自ライブラリで鍵管理していて GnuPG では上手く動かないんだよなぁ&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;Windows に関する話題&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/negokaz/articles/windows-terminal-osc_9_9&#34; rel=&#34;nofollow&#34;&gt;Windows Terminal で現在のディレクトリを引き継いでペインやタブを複製する&lt;/a&gt; : Windows Terminal 1.6 からの機能&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;Go 言語関連&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/go1.16&#34; rel=&#34;nofollow&#34;&gt;Go 1.16 is released - The Go Blog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4798063991?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; rel=&#34;nofollow&#34;&gt;Go言語 ハンズオン | 掌田津耶乃 |本 | 通販 | Amazon&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/pbnjay/grate&#34; rel=&#34;nofollow&#34;&gt;GitHub - pbnjay/grate: A Go native tabular data extraction package. Currently supports .xls, .xlsx, .csv, .tsv formats.&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/numacci/articles/golang-stack-queue&#34; rel=&#34;nofollow&#34;&gt;Go言語 (Golang) でintのスタックとキューを実装してみる&lt;/a&gt; : 記事では slice を使っているが，ぶっちゃけヤバいので &lt;a href=&#34;https://golang.org/pkg/container/list/&#34; rel=&#34;nofollow&#34;&gt;&lt;code&gt;container/list&lt;/code&gt;&lt;/a&gt; パッケージを使いましょう&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/komisan19/articles/aec74dd8223095&#34; rel=&#34;nofollow&#34;&gt;Go+WebAssemblyで時刻表示を実装してみた&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/go116-module-changes&#34; rel=&#34;nofollow&#34;&gt;New module changes in Go 1.16 - The Go Blog&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;Rust 言語関連&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/21/rustrust_foundationawsgoogle.html&#34; rel=&#34;nofollow&#34;&gt;Rust言語を推進する「Rust Foundation」設立。AWS、Google、マイクロソフト、モジラ、ファーウェイらが設立メンバー － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/uu/articles/48e2d4098b6aca&#34; rel=&#34;nofollow&#34;&gt;Rustを使って円周率1億桁計算したお話&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.rust-lang.org/2021/02/11/Rust-1.50.0.html&#34; rel=&#34;nofollow&#34;&gt;Announcing Rust 1.50.0 | Rust Blog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/ulwlu/articles/3096c221d31493&#34; rel=&#34;nofollow&#34;&gt;RustでTOTP(Time-based One-Time Password)を、RFCだけ見て原理原則から実装する&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;その他&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/21/googleosvopen_source_vulnerabilities.html&#34; rel=&#34;nofollow&#34;&gt;Google、オープンソースソフトウェアの脆弱性をバージョンごとにデータベース化する「OSV」（Open Source Vulnerabilities）プロジェクトを開始 － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://emojipedia.org/&#34; rel=&#34;nofollow&#34;&gt;📙 Emojipedia — 😃 Home of Emoji Meanings 💁👌🎍😍&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/21/slack1aws_transit_gatewayaws.html&#34; rel=&#34;nofollow&#34;&gt;Slack、1月の大規模障害の原因を説明。「AWS Transit Gateway」がトラフィックの急上昇に対応できず、AWSはアルゴリズムを見直すと － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/catnose99/scraps/d7ef29424cbaef&#34; rel=&#34;nofollow&#34;&gt;満足して使っている有料サービスの一覧&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://dev.classmethod.jp/articles/vscode-remote-containers-golang/&#34; rel=&#34;nofollow&#34;&gt;VSCodeとDockerでMacにGolangの開発環境を作成する | DevelopersIO&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/mattn/articles/ec5c28652b5b12&#34; rel=&#34;nofollow&#34;&gt;Raspberry Pi Pico で独自学習した TensorFlow Lite のモデルを使う&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/21/excellambdaexcelceoexcel.html&#34; rel=&#34;nofollow&#34;&gt;Excelの新機能「Lambda関数」によって「Excelの数式がチューリング完全になった」とナデラCEO。プログラミング言語としてのExcel数式であらゆる計算が可能に － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.yamdas.org/column/technique/wikipedia-at-20-ch21j.html&#34; rel=&#34;nofollow&#34;&gt;ウィキペディアにはバイアスの問題がある（Wikipedia Has a Bias Problem 日本語訳）&lt;/a&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/entry/20210215/wikipedia-at-20-ch21&#34; rel=&#34;nofollow&#34;&gt;『Wikipedia @ 20』の第21章「ウィキペディアにはバイアスの問題がある」も訳してみた - YAMDAS現更新履歴&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/entry/20210215/coding-bootcamp-trap&#34; rel=&#34;nofollow&#34;&gt;アメリカでもプログラミングスクールに通ったがうまくいかなかった話があった - YAMDAS現更新履歴&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/entry/20210215/you-are-here&#34; rel=&#34;nofollow&#34;&gt;偏向した言論や陰謀論など現在の汚染されたインターネットのフィールドガイド『You Are Here』が面白そうだ - YAMDAS現更新履歴&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/21/googlepython_software_foundationcpython.html&#34; rel=&#34;nofollow&#34;&gt;GoogleがPython Software Foundationへの支援を強化「ビジョナリースポンサー」に。CPython実装のための常駐開発者を雇用へ － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://japan.zdnet.com/article/35166549/&#34; rel=&#34;nofollow&#34;&gt;「AI」と呼ばれなくなる日も近い？&amp;ndash;あらゆる現場に浸透が進む - ZDNet Japan&lt;/a&gt; : 幻滅期から普及期へってところかねぇ&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/21/amazon_rdsmysqlmariadb.html&#34; rel=&#34;nofollow&#34;&gt;Amazon RDSのMySQL/MariaDBがレプリケーションフィルターをサポート。特定のテーブルだけを選んでレプリカを作成 － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/catnose99/scraps/e94c8e789f846a&#34; rel=&#34;nofollow&#34;&gt;markdown-itでURLにアンダースコアが含まれていると自動リンク（linkify）がおかしくなる件&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/21/apple_m1docker_desktopkubernetes.html&#34; rel=&#34;nofollow&#34;&gt;Apple M1チップ対応のDocker Desktop、同梱のKubernetesも実行可能に － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;http://oshidori-makoken.com/?p=5087&#34; rel=&#34;nofollow&#34;&gt;【取材メモ】島根県知事、五輪開催に反対の会見・質疑、書き起こし | COVID-19 | OSHIDORI Mako&amp;amp;Ken Portal / おしどりポータルサイト&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://zenn.dev/catnose99/articles/e0d42812c7588c&#34; rel=&#34;nofollow&#34;&gt;【Chrome】textareaの改行時にカーソル位置がガタっとずれる問題の対処法&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
 </content>
 	</entry>
 </feed>

@@ -2,13 +2,134 @@
 	<title>List of golang - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/golang/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/golang/index.xml" />
-	<id>tag:text.Baldanders.info,2021-02-28:/tags</id>
-	<updated>2021-02-28T19:26:39+09:00</updated>
+	<id>tag:text.Baldanders.info,2021-03-04:/tags</id>
+	<updated>2021-03-04T19:27:13+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>特殊形式による式評価について</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/special-forms/" />
+		<id>tag:text.Baldanders.info,2021-03-04:/golang/special-forms/</id>
+		<published>2021-03-04T10:27:13+00:00</published>
+		<updated>2021-03-04T10:27:49+00:00</updated>
+		<summary>Go の言語仕様を読みましょう（笑）</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://zenn.dev/dqneo/articles/436bb59d565be7&#34; title=&#34;Go言語における式の評価文脈を理解する&#34;&gt;元ネタが Zenn の記事&lt;/a&gt;だし小ネタだし，どちらで書こうか悩んだが，今まで書いたことがない切り口な気がするので，こっち側で。&lt;/p&gt;
+&lt;p&gt;いきなりだが，以下のコードを起点に話を始めよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Alice&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;18&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Teles&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Alice&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;])&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// Output
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// 18
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このコードをみて分かるように，インデックス式 &lt;code&gt;ageMap[x]&lt;/code&gt; の評価結果は &lt;code&gt;uint&lt;/code&gt; 型になっている（インデックス値が存在しない場合はゼロ値がセットされる）。
+まぁ，当たり前だよね。&lt;/p&gt;
+&lt;p&gt;ところが &lt;code&gt;ageMap[x]&lt;/code&gt; の評価結果を &lt;code&gt;(T, bool)&lt;/code&gt; の組（tuple）で受けることもできるのだ&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+これによってコードを&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+
+&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+
+&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+    &lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Alice&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;18&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+        &lt;span class=&#34;s&#34;&gt;&amp;#34;Teles&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;age&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ok&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ageMap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Selene&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ok&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;age&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;unknown&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// Output
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// unknown
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と書き換えることでき， &lt;code&gt;ageMap[x]&lt;/code&gt; の評価に失敗した際の挙動を記述できる。
+&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; の&lt;a href=&#34;https://golang.org/ref/spec&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;言語仕様&lt;/a&gt;では，これを「特殊形式（special form）」と呼んでいる（日本語が怪しいのはご容赦）。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://golang.org/ref/spec&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;言語仕様&lt;/a&gt;を眺めてみると，この特殊形式が適用可能なのは以下の3つのみのようだ。&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&#34;text-align:right&#34;&gt;#&lt;/th&gt;
+&lt;th&gt;Expressions&lt;/th&gt;
+&lt;th&gt;Normal Form&lt;/th&gt;
+&lt;th&gt;Special Form&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;1&lt;/td&gt;
+&lt;td&gt;Index Expression on Map&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo := bar[x]&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo, ok := bar[x]&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;2&lt;/td&gt;
+&lt;td&gt;Type Assertion&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo := bar.(T)&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo, ok := bar.(T)&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&#34;text-align:right&#34;&gt;3&lt;/td&gt;
+&lt;td&gt;Receive Expression&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo := &amp;lt;-ch&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;foo, ok := &amp;lt;-ch&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;最初のはインデックス値 &lt;code&gt;x&lt;/code&gt; が map にない場合に &lt;code&gt;false&lt;/code&gt; になる。
+2番目は型 &lt;code&gt;T&lt;/code&gt; でのアサーションに失敗した場合に（panic を吐くことなく） &lt;code&gt;false&lt;/code&gt; になる。
+最後のはチャネル &lt;code&gt;ch&lt;/code&gt; が閉じている場合に &lt;code&gt;false&lt;/code&gt; になる。&lt;/p&gt;
+&lt;p&gt;他の式評価や関数の返り値ではこのようなことはできない。
+たとえば slice のインデックス式評価に特殊形式はない。
+インデックス値が範囲外なら単に panic が投げられるだけだ。&lt;/p&gt;
+&lt;p&gt;実は，特殊形式が上の3つの式評価でしか適用されないというのが分からなくて「どうして普通の関数の返り値とかではできないんだろう」とひとしきり悩んだことがあったのだった。
+&lt;a href=&#34;https://golang.org/ref/spec&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;言語仕様&lt;/a&gt;を読めっての（笑）&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://golang.org/ref/spec&#34;&gt;The Go Programming Language Specification - The Go Programming Language&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/hsaki/articles/gospecdictionary&#34;&gt;Goの言語仕様書精読のススメ &amp;amp; 英語彙集&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/dqneo/articles/436bb59d565be7&#34;&gt;Go言語における式の評価文脈を理解する&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl class=&#34;fn&#34;&gt;
+    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;厳密には，特殊形式 &lt;code&gt;(T, bool)&lt;/code&gt; の2要素目は型付けなしの真偽値（untyped boolean）に評価される。「&lt;a href=&#34;https://zenn.dev/hsaki/articles/gospecdictionary#untyped&#34; title=&#34;Goの言語仕様書精読のススメ &amp;amp; 英語彙集&#34;&gt;型付けなし（untyped）&lt;/a&gt;」というのは &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; 特有の概念だそうで，具体的な型が決定される前の状態を指す。たとえば，定数 &lt;a href=&#34;https://golang.org/pkg/math/&#34; title=&#34;math - The Go Programming Language&#34;&gt;&lt;code&gt;math&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Pi&lt;/code&gt; は10進数64桁の小数点数で定義されている。型付けなし定数については『&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go&lt;/a&gt;』の3.6.2章にも解説がある。 &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</content>
+	</entry><entry>
 		<title>GNKF: NKF ぽいなにか の v0.4.0 をリリースした</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2021/02/gnkf-v0_4_0-is-released/" />
 		<id>tag:text.Baldanders.info,2021-02-28:/release/2021/02/gnkf-v0_4_0-is-released/</id>
@@ -1103,57 +1224,6 @@ JP-13,TOKYO,2021-01-19,,,,,,,,,,,,,87914,744,20289,66881,2021-02-11,,,16,1240,�
 &lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/release/2020/09/cov19data-package-is-released/&#34;&gt;WHO COVID-2019 データを取得するパッケージを作ってみた&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;!-- eof --&gt;
-</content>
-	</entry><entry>
-		<title>Go 1.15.8 がリリースされた</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2021/02/go-1_15_8-is-released/" />
-		<id>tag:text.Baldanders.info,2021-02-05:/release/2021/02/go-1_15_8-is-released/</id>
-		<published>2021-02-05T10:33:55+00:00</published>
-		<updated>2021-02-05T10:34:16+00:00</updated>
-		<summary>セキュリティ・アップデートはなし。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; 1.15.8 がリリースされた。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://groups.google.com/g/golang-announce/c/rUbPPotvaFM/m/H4ZrXHUmBAAJ&#34;&gt;Go 1.15.8 and Go 1.14.15 are released&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;セキュリティ・アップデートはなし。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote&gt;&lt;q&gt;go1.15.8 (released 2021/02/04) includes fixes to the compiler, linker, runtime, the go command, and the &lt;code&gt;net/http&lt;/code&gt; package. See the &lt;a href=&#34;https://github.com/golang/go/issues?q=milestone%3AGo1.15.8+label%3ACherryPickApproved&#34;&gt;Go 1.15.8 milestone&lt;/a&gt; on our issue tracker for details&lt;/q&gt;.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://golang.org/doc/devel/release.html#go1.15.minor&#34;&gt;Release History - The Go Programming Language&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;例によって &lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; の APT で管理している &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; コンパイラは古いので，&lt;a href=&#34;https://golang.org/dl/&#34; title=&#34;Downloads - The Go Programming Language&#34;&gt;ダウンロードページ&lt;/a&gt;からバイナリ（&lt;a href=&#34;https://golang.org/dl/go1.15.8.linux-amd64.tar.gz&#34;&gt;&lt;code&gt;go1.15.8.linux-amd64.tar.gz&lt;/code&gt;&lt;/a&gt;）を取ってきて手動でインストールすることを強く推奨する。
-以下は手動での作業例。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cd /usr/local/src
-$ sudo curl -L &amp;#34;https://golang.org/dl/go1.15.8.linux-amd64.tar.gz&amp;#34; -O
-$ cd ..
-$ sudo unlink go # 以前の Go が入っている場合
-$ sudo tar xvf src/go1.15.8.linux-amd64.tar.gz
-$ sudo mv go go1.15.8
-$ sudo ln -s go1.15.8 go
-$ go version # /usr/local/go/bin にパスが通っている場合
-go version go1.15.8 linux/amd64
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;アップデートは計画的に。&lt;/p&gt;
-&lt;h2&gt;参考図書&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a class=&#34;item url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl class=&#34;fn&#34;&gt;
-    &lt;dt&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
 </content>
 	</entry>
 </feed>
