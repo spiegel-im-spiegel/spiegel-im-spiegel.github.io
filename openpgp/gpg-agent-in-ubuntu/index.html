@@ -29,7 +29,7 @@
 <meta name="twitter:site" content="@spiegel_2007">
 <meta name="twitter:creator" content="@spiegel_2007">
 <meta name="keywords" content="openpgp, gnupg, ubuntu, openssh, cryptography">
-<link rel='prev' href='https://text.baldanders.info/openpgp/ssh-key-management-with-gnupg/' title='SSH の認証鍵を GunPG で作成・管理する' />
+<link rel='prev' href='https://text.baldanders.info/openpgp/ssh-key-management-with-gnupg/' title='OpenSSH の認証鍵を GunPG で作成・管理する' />
 
 <script type="application/ld+json">
 {
@@ -127,7 +127,7 @@
 	"keywords": "openpgp, gnupg, ubuntu, openssh, cryptography",
 	"image": "https://text.baldanders.info/images/attention/openpgp.png",
 	"datePublished": "2021-01-10T02:53:13+00:00",
-	"dateModified": "2021-02-21T01:48:12+00:00",
+	"dateModified": "2021-03-06T02:51:14+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -182,8 +182,11 @@
 </span></code></pre></div><p>そこで，最後の2行を</p>
 <div class="highlight"><pre class="chroma"><code class="language-ini" data-lang="ini"><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/local/bin/gpg-agent --supervised</span>
 <span class="na">ExecReload</span><span class="o">=</span><span class="s">/usr/local/bin/gpgconf --reload gpg-agent</span>
-</code></pre></div><p>と変更しサービスを <code>restart</code> したら <code>/usr/local/bin/gpg-agent</code> のほうで稼働してくれるようになった。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ systemctl --user status gpg-agent
+</code></pre></div><p>と変更し <code>gpg-agent.service</code> ファイルをリロードする。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ systemctl --user daemon-reload
+</code></pre></div><p>その後サービスを <code>restart</code> したら <code>/usr/local/bin/gpg-agent</code> のほうで稼働してくれるようになった。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ systemctl --user restart gpg-agent
+$ systemctl --user status gpg-agent
 ● gpg-agent.service - GnuPG cryptographic agent and passphrase cache
      Loaded: loaded (/usr/lib/systemd/user/gpg-agent.service; static)
      Active: active (running) since Sat 2021-01-09 09:38:33 JST; 9min ago
@@ -197,16 +200,48 @@ TriggeredBy: ● gpg-agent.socket
              ├─18913 /usr/local/bin/gpg-agent --supervised
              └─19398 scdaemon --multi-server
 
- Jan 09 09:38:33 mocona6 systemd[1616]: Started GnuPG cryptographic agent and passphrase cache.
- Jan 09 09:38:33 mocona6 gpg-agent[18913]: gpg-agent (GnuPG) 2.2.26 starting in supervised mode.
- Jan 09 09:38:33 mocona6 gpg-agent[18913]: using fd 3 for std socket (/run/user/1000/gnupg/S.gpg-agent)
- Jan 09 09:38:33 mocona6 gpg-agent[18913]: using fd 4 for ssh socket (/run/user/1000/gnupg/S.gpg-agent.ssh)
- Jan 09 09:38:33 mocona6 gpg-agent[18913]: using fd 5 for extra socket (/run/user/1000/gnupg/S.gpg-agent.extra)
- Jan 09 09:38:33 mocona6 gpg-agent[18913]: using fd 6 for browser socket (/run/user/1000/gnupg/S.gpg-agent.browser)
- Jan 09 09:38:33 mocona6 gpg-agent[18913]: listening on: std=3 extra=5 browser=6 ssh=4
+ Jan 09 09:38:33 mymachine systemd[1616]: Started GnuPG cryptographic agent and passphrase cache.
+ Jan 09 09:38:33 mymachine gpg-agent[18913]: gpg-agent (GnuPG) 2.2.26 starting in supervised mode.
+ Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 3 for std socket (/run/user/1000/gnupg/S.gpg-agent)
+ Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 4 for ssh socket (/run/user/1000/gnupg/S.gpg-agent.ssh)
+ Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 5 for extra socket (/run/user/1000/gnupg/S.gpg-agent.extra)
+ Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 6 for browser socket (/run/user/1000/gnupg/S.gpg-agent.browser)
+ Jan 09 09:38:33 mymachine gpg-agent[18913]: listening on: std=3 extra=5 browser=6 ssh=4
 ...
 </code></pre></div><p>よーし，うむうむ，よーし。</p>
-<h2><a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> の鍵管理を gpg-agent に委譲する</h2>
+<h3>dirmgr も同様に</h3>
+<p>OpenPGP 鍵サーバを含むディレクトリ・サービスとやり取りする <code>dirmngr</code> も <code>/usr/lib/systemd/user/dirmngr.service</code> ファイルでサービス化されている。</p>
+<div class="highlight"><pre class="chroma"><code class="language-ini" data-lang="ini"><span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">GnuPG network certificate management daemon</span>
+<span class="na">Documentation</span><span class="o">=</span><span class="s">man:dirmngr(8)</span>
+<span class="na">Requires</span><span class="o">=</span><span class="s">dirmngr.socket</span>
+
+<span class="k">[Service]</span>
+<span class="hl"><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/dirmngr --supervised --honor-http-proxy</span>
+</span><span class="hl"><span class="na">ExecReload</span><span class="o">=</span><span class="s">/usr/bin/gpgconf --reload dirmngr</span>
+</span></code></pre></div><p>これも最後の2行を</p>
+<div class="highlight"><pre class="chroma"><code class="language-ini" data-lang="ini"><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/local/bin/dirmngr --supervised --honor-http-proxy</span>
+<span class="na">ExecReload</span><span class="o">=</span><span class="s">/usr/local/bin/gpgconf --reload dirmngr</span>
+</code></pre></div><p>と変更する。
+後の操作は同じ。</p>
+<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ systemctl --user daemon-reload
+$ systemctl --user restart dirmngr
+$ systemctl --user status dirmngr
+● dirmngr.service - GnuPG network certificate management daemon
+     Loaded: loaded (/usr/lib/systemd/user/dirmngr.service; static)
+     Active: active (running) since Sat 2021-01-09 09:38:33 JST; 9min ago
+TriggeredBy: ● dirmngr.socket
+       Docs: man:dirmngr(8)
+   Main PID: 349126 (dirmngr)
+     CGroup: /user.slice/user-1000.slice/user@1000.service/dirmngr.service
+             └─349126 /usr/local/bin/dirmngr --supervised --honor-http-proxy
+
+ Jan 09 09:38:33 mymachine systemd[2209]: dirmngr.service: Succeeded.
+ Jan 09 09:38:33 mymachine dirmngr[348581]: dirmngr (GnuPG) 2.2.20 stopped
+ Jan 09 09:38:33 mymachine systemd[2209]: Stopped GnuPG network certificate management daemon.
+ Jan 09 09:38:33 mymachine systemd[2209]: Started GnuPG network certificate management daemon.
+...
+</code></pre></div><h2><a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> の鍵管理を gpg-agent に委譲する</h2>
 <p>上述の話を調べてて初めて知ったのだが，どうも Ubuntu を含む Debian 系のディストリビューションでは <a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> の認証鍵を <code>ssh-agent</code> 固定で管理するよう構成されていて， <code>gpg-agent</code> と設定が競合してしまうらしい。
 <a href="http://www.openssh.com/" title="OpenSSH">OpenSSH</a> の鍵管理を gpg-agent に委譲するよう構成するには <code>gpg-agent.conf</code> ファイル以外にもいくつか設定が必要なようだ。</p>
 <h3>Xsession.options の変更</h3>
@@ -348,7 +383,7 @@ A5353D587000D820669B0BD55A0B4AD6897458DB <span class="m">0</span>
 </article>
 </main>
 <nav class="page-nav">
-<div class="prev-page">&laquo; <a href="/openpgp/ssh-key-management-with-gnupg/">SSH の認証鍵を GunPG で作成・管理する</a></div>
+<div class="prev-page">&laquo; <a href="/openpgp/ssh-key-management-with-gnupg/">OpenSSH の認証鍵を GunPG で作成・管理する</a></div>
 <div class="next-page"></div>
 </nav>
 
@@ -367,7 +402,7 @@ A5353D587000D820669B0BD55A0B4AD6897458DB <span class="m">0</span>
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2021-01-10</time> (revised in 2021-02-21)
+		in <time property='dc:dateCopyrighted'>2021-01-10</time> (revised in 2021-03-06)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social"><li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li><li><a href="https://www.facebook.com/spiegel.im.spiegel"><span class="facebook-color"><i class="fab fa-facebook-f"></i></span></a></li></ul>
 	</div>
