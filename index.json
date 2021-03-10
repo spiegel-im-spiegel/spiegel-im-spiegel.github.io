@@ -5,6 +5,17 @@
   "description": "帰ってきた「しっぽのさきっちょ」",
   "entry": [
     {
+      "title": "Git v2.30.2 のリリース【セキュリテイ・アップデート】",
+      "section": "release",
+      "description": "アップデートは計画的に。",
+      "author": "Spiegel",
+      "license": "http://creativecommons.org/licenses/by-sa/4.0/",
+      "url": "https://text.baldanders.info/release/2021/03/git-2_30_2-is-released/",
+      "published": "2021-03-10T09:41:10+00:00",
+      "update": "2021-03-10T10:03:28+00:00",
+      "content": "Git v2.30.2 がリリースされた。\n [ANNOUNCE] Git v2.30.2 and below for CVE-2021-21300 - Junio C Hamano  タイトルにもあるとおり，今回は CVE-2021-21300 の修正を含んでいる。\nA specially crafted repository that contains symbolic links as well as files using a clean/smudge filter such as Git LFS, may cause just-checked out script to be executed while cloning onto a case-insensitive file system such as NTFS, HFS+ or APFS (i.e. the default file systems on Windows and macOS).\nNote that clean/smudge filters have to be configured for that. Git for Windows configures Git LFS by default, and is therefore vulnerable.\n via malicious repositories can execute remote code while cloning · Advisory · git/git · GitHub  流石にク◯ったれな HFS+ は駆逐されていると思うが， NTFS と APFS をファイルシステムとして使っているプラットフォームは要注意である。 Windows や macOS パソコンだけじゃなくて， NTFS で NAS を構成している場合も結構ヤバいんじゃないかな？\nGit for Windows に関しては既にアップデートが出ている。\n Release MinGit v2.29.2.windows.4 · git-for-windows/git · GitHub Release Git for Windows 2.30.2 · git-for-windows/git · GitHub  他のプラットフォームでも順次アップデートしていくのがいいだろう。 今回の条件に該当するけどすぐにアップデートできない場合は，とりあえず\n$ git config --global core.symlinks false としてシンボリック・リンクを無効にすることで回避できるらしい。\nアップデートは計画的に。\nCVE-2021-21300 GitHub による評価：\n CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:N 深刻度: 重要 (Score: 8)     基本評価基準 評価値     攻撃元区分 ネットワーク   攻撃条件の複雑さ 高   必要な特権レベル 不要   ユーザ関与レベル 要   スコープ 変更あり   機密性への影響 高   完全性への影響 高   可用性への影響 なし    "
+    },
+    {
       "title": "Baldanders.info サイトにおける OpenPGP 鍵管理の変更",
       "section": "remark",
       "description": "来年から本気出す（笑）",
@@ -102,17 +113,6 @@
       "published": "2021-02-24T10:53:56+00:00",
       "update": "2021-02-24T13:26:22+00:00",
       "content": "ずいぶん前に\n 紙芝居用の簡易 Web サーバを Go 言語で書く  という記事を書いたが，これで作ったコードは任意のディレクトリをドキュメント・ルートにできるという結構ヤバい代物である。\nところで Go 1.16 リリースで真っ先に思ったのは「これで安全に紙芝居ができるぢゃん」だった。 Go 1.16 で追加された embed および io/fs 標準パッケージを使えば，サードパーティの外部パッケージを使わずとも，簡単に「紙芝居」が作れる。\nさっそく試してみよう。 こんな感じかな。\npackage main import ( \u0026#34;embed\u0026#34; \u0026#34;fmt\u0026#34; \u0026#34;net/http\u0026#34; \u0026#34;os\u0026#34; ) //go:embed html var assets embed.FS  func main() { addr := \u0026#34;localhost:3000\u0026#34; fmt.Printf(\u0026#34;Open http://%s/\\n\u0026#34;, addr) fmt.Println(\u0026#34;Press ctrl+c to stop\u0026#34;) http.Handle(\u0026#34;/\u0026#34;, http.FileServer(http.FS(assets)))  if err := http.ListenAndServe(addr, nil); err != nil { fmt.Fprintln(os.Stderr, err) } } ここで //go:embed ディレクティブがコンパイラに html の埋め込みを指示している部分である。 html は実在のディレクトリで，以下の内容の index.html ファイルを格納している1。\n\u0026lt;!DOCTYPE html\u0026gt; \u0026lt;html\u0026gt; \u0026lt;head\u0026gt; \u0026lt;title\u0026gt;Hello\u0026lt;/title\u0026gt; \u0026lt;/head\u0026gt; \u0026lt;body\u0026gt; \u0026lt;p\u0026gt;Hello World!\u0026lt;/p\u0026gt; \u0026lt;/body\u0026gt; \u0026lt;/html\u0026gt; embed.FS 型のインスタンスはそのままでは http.FileSystem 型として使えないので http.FS() 関数で http.FileSystem 型に適合するよう変換している。\n説明はこのくらいにして，とりあえず動かしてみよう。\n$ go run sample1.go Open http://localhost:3000/ Press ctrl+c to stop これでブラウザで http://localhost:3000/ にアクセスしてみると。\nlocalhost:3000/  ありゃりゃーん。 ちょっと切ない感じになってしまった。\nhtml ディレクトリをドキュメント・ルートに出来ないかな，と思って色々眺めてたら fs.Sub() 関数が使えるっぽい。\nというわけで，さきほどのコードを少し書き換える。\npackage main import ( \u0026#34;embed\u0026#34; \u0026#34;fmt\u0026#34; \u0026#34;io/fs\u0026#34; \u0026#34;net/http\u0026#34; \u0026#34;os\u0026#34; ) //go:embed html var assets embed.FS func main() { addr := \u0026#34;localhost:3000\u0026#34; fmt.Printf(\u0026#34;Open http://%s/\\n\u0026#34;, addr) fmt.Println(\u0026#34;Press ctrl+c to stop\u0026#34;) root, _ := fs.Sub(assets, \u0026#34;html\u0026#34;) http.Handle(\u0026#34;/\u0026#34;, http.FileServer(http.FS(root)))  if err := http.ListenAndServe(addr, nil); err != nil { fmt.Fprintln(os.Stderr, err) } } エラー処理をサボっているがご容赦。 では，このコードを起動してみる。\n$ go run sample2.go Open http://localhost:3000/ Press ctrl+c to stop ブラウザでアクセスしてみると。\nHello  よーし，うむうむ，よーし。 これで安全に紙芝居ができるな。 go build でシングル・バイナリにまとめれば持ち運びもOK（笑）\n//go:embed ディレクティブはかなり便利に使えるようで\npackage main import ( _ \u0026#34;embed\u0026#34; \u0026#34;fmt\u0026#34; ) //go:embed html/index.html var hello string func main() { fmt.Println(hello) } てな感じに，ファイル内容を []byte または string 型のデータに展開してくれる。\n$ go run sample3.go \u0026lt;!DOCTYPE html\u0026gt; \u0026lt;html\u0026gt; \u0026lt;head\u0026gt; \u0026lt;title\u0026gt;Hello\u0026lt;/title\u0026gt; \u0026lt;/head\u0026gt; \u0026lt;body\u0026gt; \u0026lt;p\u0026gt;Hello World!\u0026lt;/p\u0026gt; \u0026lt;/body\u0026gt; \u0026lt;/html\u0026gt; こりゃあ，ひょっとしてテストが捗るねぇ。 データの読み込みを //go:embed ディレクティブで簡略化できるもんね。\nブックマーク  Big Sky :: Go に go:embed が入った。 go:embed 詳解 - 使用編 -  参考図書  プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES) Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳) 丸善出版 2016-06-20 単行本（ソフトカバー） 4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN) 評価\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;  著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K\u0026amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。\nreviewed by Spiegel on 2016-07-13 (powered by PA-APIv5)\n   //go:embed ディレクティブはあくまでもファイルに対してディレクトリ構造ごと埋め込むものなので，空のディレクトリは埋め込めない。 \u0026#x21a9;\u0026#xfe0e;\n   "
-    },
-    {
-      "title": "gpgpdump v0.12.1 をリリースした",
-      "section": "release",
-      "description": "今回は Go 1.16 への対応が主。 機能上の修正・変更はない。",
-      "author": "Spiegel",
-      "license": "http://creativecommons.org/licenses/by-sa/4.0/",
-      "url": "https://text.baldanders.info/release/2021/02/gpgpdump-v0_12_1-is-released/",
-      "published": "2021-02-23T12:25:43+00:00",
-      "update": "2021-02-23T13:58:31+00:00",
-      "content": "OpenPGP パケットの内容を可視化する gpgpdump の v0.12.1 をリリースした。\n Release v0.12.1 · spiegel-im-spiegel/gpgpdump · GitHub  今回は Go 1.16 への対応が主。 機能上の修正・変更はない。\nあと go.mod ファイルや GitHub Actions の設定等を調整して\n$ go install github.com/spiegel-im-spiegel/gpgpdump@latest で最新版をダウンロード\u0026amp;ビルド\u0026amp;インストールできるようにしてみた。\ngpgpdump が依存する自作パッケージも併せてバージョンアップしているが，そっちはまぁいいか。\nコンパイラのおかげなのか，依存している外部パッケージのおかげなのか分からないが，前のバージョンより実行バイナリのサイズがちょびっとだけ小さくなっている。 コンパイラのおかげだといいな。\nブックマーク  OpenPGP の実装 OpenPGP パケットを可視化する gpgpdump  参考図書  暗号化 プライバシーを救った反乱者たち スティーブン・レビー (著), 斉藤 隆央 (翻訳) 紀伊國屋書店 2002-02-16 単行本 4314009071 (ASIN), 9784314009072 (EAN), 4314009071 (ISBN) 評価\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;  20世紀末，暗号技術の世界で何があったのか。知りたかったらこちらを読むべし！\nreviewed by Spiegel on 2015-03-09 (powered by PA-APIv5)\n  暗号技術入門 第3版　秘密の国のアリス 結城 浩 (著) SBクリエイティブ 2015-08-25 (Release 2015-09-17) Kindle版 B015643CPE (ASIN) 評価\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp;  SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。\nreviewed by Spiegel on 2015-09-20 (powered by PA-APIv5)\n "
     }
   ]
 }
