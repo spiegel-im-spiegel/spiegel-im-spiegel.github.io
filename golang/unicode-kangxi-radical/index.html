@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.85.0" />
+<meta name="generator" content="Hugo 0.86.0" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -179,7 +179,7 @@ PostScript プリンタドライバ経由で PostScript データを吐き出す
 <p>要するに，これらの領域の文字を本来の符号点に変換してやればいいわけだ。
 件の tweet のスレッドを見ると，幸いにも Unicode の NFKC 正規化で変換可能らしい。</p>
 <p>試しに以下のコードを組んで</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
 
 <span class="kn">import</span> <span class="p">(</span>
     <span class="s">&#34;fmt&#34;</span>
@@ -196,7 +196,7 @@ PostScript プリンタドライバ経由で PostScript データを吐き出す
     <span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div><p>実行してみると</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run sample1.go 
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">$ go run sample1.go 
 U+2F00 &#39;⼀&#39; -(NFKC)-&gt; U+4E00 &#39;一&#39;
 U+2F01 &#39;⼁&#39; -(NFKC)-&gt; U+4E28 &#39;丨&#39;
 U+2F02 &#39;⼂&#39; -(NFKC)-&gt; U+4E36 &#39;丶&#39;
@@ -209,7 +209,7 @@ U+2FD5 &#39;⿕&#39; -(NFKC)-&gt; U+9FA0 &#39;龠&#39;
 <p>ただし <a href="/golang/unicode-normalization/" title="Go 言語と Unicode 正規化">Unicode 正規化は副作用がある</a>ので安直には使えない。
 となると，前回の「<a href="/golang/kana-conversion/">かなカナ変換</a>」で紹介した方法が使えるかな。</p>
 <p>変換後の符号点の値は散らばっていて且つ数も多く手作業でコードを書くのは不毛なので，まずは <a href="https://pkg.go.dev/unicode" title="unicode package · pkg.go.dev"><code>unicode</code></a><code>.SpecialCase</code> を生成するコードを書いてみよう（笑）</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
 
 <span class="kn">import</span> <span class="p">(</span>
     <span class="s">&#34;fmt&#34;</span>
@@ -229,7 +229,7 @@ U+2FD5 &#39;⿕&#39; -(NFKC)-&gt; U+9FA0 &#39;龠&#39;
     <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;}&#34;</span><span class="p">)</span>
 <span class="p">}</span>
 </code></pre></div><p>これを実行するとこんなコードが得られる（一部割愛）。</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">$ go run sample1b.go
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">$ go run sample1b.go
 var KangxiRadicals = unicode.SpecialCase{
     unicode.CaseRange{0x2f00, 0x2f00, [unicode.MaxCase]rune{0x4e00 - 0x2f00, 0, 0}}, // U+2F00 &#39;⼀&#39; -&gt; U+4E00 &#39;一&#39;
     unicode.CaseRange{0x2f01, 0x2f01, [unicode.MaxCase]rune{0x4e28 - 0x2f01, 0, 0}}, // U+2F01 &#39;⼁&#39; -&gt; U+4E28 &#39;丨&#39;
@@ -242,7 +242,7 @@ var KangxiRadicals = unicode.SpecialCase{
 }
 </code></pre></div><p>あとはこれを組み込んで使えばいいだけ。
 たとえばこんな感じに使える。</p>
-<div class="highlight"><pre class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">unicodePrint</span><span class="p">(</span><span class="nx">s</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">unicodePrint</span><span class="p">(</span><span class="nx">s</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
     <span class="nx">ss</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{}</span>
     <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">r</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">s</span> <span class="p">{</span>
         <span class="nx">ss</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">ss</span><span class="p">,</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;{%#U}&#34;</span><span class="p">,</span> <span class="nx">r</span><span class="p">))</span>
@@ -256,7 +256,7 @@ var KangxiRadicals = unicode.SpecialCase{
 <span class="hl">    <span class="nf">unicodePrint</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nf">ToUpperSpecial</span><span class="p">(</span><span class="nx">KangxiRadicals</span><span class="p">,</span> <span class="nx">saitama</span><span class="p">))</span>
 </span><span class="p">}</span>
 </code></pre></div><p>これを実行すると</p>
-<div class="highlight"><pre class="chroma"><code class="language-text" data-lang="text">go run sample2.go
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">go run sample2.go
 {U+57FC &#39;埼&#39;} {U+2F5F &#39;⽟&#39;}
 {U+57FC &#39;埼&#39;} {U+7389 &#39;玉&#39;}
 </code></pre></div><p>となる。
@@ -326,7 +326,7 @@ var KangxiRadicals = unicode.SpecialCase{
 <li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.85.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.86.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>
