@@ -979,11 +979,11 @@ ok  	github.com/spiegel-im-spiegel/mt/benchmark	7.081s
 &lt;/section&gt;
 </content>
 	</entry><entry>
-		<title>Go の疑似乱数生成器は Goroutine-Safe ではないらしい（追記あり）</title>
+		<title>Go の疑似乱数生成器は並行的に安全ではないらしい（追記あり）</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/pseudo-random-number-generator/" />
 		<id>tag:text.Baldanders.info,2019-09-17:/golang/pseudo-random-number-generator/</id>
 		<published>2019-09-17T14:27:18+00:00</published>
-		<updated>2021-12-04T02:40:05+00:00</updated>
+		<updated>2022-02-12T19:35:54+00:00</updated>
 		<summary>件の記事では解決方法が（具体的には）示されていないので，いくつか対策を考えてみよう。</summary>
 		<author>
 			<name>Spiegel</name>
@@ -998,8 +998,8 @@ ok  	github.com/spiegel-im-spiegel/mt/benchmark	7.081s
 &lt;li&gt;&lt;a href=&#34;https://qiita.com/hiromichi_n/items/d0636b9444dca18ef357&#34;&gt;【Go】rand.Sourceを並列で使いまわすなんて何事だ - Qiita&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;折角なので便乗記事を書いてみる。&lt;/p&gt;
-&lt;p&gt;まぁ，内部状態を持つオブジェクトは，状態が変わらない（immutable）か操作が goroutine-safe であることが仕様・設計として明確であるものでない限り，複数の goroutine 間でインスタンスを共有してはいけない，というのは基本中の基本である。&lt;/p&gt;
-&lt;p&gt;ましてや標準の &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;math/rand&lt;/a&gt; パッケージは &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;rand&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Source&lt;/code&gt; インタフェースを満たすのであればユーザ側で任意のアルゴリズムを用意することもできるので， goroutine-safe であることを期待するほうが間違っているとも言える。&lt;/p&gt;
+&lt;p&gt;まぁ，内部状態を持つオブジェクトは，状態が変わらない（immutable）か操作が並行的に安全（concurrency safe）であることが仕様・設計として明確であるものでない限り，複数の goroutine 間でインスタンスを共有してはいけない，というのは基本中の基本である。&lt;/p&gt;
+&lt;p&gt;ましてや標準の &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;math/rand&lt;/a&gt; パッケージは &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;rand&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Source&lt;/code&gt; インタフェースを満たすのであればユーザ側で任意のアルゴリズムを用意することもできるので，並行的に安全であることを期待するほうが間違っているとも言える。&lt;/p&gt;
 &lt;p&gt;まずは，&lt;a href=&#34;https://qiita.com/hiromichi_n/items/d0636b9444dca18ef357&#34; title=&#34;【Go】rand.Sourceを並列で使いまわすなんて何事だ - Qiita&#34;&gt;件の記事&lt;/a&gt;で書かれているコードを挙げておこう。
 ただし動作に直接関係ないコードは極力省いている。&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
@@ -1097,7 +1097,7 @@ exit status 2
     &lt;span class=&#34;p&#34;&gt;}()&lt;/span&gt;
     &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ch&lt;/span&gt;
 &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;こうすれば &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;rand&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Rand&lt;/code&gt; インスタンスはひとつで済むし（seed もひとつ），持ち回すインスタンスは channel のみなので goroutine-safe にできる。
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;こうすれば &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;rand&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Rand&lt;/code&gt; インスタンスはひとつで済むし（seed もひとつ），持ち回すインスタンスは channel のみなので並行的に安全にできる。
 乱数の取り出し側はこう書き換えればよい。&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;calcRand&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;gen&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;-&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;chan&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
 &lt;/span&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;10000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
@@ -1145,8 +1145,8 @@ exit status 2
     &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ch&lt;/span&gt;
 &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;外部からキャンセルイベントを流し込めるようにするといいかもしれない。&lt;/p&gt;
-&lt;h2&gt;【2019-09-20 追記】 実は標準で Goroutine-Safe な疑似乱数生成器が用意されていた&lt;/h2&gt;
-&lt;p&gt;あれから &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;math/rand&lt;/a&gt; のソースコードを眺めてて気がついたのだが，実は goroutine-safe な疑似乱数生成器が標準で用意されていた。&lt;/p&gt;
+&lt;h2&gt;【2019-09-20 追記】 実は標準で並行的に安全な疑似乱数生成器が用意されていた&lt;/h2&gt;
+&lt;p&gt;あれから &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;math/rand&lt;/a&gt; のソースコードを眺めてて気がついたのだが，実は並行的に安全な疑似乱数生成器が標準で用意されていた。&lt;/p&gt;
 &lt;p&gt;たとえば &lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;&lt;code&gt;rand&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Intn()&lt;/code&gt; 関数を見ると&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// Intn returns, as an int, a non-negative pseudo-random number in [0,n)
 &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// from the default Source.
