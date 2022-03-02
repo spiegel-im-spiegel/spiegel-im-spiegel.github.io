@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.92.2" />
+<meta name="generator" content="Hugo 0.93.1" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -197,115 +197,115 @@ MathJax = {
 ユリウス日の計算なんて簡単なので今まで <code>main()</code> 関数の中にゴリゴリ書いてましたが，今後のことを考えて，これを使ってパッケージ化の作業を行うことにします。</p>
 <h2>ユリウス日計算のパッケージ化</h2>
 <p>まずは，<a href="/golang/julian-day-number/" title="「ユリウス日」で遊ぶ">前回</a>のコードから計算処理部分をきちんと分離します。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
-
-<span class="kn">import</span> <span class="p">(</span>
-    <span class="s">&#34;flag&#34;</span>
-    <span class="s">&#34;fmt&#34;</span>
-    <span class="s">&#34;os&#34;</span>
-    <span class="s">&#34;strconv&#34;</span>
-    <span class="s">&#34;time&#34;</span>
-<span class="p">)</span>
-
-<span class="kd">func</span> <span class="nf">ModifiedJulianDayNumber</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
-    <span class="k">if</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Sub</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="p">{</span>
-        <span class="k">return</span> <span class="nf">mjdnUnix</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-        <span class="k">return</span> <span class="nf">mjdnGregorian</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">mjdnGregorian</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
-    <span class="nx">y</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Year</span><span class="p">())</span>
-    <span class="nx">m</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Month</span><span class="p">())</span>
-    <span class="k">if</span> <span class="nx">m</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
-        <span class="nx">y</span> <span class="o">-=</span> <span class="mi">1</span>
-        <span class="nx">m</span> <span class="o">+=</span> <span class="mi">9</span>
-    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-        <span class="nx">m</span> <span class="o">-=</span> <span class="mi">3</span>
-    <span class="p">}</span>
-    <span class="nx">d</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Day</span><span class="p">())</span> <span class="o">-</span> <span class="mi">1</span>
-    <span class="k">return</span> <span class="p">(</span><span class="mi">1461</span><span class="o">*</span><span class="nx">y</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span> <span class="o">+</span> <span class="nx">y</span><span class="o">/</span><span class="mi">400</span> <span class="o">-</span> <span class="nx">y</span><span class="o">/</span><span class="mi">100</span> <span class="o">+</span> <span class="p">(</span><span class="mi">153</span><span class="o">*</span><span class="nx">m</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="mi">5</span> <span class="o">+</span> <span class="nx">d</span> <span class="o">-</span> <span class="mi">678881</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">mjdnUnix</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
-    <span class="kd">const</span> <span class="p">(</span>
-        <span class="nx">onday</span>   <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">86400</span><span class="p">)</span> <span class="c1">//seconds
-</span><span class="c1"></span>        <span class="nx">baseDay</span> <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">40587</span><span class="p">)</span> <span class="c1">//Modified Julian Date at January 1, 1970
-</span><span class="c1"></span>    <span class="p">)</span>
-    <span class="k">return</span> <span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Unix</span><span class="p">())</span><span class="o">/</span><span class="nx">onday</span> <span class="o">+</span> <span class="nx">baseDay</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="c1">//引数のチェック
-</span><span class="c1"></span>    <span class="nx">flag</span><span class="p">.</span><span class="nf">Parse</span><span class="p">()</span>
-    <span class="nx">argsStr</span> <span class="o">:=</span> <span class="nx">flag</span><span class="p">.</span><span class="nf">Args</span><span class="p">()</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
-        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="s">&#34;年月日を指定してください&#34;</span><span class="p">)</span>
-        <span class="k">return</span>
-    <span class="p">}</span>
-    <span class="nx">args</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">int</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-    <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="mi">3</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-        <span class="nx">num</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Atoi</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">[</span><span class="nx">i</span><span class="p">])</span>
-        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
-            <span class="k">return</span>
-        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-            <span class="nx">args</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">=</span> <span class="nx">num</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-    <span class="nx">tm</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Date</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Month</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nx">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nx">UTC</span><span class="p">)</span>
-    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%v\n&#34;</span><span class="p">,</span> <span class="nx">tm</span><span class="p">)</span>
-    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;MJD = %d日\n&#34;</span><span class="p">,</span> <span class="nf">ModifiedJulianDayNumber</span><span class="p">(</span><span class="nx">tm</span><span class="p">))</span>
-<span class="p">}</span>
-</code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell">C:&gt;go run julian-day-4.go <span class="m">1969</span> <span class="m">12</span> <span class="m">31</span>
-1969-12-31 00:00:00 +0000 UTC
-<span class="nv">MJD</span> <span class="o">=</span> 40586日
-
-C:&gt;go run julian-day-4.go <span class="m">1970</span> <span class="m">1</span> <span class="m">1</span>
-1970-01-01 00:00:00 +0000 UTC
-<span class="nv">MJD</span> <span class="o">=</span> 40587日
-
-C:&gt;go run julian-day-4.go <span class="m">2015</span> <span class="m">1</span> <span class="m">1</span>
-2015-01-01 00:00:00 +0000 UTC
-<span class="nv">MJD</span> <span class="o">=</span> 57023日
-</code></pre></div><p>ユリウス日の端数が鬱陶しいので修正ユリウス日の整数部分のみ計算しています。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;flag&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;strconv&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;time&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">ModifiedJulianDayNumber</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Sub</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">mjdnUnix</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">mjdnGregorian</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">mjdnGregorian</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">y</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Year</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">m</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Month</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">m</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">y</span> <span class="o">-=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">m</span> <span class="o">+=</span> <span class="mi">9</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">m</span> <span class="o">-=</span> <span class="mi">3</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">d</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Day</span><span class="p">())</span> <span class="o">-</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="mi">1461</span><span class="o">*</span><span class="nx">y</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span> <span class="o">+</span> <span class="nx">y</span><span class="o">/</span><span class="mi">400</span> <span class="o">-</span> <span class="nx">y</span><span class="o">/</span><span class="mi">100</span> <span class="o">+</span> <span class="p">(</span><span class="mi">153</span><span class="o">*</span><span class="nx">m</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="mi">5</span> <span class="o">+</span> <span class="nx">d</span> <span class="o">-</span> <span class="mi">678881</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">mjdnUnix</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">const</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">onday</span>   <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">86400</span><span class="p">)</span> <span class="c1">//seconds
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">baseDay</span> <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">40587</span><span class="p">)</span> <span class="c1">//Modified Julian Date at January 1, 1970
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Unix</span><span class="p">())</span><span class="o">/</span><span class="nx">onday</span> <span class="o">+</span> <span class="nx">baseDay</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//引数のチェック
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">flag</span><span class="p">.</span><span class="nf">Parse</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">argsStr</span> <span class="o">:=</span> <span class="nx">flag</span><span class="p">.</span><span class="nf">Args</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="s">&#34;年月日を指定してください&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">args</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">int</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="mi">3</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">num</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Atoi</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">[</span><span class="nx">i</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">args</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">=</span> <span class="nx">num</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">tm</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Date</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Month</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nx">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nx">UTC</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%v\n&#34;</span><span class="p">,</span> <span class="nx">tm</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;MJD = %d日\n&#34;</span><span class="p">,</span> <span class="nf">ModifiedJulianDayNumber</span><span class="p">(</span><span class="nx">tm</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell"><span class="line"><span class="cl">C:&gt;go run julian-day-4.go <span class="m">1969</span> <span class="m">12</span> <span class="m">31</span>
+</span></span><span class="line"><span class="cl">1969-12-31 00:00:00 +0000 UTC
+</span></span><span class="line"><span class="cl"><span class="nv">MJD</span> <span class="o">=</span> 40586日
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">C:&gt;go run julian-day-4.go <span class="m">1970</span> <span class="m">1</span> <span class="m">1</span>
+</span></span><span class="line"><span class="cl">1970-01-01 00:00:00 +0000 UTC
+</span></span><span class="line"><span class="cl"><span class="nv">MJD</span> <span class="o">=</span> 40587日
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">C:&gt;go run julian-day-4.go <span class="m">2015</span> <span class="m">1</span> <span class="m">1</span>
+</span></span><span class="line"><span class="cl">2015-01-01 00:00:00 +0000 UTC
+</span></span><span class="line"><span class="cl"><span class="nv">MJD</span> <span class="o">=</span> 57023日
+</span></span></code></pre></div><p>ユリウス日の端数が鬱陶しいので修正ユリウス日の整数部分のみ計算しています。
 あと1970年1月1日を境界として計算方法を変えています。
 本当はユリウス暦の場合の計算も含めるべきなんでしょうけど，今回は割愛します。</p>
 <p>さて，上のコードのうち修正ユリウス日計算関数を別ファイルにしてパッケージ化します。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">modjulian</span>
-
-<span class="kn">import</span> <span class="s">&#34;time&#34;</span>
-
-<span class="kd">func</span> <span class="nf">DayNumber</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
-    <span class="k">if</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Sub</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="p">{</span>
-        <span class="k">return</span> <span class="nf">dnUnix</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-        <span class="k">return</span> <span class="nf">dnGregorian</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-    <span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">dnGregorian</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
-    <span class="nx">y</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Year</span><span class="p">())</span>
-    <span class="nx">m</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Month</span><span class="p">())</span>
-    <span class="k">if</span> <span class="nx">m</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
-        <span class="nx">y</span> <span class="o">-=</span> <span class="mi">1</span>
-        <span class="nx">m</span> <span class="o">+=</span> <span class="mi">9</span>
-    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-        <span class="nx">m</span> <span class="o">-=</span> <span class="mi">3</span>
-    <span class="p">}</span>
-    <span class="nx">d</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Day</span><span class="p">())</span> <span class="o">-</span> <span class="mi">1</span>
-    <span class="k">return</span> <span class="p">(</span><span class="mi">1461</span><span class="o">*</span><span class="nx">y</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span> <span class="o">+</span> <span class="nx">y</span><span class="o">/</span><span class="mi">400</span> <span class="o">-</span> <span class="nx">y</span><span class="o">/</span><span class="mi">100</span> <span class="o">+</span> <span class="p">(</span><span class="mi">153</span><span class="o">*</span><span class="nx">m</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="mi">5</span> <span class="o">+</span> <span class="nx">d</span> <span class="o">-</span> <span class="mi">678881</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">dnUnix</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
-    <span class="kd">const</span> <span class="p">(</span>
-        <span class="nx">onday</span>   <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">86400</span><span class="p">)</span> <span class="c1">//seconds
-</span><span class="c1"></span>        <span class="nx">baseDay</span> <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">40587</span><span class="p">)</span> <span class="c1">//Modified Julian Date at January 1, 1970
-</span><span class="c1"></span>    <span class="p">)</span>
-    <span class="k">return</span> <span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Unix</span><span class="p">())</span><span class="o">/</span><span class="nx">onday</span> <span class="o">+</span> <span class="nx">baseDay</span>
-<span class="p">}</span>
-</code></pre></div><p>パッケージ名は <code>modjulian</code> としました。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">modjulian</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;time&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">DayNumber</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Sub</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">dnUnix</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">dnGregorian</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">dnGregorian</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">y</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Year</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">m</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Month</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">m</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">y</span> <span class="o">-=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">m</span> <span class="o">+=</span> <span class="mi">9</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">m</span> <span class="o">-=</span> <span class="mi">3</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">d</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Day</span><span class="p">())</span> <span class="o">-</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="mi">1461</span><span class="o">*</span><span class="nx">y</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span> <span class="o">+</span> <span class="nx">y</span><span class="o">/</span><span class="mi">400</span> <span class="o">-</span> <span class="nx">y</span><span class="o">/</span><span class="mi">100</span> <span class="o">+</span> <span class="p">(</span><span class="mi">153</span><span class="o">*</span><span class="nx">m</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="mi">5</span> <span class="o">+</span> <span class="nx">d</span> <span class="o">-</span> <span class="mi">678881</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">dnUnix</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="kt">int64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">const</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">onday</span>   <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">86400</span><span class="p">)</span> <span class="c1">//seconds
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">baseDay</span> <span class="p">=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">40587</span><span class="p">)</span> <span class="c1">//Modified Julian Date at January 1, 1970
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Unix</span><span class="p">())</span><span class="o">/</span><span class="nx">onday</span> <span class="o">+</span> <span class="nx">baseDay</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>パッケージ名は <code>modjulian</code> としました。
 ちなみにパッケージ内の関数等は名前の先頭が大文字のものだけが外部から参照可能です。</p>
 <h3>Go 言語における名前の問題</h3>
 <p>Go 言語およびそのコミュニティは名前にうるさいようです。
@@ -324,65 +324,65 @@ C:&gt;go run julian-day-4.go <span class="m">2015</span> <span class="m">1</span
 <h2>パッケージの配置と呼び出し</h2>
 <p>パッケージを呼び出すのには（標準のパッケージと同じく） <code>import</code> を使えばいいのですが，記述によってパッケージをどこに配置するかが変わります。</p>
 <p>たとえば</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">import</span> <span class="s">&#34;./modjulian&#34;</span>
-</code></pre></div><p>と相対パスで記述した場合は，呼び出し元のファイルの場所にある <code>modjulian</code> フォルダを探します。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;./modjulian&#34;</span>
+</span></span></code></pre></div><p>と相対パスで記述した場合は，呼び出し元のファイルの場所にある <code>modjulian</code> フォルダを探します。
 以下はパッケージが見つからなくてエラーになってる例です。</p>
 <pre tabindex="0"><code>C:\workspace\jd\src\julian-day-4b&gt;go build julian-day-4b.go
 julian-day-4b.go:10:2: open C:\workspace\jd\src\julian-day-4b\modjulian: The system cannot find the file specified.
 </code></pre><p>一方</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">import</span> <span class="s">&#34;modjulian&#34;</span>
-</code></pre></div><p>と記述した場合には，環境変数 <code>GOROOT</code> および <code>GOPATH</code> で指定されるフォルダ以下を探すようです。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;modjulian&#34;</span>
+</span></span></code></pre></div><p>と記述した場合には，環境変数 <code>GOROOT</code> および <code>GOPATH</code> で指定されるフォルダ以下を探すようです。
 以下もパッケージが見つからなくてエラーになってる例です。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell">C:<span class="se">\w</span>orkspace<span class="se">\j</span>d<span class="se">\s</span>rc<span class="se">\j</span>ulian-day-4b&gt;go build julian-day-4b.go
-julian-day-4b.go:10:2: cannot find package <span class="s2">&#34;modjulian&#34;</span> in any of:
-        C:<span class="se">\G</span>o<span class="se">\s</span>rc<span class="se">\m</span>odjulian <span class="o">(</span>from <span class="nv">$GOROOT</span><span class="o">)</span>
-        C:<span class="se">\G</span>opath<span class="se">\s</span>rc<span class="se">\m</span>odjulian <span class="o">(</span>from <span class="nv">$GOPATH</span><span class="o">)</span>
-</code></pre></div><p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>ではパッケージを相対パスで指定するのは（デバッグ時などを除いて）良くないと言われています。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell"><span class="line"><span class="cl">C:<span class="se">\w</span>orkspace<span class="se">\j</span>d<span class="se">\s</span>rc<span class="se">\j</span>ulian-day-4b&gt;go build julian-day-4b.go
+</span></span><span class="line"><span class="cl">julian-day-4b.go:10:2: cannot find package <span class="s2">&#34;modjulian&#34;</span> in any of:
+</span></span><span class="line"><span class="cl">        C:<span class="se">\G</span>o<span class="se">\s</span>rc<span class="se">\m</span>odjulian <span class="o">(</span>from <span class="nv">$GOROOT</span><span class="o">)</span>
+</span></span><span class="line"><span class="cl">        C:<span class="se">\G</span>opath<span class="se">\s</span>rc<span class="se">\m</span>odjulian <span class="o">(</span>from <span class="nv">$GOPATH</span><span class="o">)</span>
+</span></span></code></pre></div><p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>ではパッケージを相対パスで指定するのは（デバッグ時などを除いて）良くないと言われています。
 これは <code>go get</code> コマンドでパッケージをビルドする際，相対パスを解釈しないようにしているからのようです<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。</p>
 <h3>パッケージを GitHub 上に配置する</h3>
 <p>「<a href="/golang/go-get-package/">go get コマンドでパッケージを管理する</a>」でも紹介しましたが，インターネット上の repository にあるパッケージを</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">import</span> <span class="s">&#34;github.com/username/package&#34;</span>
-</code></pre></div><p>のように指定することで，任意に取り込むことが可能です。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;github.com/username/package&#34;</span>
+</span></span></code></pre></div><p>のように指定することで，任意に取り込むことが可能です。
 そこで今回のパッケージを <a href="https://github.com/">GitHub</a> 上に公開しました。</p>
 <ul>
 <li><a href="https://github.com/spiegel-im-spiegel/astrocalc"><code>github.com/spiegel-im-spiegel/astrocalc</code></a><code>/modjulian</code></li>
 </ul>
 <p>このパッケージを使って書いてみます。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
-
-<span class="kn">import</span> <span class="p">(</span>
-    <span class="s">&#34;flag&#34;</span>
-    <span class="s">&#34;fmt&#34;</span>
-    <span class="s">&#34;os&#34;</span>
-    <span class="s">&#34;strconv&#34;</span>
-    <span class="s">&#34;time&#34;</span>
-
-    <span class="s">&#34;github.com/spiegel-im-spiegel/astrocalc/modjulian&#34;</span>
-<span class="p">)</span>
-
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-    <span class="c1">//引数のチェック
-</span><span class="c1"></span>    <span class="nx">flag</span><span class="p">.</span><span class="nf">Parse</span><span class="p">()</span>
-    <span class="nx">argsStr</span> <span class="o">:=</span> <span class="nx">flag</span><span class="p">.</span><span class="nf">Args</span><span class="p">()</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
-        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="s">&#34;年月日を指定してください&#34;</span><span class="p">)</span>
-        <span class="k">return</span>
-    <span class="p">}</span>
-    <span class="nx">args</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">int</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-    <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="mi">3</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-        <span class="nx">num</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Atoi</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">[</span><span class="nx">i</span><span class="p">])</span>
-        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
-            <span class="k">return</span>
-        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-            <span class="nx">args</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">=</span> <span class="nx">num</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
-    <span class="nx">tm</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Date</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Month</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nx">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nx">UTC</span><span class="p">)</span>
-    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%v\n&#34;</span><span class="p">,</span> <span class="nx">tm</span><span class="p">)</span>
-    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;MJD = %d日\n&#34;</span><span class="p">,</span> <span class="nx">modjulian</span><span class="p">.</span><span class="nf">DayNumber</span><span class="p">(</span><span class="nx">tm</span><span class="p">))</span>
-<span class="p">}</span>
-</code></pre></div><p>このソースファイル <code>julian-day-4b.go</code> と <code>modjulian</code> パッケージを以下のように配置してビルドします。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;flag&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;strconv&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;time&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;github.com/spiegel-im-spiegel/astrocalc/modjulian&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//引数のチェック
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">flag</span><span class="p">.</span><span class="nf">Parse</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">argsStr</span> <span class="o">:=</span> <span class="nx">flag</span><span class="p">.</span><span class="nf">Args</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">3</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="s">&#34;年月日を指定してください&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">args</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">int</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="mi">3</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">num</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">strconv</span><span class="p">.</span><span class="nf">Atoi</span><span class="p">(</span><span class="nx">argsStr</span><span class="p">[</span><span class="nx">i</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">args</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">=</span> <span class="nx">num</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">tm</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Date</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Month</span><span class="p">(</span><span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nx">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nx">UTC</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%v\n&#34;</span><span class="p">,</span> <span class="nx">tm</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;MJD = %d日\n&#34;</span><span class="p">,</span> <span class="nx">modjulian</span><span class="p">.</span><span class="nf">DayNumber</span><span class="p">(</span><span class="nx">tm</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>このソースファイル <code>julian-day-4b.go</code> と <code>modjulian</code> パッケージを以下のように配置してビルドします。</p>
 <pre tabindex="0"><code>C:&gt;SET GOPATH=C:\workspace\jd
 
 C:&gt;cd C:\workspace\jd
@@ -504,7 +504,7 @@ MJD = 57023日
 <li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.92.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.93.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>

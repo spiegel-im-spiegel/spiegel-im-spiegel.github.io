@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.92.2" />
+<meta name="generator" content="Hugo 0.93.1" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -165,142 +165,142 @@
 
 <section>
 <p><a href="https://golangci.com/" title="Automated code review for Go">GolangCI</a> が吐く<a href="/golang/code-review-with-golangci/" title="GolangCI でコード・レビューを自動化する">レビュー結果</a>を基にチマチマとコードを直していたのだが，その中で</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">SA6005: should use strings.EqualFold(a, b) instead of strings.ToLower(a) == strings.ToLower(b)
-
-if strings.ToLower(left) == strings.ToLower(right) {
-</code></pre></div><p>という指摘があった。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">SA6005: should use strings.EqualFold(a, b) instead of strings.ToLower(a) == strings.ToLower(b)
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">if strings.ToLower(left) == strings.ToLower(right) {
+</span></span></code></pre></div><p>という指摘があった。
 いや，もの知らずでゴメンペコン。</p>
 <p><a href="https://golang.org/pkg/strings/" title="strings - The Go Programming Language"><code>strings</code></a><code>.EqualFold()</code> 関数ってなんじゃら？ と思ってソースコードを見たら</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="c1">// EqualFold reports whether s and t, interpreted as UTF-8 strings,
-</span><span class="c1">// are equal under Unicode case-folding.
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">EqualFold</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span> <span class="nx">t</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span> <span class="p">{</span>
-    <span class="o">...</span>
-<span class="p">}</span>
-</code></pre></div><p>と書かれている。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// EqualFold reports whether s and t, interpreted as UTF-8 strings,
+</span></span></span><span class="line"><span class="cl"><span class="c1">// are equal under Unicode case-folding.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">EqualFold</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span> <span class="nx">t</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="o">...</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>と書かれている。</p>
 <p>ふむふむ。
 では試してみよう。
 こんな感じのコードを書いて</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
-
-<span class="kn">import</span> <span class="p">(</span>
-	<span class="s">&#34;fmt&#34;</span>
-	<span class="s">&#34;strings&#34;</span>
-<span class="p">)</span>
-
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-	<span class="nx">lefts</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
-	<span class="nx">rights</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;Go&#34;</span><span class="p">,</span> <span class="s">&#34;GO&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;Ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ＧＯ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
-
-	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
-		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
-			<span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%s == %s : %v\n&#34;</span><span class="p">,</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">,</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">EqualFold</span><span class="p">(</span><span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">))</span>
-		<span class="p">}</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div><p>実行してみると</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">$ go run sample1.go 
-go == Go : true
-go == GO : true
-go == go : true
-go == Ｇｏ : false
-go == ＧＯ : false
-go == ｇｏ : false
-ｇｏ == Go : false
-ｇｏ == GO : false
-ｇｏ == go : false
-ｇｏ == Ｇｏ : true
-ｇｏ == ＧＯ : true
-ｇｏ == ｇｏ : true
-</code></pre></div><p>ってな感じになった。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;strings&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">lefts</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">rights</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;Go&#34;</span><span class="p">,</span> <span class="s">&#34;GO&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;Ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ＧＯ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%s == %s : %v\n&#34;</span><span class="p">,</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">,</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">EqualFold</span><span class="p">(</span><span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>実行してみると</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample1.go 
+</span></span><span class="line"><span class="cl">go == Go : true
+</span></span><span class="line"><span class="cl">go == GO : true
+</span></span><span class="line"><span class="cl">go == go : true
+</span></span><span class="line"><span class="cl">go == Ｇｏ : false
+</span></span><span class="line"><span class="cl">go == ＧＯ : false
+</span></span><span class="line"><span class="cl">go == ｇｏ : false
+</span></span><span class="line"><span class="cl">ｇｏ == Go : false
+</span></span><span class="line"><span class="cl">ｇｏ == GO : false
+</span></span><span class="line"><span class="cl">ｇｏ == go : false
+</span></span><span class="line"><span class="cl">ｇｏ == Ｇｏ : true
+</span></span><span class="line"><span class="cl">ｇｏ == ＧＯ : true
+</span></span><span class="line"><span class="cl">ｇｏ == ｇｏ : true
+</span></span></code></pre></div><p>ってな感じになった。
 全角と半角は区別してくれるらしい。
 Unicode の文字種をきちんと判別しているということだ。</p>
 <p>ちなみに <a href="https://golang.org/pkg/strings/" title="strings - The Go Programming Language"><code>strings</code></a><code>.ToLower()</code> 関数を使って</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">main</span>
-
-<span class="kn">import</span> <span class="p">(</span>
-	<span class="s">&#34;fmt&#34;</span>
-	<span class="s">&#34;strings&#34;</span>
-<span class="p">)</span>
-
-<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-	<span class="nx">lefts</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
-	<span class="nx">rights</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;Go&#34;</span><span class="p">,</span> <span class="s">&#34;GO&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;Ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ＧＯ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
-
-	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
-		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
-<span class="hl">			<span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%s == %s : %v\n&#34;</span><span class="p">,</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">,</span> <span class="p">(</span><span class="nx">left</span> <span class="o">==</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">(</span><span class="nx">right</span><span class="p">)))</span>
-</span>		<span class="p">}</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div><p>とやっても同じ結果になる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;strings&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">lefts</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">rights</span> <span class="o">:=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;Go&#34;</span><span class="p">,</span> <span class="s">&#34;GO&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;Ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ＧＯ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">			<span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%s == %s : %v\n&#34;</span><span class="p">,</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">,</span> <span class="p">(</span><span class="nx">left</span> <span class="o">==</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">(</span><span class="nx">right</span><span class="p">)))</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>とやっても同じ結果になる。</p>
 <p><a href="https://golang.org/pkg/strings/" title="strings - The Go Programming Language"><code>strings</code></a><code>.EqualFold()</code> 関数と <a href="https://golang.org/pkg/strings/" title="strings - The Go Programming Language"><code>strings</code></a><code>.ToLower()</code> 関数でどっちが速いかなんてのは考えるまでもないのだが，いちおう試しておこう。
 こんな感じのコードでいいかな。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">equalfold</span>
-
-<span class="kn">import</span> <span class="p">(</span>
-	<span class="s">&#34;strings&#34;</span>
-	<span class="s">&#34;testing&#34;</span>
-<span class="p">)</span>
-
-<span class="kd">var</span> <span class="p">(</span>
-	<span class="nx">lefts</span>   <span class="p">=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
-	<span class="nx">rights</span>  <span class="p">=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;Go&#34;</span><span class="p">,</span> <span class="s">&#34;GO&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;Ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ＧＯ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
-	<span class="nx">rights2</span> <span class="p">=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
-<span class="p">)</span>
-
-<span class="kd">func</span> <span class="nf">BenchmarkEqualCase</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
-			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights2</span> <span class="p">{</span>
-<span class="hl">				<span class="k">if</span> <span class="nx">left</span> <span class="o">==</span> <span class="nx">right</span> <span class="p">{</span>
-</span>					<span class="nx">_</span> <span class="p">=</span> <span class="nx">left</span>
-				<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-					<span class="nx">_</span> <span class="p">=</span> <span class="nx">right</span>
-				<span class="p">}</span>
-			<span class="p">}</span>
-		<span class="p">}</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">BenchmarkEqualLower</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
-			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
-<span class="hl">				<span class="k">if</span> <span class="nx">left</span> <span class="o">==</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">(</span><span class="nx">right</span><span class="p">)</span> <span class="p">{</span>
-</span>					<span class="nx">_</span> <span class="p">=</span> <span class="nx">left</span>
-				<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-					<span class="nx">_</span> <span class="p">=</span> <span class="nx">right</span>
-				<span class="p">}</span>
-			<span class="p">}</span>
-		<span class="p">}</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">BenchmarkEqualFold</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
-			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
-<span class="hl">				<span class="k">if</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">EqualFold</span><span class="p">(</span><span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">)</span> <span class="p">{</span>
-</span>					<span class="nx">_</span> <span class="p">=</span> <span class="nx">left</span>
-				<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-					<span class="nx">_</span> <span class="p">=</span> <span class="nx">right</span>
-				<span class="p">}</span>
-			<span class="p">}</span>
-		<span class="p">}</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div><p><code>BenchmarkEqualCase</code> は他の2つのコードとの比較用に書いてみた。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">equalfold</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;strings&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;testing&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">lefts</span>   <span class="p">=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">rights</span>  <span class="p">=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;Go&#34;</span><span class="p">,</span> <span class="s">&#34;GO&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;Ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ＧＯ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">rights2</span> <span class="p">=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;go&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">,</span> <span class="s">&#34;ｇｏ&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkEqualCase</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights2</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">				<span class="k">if</span> <span class="nx">left</span> <span class="o">==</span> <span class="nx">right</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">_</span> <span class="p">=</span> <span class="nx">left</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">_</span> <span class="p">=</span> <span class="nx">right</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkEqualLower</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">				<span class="k">if</span> <span class="nx">left</span> <span class="o">==</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">(</span><span class="nx">right</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">_</span> <span class="p">=</span> <span class="nx">left</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">_</span> <span class="p">=</span> <span class="nx">right</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkEqualFold</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">left</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">lefts</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">right</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">rights</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">				<span class="k">if</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">EqualFold</span><span class="p">(</span><span class="nx">left</span><span class="p">,</span> <span class="nx">right</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">_</span> <span class="p">=</span> <span class="nx">left</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">_</span> <span class="p">=</span> <span class="nx">right</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>BenchmarkEqualCase</code> は他の2つのコードとの比較用に書いてみた。
 実行結果はこんな感じ。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">$ go test -bench Equal -benchmem
-goos: linux
-goarch: amd64
-pkg: sample
-BenchmarkEqualCase-4    	32061360	        36.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEqualLower-4   	 1367802	       869 ns/op	      64 B/op	       8 allocs/op
-BenchmarkEqualFold-4    	 3149362	       378 ns/op	       0 B/op	       0 allocs/op
-PASS
-ok  	sample	4.748s
-</code></pre></div><p>表にまとめておこう。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go test -bench Equal -benchmem
+</span></span><span class="line"><span class="cl">goos: linux
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: sample
+</span></span><span class="line"><span class="cl">BenchmarkEqualCase-4    	32061360	        36.2 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkEqualLower-4   	 1367802	       869 ns/op	      64 B/op	       8 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkEqualFold-4    	 3149362	       378 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">PASS
+</span></span><span class="line"><span class="cl">ok  	sample	4.748s
+</span></span></code></pre></div><p>表にまとめておこう。</p>
 <table>
 <thead>
 <tr>
@@ -340,23 +340,23 @@ ok  	sample	4.748s
 <li><a href="https://mattn.kaoriya.net/software/lang/go/20190806152526.htm">Big Sky :: Go で大文字小文字無視の文字列比較ベンチマーク</a></li>
 </ul>
 <p>この記事にある <code>isDevNull3</code> 関数について</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">isDevNull3</span><span class="p">(</span><span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span> <span class="p">{</span>
-    <span class="k">return</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span> <span class="o">==</span> <span class="s">&#34;nul&#34;</span>
-<span class="p">}</span>
-</code></pre></div><p><a href="https://golang.org/pkg/strings/" title="strings - The Go Programming Language"><code>strings</code></a><code>.EqualFold()</code> 関数を使うよう書き換えてみる。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">isDevNull3</span><span class="p">(</span><span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span> <span class="p">{</span>
-<span class="hl">	<span class="k">return</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">EqualFold</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span> <span class="s">&#34;nul&#34;</span><span class="p">)</span>
-</span><span class="p">}</span>
-</code></pre></div><p>これでベンチマークテストを実行すると</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">goos: linux
-goarch: amd64
-pkg: sample/lowercase
-BenchmarkS1-4   	41640913	        27.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkS2-4   	35464141	        30.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkS3-4   	12628962	        94.4 ns/op	       0 B/op	       0 allocs/op
-PASS
-ok  	sample/lowercase	3.578s
-</code></pre></div><p>メモリ・アロケーションが発生しなくなり，かなり速くなる。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">isDevNull3</span><span class="p">(</span><span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span> <span class="o">==</span> <span class="s">&#34;nul&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><a href="https://golang.org/pkg/strings/" title="strings - The Go Programming Language"><code>strings</code></a><code>.EqualFold()</code> 関数を使うよう書き換えてみる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">isDevNull3</span><span class="p">(</span><span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">	<span class="k">return</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">EqualFold</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span> <span class="s">&#34;nul&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これでベンチマークテストを実行すると</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">goos: linux
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: sample/lowercase
+</span></span><span class="line"><span class="cl">BenchmarkS1-4   	41640913	        27.2 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkS2-4   	35464141	        30.7 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkS3-4   	12628962	        94.4 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">PASS
+</span></span><span class="line"><span class="cl">ok  	sample/lowercase	3.578s
+</span></span></code></pre></div><p>メモリ・アロケーションが発生しなくなり，かなり速くなる。
 まぁ，それでもいっちゃん遅いのだが（笑）</p>
 <h2>参考図書</h2>
 <div class="hreview">
@@ -418,7 +418,7 @@ ok  	sample/lowercase	3.578s
 <li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.92.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.93.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>

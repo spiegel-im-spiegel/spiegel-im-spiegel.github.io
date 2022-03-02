@@ -36,92 +36,92 @@
 &lt;p&gt;稼働している &lt;code&gt;/usr/bin/gpg-agent&lt;/code&gt; を一旦落として &lt;code&gt;gpg-connect-agent&lt;/code&gt; コマンドで再起動すれば &lt;code&gt;/usr/local/bin/gpg-agent&lt;/code&gt; が起動するのだが，ログインし直すと元に戻ってしまう。&lt;/p&gt;
 &lt;p&gt;いろいろググってみたのだが， &lt;code&gt;gpg-agent&lt;/code&gt; の制御は &lt;code&gt;/usr/lib/systemd/user/gpg-agent.service&lt;/code&gt; ファイルでサービスとして行っているようだ。
 内容はこんな感じ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Unit]&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;Description&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;GnuPG cryptographic agent and passphrase cache&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;Documentation&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;man:gpg-agent(1)&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;Requires&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;gpg-agent.socket&lt;/span&gt;
-
-&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
-&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/gpg-agent --supervised&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/gpgconf --reload gpg-agent&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;そこで，最後の2行を&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/gpg-agent --supervised&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/gpgconf --reload gpg-agent&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と変更し &lt;code&gt;gpg-agent.service&lt;/code&gt; ファイルをリロードする。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ systemctl --user daemon-reload
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;その後サービスを &lt;code&gt;restart&lt;/code&gt; したら &lt;code&gt;/usr/local/bin/gpg-agent&lt;/code&gt; のほうで稼働してくれるようになった。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ systemctl --user restart gpg-agent
-$ systemctl --user status gpg-agent
-● gpg-agent.service - GnuPG cryptographic agent and passphrase cache
-     Loaded: loaded (/usr/lib/systemd/user/gpg-agent.service; static)
-     Active: active (running) since Sat 2021-01-09 09:38:33 JST; 9min ago
-TriggeredBy: ● gpg-agent.socket
-             ● gpg-agent-ssh.socket
-             ● gpg-agent-extra.socket
-             ● gpg-agent-browser.socket
-       Docs: man:gpg-agent(1)
-   Main PID: 18913 (gpg-agent)
-     CGroup: /user.slice/user-1000.slice/user@1000.service/gpg-agent.service
-             ├─18913 /usr/local/bin/gpg-agent --supervised
-             └─19398 scdaemon --multi-server
-
- Jan 09 09:38:33 mymachine systemd[1616]: Started GnuPG cryptographic agent and passphrase cache.
- Jan 09 09:38:33 mymachine gpg-agent[18913]: gpg-agent (GnuPG) 2.2.26 starting in supervised mode.
- Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 3 for std socket (/run/user/1000/gnupg/S.gpg-agent)
- Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 4 for ssh socket (/run/user/1000/gnupg/S.gpg-agent.ssh)
- Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 5 for extra socket (/run/user/1000/gnupg/S.gpg-agent.extra)
- Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 6 for browser socket (/run/user/1000/gnupg/S.gpg-agent.browser)
- Jan 09 09:38:33 mymachine gpg-agent[18913]: listening on: std=3 extra=5 browser=6 ssh=4
-...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;よーし，うむうむ，よーし。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Unit]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Description&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;GnuPG cryptographic agent and passphrase cache&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Documentation&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;man:gpg-agent(1)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Requires&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;gpg-agent.socket&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/gpg-agent --supervised&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/gpgconf --reload gpg-agent&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;そこで，最後の2行を&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/gpg-agent --supervised&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/gpgconf --reload gpg-agent&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と変更し &lt;code&gt;gpg-agent.service&lt;/code&gt; ファイルをリロードする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ systemctl --user daemon-reload
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;その後サービスを &lt;code&gt;restart&lt;/code&gt; したら &lt;code&gt;/usr/local/bin/gpg-agent&lt;/code&gt; のほうで稼働してくれるようになった。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ systemctl --user restart gpg-agent
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ systemctl --user status gpg-agent
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● gpg-agent.service - GnuPG cryptographic agent and passphrase cache
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/usr/lib/systemd/user/gpg-agent.service; static)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Sat 2021-01-09 09:38:33 JST; 9min ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;TriggeredBy: ● gpg-agent.socket
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             ● gpg-agent-ssh.socket
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             ● gpg-agent-extra.socket
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             ● gpg-agent-browser.socket
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       Docs: man:gpg-agent(1)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 18913 (gpg-agent)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /user.slice/user-1000.slice/user@1000.service/gpg-agent.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             ├─18913 /usr/local/bin/gpg-agent --supervised
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─19398 scdaemon --multi-server
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine systemd[1616]: Started GnuPG cryptographic agent and passphrase cache.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine gpg-agent[18913]: gpg-agent (GnuPG) 2.2.26 starting in supervised mode.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 3 for std socket (/run/user/1000/gnupg/S.gpg-agent)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 4 for ssh socket (/run/user/1000/gnupg/S.gpg-agent.ssh)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 5 for extra socket (/run/user/1000/gnupg/S.gpg-agent.extra)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine gpg-agent[18913]: using fd 6 for browser socket (/run/user/1000/gnupg/S.gpg-agent.browser)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine gpg-agent[18913]: listening on: std=3 extra=5 browser=6 ssh=4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;よーし，うむうむ，よーし。&lt;/p&gt;
 &lt;h3&gt;dirmgr も同様に&lt;/h3&gt;
 &lt;p&gt;OpenPGP 鍵サーバを含むディレクトリ・サービスとやり取りする &lt;code&gt;dirmngr&lt;/code&gt; も &lt;code&gt;/usr/lib/systemd/user/dirmngr.service&lt;/code&gt; ファイルでサービス化されている。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Unit]&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;Description&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;GnuPG network certificate management daemon&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;Documentation&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;man:dirmngr(8)&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;Requires&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;dirmngr.socket&lt;/span&gt;
-
-&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
-&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/dirmngr --supervised --honor-http-proxy&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/gpgconf --reload dirmngr&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これも最後の2行を&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/dirmngr --supervised --honor-http-proxy&lt;/span&gt;
-&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/gpgconf --reload dirmngr&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と変更する。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Unit]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Description&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;GnuPG network certificate management daemon&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Documentation&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;man:dirmngr(8)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Requires&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;dirmngr.socket&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/dirmngr --supervised --honor-http-proxy&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/bin/gpgconf --reload dirmngr&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これも最後の2行を&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/dirmngr --supervised --honor-http-proxy&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecReload&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/usr/local/bin/gpgconf --reload dirmngr&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と変更する。
 後の操作は同じ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ systemctl --user daemon-reload
-$ systemctl --user restart dirmngr
-$ systemctl --user status dirmngr
-● dirmngr.service - GnuPG network certificate management daemon
-     Loaded: loaded (/usr/lib/systemd/user/dirmngr.service; static)
-     Active: active (running) since Sat 2021-01-09 09:38:33 JST; 9min ago
-TriggeredBy: ● dirmngr.socket
-       Docs: man:dirmngr(8)
-   Main PID: 349126 (dirmngr)
-     CGroup: /user.slice/user-1000.slice/user@1000.service/dirmngr.service
-             └─349126 /usr/local/bin/dirmngr --supervised --honor-http-proxy
-
- Jan 09 09:38:33 mymachine systemd[2209]: dirmngr.service: Succeeded.
- Jan 09 09:38:33 mymachine dirmngr[348581]: dirmngr (GnuPG) 2.2.20 stopped
- Jan 09 09:38:33 mymachine systemd[2209]: Stopped GnuPG network certificate management daemon.
- Jan 09 09:38:33 mymachine systemd[2209]: Started GnuPG network certificate management daemon.
-...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の鍵管理を gpg-agent に委譲する&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ systemctl --user daemon-reload
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ systemctl --user restart dirmngr
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ systemctl --user status dirmngr
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● dirmngr.service - GnuPG network certificate management daemon
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/usr/lib/systemd/user/dirmngr.service; static)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Sat 2021-01-09 09:38:33 JST; 9min ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;TriggeredBy: ● dirmngr.socket
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       Docs: man:dirmngr(8)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 349126 (dirmngr)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /user.slice/user-1000.slice/user@1000.service/dirmngr.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─349126 /usr/local/bin/dirmngr --supervised --honor-http-proxy
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine systemd[2209]: dirmngr.service: Succeeded.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine dirmngr[348581]: dirmngr (GnuPG) 2.2.20 stopped
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine systemd[2209]: Stopped GnuPG network certificate management daemon.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Jan 09 09:38:33 mymachine systemd[2209]: Started GnuPG network certificate management daemon.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の鍵管理を gpg-agent に委譲する&lt;/h2&gt;
 &lt;p&gt;上述の話を調べてて初めて知ったのだが，どうも Ubuntu を含む Debian 系のディストリビューションでは &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証鍵を &lt;code&gt;ssh-agent&lt;/code&gt; 固定で管理するよう構成されていて， &lt;code&gt;gpg-agent&lt;/code&gt; と設定が競合してしまうらしい。
 &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の鍵管理を gpg-agent に委譲するよう構成するには &lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイル以外にもいくつか設定が必要なようだ。&lt;/p&gt;
 &lt;h3&gt;Xsession.options の変更&lt;/h3&gt;
 &lt;p&gt;まずは &lt;code&gt;/etc/X11/Xsession.options&lt;/code&gt; ファイルの内容を変更する。
 元々の内容は以下の通り。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# $Id: Xsession.options 189 2005-06-11 00:04:27Z branden $&lt;/span&gt;
-&lt;span class=&#34;c1&#34;&gt;#&lt;/span&gt;
-&lt;span class=&#34;c1&#34;&gt;# configuration options for /etc/X11/Xsession&lt;/span&gt;
-&lt;span class=&#34;c1&#34;&gt;# See Xsession.options(5) for an explanation of the available options.&lt;/span&gt;
-allow-failsafe
-allow-user-resources
-allow-user-xsession
-&lt;span class=&#34;hl&#34;&gt;use-ssh-agent
-&lt;/span&gt;use-session-dbus
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;この中の &lt;code&gt;use-ssh-agent&lt;/code&gt; の記述を &lt;code&gt;no-use-ssh-agent&lt;/code&gt; に差し替える。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# $Id: Xsession.options 189 2005-06-11 00:04:27Z branden $&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;#&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# configuration options for /etc/X11/Xsession&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# See Xsession.options(5) for an explanation of the available options.&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;allow-failsafe
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;allow-user-resources
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;allow-user-xsession
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;use-ssh-agent
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;use-session-dbus
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;この中の &lt;code&gt;use-ssh-agent&lt;/code&gt; の記述を &lt;code&gt;no-use-ssh-agent&lt;/code&gt; に差し替える。
 当然ながら変更には管理者権限が必要なのでご注意を。
 バックアップを取りながら作業すること。&lt;/p&gt;
 &lt;h3&gt;autostart/gnome-keyring-ssh.desktop の変更&lt;/h3&gt;
@@ -129,21 +129,21 @@ allow-user-xsession
 &lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;$ cp /etc/xdg/autostart/gnome-keyring-ssh.desktop ~/.config/autostart/
 &lt;/code&gt;&lt;/pre&gt;&lt;p&gt;これでユーザ単位で設定を弄ることができる。
 といっても最終行に&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;na&#34;&gt;Hidden&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;true&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;を追記するだけだが。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Hidden&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;を追記するだけだが。&lt;/p&gt;
 &lt;div class=&#34;box&#34;&gt;&lt;h3&gt;【2021-06-05 追記】 Ubuntu 21.04 の場合&lt;/h3&gt;
 &lt;p&gt;2021年4月にリリースされた Ubuntu 21.04 ではこの設定ではうまく行かないようだ（Wayland の問題？）。
 この場合，とりあえず応急措置として &lt;code&gt;.bashrc&lt;/code&gt; ファイルで&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;nb&#34;&gt;export&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;SSH_AUTH_SOCK&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;gpgconf --list-dirs agent-ssh-socket&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;
-dbus-update-activation-environment --systemd SSH_AUTH_SOCK
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と言った感じに環境変数 &lt;code&gt;SSH_AUTH_SOCK&lt;/code&gt; を直接指定する（情報募集）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nb&#34;&gt;export&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;SSH_AUTH_SOCK&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;$(&lt;/span&gt;gpgconf --list-dirs agent-ssh-socket&lt;span class=&#34;k&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;dbus-update-activation-environment --systemd SSH_AUTH_SOCK
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と言った感じに環境変数 &lt;code&gt;SSH_AUTH_SOCK&lt;/code&gt; を直接指定する（情報募集）。&lt;/p&gt;
 &lt;/div&gt;
 &lt;h3&gt;gpg-agent.conf の設定&lt;/h3&gt;
 &lt;p&gt;最後に &lt;code&gt;~/.gnupg/gpg-agent.conf&lt;/code&gt; ファイルに以下の内容を書き込む。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;enable-ssh-support
-default-cache-ttl-ssh 1800
-max-cache-ttl-ssh 7200
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルがない場合は作成すること。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;enable-ssh-support
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;default-cache-ttl-ssh 1800
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;max-cache-ttl-ssh 7200
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルがない場合は作成すること。
 下2行のオプションは任意で，以下の意味を持つ。&lt;/p&gt;
 &lt;table&gt;
 &lt;thead&gt;
@@ -185,11 +185,11 @@ Identity added: ./id_ecdsa (alice@example.com)
 &lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵束に登録される認証鍵はこのパスフレーズで保護される。
 登録した秘密鍵は &lt;code&gt;~/.gnupg/private-keys-v1.d/&lt;/code&gt; ディレクトリ）に入る。
 また &lt;code&gt;~/.gnupg/sshcontrol&lt;/code&gt; ファイルに&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# ECDSA key added on: 2020-06-01 14:05:35&lt;/span&gt;
-&lt;span class=&#34;c1&#34;&gt;# Fingerprints:  MD5:e4:5b:66:a6:03:9a:a4:0e:f2:1b:a5:04:72:93:f3:f0&lt;/span&gt;
-&lt;span class=&#34;c1&#34;&gt;#                SHA256:DtXgQm9rz7Dc5M5yWu/CNVo341o1rcfN9UCyYu+SZU4&lt;/span&gt;
-A5353D587000D820669B0BD55A0B4AD6897458DB &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;という感じに追加した鍵の情報が入る。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# ECDSA key added on: 2020-06-01 14:05:35&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# Fingerprints:  MD5:e4:5b:66:a6:03:9a:a4:0e:f2:1b:a5:04:72:93:f3:f0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;#                SHA256:DtXgQm9rz7Dc5M5yWu/CNVo341o1rcfN9UCyYu+SZU4&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;A5353D587000D820669B0BD55A0B4AD6897458DB &lt;span class=&#34;m&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;という感じに追加した鍵の情報が入る。&lt;/p&gt;
 &lt;p&gt;ちなみに &lt;code&gt;A5353D587000D820669B0BD55A0B4AD6897458DB&lt;/code&gt; は keygrip と呼ばれる値で，鍵の種類に関係なく統一的に表される ID である。
 また &lt;code&gt;~/.gnupg/private-keys-v1.d/&lt;/code&gt; ディレクトリに入っている鍵は &lt;code&gt;A5353D587000D820669B0BD55A0B4AD6897458DB.key&lt;/code&gt; のように keygrip に紐付いたファイル名で格納されている。&lt;/p&gt;
 &lt;p&gt;さらに，末尾の &lt;code&gt;0&lt;/code&gt; はキャッシュ期間（秒）を指すらしい。
@@ -299,141 +299,141 @@ A5353D587000D820669B0BD55A0B4AD6897458DB &lt;span class=&#34;m&#34;&gt;0&lt;/spa
 認証機能は電子署名用の鍵であれば任意に付与することができるが，専用の副鍵を追加するのがセオリーらしい。&lt;/p&gt;
 &lt;h2&gt;認証用の副鍵を追加する&lt;/h2&gt;
 &lt;p&gt;まず以下の &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 鍵があるとする（主鍵には &lt;code&gt;SC&lt;/code&gt;，副鍵には &lt;code&gt;E&lt;/code&gt; の機能が付いてる点に注目）。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
-pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
-      011C720B03D2E1D6BCFA98391DFF44901121B61D
-uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
-sub   cv25519 2021-01-06 [E]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;この鍵に認証用の副鍵を追加する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --list-keys alice
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      011C720B03D2E1D6BCFA98391DFF44901121B61D
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sub   cv25519 2021-01-06 [E]
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;この鍵に認証用の副鍵を追加する。&lt;/p&gt;
 &lt;p&gt;いちばん簡単なのはコマンドラインで &lt;code&gt;--quick-add-key&lt;/code&gt; を使う方法。
 こんな感じに鍵指紋とアルゴリズム（または楕円曲線名）と機能と有効期限（&lt;code&gt;0&lt;/code&gt; なら無期限）を指定する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-add-key 011C720B03D2E1D6BCFA98391DFF44901121B61D ed25519 auth 0
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;もうひとつは &lt;code&gt;--edit&lt;/code&gt; コマンドを使う方法。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --quick-add-key 011C720B03D2E1D6BCFA98391DFF44901121B61D ed25519 auth 0
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;もうひとつは &lt;code&gt;--edit&lt;/code&gt; コマンドを使う方法。
 &lt;code&gt;--expert&lt;/code&gt; オプションと一緒に使うと幸せになれる。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --expert --edit-key alice
-gpg (GnuPG) 2.2.26; Copyright (C) 2020 Free Software Foundation, Inc.
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-秘密鍵が利用できます。
-
-sec  ed25519/1DFF44901121B61D
-     作成: 2021-01-06  有効期限: 2021-01-13  利用法: SC  
-     信用: 究極        有効性: 究極
-ssb  cv25519/4FECD03BE5BE4454
-     作成: 2021-01-06  有効期限: 無期限      利用法: E   
-[  究極  ] (1). Alice &amp;lt;alice@example.com&amp;gt;
-
-gpg&amp;gt; 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ここで &lt;code&gt;addkey&lt;/code&gt; コマンドを入力する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg&amp;gt; addkey
-ご希望の鍵の種類を選択してください:
-   (3) DSA (署名のみ)
-   (4) RSA (署名のみ)
-   (5) Elgamal (暗号化のみ)
-   (6) RSA (暗号化のみ)
-   (7) DSA (機能をあなた自身で設定)
-   (8) RSA (機能をあなた自身で設定)
-  (10) ECC (署名のみ)
-&lt;span class=&#34;hl&#34;&gt;  (11) ECC (機能をあなた自身で設定)
-&lt;/span&gt;  (12) ECC (暗号化のみ)
-  (13) 既存の鍵
-  (14) カードに存在する鍵
-あなたの選択は? 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;今回は認証用の鍵の追加なので 7, 8, 11 のいずれかを選択する。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --expert --edit-key alice
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg (GnuPG) 2.2.26; Copyright (C) 2020 Free Software Foundation, Inc.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;This is free software: you are free to change and redistribute it.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;There is NO WARRANTY, to the extent permitted by law.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;秘密鍵が利用できます。
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sec  ed25519/1DFF44901121B61D
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     作成: 2021-01-06  有効期限: 2021-01-13  利用法: SC  
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     信用: 究極        有効性: 究極
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ssb  cv25519/4FECD03BE5BE4454
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     作成: 2021-01-06  有効期限: 無期限      利用法: E   
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;[  究極  ] (1). Alice &amp;lt;alice@example.com&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg&amp;gt; 
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ここで &lt;code&gt;addkey&lt;/code&gt; コマンドを入力する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg&amp;gt; addkey
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ご希望の鍵の種類を選択してください:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (3) DSA (署名のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (4) RSA (署名のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (5) Elgamal (暗号化のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (6) RSA (暗号化のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (7) DSA (機能をあなた自身で設定)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (8) RSA (機能をあなた自身で設定)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (10) ECC (署名のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (11) ECC (機能をあなた自身で設定)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (12) ECC (暗号化のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (13) 既存の鍵
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (14) カードに存在する鍵
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? 
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;今回は認証用の鍵の追加なので 7, 8, 11 のいずれかを選択する。
 ここは個人的な好みで ECC 鍵を選択しよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? 11
-
-鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
-&lt;span class=&#34;hl&#34;&gt;現在の認められた操作: Sign 
-&lt;/span&gt;
-   (S) 署名機能を反転する
-   (A) 認証機能を反転する
-   (Q) 完了
-
-   あなたの選択は? 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;現在は署名機能（Sign）のみ有効になっているが，欲しいのは認証機能のみなので &lt;code&gt;S&lt;/code&gt; と &lt;code&gt;A&lt;/code&gt; を一回づつ入力する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? s
-
-鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
-&lt;span class=&#34;hl&#34;&gt;現在の認められた操作: 
-&lt;/span&gt;
-   (S) 署名機能を反転する
-   (A) 認証機能を反転する
-   (Q) 完了
-
-あなたの選択は? a
-
-鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
-&lt;span class=&#34;hl&#34;&gt;現在の認められた操作: Authenticate 
-&lt;/span&gt;
-   (S) 署名機能を反転する
-   (A) 認証機能を反転する
-   (Q) 完了
-
-あなたの選択は? 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで認証機能（Authenticate）のみ有効になった。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? 11
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;現在の認められた操作: Sign 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (S) 署名機能を反転する
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (A) 認証機能を反転する
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (Q) 完了
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   あなたの選択は? 
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;現在は署名機能（Sign）のみ有効になっているが，欲しいのは認証機能のみなので &lt;code&gt;S&lt;/code&gt; と &lt;code&gt;A&lt;/code&gt; を一回づつ入力する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;現在の認められた操作: 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (S) 署名機能を反転する
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (A) 認証機能を反転する
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (Q) 完了
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? a
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;鍵ECDSA/EdDSAに認められた操作: Sign Authenticate 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;現在の認められた操作: Authenticate 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (S) 署名機能を反転する
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (A) 認証機能を反転する
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (Q) 完了
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? 
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで認証機能（Authenticate）のみ有効になった。
 &lt;code&gt;Q&lt;/code&gt; を入力して次に進もう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? q
-ご希望の楕円曲線を選択してください:
-&lt;span class=&#34;hl&#34;&gt;   (1) Curve 25519
-&lt;/span&gt;   (3) NIST P-256
-   (4) NIST P-384
-   (5) NIST P-521
-   (6) Brainpool P-256
-   (7) Brainpool P-384
-   (8) Brainpool P-512
-   (9) secp256k1
-あなたの選択は? 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証用には &lt;code&gt;1&lt;/code&gt; から &lt;code&gt;5&lt;/code&gt; の楕円曲線のいずれかを選択する。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? q
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ご希望の楕円曲線を選択してください:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (1) Curve 25519
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (3) NIST P-256
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (4) NIST P-384
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (5) NIST P-521
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (6) Brainpool P-256
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (7) Brainpool P-384
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (8) Brainpool P-512
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (9) secp256k1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? 
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証用には &lt;code&gt;1&lt;/code&gt; から &lt;code&gt;5&lt;/code&gt; の楕円曲線のいずれかを選択する。
 個人的なお勧めは &lt;code&gt;1&lt;/code&gt; の “&lt;code&gt;Curve 25519&lt;/code&gt;” である。
 理由は以下の記事を参考のこと。&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2020/06/eddsa/&#34;&gt;Edwards-curve Digital Signature Algorithm&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;では &lt;code&gt;1&lt;/code&gt; を入力して先に進む。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;あなたの選択は? 1
-鍵の有効期限を指定してください。
-&lt;span class=&#34;hl&#34;&gt;         0 = 鍵は無期限
-&lt;/span&gt;      &amp;lt;n&amp;gt;  = 鍵は n 日間で期限切れ
-      &amp;lt;n&amp;gt;w = 鍵は n 週間で期限切れ
-      &amp;lt;n&amp;gt;m = 鍵は n か月間で期限切れ
-      &amp;lt;n&amp;gt;y = 鍵は n 年間で期限切れ
-鍵の有効期間は? (0)0
-鍵は無期限です
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;有効期限は意味がないので無期限（&lt;code&gt;0&lt;/code&gt;）を選択する。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? 1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;鍵の有効期限を指定してください。
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;         0 = 鍵は無期限
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;lt;n&amp;gt;  = 鍵は n 日間で期限切れ
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;lt;n&amp;gt;w = 鍵は n 週間で期限切れ
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;lt;n&amp;gt;m = 鍵は n か月間で期限切れ
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;lt;n&amp;gt;y = 鍵は n 年間で期限切れ
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;鍵の有効期間は? (0)0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;鍵は無期限です
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;有効期限は意味がないので無期限（&lt;code&gt;0&lt;/code&gt;）を選択する。
 理由は後述するのでちょっと待ってね。&lt;/p&gt;
 &lt;p&gt;最終確認をして鍵を生成する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;これで正しいですか? (y/N) y
-本当に作成しますか? (y/N) y         
-たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
-す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
-成器に十分なエントロピーを供給する機会を与えることができます。
-
-sec  ed25519/1DFF44901121B61D
-     作成: 2021-01-06  有効期限: 2021-01-13  利用法: SC  
-     信用: 究極        有効性: 究極
-ssb  cv25519/4FECD03BE5BE4454
-     作成: 2021-01-06  有効期限: 無期限      利用法: E   
-ssb  ed25519/230D446E390C3E49
-     作成: 2021-01-06  有効期限: 無期限      利用法: A   
-[  究極  ] (1). Alice &amp;lt;alice@example.com&amp;gt;
-
-gpg&amp;gt; save
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;最後は &lt;code&gt;save&lt;/code&gt; コマンドを入力して結果を鍵束に保存する。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;これで正しいですか? (y/N) y
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;本当に作成しますか? (y/N) y         
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;成器に十分なエントロピーを供給する機会を与えることができます。
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sec  ed25519/1DFF44901121B61D
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     作成: 2021-01-06  有効期限: 2021-01-13  利用法: SC  
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     信用: 究極        有効性: 究極
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ssb  cv25519/4FECD03BE5BE4454
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     作成: 2021-01-06  有効期限: 無期限      利用法: E   
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ssb  ed25519/230D446E390C3E49
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     作成: 2021-01-06  有効期限: 無期限      利用法: A   
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;[  究極  ] (1). Alice &amp;lt;alice@example.com&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg&amp;gt; save
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;最後は &lt;code&gt;save&lt;/code&gt; コマンドを入力して結果を鍵束に保存する。
 これで&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys alice
-pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
-      011C720B03D2E1D6BCFA98391DFF44901121B61D
-uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
-sub   cv25519 2021-01-06 [E]
-&lt;span class=&#34;hl&#34;&gt;sub   ed25519 2021-01-06 [A]
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;認証用の鍵が追加できた。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --list-keys alice
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      011C720B03D2E1D6BCFA98391DFF44901121B61D
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sub   cv25519 2021-01-06 [E]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sub   ed25519 2021-01-06 [A]
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;認証用の鍵が追加できた。&lt;/p&gt;
 &lt;h2&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; フォーマットの公開鍵を出力する。&lt;/h2&gt;
 &lt;p&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; フォーマットの公開鍵は &lt;code&gt;--export-ssh-key&lt;/code&gt; コマンドで出力できる。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --export-ssh-key alice
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFfjejx/Saej929myfZoBQAKgusPi2iiOxdZZfpCLxh5 openpgp:0x390C3E49
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このテキストをホスト機の &lt;code&gt;~/.ssh/authorized_keys&lt;/code&gt; ファイルに追記すれば仕込みは完了である。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --export-ssh-key alice
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFfjejx/Saej929myfZoBQAKgusPi2iiOxdZZfpCLxh5 openpgp:0x390C3E49
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このテキストをホスト機の &lt;code&gt;~/.ssh/authorized_keys&lt;/code&gt; ファイルに追記すれば仕込みは完了である。
 パーミッションの変更を忘れずに（笑）&lt;/p&gt;
 &lt;p&gt;この操作で分かると思うが &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; フォーマットで出力する時点で &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 鍵の情報はほぼ脱落している。
 だから「有効期限は意味がない」のよ。&lt;/p&gt;
@@ -454,20 +454,20 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFfjejx/Saej929myfZoBQAKgusPi2iiOxdZZfpCLxh5
 &lt;h3&gt;&lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; 認証鍵の登録&lt;/h3&gt;
 &lt;p&gt;&lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の鍵束の鍵を &lt;a href=&#34;http://www.openssh.com/&#34; title=&#34;OpenSSH&#34;&gt;OpenSSH&lt;/a&gt; の認証鍵として使うには &lt;code&gt;~/.gnupg/sshcontrol&lt;/code&gt; ファイルへの登録が必要である。
 先ほど作成した鍵であれば，まず以下のコマンドで&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --list-keys --with-keygrip alice
-pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
-      011C720B03D2E1D6BCFA98391DFF44901121B61D
-      Keygrip = 97249ABEB2A2FD9E88F6723BB19D4F84B90E261A
-uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
-sub   cv25519 2021-01-06 [E]
-      Keygrip = 96CB831965E1A7EB4705577D6A7CB7F9E05C8192
-sub   ed25519 2021-01-06 [A]
-&lt;span class=&#34;hl&#34;&gt;      Keygrip = F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;該当する鍵の keygrip 値を調べる。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --list-keys --with-keygrip alice
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pub   ed25519 2021-01-06 [SC] [有効期限: 2021-01-13]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      011C720B03D2E1D6BCFA98391DFF44901121B61D
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Keygrip = 97249ABEB2A2FD9E88F6723BB19D4F84B90E261A
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;uid           [  究極  ] Alice &amp;lt;alice@example.com&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sub   cv25519 2021-01-06 [E]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Keygrip = 96CB831965E1A7EB4705577D6A7CB7F9E05C8192
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sub   ed25519 2021-01-06 [A]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Keygrip = F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;該当する鍵の keygrip 値を調べる。
 今回の例なら “&lt;code&gt;F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E&lt;/code&gt;” が該当する keygrip 値である。
 これを &lt;code&gt;~/.gnupg/sshcontrol&lt;/code&gt; ファイルに追記する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E 0 &amp;gt;&amp;gt; ~/.gnupg/sshcontrol
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;ssh-add -L&lt;/code&gt; コマンドでこの鍵の内容が表示されればOK。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ echo F5C774B5B418B6E0B5B7942F93DE82BF2FEF4C8E 0 &amp;gt;&amp;gt; ~/.gnupg/sshcontrol
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;ssh-add -L&lt;/code&gt; コマンドでこの鍵の内容が表示されればOK。&lt;/p&gt;
 &lt;p&gt;ちなみに keygrip 値の後ろの &lt;code&gt;0&lt;/code&gt; はキャッシュ期間（秒）を指すらしい。
 &lt;code&gt;0&lt;/code&gt; より大きければ &lt;code&gt;gpg-agent.conf&lt;/code&gt; ファイルの指定より優先されるってことかな。
 また行頭に &lt;code&gt;!&lt;/code&gt; マークを付けると鍵の使用を無効化できる。&lt;/p&gt;
@@ -572,158 +572,158 @@ sub   ed25519 2021-01-06 [A]
 &lt;p&gt;ビルド&amp;amp;インストールの順番は &lt;a href=&#34;https://gnupg.org/software/libgpg-error/&#34;&gt;Libgpg-error&lt;/a&gt; を最初にして &lt;a href=&#34;https://gnupg.org/software/&#34;&gt;GnuPG&lt;/a&gt; を最後にすることさえ気をつければいいと思うが，特にこだわりがないのであれば上の順番でビルドしていくのがいいだろう。&lt;/p&gt;
 &lt;h2&gt;前準備&lt;/h2&gt;
 &lt;p&gt;最初に，上に挙げた以外でビルドに必要なパッケージを APT でインストールしておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo apt install libgnutls28-dev bzip2 make gettext texinfo gnutls-bin build-essential libbz2-dev zlib1g-dev libncurses5-dev libsqlite3-dev libldap2-dev
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;適当にググって見繕ったものなので，もしかしたらこんなに要らないかもしれないが，精査するのが面倒くさかったので今回はこれで（笑）&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo apt install libgnutls28-dev bzip2 make gettext texinfo gnutls-bin build-essential libbz2-dev zlib1g-dev libncurses5-dev libsqlite3-dev libldap2-dev
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;適当にググって見繕ったものなので，もしかしたらこんなに要らないかもしれないが，精査するのが面倒くさかったので今回はこれで（笑）&lt;/p&gt;
 &lt;p&gt;ビルド用にダウンロードしたファイルの&lt;a href=&#34;https://gnupg.org/download/integrity_check.html&#34; title=&#34;GnuPG - Integrity Check&#34;&gt;完全性（integrity）をチェック&lt;/a&gt;するために電子署名を検証する。
 たとえばこんな感じ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;gpg --verify gnupg-2.2.26.tar.bz2.sig gnupg-2.2.26.tar.bz2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;署名チェックに必要な &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 公開鍵は以下のページにある。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg --verify gnupg-2.2.26.tar.bz2.sig gnupg-2.2.26.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;署名チェックに必要な &lt;a href=&#34;http://openpgp.org/&#34;&gt;OpenPGP&lt;/a&gt; 公開鍵は以下のページにある。&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://gnupg.org/signature_key.html&#34;&gt;GnuPG - Signature Key&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;クリップボード操作ができる xsel または xclip コマンドがあるなら，上のページに貼り付けられている公開鍵（ASCII armor 形式）をコピって&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ xsel | gpg --import
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;などとすれば公開鍵を取り込める。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ xsel | gpg --import
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;などとすれば公開鍵を取り込める。&lt;/p&gt;
 &lt;h2&gt;各パッケージのビルド&lt;/h2&gt;
 &lt;p&gt;ではパッケージを順にビルドしていこう。
 ビルド用に適当なディレクトリをあらかじめ掘っておくとよい。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo mkdir /var/local/gnupg-build
-$ cd /var/local/gnupg-build
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/libgpg-error/&#34;&gt;Libgpg-error&lt;/a&gt; のビルド&lt;/h3&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo mkdir /var/local/gnupg-build
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cd /var/local/gnupg-build
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/libgpg-error/&#34;&gt;Libgpg-error&lt;/a&gt; のビルド&lt;/h3&gt;
 &lt;p&gt;以下に手順だけ示しておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-1.41.tar.bz2 -O
-$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-1.41.tar.bz2.sig -O
-$ gpg -d libgpg-error-1.41.tar.bz2.sig # integrity check
-$ sudo tar xvf libgpg-error-1.41.tar.bz2
-$ pushd libgpg-error-1.41/
-$ ./configure 
-$ make
-$ sudo make install
-$ popd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-1.41.tar.bz2 -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-1.41.tar.bz2.sig -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d libgpg-error-1.41.tar.bz2.sig # integrity check
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf libgpg-error-1.41.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pushd libgpg-error-1.41/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ./configure 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ make
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo make install
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ popd
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。
 &lt;code&gt;configure&lt;/code&gt; コマンドは引数なしでも問題なさそうだ。&lt;/p&gt;
 &lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/libgcrypt/&#34;&gt;Libgcrypt&lt;/a&gt; のビルド&lt;/h3&gt;
 &lt;p&gt;同様に手順を示しておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-1.8.7.tar.bz2 -O
-$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-1.8.7.tar.bz2.sig -O
-$ gpg -d libgcrypt-1.8.7.tar.bz2.sig # integrity check
-$ sudo tar xvf libgcrypt-1.8.7.tar.bz2
-$ pushd libgcrypt-1.8.7/
-$ ./configure 
-$ make
-$ sudo make install
-$ popd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-1.8.7.tar.bz2 -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libgcrypt/libgcrypt-1.8.7.tar.bz2.sig -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d libgcrypt-1.8.7.tar.bz2.sig # integrity check
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf libgcrypt-1.8.7.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pushd libgcrypt-1.8.7/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ./configure 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ make
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo make install
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ popd
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
 &lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/libassuan/&#34;&gt;Libassuan&lt;/a&gt; のビルド&lt;/h3&gt;
 &lt;p&gt;同様に手順を示しておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libassuan/libassuan-2.5.4.tar.bz2 -O
-$ sudo curl -L https://gnupg.org/ftp/gcrypt/libassuan/libassuan-2.5.4.tar.bz2.sig -O
-$ gpg -d libassuan-2.5.4.tar.bz2.sig # integrity check
-$ sudo tar xvf libassuan-2.5.4.tar.bz2
-$ pushd libassuan-2.5.4
-$ ./configure 
-$ make
-$ sudo make install
-$ popd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libassuan/libassuan-2.5.4.tar.bz2 -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libassuan/libassuan-2.5.4.tar.bz2.sig -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d libassuan-2.5.4.tar.bz2.sig # integrity check
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf libassuan-2.5.4.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pushd libassuan-2.5.4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ./configure 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ make
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo make install
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ popd
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
 &lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/libksba/&#34;&gt;Libksba&lt;/a&gt; のビルド&lt;/h3&gt;
 &lt;p&gt;同様に手順を示しておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libksba/libksba-1.5.0.tar.bz2 -O
-$ sudo curl -L https://gnupg.org/ftp/gcrypt/libksba/libksba-1.5.0.tar.bz2.sig -O
-$ gpg -d libksba-1.5.0.tar.bz2.sig # integrity check
-$ sudo tar xvf libksba-1.5.0.tar.bz2
-$ pushd libksba-1.5.0
-$ ./configure 
-$ make
-$ sudo make install
-$ popd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libksba/libksba-1.5.0.tar.bz2 -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/libksba/libksba-1.5.0.tar.bz2.sig -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d libksba-1.5.0.tar.bz2.sig # integrity check
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf libksba-1.5.0.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pushd libksba-1.5.0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ./configure 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ make
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo make install
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ popd
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
 &lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/npth/&#34;&gt;nPth&lt;/a&gt; のビルド&lt;/h3&gt;
 &lt;p&gt;同様に手順を示しておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/npth/npth-1.6.tar.bz2 -O
-$ sudo curl -L https://gnupg.org/ftp/gcrypt/npth/npth-1.6.tar.bz2.sig -O
-$ gpg -d npth-1.6.tar.bz2.sig # integrity check
-$ sudo tar xvf npth-1.6.tar.bz2
-$ pushd npth-1.6
-$ ./configure 
-$ make
-$ sudo make install
-$ popd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/npth/npth-1.6.tar.bz2 -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/npth/npth-1.6.tar.bz2.sig -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d npth-1.6.tar.bz2.sig # integrity check
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf npth-1.6.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pushd npth-1.6
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ./configure 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ make
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo make install
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ popd
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
 &lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/ntbtls/&#34;&gt;ntbTLS&lt;/a&gt; のビルド&lt;/h3&gt;
 &lt;p&gt;同様に手順を示しておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/ntbtls/ntbtls-0.2.0.tar.bz2 -O
-$ sudo curl -L https://gnupg.org/ftp/gcrypt/ntbtls/ntbtls-0.2.0.tar.bz2.sig -O
-$ gpg -d ntbtls-0.2.0.tar.bz2.sig # integrity check
-$ sudo tar xvf ntbtls-0.2.0.tar.bz2
-$ pushd ntbtls-0.2.0
-$ ./configure 
-$ make
-$ sudo make install
-$ popd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/ntbtls/ntbtls-0.2.0.tar.bz2 -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/ntbtls/ntbtls-0.2.0.tar.bz2.sig -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d ntbtls-0.2.0.tar.bz2.sig # integrity check
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf ntbtls-0.2.0.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pushd ntbtls-0.2.0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ./configure 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ make
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo make install
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ popd
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。&lt;/p&gt;
 &lt;h3&gt;&lt;a href=&#34;https://gnupg.org/software/&#34;&gt;GnuPG&lt;/a&gt; のビルド&lt;/h3&gt;
 &lt;p&gt;（2021-01-11 に 2.2.27 がリリースされた）&lt;/p&gt;
 &lt;p&gt;ようやく本命。
 今までと同様に手順を示しておく。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/gnupg/gnupg-2.2.27.tar.bz2 -O
-$ sudo curl -L https://gnupg.org/ftp/gcrypt/gnupg/gnupg-2.2.27.tar.bz2.sig -O
-$ gpg -d gnupg-2.2.27.tar.bz2.sig # integrity check
-$ sudo tar xvf gnupg-2.2.27.tar.bz2
-$ pushd gnupg-2.2.27
-$ ./configure 
-$ make
-$ sudo make install
-$ popd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/gnupg/gnupg-2.2.27.tar.bz2 -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://gnupg.org/ftp/gcrypt/gnupg/gnupg-2.2.27.tar.bz2.sig -O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d gnupg-2.2.27.tar.bz2.sig # integrity check
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf gnupg-2.2.27.tar.bz2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pushd gnupg-2.2.27
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ./configure 
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ make
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo make install
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ popd
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;code&gt;/usr/local/&lt;/code&gt; ディレクトリ以下の各ディレクトリにビルド結果がインストールされる。
 そうそう，最後に&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ sudo ldconfig
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;としておくのを忘れずに。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo ldconfig
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;としておくのを忘れずに。
 これで&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --version
-gpg (GnuPG) 2.2.27
-libgcrypt 1.8.7
-Copyright (C) 2021 Free Software Foundation, Inc.
-License GNU GPL-3.0-or-later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-Home: /home/username/.gnupg
-サポートしているアルゴリズム:
-公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
-暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256,
-      TWOFISH, CAMELLIA128, CAMELLIA192, CAMELLIA256
-ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
-圧縮: 無圧縮, ZIP, ZLIB, BZIP2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と最新版で起動できる。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg (GnuPG) 2.2.27
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;libgcrypt 1.8.7
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Copyright (C) 2021 Free Software Foundation, Inc.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;License GNU GPL-3.0-or-later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;This is free software: you are free to change and redistribute it.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;There is NO WARRANTY, to the extent permitted by law.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Home: /home/username/.gnupg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;サポートしているアルゴリズム:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      TWOFISH, CAMELLIA128, CAMELLIA192, CAMELLIA256
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;圧縮: 無圧縮, ZIP, ZLIB, BZIP2
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;と最新版で起動できる。
 念のため設定状況もチェックしておこう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpgconf --list-components
-gpg:OpenPGP:/usr/local/bin/gpg
-gpg-agent:プライベート鍵:/usr/local/bin/gpg-agent
-scdaemon:スマートカード:/usr/local/libexec/scdaemon
-gpgsm:S/MIME:/usr/local/bin/gpgsm
-dirmngr:ネットワーク:/usr/local/bin/dirmngr
-pinentry:パスフレーズ入力:/usr/local/bin/pinentry
-
-$ gpgconf --list-dirs
-sysconfdir:/usr/local/etc/gnupg
-bindir:/usr/local/bin
-libexecdir:/usr/local/libexec
-libdir:/usr/local/lib/gnupg
-datadir:/usr/local/share/gnupg
-localedir:/usr/local/share/locale
-socketdir:/run/user/1000/gnupg
-dirmngr-socket:/run/user/1000/gnupg/S.dirmngr
-agent-ssh-socket:/run/user/1000/gnupg/S.gpg-agent.ssh
-agent-extra-socket:/run/user/1000/gnupg/S.gpg-agent.extra
-agent-browser-socket:/run/user/1000/gnupg/S.gpg-agent.browser
-agent-socket:/run/user/1000/gnupg/S.gpg-agent
-homedir:/home/username/.gnupg
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ふむむ。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpgconf --list-components
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg:OpenPGP:/usr/local/bin/gpg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg-agent:プライベート鍵:/usr/local/bin/gpg-agent
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;scdaemon:スマートカード:/usr/local/libexec/scdaemon
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpgsm:S/MIME:/usr/local/bin/gpgsm
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;dirmngr:ネットワーク:/usr/local/bin/dirmngr
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pinentry:パスフレーズ入力:/usr/local/bin/pinentry
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpgconf --list-dirs
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sysconfdir:/usr/local/etc/gnupg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;bindir:/usr/local/bin
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;libexecdir:/usr/local/libexec
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;libdir:/usr/local/lib/gnupg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;datadir:/usr/local/share/gnupg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;localedir:/usr/local/share/locale
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;socketdir:/run/user/1000/gnupg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;dirmngr-socket:/run/user/1000/gnupg/S.dirmngr
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;agent-ssh-socket:/run/user/1000/gnupg/S.gpg-agent.ssh
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;agent-extra-socket:/run/user/1000/gnupg/S.gpg-agent.extra
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;agent-browser-socket:/run/user/1000/gnupg/S.gpg-agent.browser
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;agent-socket:/run/user/1000/gnupg/S.gpg-agent
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;homedir:/home/username/.gnupg
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ふむむ。
 上の設定に合わせて，もう少し弄っておこうか。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ cd /usr/local/bin/
-$ sudo ln -s /etc/alternatives/pinentry pinentry
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;こんな感じかな。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cd /usr/local/bin/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo ln -s /etc/alternatives/pinentry pinentry
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;こんな感じかな。
 Pinentry は下手に弄ると絶対にドツボにはまるので今回は既存のものを使う。&lt;/p&gt;
 &lt;h2&gt;ソケットががが【2021-01-10 変更】&lt;/h2&gt;
 &lt;p&gt;この節の内容は「&lt;a href=&#34;https://text.baldanders.info/openpgp/gpg-agent-in-ubuntu/&#34;&gt;gpg-agent の設定&lt;/a&gt;」に移動した。&lt;/p&gt;
@@ -762,16 +762,16 @@ $ gpg-connect-agent --quiet /bye
 どなたか情報をご存知でしたら教えてください &lt;abbr class=&#34;emoji-chars&#34; title=&#34;ペコン&#34;&gt;&amp;#x1f647;&lt;/abbr&gt;
 --&gt;
 &lt;h2&gt;最後に動作確認&lt;/h2&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ echo hello world | gpg -a -s -u mykey
------BEGIN PGP MESSAGE-----
-
-owGbwMvMwCG45Zb1ujqFHTKMp4WSGOLfTbPOSM3JyVcozy/KSeHqmMzCIMjBYC2m
-yCIdxHTby+542ccHayVgeliZQBpkZYoLMlPTU3P0MnP1oEyH9NzEzBy95PxcBi5O
-AZj6RwcY/scanE3cwbVrv0v/zA7njR1J8d7vTjwP28EmLvzWVuPhqnaG/4kBz24f
-634aYBi/NW79/1WcDusyco91C7N6zWwVC114PRsA
-=/6XI
------END PGP MESSAGE-----
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;署名時に Pinentry が起動してパスフレーズが通ればOK。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ echo hello world | gpg -a -s -u mykey
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;-----BEGIN PGP MESSAGE-----
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;owGbwMvMwCG45Zb1ujqFHTKMp4WSGOLfTbPOSM3JyVcozy/KSeHqmMzCIMjBYC2m
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;yCIdxHTby+542ccHayVgeliZQBpkZYoLMlPTU3P0MnP1oEyH9NzEzBy95PxcBi5O
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;AZj6RwcY/scanE3cwbVrv0v/zA7njR1J8d7vTjwP28EmLvzWVuPhqnaG/4kBz24f
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;634aYBi/NW79/1WcDusyco91C7N6zWwVC114PRsA
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;=/6XI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;-----END PGP MESSAGE-----
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;署名時に Pinentry が起動してパスフレーズが通ればOK。
 よーし，うむうむ，よーし。&lt;/p&gt;
 &lt;h2&gt;ブックマーク&lt;/h2&gt;
 &lt;ul&gt;
@@ -808,49 +808,49 @@ AZj6RwcY/scanE3cwbVrv0v/zA7njR1J8d7vTjwP28EmLvzWVuPhqnaG/4kBz24f
 		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;最近また Windows パソコンを使うことになって，色々と&lt;a href=&#34;https://text.baldanders.info/remark/2020/10/windows-terminal-and-nyagos-and-scoop/&#34; title=&#34;Windows Terminal × NYAGOS × Scoop ＝ ♥&#34;&gt;環境を整える&lt;/a&gt;ついでに &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; もインストールしたのだが&amp;hellip;&lt;/p&gt;
 &lt;p&gt;今回 &lt;a href=&#34;https://scoop.sh/&#34; title=&#34;Scoop&#34;&gt;Scoop&lt;/a&gt; というパッケージ・マネージャを導入したのだが，これを使って &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; をインストールするとちょっと面白いことになる。&lt;/p&gt;
 &lt;p&gt;&lt;a href=&#34;https://scoop.sh/&#34; title=&#34;Scoop&#34;&gt;Scoop&lt;/a&gt; の導入方法は割愛して，いきなり &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; のインストールから話を始める。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ scoop install gnupg
-Installing &amp;#39;gnupg&amp;#39; (2.2.23) [64bit]
-
-...
-
-Linking ~\scoop\apps\gnupg\current =&amp;gt; ~\scoop\apps\gnupg\2.2.23
-Persisting home
-&amp;#39;gnupg&amp;#39; (2.2.23) was installed successfully!
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; v2.2.23 は &lt;code&gt;%USERPROFILE%\scoop\apps\gnupg\2.2.23&lt;/code&gt; フォルダにインストールされ &lt;code&gt;%USERPROFILE%\scoop\apps\gnupg\current&lt;/code&gt; にシンボリック・リンクが張られる。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ scoop install gnupg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Installing &amp;#39;gnupg&amp;#39; (2.2.23) [64bit]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Linking ~\scoop\apps\gnupg\current =&amp;gt; ~\scoop\apps\gnupg\2.2.23
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Persisting home
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;#39;gnupg&amp;#39; (2.2.23) was installed successfully!
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; v2.2.23 は &lt;code&gt;%USERPROFILE%\scoop\apps\gnupg\2.2.23&lt;/code&gt; フォルダにインストールされ &lt;code&gt;%USERPROFILE%\scoop\apps\gnupg\current&lt;/code&gt; にシンボリック・リンクが張られる。
 さらに環境変数 &lt;code&gt;PATH&lt;/code&gt; に &lt;code&gt;%USERPROFILE%\scoop\apps\gnupg\current&lt;/code&gt; が追加される。&lt;/p&gt;
 &lt;p&gt;&lt;a href=&#34;https://scoop.sh/&#34; title=&#34;Scoop&#34;&gt;Scoop&lt;/a&gt; の特徴でありメリットのひとつはインストールした実行バイナリを &lt;code&gt;%USERPROFILE%\scoop\shims&lt;/code&gt; フォルダに集めることで環境変数 &lt;code&gt;PATH&lt;/code&gt; を無駄に汚さないことにあるが， &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の場合はシングル・バイナリではなく，インストールした複数のバイナリと協調して動作するため，単純に &lt;code&gt;shims&lt;/code&gt; フォルダにコピるのは難しかったようだ。&lt;/p&gt;
 &lt;p&gt;&lt;a href=&#34;https://scoop.sh/&#34; title=&#34;Scoop&#34;&gt;Scoop&lt;/a&gt; によってインストールされた &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; のディレクトリ構成は以下のようになっている&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ pwd
-C:\Users\username
-
-$ cd scoop\apps\gnupg\current
-
-$ ll
--rw-a--  33K Sep  4 00:39:00 README.txt
-drwx---    0 Oct 27 13:59:32 bin/
-dr-x---    0 Oct 27 13:59:32 home@ -&amp;gt; C:\Users\username\scoop\persist\gnupg\home
-drwx---    0 Oct 27 13:59:32 include/
--rw-a--   58 Oct 27 13:59:32 install.json
-drwx---    0 Oct 27 13:59:32 lib/
--rw-a-- 1.4K Oct 27 13:36:14 manifest.json
-drwx---    0 Oct 27 13:59:32 share/
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;実際に &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を動かしてみると&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --version
-gpg (GnuPG) 2.2.23
-libgcrypt 1.8.6
-Copyright (C) 2020 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-Home: C:/Users/username/scoop/apps/gnupg/current/home
-サポートしているアルゴリズム:
-公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
-暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
-    CAMELLIA128, CAMELLIA192, CAMELLIA256
-ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
-圧縮: 無圧縮, ZIP, ZLIB, BZIP2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;となる。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ pwd
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;C:\Users\username
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cd scoop\apps\gnupg\current
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ ll
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;-rw-a--  33K Sep  4 00:39:00 README.txt
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;drwx---    0 Oct 27 13:59:32 bin/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;dr-x---    0 Oct 27 13:59:32 home@ -&amp;gt; C:\Users\username\scoop\persist\gnupg\home
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;drwx---    0 Oct 27 13:59:32 include/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;-rw-a--   58 Oct 27 13:59:32 install.json
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;drwx---    0 Oct 27 13:59:32 lib/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;-rw-a-- 1.4K Oct 27 13:36:14 manifest.json
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;drwx---    0 Oct 27 13:59:32 share/
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;実際に &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; を動かしてみると&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg (GnuPG) 2.2.23
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;libgcrypt 1.8.6
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Copyright (C) 2020 Free Software Foundation, Inc.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;This is free software: you are free to change and redistribute it.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;There is NO WARRANTY, to the extent permitted by law.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Home: C:/Users/username/scoop/apps/gnupg/current/home
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;サポートしているアルゴリズム:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;公開鍵: RSA, ELG, DSA, ECDH, ECDSA, EDDSA
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;暗号方式: IDEA, 3DES, CAST5, BLOWFISH, AES, AES192, AES256, TWOFISH,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    CAMELLIA128, CAMELLIA192, CAMELLIA256
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ハッシュ: SHA1, RIPEMD160, SHA256, SHA384, SHA512, SHA224
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;圧縮: 無圧縮, ZIP, ZLIB, BZIP2
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;となる。
 HOME ディレクトリが &lt;code&gt;%USERPROFILE%\scoop\apps\gnupg\current\home&lt;/code&gt; になっているのがお分かりだろうか。
 ただし，この &lt;code&gt;home&lt;/code&gt; ディレクトリはシンボリック・リンクなので，実体は &lt;code&gt;%USERPROFILE%\scoop\persist\gnupg\home&lt;/code&gt; ということになる。&lt;/p&gt;
 &lt;p&gt;って &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; の HOME ディレクトリって &lt;code&gt;%USERPROFILE%&lt;/code&gt; 直下の &lt;code&gt;.gnupg&lt;/code&gt; フォルダじゃねーの？&lt;/p&gt;
@@ -1156,59 +1156,59 @@ GitHub 上の&lt;ruby&gt;&lt;rb&gt;活動&lt;/rb&gt;&lt;rp&gt; (&lt;/rp&gt;&lt;r
 
 
 		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;最近の &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; には &lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/gpgtar.html&#34; title=&#34;Using the GNU Privacy Guard: gpgtar&#34;&gt;gpgtar&lt;/a&gt; コマンドが付いていて，これは Windows 版でも使える。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpgtar -h
-gpgtar (GnuPG) 2.2.7
-Copyright (C) 2018 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-Syntax: gpgtar [options] [files] [directories]
-Encrypt or sign files into an archive
-
-コマンド:
-
-     --create         create an archive
-     --extract        extract an archive
- -e, --encrypt        create an encrypted archive
- -d, --decrypt        extract an encrypted archive
- -s, --sign           create a signed archive
- -t, --list-archive   list an archive
-
-オプション:
-
- -c, --symmetric      use symmetric encryption
- -r, --recipient USER-ID
-                      USER-ID用に暗号化
- -u, --local-user USER-ID
-                      署名や復号にこのUSER-IDを使用
- -o, --output FILE    出力をFILEに書き出す
- -v, --verbose        冗長
- -q, --quiet          いくらかおとなしく
-     --skip-crypto    skip the crypto processing
-     --dry-run        無変更
-
-Tar options:
-
- -C, --directory DIRECTORY
-                      extract files into DIRECTORY
- -T, --files-from FILE
-                      get names to create from FILE
-     --null           -T reads null-terminated names
-
-バグは &amp;lt;https://bugs.gnupg.org&amp;gt; までご報告ください。
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/gpgtar.html&#34; title=&#34;Using the GNU Privacy Guard: gpgtar&#34;&gt;gpgtar&lt;/a&gt; は複数のファイルや指定したフォルダをまとめて暗号化する場合には便利なコマンドである。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpgtar -h
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpgtar (GnuPG) 2.2.7
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Copyright (C) 2018 Free Software Foundation, Inc.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;License GPLv3+: GNU GPL version 3 or later &amp;lt;https://gnu.org/licenses/gpl.html&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;This is free software: you are free to change and redistribute it.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;There is NO WARRANTY, to the extent permitted by law.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Syntax: gpgtar [options] [files] [directories]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Encrypt or sign files into an archive
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;コマンド:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     --create         create an archive
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     --extract        extract an archive
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -e, --encrypt        create an encrypted archive
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -d, --decrypt        extract an encrypted archive
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -s, --sign           create a signed archive
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -t, --list-archive   list an archive
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;オプション:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -c, --symmetric      use symmetric encryption
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -r, --recipient USER-ID
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                      USER-ID用に暗号化
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -u, --local-user USER-ID
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                      署名や復号にこのUSER-IDを使用
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -o, --output FILE    出力をFILEに書き出す
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -v, --verbose        冗長
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -q, --quiet          いくらかおとなしく
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     --skip-crypto    skip the crypto processing
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     --dry-run        無変更
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Tar options:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -C, --directory DIRECTORY
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                      extract files into DIRECTORY
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -T, --files-from FILE
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                      get names to create from FILE
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     --null           -T reads null-terminated names
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;バグは &amp;lt;https://bugs.gnupg.org&amp;gt; までご報告ください。
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/gpgtar.html&#34; title=&#34;Using the GNU Privacy Guard: gpgtar&#34;&gt;gpgtar&lt;/a&gt; は複数のファイルや指定したフォルダをまとめて暗号化する場合には便利なコマンドである。&lt;/p&gt;
 &lt;p&gt;たとえば，フォルダ &lt;code&gt;my-folder&lt;/code&gt; 以下の全てのフォルダ・ファイルをまとめて暗号化するには&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpgtar -es -r Alice -u Bob -o hoge my-folder
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;などとすればよい。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpgtar -es -r Alice -u Bob -o hoge my-folder
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;などとすればよい。
 ここで &lt;code&gt;Alice&lt;/code&gt; は暗号用の鍵を示すユーザ ID， &lt;code&gt;Bob&lt;/code&gt; は署名用の鍵を示すユーザ ID とする。
 出力先の書庫ファイル名には &lt;code&gt;hoge&lt;/code&gt; を指定している。&lt;/p&gt;
 &lt;p&gt;書庫ファイル &lt;code&gt;hoge&lt;/code&gt; の中身を見たいなら&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpgtar -t hoge
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とすればよい。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpgtar -t hoge
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とすればよい。
 更に書庫ファイルを復号・展開するには&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpgtar -d -C . hoge
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とする。
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpgtar -d -C . hoge
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とする。
 &lt;code&gt;-C&lt;/code&gt; オプションで出力先のフォルダ（存在しない場合はエラーになる）を指定している。
 &lt;code&gt;-C&lt;/code&gt; オプションがないとカレント・フォルダに勝手にフォルダを掘って展開してしまうのでご注意を。&lt;/p&gt;
 &lt;p&gt;&lt;a href=&#34;https://www.gnupg.org/documentation/manuals/gnupg/gpgtar.html&#34; title=&#34;Using the GNU Privacy Guard: gpgtar&#34;&gt;gpgtar&lt;/a&gt; による暗号化手順は以下の通り。&lt;/p&gt;
@@ -1253,8 +1253,8 @@ graph TD
 &lt;/figure&gt;
 &lt;/div&gt;
 &lt;p&gt;ちなみに先程の &lt;code&gt;hoge&lt;/code&gt; ファイルを&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -d -o hoge.tar hoge
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とすれば tar 形式のファイル &lt;code&gt;hoge.tar&lt;/code&gt; が出力される。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -d -o hoge.tar hoge
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とすれば tar 形式のファイル &lt;code&gt;hoge.tar&lt;/code&gt; が出力される。&lt;/p&gt;
 &lt;p&gt;暗号化したデータの復号パスワードをメールで送るなどというアホなことをやらかすのは日本独自の慣習らしいが，このような悪習が一刻も早く根絶されることを願う。&lt;/p&gt;
 </content>
 	</entry><entry>
@@ -1486,104 +1486,104 @@ GnuPG 側と上手く連携できていれば「証明書の選択」ダイア�
 &lt;h2&gt;手っ取り早く ECC 鍵を作る&lt;/h2&gt;
 &lt;p&gt;手っ取り早く ECC 鍵を作りたいなら &lt;code&gt;--quick-generate-key&lt;/code&gt; コマンドでアルゴリズムに &lt;code&gt;future-default&lt;/code&gt; を指定すればよい。
 （以下は有効期限を2年で指定する場合。無期限でいいなら最後の引数に &lt;code&gt;0&lt;/code&gt; を指定する）&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --quick-gen-key &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34; future-default - 2y
-たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
-す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
-成器に十分なエントロピーを供給する機会を与えることができます。
-
-たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
-す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
-成器に十分なエントロピーを供給する機会を与えることができます。
-gpg: 失効証明書を &amp;#39;C:/Users/slice/AppData/Roaming/gnupg/openpgp-revocs.d\F79B411717B86902177EA08200693613E2B68F5A.rev&amp;#39; に保管しました。
-公開鍵と秘密鍵を作成し、署名しました。
-
-pub   ed25519 2017-12-02 [SC] [有効期限: 2019-12-02]
-      F79B411717B86902177EA08200693613E2B68F5A
-uid                      Alice &amp;lt;alice@example.com&amp;gt;
-sub   cv25519 2017-12-02 [E]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;作成した鍵を拙作の &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gpgpdump&#34; title=&#34;spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer&#34;&gt;gpgpdump&lt;/a&gt; &lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; で見てみるとこんな感じになっている。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg -a --export alice | gpgpdump
-&lt;span class=&#34;hl&#34;&gt;Public-Key Packet (tag 6) (51 bytes)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Version: 4 (current)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Public key creation time: 2017-12-02T10:37:17+09:00
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        5a 22 03 cd
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Public-key Algorithm: EdDSA (pub 22)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    ECC Curve OID: ed25519
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        2b 06 01 04 01 da 47 0f 01
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    EdDSA EC point (04 || X || Y) (263 bits)
-&lt;/span&gt;User ID Packet (tag 13) (25 bytes)
-    User ID: Alice &amp;lt;alice@example.com&amp;gt;
-Signature Packet (tag 2) (150 bytes)
-    Version: 4 (current)
-    Signiture Type: Positive certification of a User ID and Public-Key packet (0x13)
-    Public-key Algorithm: EdDSA (pub 22)
-    Hash Algorithm: SHA2-256 (hash 8)
-    Hashed Subpacket (62 bytes)
-        Issuer Fingerprint (sub 33) (21 bytes)
-            Version: 4 (need 20 octets length)
-            Fingerprint (20 bytes)
-                f7 9b 41 17 17 b8 69 02 17 7e a0 82 00 69 36 13 e2 b6 8f 5a
-        Signature Creation Time (sub 2): 2017-12-02T10:37:17+09:00
-        Key Flags (sub 27) (1 bytes)
-            Flag: This key may be used to certify other keys.
-            Flag: This key may be used to sign data.
-        Key Expiration Time (sub 9): 730 days after (2019-12-02T10:37:17+09:00)
-        Preferred Symmetric Algorithms (sub 11) (4 bytes)
-            Symmetric Algorithm: AES with 256-bit key (sym 9)
-            Symmetric Algorithm: AES with 192-bit key (sym 8)
-            Symmetric Algorithm: AES with 128-bit key (sym 7)
-            Symmetric Algorithm: TripleDES (168 bit key derived from 192) (sym 2)
-        Preferred Hash Algorithms (sub 21) (5 bytes)
-            Hash Algorithm: SHA2-256 (hash 8)
-            Hash Algorithm: SHA2-384 (hash 9)
-            Hash Algorithm: SHA2-512 (hash 10)
-            Hash Algorithm: SHA2-224 (hash 11)
-            Hash Algorithm: SHA-1 (hash 2)
-        Preferred Compression Algorithms (sub 22) (3 bytes)
-            Compression Algorithm: ZLIB &amp;lt;RFC1950&amp;gt; (comp 2)
-            Compression Algorithm: BZip2 (comp 3)
-            Compression Algorithm: ZIP &amp;lt;RFC1951&amp;gt; (comp 1)
-        Features (sub 30) (1 bytes)
-            Flag: Modification Detection (packets 18 and 19)
-        Key Server Preferences (sub 23) (1 bytes)
-            Flag: No-modify
-    Unhashed Subpacket (10 bytes)
-        Issuer (sub 16): 0x00693613e2b68f5a
-    Hash left 2 bytes
-        7e b5
-    EdDSA compressed value r (253 bits)
-    EdDSA compressed value s (251 bits)
-&lt;span class=&#34;hl&#34;&gt;Public-Subkey Packet (tag 14) (56 bytes)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Version: 4 (current)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Public key creation time: 2017-12-02T10:37:17+09:00
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        5a 22 03 cd
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    Public-key Algorithm: ECDH public key algorithm (pub 18)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    ECC Curve OID: cv25519
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        2b 06 01 04 01 97 55 01 05 01
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    ECDH EC point (04 || X || Y) (263 bits)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;    KDF parameters (3 bytes)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        Hash Algorithm: SHA2-256 (hash 8)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;        Symmetric Algorithm: AES with 128-bit key (sym 7)
-&lt;/span&gt;Signature Packet (tag 2) (120 bytes)
-    Version: 4 (current)
-    Signiture Type: Subkey Binding Signature (0x18)
-    Public-key Algorithm: EdDSA (pub 22)
-    Hash Algorithm: SHA2-256 (hash 8)
-    Hashed Subpacket (32 bytes)
-        Issuer Fingerprint (sub 33) (21 bytes)
-            Version: 4 (need 20 octets length)
-            Fingerprint (20 bytes)
-                f7 9b 41 17 17 b8 69 02 17 7e a0 82 00 69 36 13 e2 b6 8f 5a
-        Signature Creation Time (sub 2): 2017-12-02T10:37:17+09:00
-        Key Flags (sub 27) (1 bytes)
-            Flag: This key may be used to encrypt communications.
-            Flag: This key may be used to encrypt storage.
-    Unhashed Subpacket (10 bytes)
-        Issuer (sub 16): 0x00693613e2b68f5a
-    Hash left 2 bytes
-        29 27
-    EdDSA compressed value r (254 bits)
-    EdDSA compressed value s (254 bits)&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --quick-gen-key &amp;#34;Alice &amp;lt;alice@example.com&amp;gt;&amp;#34; future-default - 2y
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;成器に十分なエントロピーを供給する機会を与えることができます。
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;たくさんのランダム・バイトの生成が必要です。キーボードを打つ、マウスを動か
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;す、ディスクにアクセスするなどの他の操作を素数生成の間に行うことで、乱数生
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;成器に十分なエントロピーを供給する機会を与えることができます。
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;gpg: 失効証明書を &amp;#39;C:/Users/slice/AppData/Roaming/gnupg/openpgp-revocs.d\F79B411717B86902177EA08200693613E2B68F5A.rev&amp;#39; に保管しました。
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;公開鍵と秘密鍵を作成し、署名しました。
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pub   ed25519 2017-12-02 [SC] [有効期限: 2019-12-02]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      F79B411717B86902177EA08200693613E2B68F5A
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;uid                      Alice &amp;lt;alice@example.com&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;sub   cv25519 2017-12-02 [E]
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;作成した鍵を拙作の &lt;a href=&#34;https://github.com/spiegel-im-spiegel/gpgpdump&#34; title=&#34;spiegel-im-spiegel/gpgpdump: OpenPGP packet visualizer&#34;&gt;gpgpdump&lt;/a&gt; &lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt; で見てみるとこんな感じになっている。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg -a --export alice | gpgpdump
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Public-Key Packet (tag 6) (51 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Version: 4 (current)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Public key creation time: 2017-12-02T10:37:17+09:00
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        5a 22 03 cd
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Public-key Algorithm: EdDSA (pub 22)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    ECC Curve OID: ed25519
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        2b 06 01 04 01 da 47 0f 01
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    EdDSA EC point (04 || X || Y) (263 bits)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;User ID Packet (tag 13) (25 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    User ID: Alice &amp;lt;alice@example.com&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Signature Packet (tag 2) (150 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Version: 4 (current)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Signiture Type: Positive certification of a User ID and Public-Key packet (0x13)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Public-key Algorithm: EdDSA (pub 22)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Hash Algorithm: SHA2-256 (hash 8)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Hashed Subpacket (62 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Issuer Fingerprint (sub 33) (21 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Version: 4 (need 20 octets length)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Fingerprint (20 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                f7 9b 41 17 17 b8 69 02 17 7e a0 82 00 69 36 13 e2 b6 8f 5a
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Signature Creation Time (sub 2): 2017-12-02T10:37:17+09:00
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Key Flags (sub 27) (1 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Flag: This key may be used to certify other keys.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Flag: This key may be used to sign data.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Key Expiration Time (sub 9): 730 days after (2019-12-02T10:37:17+09:00)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Preferred Symmetric Algorithms (sub 11) (4 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Symmetric Algorithm: AES with 256-bit key (sym 9)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Symmetric Algorithm: AES with 192-bit key (sym 8)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Symmetric Algorithm: AES with 128-bit key (sym 7)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Symmetric Algorithm: TripleDES (168 bit key derived from 192) (sym 2)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Preferred Hash Algorithms (sub 21) (5 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Hash Algorithm: SHA2-256 (hash 8)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Hash Algorithm: SHA2-384 (hash 9)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Hash Algorithm: SHA2-512 (hash 10)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Hash Algorithm: SHA2-224 (hash 11)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Hash Algorithm: SHA-1 (hash 2)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Preferred Compression Algorithms (sub 22) (3 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Compression Algorithm: ZLIB &amp;lt;RFC1950&amp;gt; (comp 2)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Compression Algorithm: BZip2 (comp 3)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Compression Algorithm: ZIP &amp;lt;RFC1951&amp;gt; (comp 1)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Features (sub 30) (1 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Flag: Modification Detection (packets 18 and 19)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Key Server Preferences (sub 23) (1 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Flag: No-modify
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Unhashed Subpacket (10 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Issuer (sub 16): 0x00693613e2b68f5a
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Hash left 2 bytes
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        7e b5
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    EdDSA compressed value r (253 bits)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    EdDSA compressed value s (251 bits)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Public-Subkey Packet (tag 14) (56 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Version: 4 (current)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Public key creation time: 2017-12-02T10:37:17+09:00
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        5a 22 03 cd
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Public-key Algorithm: ECDH public key algorithm (pub 18)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    ECC Curve OID: cv25519
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        2b 06 01 04 01 97 55 01 05 01
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    ECDH EC point (04 || X || Y) (263 bits)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    KDF parameters (3 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Hash Algorithm: SHA2-256 (hash 8)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Symmetric Algorithm: AES with 128-bit key (sym 7)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Signature Packet (tag 2) (120 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Version: 4 (current)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Signiture Type: Subkey Binding Signature (0x18)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Public-key Algorithm: EdDSA (pub 22)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Hash Algorithm: SHA2-256 (hash 8)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Hashed Subpacket (32 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Issuer Fingerprint (sub 33) (21 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Version: 4 (need 20 octets length)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Fingerprint (20 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                f7 9b 41 17 17 b8 69 02 17 7e a0 82 00 69 36 13 e2 b6 8f 5a
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Signature Creation Time (sub 2): 2017-12-02T10:37:17+09:00
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Key Flags (sub 27) (1 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Flag: This key may be used to encrypt communications.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            Flag: This key may be used to encrypt storage.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Unhashed Subpacket (10 bytes)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        Issuer (sub 16): 0x00693613e2b68f5a
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Hash left 2 bytes
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        29 27
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    EdDSA compressed value r (254 bits)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    EdDSA compressed value s (254 bits)&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 &lt;p&gt;長々とした出力で申し訳ないが &lt;code&gt;Public-Key Packet&lt;/code&gt; と &lt;code&gt;Public-Subkey Packet&lt;/code&gt; の項目に注目していただくと，電子署名用に EdDSA (ed25519)，暗号用に ECDH (cv25519) が使われているのが分かる。
 鍵長はいずれも 256bits である。&lt;/p&gt;
 &lt;p&gt;通常はこれで問題ない。&lt;/p&gt;
@@ -1749,34 +1749,34 @@ main table.nist2 td  {
 &lt;p&gt;2031年以降も Acceptable な鍵が要件なら 128bits 以上のセキュリティ強度が必要だが， &lt;a href=&#34;https://gnupg.org/&#34; title=&#34;The GNU Privacy Guard&#34;&gt;GnuPG&lt;/a&gt; で利用できる楕円曲線は全て問題ないことが分かるだろう。&lt;/p&gt;
 &lt;h2&gt;【付録】 対話モードによる ECC 鍵の選択&lt;/h2&gt;
 &lt;p&gt;対話モードで ECC 鍵を選択して作成するには以下のコマンドラインで起動する。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;$ gpg --full-gen-key --expert
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このうち ECC 鍵を作成できるのは，以下の選択肢の内 (9) から (11) を選択した場合である。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;ご希望の鍵の種類を選択してください:
-   (1) RSA と RSA (デフォルト)
-   (2) DSA と Elgamal
-   (3) DSA (署名のみ)
-   (4) RSA (署名のみ)
-   (7) DSA (機能をあなた自身で設定)
-   (8) RSA (機能をあなた自身で設定)
-&lt;span class=&#34;hl&#34;&gt;   (9) ECC と ECC
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;  (10) ECC (署名のみ)
-&lt;/span&gt;&lt;span class=&#34;hl&#34;&gt;  (11) ECC (機能をあなた自身で設定)
-&lt;/span&gt;  (13) 既存の鍵
-あなたの選択は? &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ gpg --full-gen-key --expert
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;このうち ECC 鍵を作成できるのは，以下の選択肢の内 (9) から (11) を選択した場合である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ご希望の鍵の種類を選択してください:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (1) RSA と RSA (デフォルト)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (2) DSA と Elgamal
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (3) DSA (署名のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (4) RSA (署名のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (7) DSA (機能をあなた自身で設定)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (8) RSA (機能をあなた自身で設定)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (9) ECC と ECC
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (10) ECC (署名のみ)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (11) ECC (機能をあなた自身で設定)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  (13) 既存の鍵
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 &lt;p&gt;(9) を選択すると電子署名用の主鍵と暗号化用の副鍵をセットで作成する。
 (10) と (11) を選択すると電子署名用の主鍵のみ作成する（(11) では主鍵の機能を選択できる） 。&lt;/p&gt;
 &lt;p&gt;いずれを選択した場合でも以下の楕円曲線の選択肢が表示される。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;ご希望の楕円曲線を選択してください:
-   (1) Curve 25519
-   (3) NIST P-256
-   (4) NIST P-384
-   (5) NIST P-521
-   (6) Brainpool P-256
-   (7) Brainpool P-384
-   (8) Brainpool P-512
-   (9) secp256k1
-あなたの選択は? 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;実際にどのような鍵が作成されるか以下に示す。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ご希望の楕円曲線を選択してください:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (1) Curve 25519
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (3) NIST P-256
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (4) NIST P-384
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (5) NIST P-521
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (6) Brainpool P-256
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (7) Brainpool P-384
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (8) Brainpool P-512
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   (9) secp256k1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;あなたの選択は? 
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;実際にどのような鍵が作成されるか以下に示す。&lt;/p&gt;
 &lt;h3&gt;「ECC と ECC」を選んだ場合&lt;/h3&gt;
 &lt;table&gt;
 &lt;thead&gt;

@@ -3,7 +3,7 @@
 <head prefix="og: http://ogp.me/ns#">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Hugo 0.92.2" />
+<meta name="generator" content="Hugo 0.93.1" />
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -170,120 +170,120 @@
 </ul>
 <p>という記事があって，無責任にも「Unix-Time を使えばいいんじゃないの？」みたいなコメントを残した後にすっかり忘れていたのだが，ありがたくも<a href="https://qiita.com/go_sagawa/items/836398020100df486184">バグの報告</a>を頂いた。</p>
 <p>最初に提案したコードは</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="nx">now</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
-<span class="nx">ut</span> <span class="o">:=</span> <span class="nx">now</span><span class="p">.</span><span class="nf">Unix</span><span class="p">()</span>
-<span class="nx">_</span><span class="p">,</span> <span class="nx">offset</span> <span class="o">:=</span> <span class="nx">now</span><span class="p">.</span><span class="nf">Zone</span><span class="p">()</span>
-<span class="nx">day</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">((</span><span class="nx">ut</span><span class="o">/</span><span class="mi">86400</span><span class="p">)</span><span class="o">*</span><span class="mi">86400</span><span class="o">-</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
-</code></pre></div><p>だったのだが，見ての通り，時差の考慮が不完全である。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="nx">now</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="nx">ut</span> <span class="o">:=</span> <span class="nx">now</span><span class="p">.</span><span class="nf">Unix</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="nx">_</span><span class="p">,</span> <span class="nx">offset</span> <span class="o">:=</span> <span class="nx">now</span><span class="p">.</span><span class="nf">Zone</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="nx">day</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">((</span><span class="nx">ut</span><span class="o">/</span><span class="mi">86400</span><span class="p">)</span><span class="o">*</span><span class="mi">86400</span><span class="o">-</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+</span></span></code></pre></div><p>だったのだが，見ての通り，時差の考慮が不完全である。
 したがって最後の行を</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="nx">day</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(((</span><span class="nx">ut</span><span class="o">+</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">))</span><span class="o">/</span><span class="mi">86400</span><span class="p">)</span><span class="o">*</span><span class="mi">86400</span><span class="o">-</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">),</span> <span class="mi">0</span><span class="p">).</span><span class="nf">In</span><span class="p">(</span><span class="nx">now</span><span class="p">.</span><span class="nf">Location</span><span class="p">())</span>
-</code></pre></div><p>とする必要がある。
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="nx">day</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(((</span><span class="nx">ut</span><span class="o">+</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">))</span><span class="o">/</span><span class="mi">86400</span><span class="p">)</span><span class="o">*</span><span class="mi">86400</span><span class="o">-</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">),</span> <span class="mi">0</span><span class="p">).</span><span class="nf">In</span><span class="p">(</span><span class="nx">now</span><span class="p">.</span><span class="nf">Location</span><span class="p">())</span>
+</span></span></code></pre></div><p>とする必要がある。
 いや，マジすんません <code>m(_ _)m</code></p>
 <p>ついでなので，この記事でもベンチマークテストをしておこう。
 対象コードは以下の5つ。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kn">package</span> <span class="nx">zerotime</span>
-
-<span class="kn">import</span> <span class="p">(</span>
-	<span class="s">&#34;fmt&#34;</span>
-	<span class="s">&#34;time&#34;</span>
-<span class="p">)</span>
-
-<span class="c1">//fmt パッケージを使って文字列整形する
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByFmt</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
-	<span class="nx">day</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span>
-		<span class="s">&#34;2006-01-02 15:04:05 -0700&#34;</span><span class="p">,</span>
-		<span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;%s 00:00:00 %s&#34;</span><span class="p">,</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">&#34;2006-01-02&#34;</span><span class="p">),</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">&#34;-0700&#34;</span><span class="p">)),</span>
-	<span class="p">)</span>
-	<span class="k">return</span> <span class="nx">day</span>
-<span class="p">}</span>
-
-<span class="c1">//time.Formatを使って文字列整形する
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByFormat</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
-	<span class="nx">day</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span>
-		<span class="s">&#34;2006-01-02 15:04:05 -0700 MST&#34;</span><span class="p">,</span>
-		<span class="nx">t</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">&#34;2006-01-02 00:00:00 -0700 MST&#34;</span><span class="p">),</span>
-	<span class="p">)</span>
-	<span class="k">return</span> <span class="nx">day</span>
-<span class="p">}</span>
-
-<span class="c1">//差分を計算してtime.Time.Add関数を使う
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByCalc</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
-	<span class="nx">nanosecond</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Nanosecond</span><span class="p">())</span>
-	<span class="nx">second</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Second</span><span class="p">())</span>
-	<span class="nx">minute</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Minute</span><span class="p">())</span>
-	<span class="nx">hour</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Hour</span><span class="p">())</span>
-	<span class="nx">dur</span> <span class="o">:=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="p">(</span><span class="nx">nanosecond</span> <span class="o">+</span> <span class="nx">second</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span> <span class="o">+</span> <span class="nx">minute</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span> <span class="o">+</span> <span class="nx">hour</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Hour</span><span class="p">)</span>
-	<span class="k">return</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="nx">dur</span><span class="p">)</span>
-<span class="p">}</span>
-
-<span class="c1">//time.Date関数で0時0分を再設定する
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByDate</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
-	<span class="k">return</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Date</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Year</span><span class="p">(),</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Month</span><span class="p">(),</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Day</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Location</span><span class="p">())</span>
-<span class="p">}</span>
-
-<span class="c1">//Unix-Timeを使う
-</span><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByUnixTime</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
-	<span class="nx">_</span><span class="p">,</span> <span class="nx">offset</span> <span class="o">:=</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Zone</span><span class="p">()</span>
-	<span class="k">return</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(((</span><span class="nx">t</span><span class="p">.</span><span class="nf">Unix</span><span class="p">()</span><span class="o">+</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">))</span><span class="o">/</span><span class="mi">86400</span><span class="p">)</span><span class="o">*</span><span class="mi">86400</span><span class="o">-</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">),</span> <span class="mi">0</span><span class="p">).</span><span class="nf">In</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Location</span><span class="p">())</span>
-<span class="p">}</span>
-</code></pre></div><p>これらに対応するベンチマークテストは以下の通り。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="kd">func</span> <span class="nf">BenchmarkTrancateByFmt</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
-	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
-	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByFmt</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">BenchmarkTrancateByFormat</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
-	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
-	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByFormat</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">BenchmarkTrancateByCalc</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
-	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
-	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByCalc</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">BenchmarkTrancateBydate</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
-	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
-	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByDate</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-
-<span class="kd">func</span> <span class="nf">BenchmarkTrancateByUnixTime</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
-	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
-	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
-	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
-	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByUnixTime</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
-	<span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div><p>ほんで，実行結果は以下の通り。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text">$ go test -bench Trancate -benchmem
-goos: linux
-goarch: amd64
-pkg: zerotime
-BenchmarkTrancateByFmt-4        	  987878	      1096 ns/op	     224 B/op	       8 allocs/op
-BenchmarkTrancateByFormat-4     	 1233117	       953 ns/op	     176 B/op	       4 allocs/op
-BenchmarkTrancateByCalc-4       	33584716	        31.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTrancateBydate-4       	11734460	        99.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTrancateByUnixTime-4   	77463438	        15.5 ns/op	       0 B/op	       0 allocs/op
-PASS
-ok  	zerotime	7.601s
-</code></pre></div><p>分かりやすく表にしておこう。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">zerotime</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;time&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//fmt パッケージを使って文字列整形する
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByFmt</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">day</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">		<span class="s">&#34;2006-01-02 15:04:05 -0700&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;%s 00:00:00 %s&#34;</span><span class="p">,</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">&#34;2006-01-02&#34;</span><span class="p">),</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">&#34;-0700&#34;</span><span class="p">)),</span>
+</span></span><span class="line"><span class="cl">	<span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">day</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//time.Formatを使って文字列整形する
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByFormat</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">day</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">		<span class="s">&#34;2006-01-02 15:04:05 -0700 MST&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">t</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">&#34;2006-01-02 00:00:00 -0700 MST&#34;</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">	<span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">day</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//差分を計算してtime.Time.Add関数を使う
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByCalc</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">nanosecond</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Nanosecond</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">second</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Second</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">minute</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Minute</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">hour</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Hour</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">dur</span> <span class="o">:=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="p">(</span><span class="nx">nanosecond</span> <span class="o">+</span> <span class="nx">second</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span> <span class="o">+</span> <span class="nx">minute</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span> <span class="o">+</span> <span class="nx">hour</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Hour</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="nx">dur</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//time.Date関数で0時0分を再設定する
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByDate</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Date</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Year</span><span class="p">(),</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Month</span><span class="p">(),</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Day</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Location</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//Unix-Timeを使う
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">TrancateByUnixTime</span><span class="p">(</span><span class="nx">t</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">_</span><span class="p">,</span> <span class="nx">offset</span> <span class="o">:=</span> <span class="nx">t</span><span class="p">.</span><span class="nf">Zone</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Unix</span><span class="p">(((</span><span class="nx">t</span><span class="p">.</span><span class="nf">Unix</span><span class="p">()</span><span class="o">+</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">))</span><span class="o">/</span><span class="mi">86400</span><span class="p">)</span><span class="o">*</span><span class="mi">86400</span><span class="o">-</span><span class="nb">int64</span><span class="p">(</span><span class="nx">offset</span><span class="p">),</span> <span class="mi">0</span><span class="p">).</span><span class="nf">In</span><span class="p">(</span><span class="nx">t</span><span class="p">.</span><span class="nf">Location</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これらに対応するベンチマークテストは以下の通り。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkTrancateByFmt</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByFmt</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkTrancateByFormat</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByFormat</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkTrancateByCalc</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByCalc</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkTrancateBydate</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByDate</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkTrancateByUnixTime</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">loc</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">LoadLocation</span><span class="p">(</span><span class="s">&#34;America/New_York&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">t</span> <span class="o">:=</span> <span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">In</span><span class="p">(</span><span class="nx">loc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">_</span> <span class="p">=</span> <span class="nx">zerotime</span><span class="p">.</span><span class="nf">TrancateByUnixTime</span><span class="p">(</span><span class="nx">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>ほんで，実行結果は以下の通り。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go test -bench Trancate -benchmem
+</span></span><span class="line"><span class="cl">goos: linux
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: zerotime
+</span></span><span class="line"><span class="cl">BenchmarkTrancateByFmt-4        	  987878	      1096 ns/op	     224 B/op	       8 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkTrancateByFormat-4     	 1233117	       953 ns/op	     176 B/op	       4 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkTrancateByCalc-4       	33584716	        31.0 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkTrancateBydate-4       	11734460	        99.7 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkTrancateByUnixTime-4   	77463438	        15.5 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">PASS
+</span></span><span class="line"><span class="cl">ok  	zerotime	7.601s
+</span></span></code></pre></div><p>分かりやすく表にしておこう。</p>
 <table>
 <thead>
 <tr>
@@ -396,7 +396,7 @@ ok  	zerotime	7.601s
 <li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
 </ul>
 <ul class='cloud center'>
-<li>Powered by <a href='https://gohugo.io/'>Hugo 0.92.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.93.1</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
 ">Theme of Baldanders.info</a>.</li>
 </ul>
 </nav>
