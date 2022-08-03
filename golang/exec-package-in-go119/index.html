@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.101.0" />
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/golang/exec-package-in-go119/">
+<script src="//kit.fontawesome.com/152e339e63.js"></script>
+<link rel="stylesheet" href="//fonts.bunny.net/css?family=inconsolata:700,400|noto-emoji:400,700|noto-sans:400,700|noto-sans-jp:400,700|noto-serif:400,700|noto-serif-jp:400,700" />
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<title>Go 1.19 で os/exec パッケージの挙動が変わった話 | text.Baldanders.info</title>
+<meta property="og:title" content="Go 1.19 で os/exec パッケージの挙動が変わった話">
+<meta name="description" content="Windows 環境でコマンドを起動する際の脆弱性の回避">
+<meta property="og:description" content="Windows 環境でコマンドを起動する際の脆弱性の回避">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="keywords" content="programming, golang, security, risk">
+<link rel='prev' href='https://text.baldanders.info/golang/deprecated-strings-title/' title='strings.Title 関数は非推奨になった' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/golang/",
+	"url": "https://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/golang/exec-package-in-go119/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/golang/exec-package-in-go119/",
+	"url": "https://text.baldanders.info/golang/exec-package-in-go119/",
+	"mainEntityOfPage": "https://text.baldanders.info/golang/exec-package-in-go119/",
+	"inLanguage": "ja",
+	"name": "Go 1.19 で os/exec パッケージの挙動が変わった話",
+	"description": "Windows 環境でコマンドを起動する際の脆弱性の回避",
+	"headline": "Windows 環境でコマンドを起動する際の脆弱性の回避",
+	"keywords": "programming, golang, security, risk",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2022-08-03T12:28:36+00:00",
+	"dateModified": "2022-08-03T12:37:29+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>Go 1.19 で os/exec パッケージの挙動が変わった話</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/golang/">golang</a> #<a href="/tags/programming/">programming</a> #<a href="/tags/risk/">risk</a> #<a href="/tags/security/">security</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-square"></i></span>&nbsp;:
+		&nbsp;<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fexec-package-in-go119%2f&amp;title=Go%201.19%20%e3%81%a7%20os%2fexec%20%e3%83%91%e3%83%83%e3%82%b1%e3%83%bc%e3%82%b8%e3%81%ae%e6%8c%99%e5%8b%95%e3%81%8c%e5%a4%89%e3%82%8f%e3%81%a3%e3%81%9f%e8%a9%b1" target="_blank"><span class="pocket-color"><i class="fab fa-get-pocket" aria-hidden="true"></i></span></a>
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fgolang%2fexec-package-in-go119%2f" target="_blank"><span class="facebook-color"><i class="fab fa-facebook-square" aria-hidden="true"></i></span></a>&nbsp;<a href="http://twitter.com/share?text=Go%201.19%20%e3%81%a7%20os%2fexec%20%e3%83%91%e3%83%83%e3%82%b1%e3%83%bc%e3%82%b8%e3%81%ae%e6%8c%99%e5%8b%95%e3%81%8c%e5%a4%89%e3%82%8f%e3%81%a3%e3%81%9f%e8%a9%b1+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fexec-package-in-go119%2f" target="_blank"><span class="twitter-color"><i class="fab fa-twitter-square" aria-hidden="true"></i></span></a></div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/exec-package-in-go119/index.html">GitHub Page</a>
+</nav>
+
+<section>
+<p><a href="https://go.dev/">Go</a> 1.19 の<a href="https://go.dev/doc/go1.19" title="Go 1.19 Release Notes - The Go Programming Language">リリースノート</a>を眺めてみると</p>
+<figure lang="en">
+<blockquote><a href="https://go.dev/pkg/os/exec/#Command"><code>Command</code></a> and <a href="https://go.dev/pkg/os/exec/#LookPath"><code>LookPath</code></a> no longer allow results from a PATH search to be found relative to the current directory. This removes a <a href="https://go.dev/blog/path-security">common source of security problems</a> but may also break existing programs that depend on using, say, <code>exec.Command(&quot;prog&quot;)</code> to run a binary named <code>prog</code> (or, on Windows, <code>prog.exe</code>) in the current directory. See the <a href="https://go.dev/pkg/os/exec/"><code>os/exec</code></a> package documentation for information about how best to update such programs.</blockquote>
+<figcaption><div>via <q><a href="https://go.dev/doc/go1.19">Go 1.19 Release Notes - The Go Programming Language</a></q></div></figcaption>
+</figure>
+<p>とある。
+さっそく試してみよう。</p>
+<p>まず Windows 環境で <a href="https://github.com/goark/gpgpdump" title="goark/gpgpdump: OpenPGP packet visualizer"><code>gpgpdump.exe</code></a> コマンドを PATH で指定されたフォルダ以外，具体的には以下のソースファイルと同じフォルダに置く。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os/exec&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">cmd</span> <span class="o">:=</span> <span class="s">&#34;gpgpdump.exe&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">out</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">exec</span><span class="p">.</span><span class="nf">Command</span><span class="p">(</span><span class="nx">cmd</span><span class="p">,</span> <span class="s">&#34;version&#34;</span><span class="p">).</span><span class="nf">CombinedOutput</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;output by %v:\n%v\n&#34;</span><span class="p">,</span> <span class="nx">cmd</span><span class="p">,</span> <span class="nb">string</span><span class="p">(</span><span class="nx">out</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これを <a href="https://go.dev/">Go</a> 1.19 コンパイル環境下で実行すると</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">&gt; go run sample.go
+</span></span><span class="line"><span class="cl">exec: &#34;gpgpdump.exe&#34;: cannot run executable found relative to current directory
+</span></span></code></pre></div><p>「カレントディレクトリに指定の実行ファイルあるけど起動してやらん（←超意訳）」とエラーになった。</p>
+<p>Windows ではパス指定なしでコマンドを起動する際に，カレントフォルダに同名の実行ファイルが存在すると優先的にそれを起動してしまう。
+<a href="https://go.dev/">Go</a> 標準の <a href="https://pkg.go.dev/os/exec" title="exec package - os/exec - Go Packages"><code>os/exec</code></a> パッケージもこの挙動に合わせていたのだが，2020年の <a href="https://nvd.nist.gov/vuln/detail/CVE-2020-27955">CVE-2020-27955</a> で問題になった。
+この挙動を悪用して悪意のコマンドを実行される可能性があるというわけだ。</p>
+<p>この脆弱性を回避するために，様々な試行錯誤が行われたが <a href="https://go.dev/">Go</a> 1.19 の改修が決定打になるだろう。</p>
+<p>なお，今まで通りパスなしのコマンド指定時にカレントフォルダの実行ファイルを優先的に起動したいなら <a href="https://pkg.go.dev/os/exec" title="exec package - os/exec - Go Packages"><code>exec</code></a><code>.ErrDot</code> エラーを明示的に潰すことで実現できる。
+こんな感じ。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;errors&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os/exec&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">cmd</span> <span class="o">:=</span> <span class="nx">exec</span><span class="p">.</span><span class="nf">Command</span><span class="p">(</span><span class="s">&#34;gpgpdump.exe&#34;</span><span class="p">,</span> <span class="s">&#34;version&#34;</span><span class="p">)</span>
+</span></span><span class="line hl"><span class="cl">    <span class="k">if</span> <span class="nx">cmd</span><span class="p">.</span><span class="nx">Err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">cmd</span><span class="p">.</span><span class="nx">Err</span><span class="p">)</span>
+</span></span><span class="line hl"><span class="cl">        <span class="k">if</span> <span class="p">!</span><span class="nx">errors</span><span class="p">.</span><span class="nf">Is</span><span class="p">(</span><span class="nx">cmd</span><span class="p">.</span><span class="nx">Err</span><span class="p">,</span> <span class="nx">exec</span><span class="p">.</span><span class="nx">ErrDot</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">            <span class="k">return</span>
+</span></span><span class="line hl"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">        <span class="nx">cmd</span><span class="p">.</span><span class="nx">Err</span> <span class="p">=</span> <span class="kc">nil</span>
+</span></span><span class="line hl"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">out</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">cmd</span><span class="p">.</span><span class="nf">CombinedOutput</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;output by %v:\n%v\n&#34;</span><span class="p">,</span> <span class="nx">cmd</span><span class="p">,</span> <span class="nb">string</span><span class="p">(</span><span class="nx">out</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これを実行すると</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">&gt; go run sample2.go
+</span></span><span class="line"><span class="cl">exec: &#34;gpgpdump.exe&#34;: cannot run executable found relative to current directory
+</span></span><span class="line"><span class="cl">output by .\gpgpdump.exe version:
+</span></span><span class="line"><span class="cl">gpgpdump v0.14.0
+</span></span><span class="line"><span class="cl">repository: https://github.com/goark/gpgpdump
+</span></span></code></pre></div><p>となる。
+エラーを無視してカレントディレクトリ <code>.</code> を付加した状態で実行されているのがお分かりだろうか。</p>
+<p>ちなみに，同じコードを Windows 以外の環境で実行すると（<code>.exe</code> の拡張子は外してね）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample2b.go 
+</span></span><span class="line"><span class="cl">exec: &#34;gpgpdump&#34;: executable file not found in $PATH
+</span></span></code></pre></div><p>と PATH 上に実行ファイルが見つからない旨の普通のエラーが表示される。
+これでアプリケーション側は OS ごとに処理を分ける必要がなくなったわけだ。
+めでたい！</p>
+<p>ところで Windows には <code>NoDefaultCurrentDirectoryInExePath</code> なる環境変数があるそうで，これが有効になっているとパスなしのコマンド指定時にカレントフォルダの実行ファイルを起動しなくなるらしい。</p>
+<p>で <a href="https://pkg.go.dev/os/exec" title="exec package - os/exec - Go Packages"><code>os/exec</code></a> パッケージは律儀にこの環境変数にも対応している。</p>
+<figure lang="en">
+<blockquote>On Windows, <code>Command</code> and <code>LookPath</code> now respect the <code>NoDefaultCurrentDirectoryInExePath</code> environment variable, making it possible to disable the default implicit search of “<code>.</code>” in PATH lookups on Windows systems.</blockquote>
+<figcaption><div>via <q><a href="https://go.dev/doc/go1.19">Go 1.19 Release Notes - The Go Programming Language</a></q></div></figcaption>
+</figure>
+<p>標準パッケージのソースコード <code>os/exec/lp_windows.go</code> を眺めると</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// LookPath searches for an executable named file in the
+</span></span></span><span class="line"><span class="cl"><span class="c1">// directories named by the PATH environment variable.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// LookPath also uses PATHEXT environment variable to match
+</span></span></span><span class="line"><span class="cl"><span class="c1">// a suitable candidate.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// If file contains a slash, it is tried directly and the PATH is not consulted.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Otherwise, on success, the result is an absolute path.
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// In older versions of Go, LookPath could return a path relative to the current directory.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// As of Go 1.19, LookPath will instead return that path along with an error satisfying
+</span></span></span><span class="line"><span class="cl"><span class="c1">// errors.Is(err, ErrDot). See the package documentation for more details.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">LookPath</span><span class="p">(</span><span class="nx">file</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">string</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">var</span> <span class="nx">exts</span> <span class="p">[]</span><span class="kt">string</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">x</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Getenv</span><span class="p">(</span><span class="s">`PATHEXT`</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">x</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">e</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">Split</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">(</span><span class="nx">x</span><span class="p">),</span> <span class="s">`;`</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="nx">e</span> <span class="o">==</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="nx">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="sc">&#39;.&#39;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">e</span> <span class="p">=</span> <span class="s">&#34;.&#34;</span> <span class="o">+</span> <span class="nx">e</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">exts</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">exts</span><span class="p">,</span> <span class="nx">e</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">exts</span> <span class="p">=</span> <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;.com&#34;</span><span class="p">,</span> <span class="s">&#34;.exe&#34;</span><span class="p">,</span> <span class="s">&#34;.bat&#34;</span><span class="p">,</span> <span class="s">&#34;.cmd&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">ContainsAny</span><span class="p">(</span><span class="nx">file</span><span class="p">,</span> <span class="s">`:\/`</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">f</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">findExecutable</span><span class="p">(</span><span class="nx">file</span><span class="p">,</span> <span class="nx">exts</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">f</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">Error</span><span class="p">{</span><span class="nx">file</span><span class="p">,</span> <span class="nx">err</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// On Windows, creating the NoDefaultCurrentDirectoryInExePath
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// environment variable (with any value or no value!) signals that
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// path lookups should skip the current directory.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// In theory we are supposed to call NeedCurrentDirectoryForExePathW
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// &#34;as the registry location of this environment variable can change&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// but that seems exceedingly unlikely: it would break all users who
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// have configured their environment this way!
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// See also go.dev/issue/43947.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kd">var</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">dotf</span>   <span class="kt">string</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">dotErr</span> <span class="kt">error</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line hl"><span class="cl">    <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">found</span> <span class="o">:=</span> <span class="nx">syscall</span><span class="p">.</span><span class="nf">Getenv</span><span class="p">(</span><span class="s">&#34;NoDefaultCurrentDirectoryInExePath&#34;</span><span class="p">);</span> <span class="p">!</span><span class="nx">found</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">        <span class="k">if</span> <span class="nx">f</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">findExecutable</span><span class="p">(</span><span class="nx">filepath</span><span class="p">.</span><span class="nf">Join</span><span class="p">(</span><span class="s">&#34;.&#34;</span><span class="p">,</span> <span class="nx">file</span><span class="p">),</span> <span class="nx">exts</span><span class="p">);</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">            <span class="k">if</span> <span class="nx">godebug</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;execerrdot&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="s">&#34;0&#34;</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">                <span class="k">return</span> <span class="nx">f</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line hl"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">            <span class="nx">dotf</span><span class="p">,</span> <span class="nx">dotErr</span> <span class="p">=</span> <span class="nx">f</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">Error</span><span class="p">{</span><span class="nx">file</span><span class="p">,</span> <span class="nx">ErrDot</span><span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">path</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Getenv</span><span class="p">(</span><span class="s">&#34;path&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">dir</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">filepath</span><span class="p">.</span><span class="nf">SplitList</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">f</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">findExecutable</span><span class="p">(</span><span class="nx">filepath</span><span class="p">.</span><span class="nf">Join</span><span class="p">(</span><span class="nx">dir</span><span class="p">,</span> <span class="nx">file</span><span class="p">),</span> <span class="nx">exts</span><span class="p">);</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="nx">dotErr</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="c1">// https://go.dev/issue/53536: if we resolved a relative path implicitly,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="c1">// and it is the same executable that would be resolved from the explicit %PATH%,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="c1">// prefer the explicit name for the executable (and, likely, no error) instead
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="c1">// of the equivalent implicit name with ErrDot.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="c1">// Otherwise, return the ErrDot for the implicit path as soon as we find
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="c1">// out that the explicit one doesn&#39;t match.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="nx">dotfi</span><span class="p">,</span> <span class="nx">dotfiErr</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Lstat</span><span class="p">(</span><span class="nx">dotf</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">fi</span><span class="p">,</span> <span class="nx">fiErr</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Lstat</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="nx">dotfiErr</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="o">||</span> <span class="nx">fiErr</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="o">||</span> <span class="p">!</span><span class="nx">os</span><span class="p">.</span><span class="nf">SameFile</span><span class="p">(</span><span class="nx">dotfi</span><span class="p">,</span> <span class="nx">fi</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">return</span> <span class="nx">dotf</span><span class="p">,</span> <span class="nx">dotErr</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">!</span><span class="nx">filepath</span><span class="p">.</span><span class="nf">IsAbs</span><span class="p">(</span><span class="nx">f</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">godebug</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;execerrdot&#34;</span><span class="p">)</span> <span class="o">!=</span> <span class="s">&#34;0&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span> <span class="nx">f</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">Error</span><span class="p">{</span><span class="nx">file</span><span class="p">,</span> <span class="nx">ErrDot</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">f</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">dotErr</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">dotf</span><span class="p">,</span> <span class="nx">dotErr</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">Error</span><span class="p">{</span><span class="nx">file</span><span class="p">,</span> <span class="nx">ErrNotFound</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>と <code>NoDefaultCurrentDirectoryInExePath</code> 環境変数がない場合だけカレントディレクトリ <code>.</code> を付加してチェックしているのが分かる。
+ご苦労さんなことである。</p>
+<p>やっぱ Windows は面倒くさいな（笑）</p>
+<h2>ブックマーク</h2>
+<ul>
+<li><a href="https://zenn.dev/spiegel/articles/20201107-lookpath-by-golang">Go でサブプロセスを起動する際は LookPath に気をつけろ！</a></li>
+<li><a href="/golang/safeexec-packge/">github.com/cli/safeexec パッケージを使った外部コマンドの安全な起動</a></li>
+</ul>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/416Stewy0NS._SL160_.jpg" width="123" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">プログラミング言語Go</a></dt>
+    <dd>アラン・ドノバン (著), ブライアン・カーニハン (著), 柴田芳樹 (著)</dd>
+    <dd>丸善出版 2016-06-20 (Release 2021-07-13)</dd>
+    <dd>Kindle版</dd>
+    <dd>B099928SJD (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">Kindle 版出た！ 一部内容が古びてしまったが，この本は Go 言語の教科書と言ってもいいだろう。感想は<a href="/remark/2016/07/go-programming-language/" >こちら</a>。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2021-05-22">2021-05-22</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- プログラミング言語Go -->
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/deprecated-strings-title/">strings.Title 関数は非推奨になった</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>GitHub に<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>他のフィードバック手段として Twitter, Facebook または電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2022-08-03</time>
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fgolang%2fexec-package-in-go119%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.101.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
