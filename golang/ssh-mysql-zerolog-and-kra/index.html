@@ -132,7 +132,7 @@
 	"keywords": "programming, golang, sql, orm, mysql",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2022-09-22T14:05:54+00:00",
-	"dateModified": "2022-09-23T01:54:17+00:00",
+	"dateModified": "2022-09-23T03:58:32+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -290,8 +290,8 @@ Dialer のクローズを忘れずに（笑）</p>
 <p>いや <a href="https://entgo.io/">ent</a> とかってデータ構造とその関係を最初から構築するならいい道具だと思うけど（コードで設計できるのは素晴らしい！），既にある RDBMS 環境を使う場合には必ずしもマッチしないのよね。
 更に言うと，既存 ORM やクエリビルダとかの中途半端な SQL 抽象化・隠蔽にはウンザリしてるのよ（この辺は <a href="https://go.dev/">Go</a> に限らないけど）。
 それなら最初からガチで SQL 文を書いて，クエリプランをチェックしつつ評価・最適化して，それから実装を進めるべきだと常々思っていた<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
-<p>というわけで <a href="https://github.com/taichi/kra" title="taichi/kra: relational database access helper library"><code>github.com/taichi/kra</code></a> を使うチャンスを伺っていたのだが，今回はお試しにはちょうどいいサイズだったので採用してみた。
-とはいえ，今回のような構成ではどうすればいいのか分からなくて <a href="https://github.com/taichi/kra" title="taichi/kra: relational database access helper library"><code>kra</code></a> パッケージのソースコードやサンプルコードを眺めながら以下のように書いてみた。</p>
+<p>というわけで <a href="https://github.com/taichi/kra" title="taichi/kra: relational database access helper library"><code>github.com/taichi/kra</code></a> を使うチャンスを伺っていたのだが，今回はお試しにはちょうどいいサイズだったので採用した。
+とはいえ，今回のような構成ではどうすればいいのか分からなくて <a href="https://github.com/taichi/kra" title="taichi/kra: relational database access helper library"><code>kra</code></a> パッケージのソースコードやサンプルコードを眺めながら，まずは以下のように書いてみる。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
@@ -359,7 +359,7 @@ Dialer のクローズを忘れずに（笑）</p>
 しょうがないので 標準の <a href="https://pkg.go.dev/database/sql" title="sql package - database/sql - Go Packages"><code>sql</code></a><code>.Rows</code> を取り出して，そちらの <code>Next()</code> メソッドで回している。</p>
 <p>これでちゃんと動いてログも取れているのを確認できた。</p>
 <h2>トランザクション制御</h2>
-<p>トランザクション制御用に以下のような関数を用意した。</p>
+<p>トランザクション制御用に以下のような関数を用意する。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Transaction</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span> <span class="nx">db</span> <span class="o">*</span><span class="nx">kraSql</span><span class="p">.</span><span class="nx">DB</span><span class="p">,</span> <span class="nx">opts</span> <span class="o">*</span><span class="nx">sql</span><span class="p">.</span><span class="nx">TxOptions</span><span class="p">,</span> <span class="nx">fn</span> <span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">kraSql</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="nx">tx</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">db</span><span class="p">.</span><span class="nf">BeginTx</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">opts</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
@@ -386,13 +386,36 @@ Dialer のクローズを忘れずに（笑）</p>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>なお，エラーハンドリングには自作の <a href="https://github.com/goark/errs" title="goark/errs: Error handling for Golang"><code>github.com/goark/errs</code></a> パッケージを使っている。
 <a href="https://github.com/rs/zerolog" title="rs/zerolog: Zero Allocation JSON Logger">zerolog</a> と組み合わせて<a href="https://zenn.dev/spiegel/books/error-handling-in-golang/viewer/error-logging" title="ぼくがかんがえたさいきょうのえらーろぐ｜Go のエラーハンドリング">エラーを構造化してログに吐ける</a>のが利点。</p>
-<p>実際にトランザクション処理を行う場合は</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">Transaction</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">TODO</span><span class="p">(),</span> <span class="nx">db</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">sql</span><span class="p">.</span><span class="nx">TxOptions</span><span class="p">{},</span> <span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">kraSql</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">//トランザクション処理...
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">return</span> <span class="kc">nil</span>
+<p>実際にトランザクション処理を行う場合は，たとえば</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// logger := zerolog.New(os.Stderr)
+</span></span></span><span class="line"><span class="cl"><span class="c1">// ctx := context.TODO()
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">values</span> <span class="o">:=</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">Id</span>   <span class="kt">int64</span>  <span class="s">`db:&#34;id&#34;`</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">Name</span> <span class="kt">string</span> <span class="s">`db:&#34;name&#34;`</span>
+</span></span><span class="line"><span class="cl"><span class="p">}{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">Id</span><span class="p">:</span>   <span class="mi">100</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">Name</span><span class="p">:</span> <span class="s">&#34;Alice&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">Transaction</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">db</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">sql</span><span class="p">.</span><span class="nx">TxOptions</span><span class="p">{},</span> <span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">kraSql</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">stmt</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">tx</span><span class="p">.</span><span class="nf">Prepare</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="s">&#34;INSERT INTO example(id,name) VALUES (:id,:name)&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">stmt</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">res</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">stmt</span><span class="p">.</span><span class="nf">Exec</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">values</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">count</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">res</span><span class="p">.</span><span class="nf">RowsAffected</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">logger</span><span class="p">.</span><span class="nf">Info</span><span class="p">().</span><span class="nf">Int64</span><span class="p">(</span><span class="s">&#34;affected&#34;</span><span class="p">,</span> <span class="nx">count</span><span class="p">).</span><span class="nf">Send</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="kc">nil</span>
 </span></span><span class="line"><span class="cl"><span class="p">});</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">logger</span><span class="p">.</span><span class="nf">Error</span><span class="p">().</span><span class="nf">Interface</span><span class="p">(</span><span class="s">&#34;error&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">).</span><span class="nf">Send</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="o">...</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>てな感じに書ける。
 こういうのが <a href="https://github.com/taichi/kra" title="taichi/kra: relational database access helper library"><code>kra</code></a> にあるとめがっさ便利なんだけどねぇ（それを言い出すとパッケージがどんどん膨れてしまうのだがw）。</p>
@@ -435,12 +458,23 @@ Dialer のクローズを忘れずに（笑）</p>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">file</span>
 </span></span><span class="line"><span class="cl"><span class="p">})</span>
 </span></span></code></pre></div><p>次に実際の SQL 文を発行する。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="nx">res</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">tx</span><span class="p">.</span><span class="nf">Exec</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="s">`LOAD DATA LOCAL INFILE &#39;Reader::data&#39; INTO TABLE exsample_table (field1, field2, ...)`</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">rErr</span><span class="p">,</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">WithCause</span><span class="p">(</span><span class="nx">err</span><span class="p">))</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// logger := zerolog.New(os.Stderr)
+</span></span></span><span class="line"><span class="cl"><span class="c1">// ctx := context.TODO()
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">Transaction</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">db</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">sql</span><span class="p">.</span><span class="nx">TxOptions</span><span class="p">{},</span> <span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">kraSql</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">res</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">tx</span><span class="p">.</span><span class="nf">Exec</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="s">`LOAD DATA LOCAL INFILE &#39;Reader::data&#39; INTO TABLE exsample_table (field1, field2, ...)`</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">count</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">res</span><span class="p">.</span><span class="nf">RowsAffected</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">logger</span><span class="p">.</span><span class="nf">Info</span><span class="p">().</span><span class="nf">Int64</span><span class="p">(</span><span class="s">&#34;affected&#34;</span><span class="p">,</span> <span class="nx">count</span><span class="p">).</span><span class="nf">Send</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">});</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">logger</span><span class="p">.</span><span class="nf">Error</span><span class="p">().</span><span class="nf">Interface</span><span class="p">(</span><span class="s">&#34;error&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">).</span><span class="nf">Send</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="o">...</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl"><span class="nx">count</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">res</span><span class="p">.</span><span class="nf">RowsAffected</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl"><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;affected =&#34;</span><span class="p">,</span> <span class="nx">count</span><span class="p">)</span>
 </span></span></code></pre></div><p>ファイルを指定する部分に先ほど登録したハンドラの名前を使って <code>'Reader::data'</code> と指定する。
 爆速でした。</p>
 <p>ちなみに，うっかり <code>tx.Prepare()</code> で前準備しようとすると「そんな構文はサポートしてない」（←超意訳）と怒られる。
