@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.105.0">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/golang/decorator-for-stripping-bom/">
+<script src="//kit.fontawesome.com/152e339e63.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho&family=Inconsolata:wght@400;700&family=Noto+Color+Emoji&family=Noto+Sans:wght@400;700&family=Noto+Serif&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<title>BOM を除去する io.ReadCloser Decorator を作ってみた | text.Baldanders.info</title>
+<meta property="og:title" content="BOM を除去する io.ReadCloser Decorator を作ってみた">
+<meta name="description" content="こうやって混沌としたコードを整理していくんですねぇ。">
+<meta property="og:description" content="こうやって混沌としたコードを整理していくんですねぇ。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<meta name="keywords" content="programming, golang">
+<link rel='prev' href='https://text.baldanders.info/golang/simple-web-server-with-golang-3/' title='紙芝居用の簡易 Web サーバを Go 言語で書く【叱られ編】' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/golang/",
+	"url": "https://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/golang/decorator-for-stripping-bom/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/golang/decorator-for-stripping-bom/",
+	"url": "https://text.baldanders.info/golang/decorator-for-stripping-bom/",
+	"mainEntityOfPage": "https://text.baldanders.info/golang/decorator-for-stripping-bom/",
+	"inLanguage": "ja",
+	"name": "BOM を除去する io.ReadCloser Decorator を作ってみた",
+	"description": "こうやって混沌としたコードを整理していくんですねぇ。",
+	"headline": "こうやって混沌としたコードを整理していくんですねぇ。",
+	"keywords": "programming, golang",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2022-11-05T04:56:19+00:00",
+	"dateModified": "2022-11-05T04:59:24+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>BOM を除去する io.ReadCloser Decorator を作ってみた</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/golang/">golang</a> #<a href="/tags/programming/">programming</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-square"></i></span>&nbsp;:
+		&nbsp;<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fdecorator-for-stripping-bom%2f&amp;title=BOM%20%e3%82%92%e9%99%a4%e5%8e%bb%e3%81%99%e3%82%8b%20io.ReadCloser%20Decorator%20%e3%82%92%e4%bd%9c%e3%81%a3%e3%81%a6%e3%81%bf%e3%81%9f" target="_blank"><span class="pocket-color"><i class="fab fa-get-pocket" aria-hidden="true"></i></span></a>
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fgolang%2fdecorator-for-stripping-bom%2f" target="_blank"><span class="facebook-color"><i class="fab fa-facebook-square" aria-hidden="true"></i></span></a>&nbsp;<a href="http://twitter.com/share?text=BOM%20%e3%82%92%e9%99%a4%e5%8e%bb%e3%81%99%e3%82%8b%20io.ReadCloser%20Decorator%20%e3%82%92%e4%bd%9c%e3%81%a3%e3%81%a6%e3%81%bf%e3%81%9f+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fdecorator-for-stripping-bom%2f" target="_blank"><span class="twitter-color"><i class="fab fa-twitter-square" aria-hidden="true"></i></span></a></div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/decorator-for-stripping-bom/index.html">GitHub Page</a>
+</nav>
+
+<section>
+<p>先日 Zenn で UTF-8 BOM (Byte Order Mark) を除去する Decorator を紹介したのだが</p>
+<ul>
+<li><a href="https://zenn.dev/spiegel/articles/20221029-remove-bom">Decorator Pattern で BOM を除去する</a></li>
+</ul>
+<p>最後の</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;encoding/csv&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;errors&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;io&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;github.com/spkg/bom&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;./sample3.csv&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">r</span> <span class="o">:=</span> <span class="nx">csv</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">bom</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">file</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">row</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nf">Read</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">!</span><span class="nx">errors</span><span class="p">.</span><span class="nf">Is</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">io</span><span class="p">.</span><span class="nx">EOF</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">row</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>は <a href="https://pkg.go.dev/os" title="os package - os - Go Packages"><code>os</code></a><code>.File</code> 型， <a href="https://github.com/spkg/bom" title="spkg/bom: Strip UTF-8 byte order marks"><code>bom</code></a><code>.NewReader()</code> 関数が返す <a href="https://pkg.go.dev/io" title="io package - io - Go Packages"><code>io</code></a><code>.Reader</code> 抽象型とその実体である <a href="https://pkg.go.dev/bufio" title="bufio package - bufio - Go Packages"><code>bufio</code></a><code>.Reader</code>，そして <a href="https://pkg.go.dev/encoding/csv" title="csv package - encoding/csv - Go Packages"><code>csv</code></a><code>.Reader</code> 型の3つを意識する必要がある。
+もう少し詳しく言うと <code>Close()</code> メソッドを持っているのはベースの <a href="https://pkg.go.dev/os" title="os package - os - Go Packages"><code>os</code></a><code>.File</code> 型のみなのでファイルを閉じるためには <a href="https://pkg.go.dev/os" title="os package - os - Go Packages"><code>os</code></a><code>.File</code> 型の変数を保持っておく必要があるのだ。
+これは上手いやり方ではないなぁ，というのが記事を書いた後の感想だった。</p>
+<p>そこで <a href="https://github.com/spkg/bom" title="spkg/bom: Strip UTF-8 byte order marks"><code>github.com/spkg/bom</code></a> パッケージを参考に，自前で <a href="https://github.com/goark/utf8bom" title="goark/utf8bom: Strip leading UTF-8 BOM"><code>github.com/goark/utf8bom</code></a> パッケージを作ってみた。
+このパッケージの <code>Reader</code> 型は</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Reader</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="nx">bufio</span><span class="p">.</span><span class="nx">Reader</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">closer</span> <span class="kd">func</span><span class="p">()</span> <span class="kt">error</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>という構成になっていて，埋め込みの <a href="https://pkg.go.dev/bufio" title="bufio package - bufio - Go Packages"><code>bufio</code></a><code>.Reader</code> フィールド以外に <code>closer</code> を持っている。
+初期化時に</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Strip</span><span class="p">(</span><span class="nx">r</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Reader</span><span class="p">)</span> <span class="o">*</span><span class="nx">Reader</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">closer</span> <span class="o">:=</span> <span class="kd">func</span><span class="p">()</span> <span class="kt">error</span> <span class="p">{</span> <span class="k">return</span> <span class="kc">nil</span> <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">    <span class="k">if</span> <span class="nx">c</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.(</span><span class="nx">io</span><span class="p">.</span><span class="nx">Closer</span><span class="p">);</span> <span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">        <span class="nx">closer</span> <span class="p">=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">Close</span>
+</span></span><span class="line hl"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">    <span class="nx">br</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">Reader</span><span class="p">{</span><span class="nx">Reader</span><span class="p">:</span> <span class="nx">bufio</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">r</span><span class="p">),</span> <span class="nx">closer</span><span class="p">:</span> <span class="nx">closer</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">b</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">br</span><span class="p">.</span><span class="nf">Peek</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">br</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">bytes</span><span class="p">.</span><span class="nf">Equal</span><span class="p">(</span><span class="nx">b</span><span class="p">,</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">{</span><span class="mh">0xef</span><span class="p">,</span> <span class="mh">0xbb</span><span class="p">,</span> <span class="mh">0xbf</span><span class="p">})</span> <span class="p">{</span> <span class="c1">// compare BOM
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">_</span><span class="p">,</span> <span class="nx">_</span> <span class="p">=</span> <span class="nx">br</span><span class="p">.</span><span class="nf">Discard</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">br</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>てな感じに <code>closer</code> フィールドにメソッド値<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> をセットすることで <a href="https://github.com/goark/utf8bom" title="goark/utf8bom: Strip leading UTF-8 BOM"><code>utf8bom</code></a><code>.Reader.Close()</code> メソッド</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">r</span> <span class="o">*</span><span class="nx">Reader</span><span class="p">)</span> <span class="nf">Close</span><span class="p">()</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">r</span><span class="p">.</span><span class="nf">closer</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>起動時にベースの <code>Close()</code> メソッドへ処理を委譲できるようにした。
+こういうときに変数の生存期間とか考えなくていい <a href="https://go.dev/">Go</a> は便利だよねぇ。</p>
+<p>これを使って最初のサンプルコードを少し書き換えてみる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;encoding/csv&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;errors&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;io&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line hl"><span class="cl">    <span class="s">&#34;github.com/goark/utf8bom&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line hl"><span class="cl"><span class="kd">func</span> <span class="nf">openCsvFile</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">io</span><span class="p">.</span><span class="nx">ReadCloser</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">    <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;./sample3.csv&#34;</span><span class="p">)</span>
+</span></span><span class="line hl"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">        <span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line hl"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">    <span class="k">return</span> <span class="nx">utf8bom</span><span class="p">.</span><span class="nf">Strip</span><span class="p">(</span><span class="nx">file</span><span class="p">),</span> <span class="kc">nil</span>
+</span></span><span class="line hl"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">    <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">openCsvFile</span><span class="p">(</span><span class="s">&#34;./sample3.csv&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">r</span> <span class="o">:=</span> <span class="nx">csv</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">file</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">row</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nf">Read</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">!</span><span class="nx">errors</span><span class="p">.</span><span class="nf">Is</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">io</span><span class="p">.</span><span class="nx">EOF</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">row</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これで CSV ファイル・オープン時の仔細を掃き出して <a href="https://pkg.go.dev/io" title="io package - io - Go Packages"><code>io</code></a><code>.ReadCloser</code> 型で扱えるようになった。
+ここまで来れば <a href="https://pkg.go.dev/encoding/csv" title="csv package - encoding/csv - Go Packages"><code>csv</code></a><code>.NewReader()</code> 関数もどうにかして <code>openCsvFile()</code> 関数に掃き出したいよね。</p>
+<p>ちうわけで，拙作の <a href="https://github.com/goark/csvdata" title="goark/csvdata: Reading CSV Data"><code>github.com/goark/csvdata</code></a> パッケージも導入する。
+こんな感じ。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;errors&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;io&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line hl"><span class="cl">    <span class="s">&#34;github.com/goark/csvdata&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;github.com/goark/utf8bom&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line hl"><span class="cl"><span class="kd">func</span> <span class="nf">openCsvFile</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="o">*</span><span class="nx">csvdata</span><span class="p">.</span><span class="nx">Rows</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="s">&#34;./sample3.csv&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">    <span class="k">return</span> <span class="nx">csvdata</span><span class="p">.</span><span class="nf">NewRows</span><span class="p">(</span><span class="nx">csvdata</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">utf8bom</span><span class="p">.</span><span class="nf">Strip</span><span class="p">(</span><span class="nx">file</span><span class="p">)),</span> <span class="kc">true</span><span class="p">),</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">openCsvFile</span><span class="p">(</span><span class="s">&#34;./sample3.csv&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">        <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Next</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">!</span><span class="nx">errors</span><span class="p">.</span><span class="nf">Is</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">io</span><span class="p">.</span><span class="nx">EOF</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">fmt</span><span class="p">.</span><span class="nf">Fprintln</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line hl"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">file</span><span class="p">.</span><span class="nf">Row</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これでメイン側ではデータの行・列構造のみ注視すればよくなった<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。</p>
+<p>ちなみに <a href="https://github.com/goark/csvdata" title="goark/csvdata: Reading CSV Data"><code>github.com/goark/csvdata</code></a> パッケージは <a href="https://zenn.dev/spiegel/articles/20211003-excel-as-a-csv" title="Excel も CSV みたいに扱いたい">Excel ファイルにも対応</a>していて，同じ <a href="https://github.com/goark/csvdata" title="goark/csvdata: Reading CSV Data"><code>csvdata</code></a><code>.Rows</code> 型に落とし込んで扱えるようになっている。
+つまり上のサンプルコードの <code>openCsvFile()</code> 関数の中身をまるっと Excel 用に置き換えることができるのだ。</p>
+<p>こうやって混沌としたコードを整理していくんですねぇ。</p>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/416Stewy0NS._SL160_.jpg" width="123" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">プログラミング言語Go</a></dt>
+    <dd>アラン・ドノバン (著), ブライアン・カーニハン (著), 柴田芳樹 (著)</dd>
+    <dd>丸善出版 2016-06-20 (Release 2021-07-13)</dd>
+    <dd>Kindle版</dd>
+    <dd>B099928SJD (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">Kindle 版出た！ 一部内容が古びてしまったが，この本は Go 言語の教科書と言ってもいいだろう。感想は<a href="/remark/2016/07/go-programming-language/" >こちら</a>。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2021-05-22">2021-05-22</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- プログラミング言語Go -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4814400047?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41dClAl3WKL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4814400047?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">初めてのGo言語 ―他言語プログラマーのためのイディオマティックGo実践ガイド</a></dt>
+    <dd>Jon Bodner (著), 武舎 広幸 (翻訳)</dd>
+    <dd>オライリージャパン 2022-09-26</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4814400047 (ASIN), 9784814400041 (EAN), 4814400047 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">2021年に出た “<a href="https://www.oreilly.com/library/view/learning-go/9781492077206/">Learning Go</a>” の邦訳版。私は<a href="https://www.oreilly.co.jp/books/9784814400041/">版元</a>で PDF 版を購入。 Go 特有の語法（idiom）を切り口として Go の機能やパッケージを解説している。 Go 1.19 対応。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2022-10-11">2022-10-11</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 初めてのGo言語 -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4873119693?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41cBKEBEYyL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4873119693?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">実用 Go言語 ―システム開発の現場で知っておきたいアドバイス</a></dt>
+    <dd>渋川 よしき (著), 辻 大志郎 (著), 真野 隼記 (著)</dd>
+    <dd>オライリージャパン 2022-04-22</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4873119693 (ASIN), 9784873119694 (EAN), 4873119693 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://www.oreilly.co.jp//books/9784873119694/">版元</a>のデジタル版を購入。 Go で躓きやすい点を解説していくのが<a href="https://forkwell.connpass.com/event/262394/">最初の動機</a>らしい。「◯◯するには」を調べる際にこの本を調べるといいかも。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2022-10-26">2022-10-26</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 実用 Go 言語 -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B07FSBHS2V?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51mQrYTahJL._SL160_.jpg" width="121" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B07FSBHS2V?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Clean Architecture　達人に学ぶソフトウェアの構造と設計 (アスキードワンゴ)</a></dt>
+    <dd>Ｒｏｂｅｒｔ Ｃ．Ｍａｒｔｉｎ (著), 角 征典 (著), 高木 正弘 (著)</dd>
+    <dd>ドワンゴ 2018-08-01 (Release 2018-08-01)</dd>
+    <dd>Kindle版</dd>
+    <dd>B07FSBHS2V (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">実務に即効性のある技術解説書というわけではないが，ものの「考え方」を示す本としてはよく出来ている。ソフトウェア技術史の読み物としても面白い。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2021-04-03">2021-04-03</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Clean Architecture -->
+<div class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1">
+<p>「メソッド値」については拙文「<a href="https://zenn.dev/spiegel/articles/20201212-method-value-and-expression">#golang メソッド式とメソッド値</a>」を参考にどうぞ。&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2">
+<p>CSV データを扱う便利パッケージとしては <a href="https://github.com/gocarina/gocsv" title="gocarina/gocsv: The GoCSV package aims to provide easy CSV serialization and deserialization to the golang programming language"><code>github.com/gocarina/gocsv</code></a> が有名なのだが，あれって Unmarshal 時に CSV データ全体を構造体の配列にしてしまうのが気に食わないんだよなぁ。 CSV データが百万レコードあったら百万個の配列を作ってしまう。まぁ，巨大データを扱う前提ではないということなんだろうけど。&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/simple-web-server-with-golang-3/">紙芝居用の簡易 Web サーバを Go 言語で書く【叱られ編】</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>GitHub に<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>他のフィードバック手段として Twitter, Facebook または電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2022-11-05</time>
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fgolang%2fdecorator-for-stripping-bom%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.105.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
