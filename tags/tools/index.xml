@@ -2,13 +2,219 @@
 	<title>List of tools - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/tools/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/tools/index.xml" />
-	<id>tag:text.Baldanders.info,2023-05-03:/tags</id>
-	<updated>2023-05-03T11:56:35+09:00</updated>
+	<id>tag:text.Baldanders.info,2023-05-14:/tags</id>
+	<updated>2023-05-14T13:20:56+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>コマンドラインで Mastodon に投稿する</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2023/05/toot-to-mastodon/" />
+		<id>tag:text.Baldanders.info,2023-05-14:/remark/2023/05/toot-to-mastodon/</id>
+		<published>2023-05-14T04:20:56+00:00</published>
+		<updated>2023-05-14T04:21:10+00:00</updated>
+		<summary>これで出力の基本機能はできたので，今後は入力側の設計と実装だな。先は長い。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;今年の GW は（色々と大人の事情で）遠くに遊びに行くこともなく，ときどき自転車を乗り回す以外はおうちでコードを書くか，その辺に寝転がってラノベか Web 小説を読み耽るという，自堕落な生活を送っていた。&lt;/p&gt;
+&lt;p&gt;で，まぁ，その成果として以下の CLI ツールをリリースした。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/goark/toolbox&#34; title=&#34;goark/toolbox: A collection of miscellaneous commands&#34;&gt;goark/toolbox: A collection of miscellaneous commands&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;今のところ Mastodon と Bluesky への投稿機能のみ実装している。
+最終的には自コンテンツ（主にブログ記事と Flickr 写真）の更新情報の投稿を自動化できればと思っているが，先は長い。&lt;/p&gt;
+&lt;p&gt;このうち今回は Mastodon への投稿機能について，覚え書きを兼ねて，記しておく。&lt;/p&gt;
+&lt;p&gt;今どきの流行りは Bluesky のほうぢゃねーのかとお思いでしょうが，利用している&lt;a href=&#34;https://github.com/bluesky-social/indigo&#34; title=&#34;bluesky-social/indigo: Go source code for Bluesky&#39;s atproto services. NOT STABLE (yet)&#34;&gt;公式の Go 用パッケージ&lt;/a&gt;の作りが微妙で，ちょっとしたことでエラーを吐くためイマイチな出来。
+みんな，あんな雑なエラーハンドリングでよく使えてるよなぁ。
+とりあえず 400 を返せばいいみたいなのはどうにかしてほしい。
+&lt;a href=&#34;https://zenn.dev/username/articles/20230506-downsizing-images&#34; title=&#34;画像ファイルのサイズを縮小したい&#34;&gt;大きな画像ファイルをアップロードしてエラーを返さない&lt;/a&gt;のはもっと困るけど。&lt;/p&gt;
+&lt;p&gt;話がそれた。
+では本題へ。&lt;/p&gt;
+&lt;h2&gt;アプリケーションの登録&lt;/h2&gt;
+&lt;p&gt;Mastodon のハンドリングには以下のパッケージを使わせてもらっている。
+ありがたや &lt;abbr class=&#34;emoji-chars&#34; title=&#34;ペコン&#34;&gt;🙇&lt;/abbr&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/mattn/go-mastodon&#34; title=&#34;mattn/go-mastodon: mastodon client for golang&#34;&gt;mattn/go-mastodon: mastodon client for golang&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;だがしかし，最初の「認証」部分でいきなり躓く。
+あちこちの解説ページを覗いてみるに，どうやら Mastodon の認証は2段階あるらしい。&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;サーバに対してアプリケーション登録を行う&lt;/li&gt;
+&lt;li&gt;ユーザ認証を行い，アカウントに対してアプリケーションを認証する&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;1 を行うとクライアントIDとそのシークレットがもらえる。
+1 でもらった情報を使って 2 を行うとアクセストークンがもらえる。
+さらに 2 の認証にはパスワード認証と OAuth 認証の2つが用意されていて，後者についてはブラウザ操作が必要（？）
+アクセストークンは永続的に有効らしい。
+1 と 2 で取得した情報を使って Mastodon サーバに対して各種操作を行える。
+&amp;hellip;という感じ。&lt;/p&gt;
+&lt;p&gt;ここまで辿り着くのにかなり試行錯誤してしまった。&lt;/p&gt;
+&lt;p&gt;拙作 &lt;a href=&#34;https://github.com/goark/toolbox&#34; title=&#34;goark/toolbox: A collection of miscellaneous commands&#34;&gt;toolbox&lt;/a&gt; では &lt;code&gt;mastodon register&lt;/code&gt; コマンドで 1, 2 の処理をまとめて行う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ toolbox mastodon register -h
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Register Mastodon application.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Usage:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  toolbox mastodon register [flags]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Aliases:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  register, reg
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Flags:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -h, --help   help for register
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Global Flags:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --bluesky-config string    Config file for Bluesky (default &amp;#34;/home/username/.config/toolbox/bluesky.json&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --cache-dir string         Directory for cache files (default &amp;#34;/home/username/.cache/toolbox&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --config string            Config file (default &amp;#34;/home/username/.config/toolbox/config.yaml&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --debug                    for debug
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --log-dir string           Directory for log files (default &amp;#34;/home/username/.cache/toolbox&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --log-level string         Log level [nop|error|warn|info|debug|trace] (default &amp;#34;nop&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --mastodon-config string   Config file for Mastodon (default &amp;#34;/home/username/.config/toolbox/mastodon.json&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;取得したアクセストークンは &lt;code&gt;--mastodon-config&lt;/code&gt; オプションで指定したファイルに JSON 形式で保存される。
+具体的には以下のように，サーバ名，ユーザID，パスワードを尋ねるプロンプトが表示されるので入力していけば OK。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ toolbox mastodon register
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Server (e.g. mastodon.social) &amp;gt; fedibird.com
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;         User (email address) &amp;gt; jphn.do@exsample.com
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                     Password &amp;gt; your_password
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;          server: https://fedibird.com
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;application name: github.com/goark/toolbox
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;         website: https://github.com/goark/toolbox
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;          scopes: read write follow
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;output: /home/username/.config/toolbox/mastodon.json
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;成功すれば 設定＞アカウント＞認証済みアプリ に認証されたアプリケーションが表示される（表示の仕方はサーバによって違うかも）。&lt;/p&gt;
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./authorized-apps.png&#34;&gt;&lt;img src=&#34;./authorized-apps.png&#34; srcset=&#34;./authorized-apps.png 1091w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;認証済みアプリ&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./authorized-apps.png&#34;&gt;認証済みアプリ&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;動作確認のために自身の profile を表示してみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ toolbox mastodon profile
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Username: spiegel
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;User ID (full): @spiegel@fedibird.com
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;           URL: https://fedibird.com/@spiegel
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  Display name: Spiegel@がんばらない
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Created at: 2022-11-25 00:00:00 +0000 UTC
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;         Posts: 2289
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       Follows: 46
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Followers: 98
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;lt;p&amp;gt;mstdn.jp から移住。職業プログラマ。&amp;lt;a href=&amp;#34;https://fedibird.com/tags/golang&amp;#34; class=&amp;#34;mention hashtag&amp;#34; rel=&amp;#34;tag&amp;#34;&amp;gt;#&amp;lt;span&amp;gt;golang&amp;lt;/span&amp;gt;&amp;lt;/a&amp;gt; と &amp;lt;a href=&amp;#34;https://fedibird.com/tags/flickr&amp;#34; class=&amp;#34;mention hashtag&amp;#34; rel=&amp;#34;tag&amp;#34;&amp;gt;#&amp;lt;span&amp;gt;flickr&amp;lt;/span&amp;gt;&amp;lt;/a&amp;gt; で遊んでいる人。暖かくなったので自転車で「お散歩カメラ」再開。&amp;lt;/p&amp;gt;&amp;lt;p&amp;gt;情報収集がメインだが最近は胡乱な発言もチラホラあるので，そこは許して（フォローの付け外しはご自由に）。フォローは特に意味なく頻繁に入れ換えますのであしからず。&amp;lt;/p&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;よーし，うむうむ，よーし。&lt;/p&gt;
+&lt;h2&gt;Mastodon に投稿する&lt;/h2&gt;
+&lt;p&gt;以上で対象のサーバに &lt;a href=&#34;https://github.com/goark/toolbox&#34; title=&#34;goark/toolbox: A collection of miscellaneous commands&#34;&gt;toolbox&lt;/a&gt; でアクセスできるようになったので，さっそく何か投稿してみる。
+Mastodon への投稿は &lt;code&gt;mastodon post&lt;/code&gt; でできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ toolbox mastodon post -h
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Post message to Mastodon.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Usage:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  toolbox mastodon post [flags]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Aliases:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  post, pst, p, toot, tt, t
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Flags:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --edit                  Edit message
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -h, --help                  help for post
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -i, --image-file strings    Image file
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -m, --message string        Message
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --pipe                  Input from standard-input
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -s, --spoiler-text string   Spoiler text
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -v, --visibility string     Visibility [public|unlisted|private|direct] (default &amp;#34;public&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Global Flags:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --bluesky-config string    Config file for Bluesky (default &amp;#34;/home/username/.config/toolbox/bluesky.json&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --cache-dir string         Directory for cache files (default &amp;#34;/home/username/.cache/toolbox&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --config string            Config file (default &amp;#34;/home/username/.config/toolbox/config.yaml&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --debug                    for debug
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --log-dir string           Directory for log files (default &amp;#34;/home/username/.cache/toolbox&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --log-level string         Log level [nop|error|warn|info|debug|trace] (default &amp;#34;nop&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      --mastodon-config string   Config file for Mastodon (default &amp;#34;/home/username/.config/toolbox/mastodon.json&amp;#34;)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;-m&lt;/code&gt; はコマンドライン上で1行メッセージを投稿するのに使うオプション&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--pipe&lt;/code&gt; は標準入力からの入力を投稿するオプション&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--edit&lt;/code&gt; は CUI で複数行編集ができるオプション&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;-m&lt;/code&gt;, &lt;code&gt;--pipe&lt;/code&gt;, &lt;code&gt;--edit&lt;/code&gt; は排他オプションで同時に指定できない&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;-i&lt;/code&gt; は画像ファイルをアップローするのに使うオプション。複数指定可能&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;-v&lt;/code&gt; は表示範囲を指定するオプション&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;たとえばこんな感じで投稿する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ toolbox mastodon post --edit -i lake-shinjiko.jpg -v direct
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Input &amp;#39;Ctrl+J&amp;#39; or &amp;#39;Ctrl+Enter&amp;#39; to submit message
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Input &amp;#39;Ctrl+D&amp;#39; with no chars to stop
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; 1&amp;gt;はろー，ふぇでぃばーす！
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; 2&amp;gt;https://flic.kr/p/2nSUmaa
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; 3&amp;gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;https://fedibird.com/@spiegel/110364957384850439
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;するとこんな感じに表示される。&lt;/p&gt;
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./toot-to-mastodon.png&#34;&gt;&lt;img src=&#34;./toot-to-mastodon.png&#34; srcset=&#34;./toot-to-mastodon.png 627w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Mastodon へ投稿&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./toot-to-mastodon.png&#34;&gt;Mastodon へ投稿&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;よしよし。
+ちなみに複数行編集には以下のパッケージを利用している。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/hymkor/go-multiline-ny&#34;&gt;hymkor/go-multiline-ny: Readline package supporting multi-lines&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;マジ便利。
+ありがたや &lt;abbr class=&#34;emoji-chars&#34; title=&#34;ペコン&#34;&gt;🙇&lt;/abbr&gt;&lt;/p&gt;
+&lt;p&gt;Mastodon は表示範囲を指定できるのがいいよね。
+とりあえず試し撃ちなら DM で投げればいい。
+Bluesky は（多分まだ）表示範囲を指定できないのでテスト用のゴミ投稿も全部 TL に表示されてしまう。
+しょうがないから招待コード使ってデバッグ用のアカウントをひとつ確保する羽目になった。&lt;/p&gt;
+&lt;p&gt;さて，これで出力の基本機能はできたので，今後は入力側の設計と実装だな。
+先は長い。&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://qiita.com/S-YOU/items/cf677ae282bd6f38fbbb&#34;&gt;マストドンのタイムラインをgo-mastodon のWebSocketを使用し取得する - Qiita&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://qiita.com/civic/items/7358dc1c54ff8e71c326&#34;&gt;mastodonのaccess tokenをauthorization_codeで取得する例 - Qiita&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://gist.github.com/okapies/eab5c6fc217e914ed0cac6c944384e4d&#34;&gt;Mastodon API の叩き方 · GitHub&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://qiita.com/shinderuman@github/items/c96161caa65c6a9e8ffc&#34;&gt;mastodonのtootを原始人くんが喋ってくれるbot作った - Qiita&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/bookmarks/fediverse/&#34;&gt;Fediverse 関連のブックマーク&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/416Stewy0NS._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;アラン・ドノバン (著), ブライアン・カーニハン (著), 柴田芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20 (Release 2021-07-13)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B099928SJD (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;Kindle 版出た！ 一部内容が古びてしまったが，この本は Go 言語の教科書と言ってもいいだろう。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2016/07/go-programming-language/&#34; &gt;こちら&lt;/a&gt;。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2021-05-22&#34;&gt;2021-05-22&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400047?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41dClAl3WKL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814400047?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;初めてのGo言語 ―他言語プログラマーのためのイディオマティックGo実践ガイド&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Jon Bodner (著), 武舎 広幸 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2022-09-26&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4814400047 (ASIN), 9784814400041 (EAN), 4814400047 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;2021年に出た “&lt;a href=&#34;https://www.oreilly.com/library/view/learning-go/9781492077206/&#34;&gt;Learning Go&lt;/a&gt;” の邦訳版。私は&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814400041/&#34;&gt;版元&lt;/a&gt;で PDF 版を購入。 Go 特有の語法（idiom）を切り口として Go の機能やパッケージを解説している。 Go 1.19 対応。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-10-11&#34;&gt;2022-10-11&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 初めてのGo言語 --&gt;
+&lt;!-- eof --&gt;
+</content>
+	</entry><entry>
 		<title>ステムバッグ買うた</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2023/05/stem-bag-on-bike/" />
 		<id>tag:text.Baldanders.info,2023-05-03:/remark/2023/05/stem-bag-on-bike/</id>
@@ -1412,159 +1618,6 @@ NASA API は色々と面白いことができるみたいなので API 周りは
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>CustomGPT.ai で遊んでみる</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2023/02/customgpt/" />
-		<id>tag:text.Baldanders.info,2023-02-13:/remark/2023/02/customgpt/</id>
-		<published>2023-02-13T12:44:04+00:00</published>
-		<updated>2023-02-13T12:45:36+00:00</updated>
-		<summary>折角お金を払ったんだし，もうしばらく遊んでみますかね。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://customgpt.ai/&#34; title=&#34;Build Your Own ChatBOT - CustomGPT&#34;&gt;CustomGPT.ai&lt;/a&gt; というサービスがあるらしい。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/23/customgptaipublickeybot3.html&#34;&gt;「CustomGPT.ai」でPublickeyのコンテンツを学習させたチャットBotを作ってみた。サイト検索の代わりになるか？ 回答の精度と3つの大きな課題 － Publickey&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;この記事によると&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;CustomGPTは、ChatGPTの持つ幅広い汎用の知識に加えて、特定のWebサイトの情報などを学習させることで、特定の情報に詳しくなるようにカスタマイズできるAIだと説明されています。&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/23/customgptaipublickeybot3.html&#34;&gt;「CustomGPT.ai」でPublickeyのコンテンツを学習させたチャットBotを作ってみた。サイト検索の代わりになるか？ 回答の精度と3つの大きな課題&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;とのこと。
-早速このブログ・サイトを使って試してみることにした。&lt;/p&gt;
-&lt;h2&gt;サインアップからプロジェクト作成まで&lt;/h2&gt;
-&lt;p&gt;最初にサインアップを行う。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-signup.png&#34;&gt;&lt;img src=&#34;./customgpt-signup.png&#34; srcset=&#34;./customgpt-signup.png 1407w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Register - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-signup.png&#34;&gt;Register - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;サインアップが完了するとこんな画面になる。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-ready.png&#34;&gt;&lt;img src=&#34;./customgpt-ready.png&#34; srcset=&#34;./customgpt-ready.png 1407w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;My projects - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-ready.png&#34;&gt;My projects - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;この時点ではまだ料金は発生しない。
-“Create Your First Project” でプロジェクトを作成しよう。
-ここで初めて料金が提示される。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-plicing.png&#34;&gt;&lt;img src=&#34;./customgpt-plicing.png&#34; srcset=&#34;./customgpt-plicing.png 958w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Pricing Plans - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-plicing.png&#34;&gt;Pricing Plans - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;お試しに月1万円以上払う財力はないので，ここは Basic プランで（それでも日本円で6K円以上するけど）。
-ページの読み込みが1,000ページまでとかチャット Bot が公開できないとかの制約があるが，お試しなら問題ないだろう。&lt;/p&gt;
-&lt;p&gt;なお，サブスクリプションは “Billing” の設定画面でいつでも解約できる。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./ccustomgpt-billing.png&#34;&gt;&lt;img src=&#34;./customgpt-billing.png&#34; srcset=&#34;./customgpt-billing.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;My projects - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./ccustomgpt-billing.png&#34;&gt;My projects - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;プランを決めたらいよいよプロジェクトのセットアップへ。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-create.png&#34;&gt;&lt;img src=&#34;./customgpt-create.png&#34; srcset=&#34;./customgpt-create.png 1061w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Create Project - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-create.png&#34;&gt;Create Project - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;プロジェクト名は任意で。
-スコープには対象となるサイトの &lt;code&gt;sitemap.xml&lt;/code&gt; を指定する。
-上手く行けばこんな画面になる。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-project.png&#34;&gt;&lt;img src=&#34;./customgpt-project.png&#34; srcset=&#34;./customgpt-project.png 1065w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;My projects - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-project.png&#34;&gt;My projects - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;では “Ask Me Anything” からチャットボットへ移動し，いくつか質問してみよう。&lt;/p&gt;
-&lt;h2&gt;質問してみる&lt;/h2&gt;
-&lt;h3&gt;ピープルウェアについて教えて&lt;/h3&gt;
-&lt;p&gt;まずは軽く。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-q1.png&#34;&gt;&lt;img src=&#34;./customgpt-q1.png&#34; srcset=&#34;./customgpt-q1.png 1058w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Ask Me Anything - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-q1.png&#34;&gt;Ask Me Anything - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;ピープルウェアは、プロジェクトの社会学と呼ばれるもので、プロジェクトで起きる問題は技術的な問題よりも人間側の問題であるという問題意識を持っています。この本では、プロジェクトで起きる問題をどのように解決するかを学ぶことができます。&lt;/blockquote&gt;&lt;/figure&gt;
-&lt;p&gt;んー。
-これって昨日書いた&lt;a href=&#34;https://text.baldanders.info/remark/2023/02/peopleware/&#34; title=&#34;『ピープルウエア』を借りて流し読む&#34;&gt;記事&lt;/a&gt;の要約だな。
-まぁ，無難な答え？&lt;/p&gt;
-&lt;h3&gt;最近の Go 言語の脆弱性情報について&lt;/h3&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-q2.png&#34;&gt;&lt;img src=&#34;./customgpt-q2.png&#34; srcset=&#34;./customgpt-q2.png 1058w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Ask Me Anything - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-q2.png&#34;&gt;Ask Me Anything - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;Go 1.16.6 で HTTPS クライアントに関連する脆弱性が修正されたことが報告されています。 この脆弱性を回避するために、Go 1.19 の改修が決定打となっています。 また、Libgcrypt 1.8.8 および 1.9 系の 1.9.4 より前のバージョンは脆弱性を含んでいるとの報告もあります。 また、Spring Cloud Function に関連する脆弱性（CVE-2022-22963）も報告されています。&lt;/blockquote&gt;&lt;/figure&gt;
-&lt;p&gt;いやいやいや（笑）
-GnuPG や Spring Framework の脆弱性情報と混ざっとるがな。
-ついでに &lt;a href=&#34;https://spring.io/security/cve-2022-22963&#34; title=&#34;CVE-2022-22963: Remote code execution in Spring Cloud Function by malicious Spring Expression&#34;&gt;CVE-2022-22963&lt;/a&gt; について訊いてみた。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-q3.png&#34;&gt;&lt;img src=&#34;./customgpt-q3.png&#34; srcset=&#34;./customgpt-q3.png 1058w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Ask Me Anything - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-q3.png&#34;&gt;Ask Me Anything - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;CVE-2022-22963 は Spring Cloud Function に関する脆弱性です。VMWare の記事を参照してください。詳細は以下のとおりです：Spring Cloud Function は、Spring Cloud Stream および Spring Cloud Task のようなサービスを提供するために使用されるサーバーレスプラットフォームです。脆弱性は、Spring Cloud Function のデプロイプロセス中に発生します。これにより、攻撃者は、Spring Cloud Function アプリケーションを悪用して、任意のコードを実行したり、アプリケーションを完全に改変したりすることが可能になります。&lt;/blockquote&gt;&lt;/figure&gt;
-&lt;p&gt;&lt;a href=&#34;https://spring.pleiades.io/projects/spring-cloud-function&#34; title=&#34;Spring Cloud Function の概要とサポート期間 - リファレンスドキュメント&#34;&gt;Spring Cloud Function&lt;/a&gt; の説明ってこれで合ってるっけ？ 合ってるような？ 私のブログサイトでは &lt;a href=&#34;https://spring.pleiades.io/projects/spring-cloud-function&#34; title=&#34;Spring Cloud Function の概要とサポート期間 - リファレンスドキュメント&#34;&gt;Spring Cloud Function&lt;/a&gt; そのものについて解説してない筈なので，他所から取ってきた知識なんだろうな，多分。&lt;/p&gt;
-&lt;h3&gt;自転車で速く走れるようになりたい&lt;/h3&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-q4.png&#34;&gt;&lt;img src=&#34;./customgpt-q4.png&#34; srcset=&#34;./customgpt-q4.png 1058w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Ask Me Anything - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-q4.png&#34;&gt;Ask Me Anything - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;自転車のコントロールを磨くことで、スピード感覚を養うことができます。また、今年（2022年）の道路交通法改正でヘルメットの着用が義務付けられるため、安全な状態で走行することを心がけることも重要です。&lt;/blockquote&gt;&lt;/figure&gt;
-&lt;p&gt;間違ってない気はするが&amp;hellip; 質問がふわっとしてるから答えもふわっとしてるのか？ ちなみにヘルメット着用の（努力）義務化は今年2023年4月から施行される。&lt;/p&gt;
-&lt;h3&gt;最近の Twitter について&lt;/h3&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-q5.png&#34;&gt;&lt;img src=&#34;./customgpt-q5.png&#34; srcset=&#34;./customgpt-q5.png 1058w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Ask Me Anything - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-q5.png&#34;&gt;Ask Me Anything - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;最近のTwitterは、個人同士の双方向コミュニケーション手段として使えるとは思えない広告メディアとして認識されています。文字列の他に、@から始まる単語をアカウント名、#から始まる単語をタグとして解釈し、他ユーザや他のツイートと連携することが可能です。また、ツイート内のURLを解釈し、アプリケーションやその設定によっては映像（動画を含む）やTwitter Cardと呼ばれるページのサマリ情報に展開して表示することもできます。しかし、ニュースフィードが更新されていない気がします。&lt;/blockquote&gt;&lt;/figure&gt;
-&lt;p&gt;ちょっと何言ってるか分からない&amp;hellip; これって私が書いた内容を適当に切り貼りしてるだけだな。
-文章のコラージュ？&lt;/p&gt;
-&lt;h3&gt;Fediverse とは&lt;/h3&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;a href=&#34;./customgpt-q6.png&#34;&gt;&lt;img src=&#34;./customgpt-q6.png&#34; srcset=&#34;./customgpt-q6.png 1058w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Ask Me Anything - CustomGPT&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;./customgpt-q6.png&#34;&gt;Ask Me Anything - CustomGPT&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;Fediverse とは、federation と universe を組み合わせた造語で、分散型のソーシャルネットワークを指します。Mastodon などのサービスは、従来のプラットフォームや中央集権型のサービスとは異なり、投稿を管理したり、アカウントを削除する単一の権限がなく、すべてがユーザとサーバに委ねられています。コンテンツ警告マークをつけることで、センシティブなコンテンツを最小化し、ハッシュタグを使って投稿を分類しキュレーションすることも可能です。&lt;/blockquote&gt;&lt;/figure&gt;
-&lt;p&gt;これはまぁまぁ。
-文章として成立している（笑） 最後の一文の内容には言及したことがないので，これも他所から取ってきた知識なんだろう。&lt;/p&gt;
-&lt;h2&gt;作文ツール？&lt;/h2&gt;
-&lt;p&gt;考えてみれば当たり前だが， &lt;a href=&#34;https://customgpt.ai/&#34; title=&#34;Build Your Own ChatBOT - CustomGPT&#34;&gt;CustomGPT.ai&lt;/a&gt; は読み込んだページを「知識」として「作文」するツールって感じ。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote&gt;例えば、製品のマニュアルやFAQを学習させることで「この製品の電源スイッチはどこにありますか？」「マニュアルからオートにモードに切り替える命令は？」といった、特定の製品に特化した質問に的確に答えられるチャットBotの開発などに用いることが想定されます。&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.publickey1.jp/blog/23/customgptaipublickeybot3.html&#34;&gt;「CustomGPT.ai」でPublickeyのコンテンツを学習させたチャットBotを作ってみた。サイト検索の代わりになるか？ 回答の精度と3つの大きな課題&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;とあるように，製品情報等を読み込ませて要約させたり組み合わせたりするのがいいんだろう。
-うちのブログみたいなのを読み込ませても難解ポエムになるだけかも。&lt;/p&gt;
-&lt;p&gt;まぁ，でも，折角お金を払ったんだし，もうしばらく遊んでみますかね。&lt;/p&gt;
 </content>
 	</entry>
 </feed>
