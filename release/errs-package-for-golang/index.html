@@ -134,7 +134,7 @@
 	"keywords": "package, module, golang, error",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2019-09-05T14:54:45+00:00",
-	"dateModified": "2023-02-07T11:34:17+00:00",
+	"dateModified": "2023-05-20T05:55:42+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -359,10 +359,10 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
 </span></span></code></pre></div><p>なお <a href="https://github.com/goark/errs" title="goark/errs: Error handling for Golang"><code>errs</code></a><code>.Unwraps()</code> 関数は原因エラーがひとつの場合でも，要素数1の <code>[]error</code> 型で返す。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">err</span> <span class="o">:=</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">ErrInvalid</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">e</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Unwraps</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">err</span> <span class="o">:=</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Wrap</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">ErrInvalid</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">e</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">Unwraps</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//Output:
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//invalid argument
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span> <span class="p">}</span>
@@ -390,6 +390,154 @@
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>などと出力される。</p>
+<h2>Zap にエラーをオブジェクトとして出力する</h2>
+<p><a href="https://pkg.go.dev/go.uber.org/zap" title="zap package - go.uber.org/zap - Go Packages">Zap</a> は gRPC 関連サービスや分散システムなどで人気の高い logger で，柔軟なカスタマイズができ，かつ高速で JSON 形式の構造化ログを出力できる。
+この logger に拙作のパッケージを食わせてみる。
+ソースコードはこんな感じ。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;github.com/goark/errs&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;go.uber.org/zap&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">checkFileOpen</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">errs</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="s">&#34;file open error&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">errs</span><span class="p">.</span><span class="nf">WithCause</span><span class="p">(</span><span class="nx">err</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">errs</span><span class="p">.</span><span class="nf">WithContext</span><span class="p">(</span><span class="s">&#34;path&#34;</span><span class="p">,</span> <span class="nx">path</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">logger</span> <span class="o">:=</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">NewExample</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">logger</span><span class="p">.</span><span class="nf">Sync</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">path</span> <span class="o">:=</span> <span class="s">&#34;not-exist.txt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">checkFileOpen</span><span class="p">(</span><span class="s">&#34;not-exist.txt&#34;</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">logger</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="s">&#34;error in checkFileOpen function&#34;</span><span class="p">,</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="nx">err</span><span class="p">),</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="s">&#34;file&#34;</span><span class="p">,</span> <span class="nx">path</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これを実行すると</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample1.go | jq .
+</span></span><span class="line"><span class="cl">{
+</span></span><span class="line"><span class="cl">  &#34;level&#34;: &#34;error&#34;,
+</span></span><span class="line"><span class="cl">  &#34;msg&#34;: &#34;error in checkFileOpen function&#34;,
+</span></span><span class="line"><span class="cl">  &#34;error&#34;: &#34;file open error: open not-exist.txt: no such file or directory&#34;,
+</span></span><span class="line"><span class="cl">  &#34;errorVerbose&#34;: &#34;{\&#34;Type\&#34;:\&#34;*errs.Error\&#34;,\&#34;Err\&#34;:{\&#34;Type\&#34;:\&#34;*errors.errorString\&#34;,\&#34;Msg\&#34;:\&#34;file open error\&#34;},\&#34;Context\&#34;:{\&#34;function\&#34;:\&#34;main.checkFileOpen\&#34;,\&#34;path\&#34;:\&#34;not-exist.txt\&#34;},\&#34;Cause\&#34;:{\&#34;Type\&#34;:\&#34;*fs.PathError\&#34;,\&#34;Msg\&#34;:\&#34;open not-exist.txt: no such file or directory\&#34;,\&#34;Cause\&#34;:{\&#34;Type\&#34;:\&#34;syscall.Errno\&#34;,\&#34;Msg\&#34;:\&#34;no such file or directory\&#34;}}}&#34;,
+</span></span><span class="line"><span class="cl">  &#34;file&#34;: &#34;not-exist.txt&#34;
+</span></span><span class="line"><span class="cl">}
+</span></span></code></pre></div><p>となる。
+<code>&quot;error&quot;</code> 項目も <code>&quot;errorVerbose&quot;</code> 項目も文字列として出力されてしまうため構造化されているとは言えない。</p>
+<p><a href="https://pkg.go.dev/go.uber.org/zap" title="zap package - go.uber.org/zap - Go Packages">Zap</a> には <a href="https://pkg.go.dev/go.uber.org/zap" title="zap package - go.uber.org/zap - Go Packages"><code>zap</code></a><code>.Object()</code> 関数があって内部構造を出力することができるのだが，この関数を使うためには対象のオブジェクトが <a href="https://pkg.go.dev/go.uber.org/zap@v1.24.0/zapcore" title="zapcore package - go.uber.org/zap/zapcore - Go Packages"><code>zapcore</code></a><code>.ObjectMarshaler</code> 型の interface を満たす必要がある。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">ObjectMarshaler</span> <span class="kd">interface</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">MarshalLogObject</span><span class="p">(</span><span class="nx">ObjectEncoder</span><span class="p">)</span> <span class="kt">error</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>この要件を満たすために <a href="https://pkg.go.dev/github.com/goark/errs/zapobject" title="zapobject package - github.com/goark/errs/zapobject - Go Packages">goark/errs/zapobject</a> モジュールを作った。
+こんな感じに error をラッピングして使う。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;github.com/goark/errs&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;github.com/goark/errs/zapobject&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="s">&#34;go.uber.org/zap&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">checkFileOpen</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="o">...</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">logger</span> <span class="o">:=</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">NewExample</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">logger</span><span class="p">.</span><span class="nf">Sync</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">path</span> <span class="o">:=</span> <span class="s">&#34;not-exist.txt&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">checkFileOpen</span><span class="p">(</span><span class="s">&#34;not-exist.txt&#34;</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">        <span class="nx">logger</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="s">&#34;error in checkFileOpen function&#34;</span><span class="p">,</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">Object</span><span class="p">(</span><span class="s">&#34;error&#34;</span><span class="p">,</span> <span class="nx">zapobject</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">err</span><span class="p">)),</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="s">&#34;file&#34;</span><span class="p">,</span> <span class="nx">path</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これを実行すると</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample2.go | jq .
+</span></span><span class="line"><span class="cl">{
+</span></span><span class="line"><span class="cl">  &#34;level&#34;: &#34;error&#34;,
+</span></span><span class="line"><span class="cl">  &#34;msg&#34;: &#34;error in checkFileOpen function&#34;,
+</span></span><span class="line"><span class="cl">  &#34;error&#34;: {
+</span></span><span class="line"><span class="cl">    &#34;type&#34;: &#34;*errs.Error&#34;,
+</span></span><span class="line"><span class="cl">    &#34;msg&#34;: &#34;file open error: open not-exist.txt: no such file or directory&#34;,
+</span></span><span class="line"><span class="cl">    &#34;error&#34;: {
+</span></span><span class="line"><span class="cl">      &#34;type&#34;: &#34;*errors.errorString&#34;,
+</span></span><span class="line"><span class="cl">      &#34;msg&#34;: &#34;file open error&#34;
+</span></span><span class="line"><span class="cl">    },
+</span></span><span class="line"><span class="cl">    &#34;cause&#34;: {
+</span></span><span class="line"><span class="cl">      &#34;type&#34;: &#34;*fs.PathError&#34;,
+</span></span><span class="line"><span class="cl">      &#34;msg&#34;: &#34;open not-exist.txt: no such file or directory&#34;,
+</span></span><span class="line"><span class="cl">      &#34;cause&#34;: {
+</span></span><span class="line"><span class="cl">        &#34;type&#34;: &#34;syscall.Errno&#34;,
+</span></span><span class="line"><span class="cl">        &#34;msg&#34;: &#34;no such file or directory&#34;
+</span></span><span class="line"><span class="cl">      }
+</span></span><span class="line"><span class="cl">    },
+</span></span><span class="line"><span class="cl">    &#34;context&#34;: {
+</span></span><span class="line"><span class="cl">      &#34;function&#34;: &#34;main.checkFileOpen&#34;,
+</span></span><span class="line"><span class="cl">      &#34;path&#34;: &#34;not-exist.txt&#34;
+</span></span><span class="line"><span class="cl">    }
+</span></span><span class="line"><span class="cl">  },
+</span></span><span class="line"><span class="cl">  &#34;file&#34;: &#34;not-exist.txt&#34;
+</span></span><span class="line"><span class="cl">}
+</span></span></code></pre></div><p>と，いい感じに構造化されて出力できる。</p>
+<p>なお <a href="https://github.com/goark/errs" title="goark/errs: Error handling for Golang"><code>errs</code></a><code>.Error</code> でラップせず通常のエラーのままでも</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;os&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;github.com/goark/errs/zapobject&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;go.uber.org/zap&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">checkFileOpen</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">file</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">os</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nx">file</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">logger</span> <span class="o">:=</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">NewExample</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nx">logger</span><span class="p">.</span><span class="nf">Sync</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">path</span> <span class="o">:=</span> <span class="s">&#34;not-exist.txt&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">checkFileOpen</span><span class="p">(</span><span class="s">&#34;not-exist.txt&#34;</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">logger</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="s">&#34;error in checkFileOpen function&#34;</span><span class="p">,</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">Object</span><span class="p">(</span><span class="s">&#34;error&#34;</span><span class="p">,</span> <span class="nx">zapobject</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">err</span><span class="p">)),</span> <span class="nx">zap</span><span class="p">.</span><span class="nf">String</span><span class="p">(</span><span class="s">&#34;file&#34;</span><span class="p">,</span> <span class="nx">path</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample2b.go | jq .
+</span></span><span class="line"><span class="cl">{
+</span></span><span class="line"><span class="cl">  &#34;level&#34;: &#34;error&#34;,
+</span></span><span class="line"><span class="cl">  &#34;msg&#34;: &#34;error in checkFileOpen function&#34;,
+</span></span><span class="line"><span class="cl">  &#34;error&#34;: {
+</span></span><span class="line"><span class="cl">    &#34;type&#34;: &#34;*fs.PathError&#34;,
+</span></span><span class="line"><span class="cl">    &#34;msg&#34;: &#34;open not-exist.txt: no such file or directory&#34;,
+</span></span><span class="line"><span class="cl">    &#34;cause&#34;: {
+</span></span><span class="line"><span class="cl">      &#34;type&#34;: &#34;syscall.Errno&#34;,
+</span></span><span class="line"><span class="cl">      &#34;msg&#34;: &#34;no such file or directory&#34;
+</span></span><span class="line"><span class="cl">    }
+</span></span><span class="line"><span class="cl">  },
+</span></span><span class="line"><span class="cl">  &#34;file&#34;: &#34;not-exist.txt&#34;
+</span></span><span class="line"><span class="cl">}
+</span></span></code></pre></div><p>という感じに可能な限り構造を辿って出力する。</p>
 <h2>ブックマーク</h2>
 <ul>
 <li><a href="https://text.baldanders.info/golang/error-handling-in-go-1_3/">Go 1.13 のエラー・ハンドリング</a></li>
@@ -444,7 +592,7 @@
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2019-09-05</time> (revised in 2023-02-07)
+		in <time property='dc:dateCopyrighted'>2019-09-05</time> (revised in 2023-05-20)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><i class="fab fa-github"></i></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><i class="fab fa-flickr"></i></span></a></li><li><a rel="me" href="https://fedibird.com/@spiegel"><span class="mastodon-color"><i class="fa-brands fa-mastodon"></i></span></a></li><li><a rel="me" href="https://twitter.com/spiegel_2007"><span class="twitter-color"><i class="fab fa-twitter"></i></span></a></li></ul>
 	</div>
