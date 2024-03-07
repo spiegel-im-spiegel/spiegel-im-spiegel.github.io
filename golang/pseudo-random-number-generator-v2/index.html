@@ -154,7 +154,7 @@ MathJax = {
 	"keywords": "golang, programming, random",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2024-03-07T13:20:40+00:00",
-	"dateModified": "2024-03-07T13:34:11+00:00",
+	"dateModified": "2024-03-07T23:25:54+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -204,8 +204,8 @@ MathJax = {
 ちなみに ChaCha の後ろについている 20 とか 8 とかはラウンド数を示しているそうな。</p>
 <p>ChaCha は OpenSSL だか OpenSSH だかでも見かけたような（うろ覚え）。
 もし結城浩さんが『<a href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Amazon.co.jp: 暗号技術入門 第3版　秘密の国のアリス eBook : 結城 浩: Kindleストア">暗号技術入門</a>』の第4版を出される機会があれば，付録でいいので是非 ChaCha にも言及して欲しい。</p>
-<h2>ランタイムに ChaCha8 を組み込む</h2>
-<p>ChaCha8 のアルゴリズムは <a href="https://pkg.go.dev/internal/chacha8rand" title="chacha8rand package - internal/chacha8rand - Go Packages"><code>internal/chacha8rand</code></a> パッケージに実装されている。
+<h2>ランタイムに ChaCha8 疑似乱数生成器を組み込む</h2>
+<p>ChaCha8 疑似乱数生成器のアルゴリズムは <a href="https://pkg.go.dev/internal/chacha8rand" title="chacha8rand package - internal/chacha8rand - Go Packages"><code>internal/chacha8rand</code></a> パッケージに実装されている。
 中身については割愛させてもらう。
 Internal パッケージなので，サードパーティのパッケージからは直接参照できない。</p>
 <p>まずは <a href="https://pkg.go.dev/runtime" title="runtime package - runtime - Go Packages"><code>runtime</code></a> パッケージに組み込んでいる部分を見てみる。
@@ -287,7 +287,7 @@ Internal パッケージなので，サードパーティのパッケージか�
 </span></span></code></pre></div></blockquote>
 <figcaption><div>via <q><a href="https://pkg.go.dev/runtime">runtime/rand.go</a></q></div></figcaption>
 </figure>
-<p>これは ChaCha8 の状態（主に seed）を管理してる部分かな。
+<p>これは疑似乱数生成器の状態（主に seed）を管理してる部分かな。
 最初の seed は乱数デバイスから取ってるんだね。
 これに失敗すると時刻から生成する，と。
 ユーザ側は明示的に seed を指定する必要がなくなるということやね。</p>
@@ -516,7 +516,7 @@ Internal パッケージなので，サードパーティのパッケージか�
 </span></span></code></pre></div></blockquote>
 <figcaption><div>via <q><a href="https://pkg.go.dev/math/rand">math/rand/rand.go</a></q></div></figcaption>
 </figure>
-<p>つまり，環境変数 <code>GODEBUG</code> で明示的に指定（<code>randautoseed=0</code>）するか最初に <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>rand</code></a><code>.Seed()</code> 関数を呼び出すかしない限りランタイムに組み込んだ ChaCha8 の疑似乱数生成器が有効になるっちうわけだ。
+<p>つまり，環境変数 <code>GODEBUG</code> で明示的に指定（<code>randautoseed=0</code>）するか最初に <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>rand</code></a><code>.Seed()</code> 関数を呼び出すかしない限りランタイムに組み込んだ ChaCha8 疑似乱数生成器が有効になるっちうわけだ。
 ちなみに <code>lockedSource</code> は <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> パッケージに従来からある疑似乱数生成器で，名前の通り，ちゃんと mutex で排他処理している。</p>
 <h2>math/rand/v2 パッケージにおける Source インタフェースの定義</h2>
 <p>では，いよいよ <a href="https://go.dev/">Go</a> 1.22 で追加された <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> パッケージを見てみよう。</p>
@@ -579,7 +579,7 @@ Internal パッケージなので，サードパーティのパッケージか�
 <p>うんうん。
 シンプルが一番だね。</p>
 <h2>ChaCha8 を rand.Source にする</h2>
-<p>ChaCha8 を疑似乱数の <code>Source</code> として明示的に組み込む場合は， <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>rand</code></a><code>.NewChaCha8()</code> 関数を使って生成する。</p>
+<p>ChaCha8 疑似乱数生成器を疑似乱数の <code>Source</code> として明示的に組み込む場合は， <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>rand</code></a><code>.NewChaCha8()</code> 関数を使って生成する。</p>
 <figure lang="en">
 <blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;internal/chacha8rand&#34;</span>
 </span></span><span class="line"><span class="cl">
@@ -617,7 +617,7 @@ Internal パッケージなので，サードパーティのパッケージか�
 <p>ランタイムに組み込まれているものと違って，こちらは排他処理を行っていない。
 並行的に安全（concurrency safe）ではないわけだ。
 なので平行処理下で <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> の ChaCha8 を扱う場合は要注意である。
-つか，平行処理下で ChaCha8 を使うならトップレベル関数群を使うべきだろう。</p>
+つか，平行処理下で ChaCha8 疑似乱数生成器を使うならトップレベル関数群を使うべきだろう。</p>
 <h2>PCG を rand.Source にする</h2>
 <p><a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> にはもうひとつ疑似乱数生成器が用意されている。
 PCG (Permuted Congruential Generator) というそうな。</p>
@@ -758,7 +758,7 @@ PCG (Permuted Congruential Generator) というそうな。</p>
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2024-03-07</time>
+		in <time property='dc:dateCopyrighted'>2024-03-07</time> (revised in 2024-03-08)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><abbr class="emoji-chars" title="Bluesky">🦋</abbr></a></li></ul>
 	</div>
