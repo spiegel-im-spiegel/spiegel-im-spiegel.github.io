@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.123.7">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/golang/pseudo-random-number-generator-v2/">
+<script defer src="/fa/js/all.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho&family=Inconsolata:wght@400;700&family=Noto+Color+Emoji&family=Noto+Sans:wght@400;700&family=Noto+Serif&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+	processEscapes: true,
+    tags: 'ams',
+    macros: {
+      ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1],
+      tcdegree: ['\\unicode{xb0}'],
+      tccelsius: ['\\unicode{x2103}'],
+      tcperthousand: ['\\unicode{x2030}'],
+      tcmu: ['\\unicode{x3bc}'],
+      tcohm: ['\\unicode{x3a9}']
+    }
+  },
+  chtml: {
+    matchFontHeight: false,
+    displayAlign: "left",
+    displayIndent: "2em"
+  }
+};
+</script>
+<script id="MathJax-script" async src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="me" href="https://fedibird.com/@spiegel">
+<title>Go 1.22 における疑似乱数生成器 | text.Baldanders.info</title>
+<meta property="og:title" content="Go 1.22 における疑似乱数生成器">
+<meta name="description" content="時代は math/rand/v2 かな">
+<meta property="og:description" content="時代は math/rand/v2 かな">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<link rel="me" href="https://goark.fedicity.net/@spiegel">
+<meta name="keywords" content="golang, programming, random">
+<link rel='prev' href='https://text.baldanders.info/golang/zap-and-golog/' title='Zap と go-log を試す' />
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/golang/",
+	"url": "https://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/golang/pseudo-random-number-generator-v2/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/golang/pseudo-random-number-generator-v2/",
+	"url": "https://text.baldanders.info/golang/pseudo-random-number-generator-v2/",
+	"mainEntityOfPage": "https://text.baldanders.info/golang/pseudo-random-number-generator-v2/",
+	"inLanguage": "ja",
+	"name": "Go 1.22 における疑似乱数生成器",
+	"description": "時代は math/rand/v2 かな",
+	"headline": "時代は math/rand/v2 かな",
+	"keywords": "golang, programming, random",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2024-03-07T13:20:40+00:00",
+	"dateModified": "2024-03-07T13:20:46+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>Go 1.22 における疑似乱数生成器</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/golang/">golang</a> #<a href="/tags/programming/">programming</a> #<a href="/tags/random/">random</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-square"></i></span>&nbsp;:
+		&nbsp;<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fpseudo-random-number-generator-v2%2f&amp;title=Go%201.22%20%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%e7%96%91%e4%bc%bc%e4%b9%b1%e6%95%b0%e7%94%9f%e6%88%90%e5%99%a8" target="_blank"><span class="pocket-color"><abbr title="Share Pocket"><i class="fab fa-get-pocket" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fgolang%2fpseudo-random-number-generator-v2%2f" target="_blank"><span class="facebook-color"><abbr title="Share facebook"><i class="fab fa-facebook-square" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://twitter.com/share?text=Go%201.22%20%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%e7%96%91%e4%bc%bc%e4%b9%b1%e6%95%b0%e7%94%9f%e6%88%90%e5%99%a8&amp;url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fpseudo-random-number-generator-v2%2f" target="_blank"><span class="twitter-color"><abbr title="Share Twitter"><i class="fab fa-twitter-square" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="https://donshare.net/share.html?text=Go%201.22%20%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%e7%96%91%e4%bc%bc%e4%b9%b1%e6%95%b0%e7%94%9f%e6%88%90%e5%99%a8+by+@spiegel%40goark.fedicity.net%20+https%3a%2f%2ftext.baldanders.info%2fgolang%2fpseudo-random-number-generator-v2%2f" target="_blank"><span class="mastodon-color"><abbr title="Share Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a>
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/pseudo-random-number-generator-v2/index.html">GitHub Page</a>
+</nav>
+
+<section>
+<p><a href="https://go.dev/">Go</a> 1.22 の <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> パッケージと追加された <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> パッケージを眺めている。</p>
+<p>おそらく <a href="https://go.dev/">Go</a> 1.22 における疑似乱数関連の最大のトピックは ChaCha8 がランタイムに組み込まれ，疑似乱数生成器の既定アルゴリズムになったことだろう。</p>
+<ul>
+<li><span><a href="https://cr.yp.to/snuffle/salsafamily-20071225.pdf">The Salsa20 family of stream ciphers <sup><i class="far fa-file-pdf"></i></sup></a></span> : これがベースになる論文かな</li>
+<li><a href="https://en.wikipedia.org/wiki/Salsa20">Salsa20 - Wikipedia</a></li>
+<li><a href="https://github.com/C2SP/C2SP/blob/main/chacha8rand.md">C2SP/chacha8rand.md at main · C2SP/C2SP · GitHub</a></li>
+<li><a href="https://convto.hatenablog.com/entry/2024/02/26/121013">つくって理解するストリーム暗号 ChaCha20 - ちりもつもればミルキーウェイ</a> : <a href="https://go.dev/">Go</a> でサンプルコードを書いておられる。ありがたや</li>
+</ul>
+<p>ChaCha はストリーム暗号の一種で，簡単に言うと，疑似乱数を生成してそれを平文と XOR するというものらしい。
+このうちの疑似乱数を生成する部分を切り出しているようだ。
+ストリーム暗号に使うものなので，暗号技術的にセキュアでかつ速いというのが特徴になるだろうか。
+ちなみに ChaCha の後ろについている 20 とか 8 とかはラウンド数を示しているそうな。</p>
+<p>ChaCha は OpenSSL だか OpenSSH だかでも見かけたような（うろ覚え）。
+もし結城浩さんが『<a href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Amazon.co.jp: 暗号技術入門 第3版　秘密の国のアリス eBook : 結城 浩: Kindleストア">暗号技術入門</a>』の第4版を出される機会があれば，付録でいいので是非 ChaCha にも言及して欲しい。</p>
+<h2>ランタイムに ChaCha8 を組み込む</h2>
+<p>ChaCha8 のアルゴリズムは <a href="https://pkg.go.dev/internal/chacha8rand" title="chacha8rand package - internal/chacha8rand - Go Packages"><code>internal/chacha8rand</code></a> パッケージに実装されている。
+中身については割愛させてもらう。
+Internal パッケージなので，サードパーティのパッケージからは直接参照できない。</p>
+<p>まずは <a href="https://pkg.go.dev/runtime" title="runtime package - runtime - Go Packages"><code>runtime</code></a> パッケージに組み込んでいる部分を見てみる。
+ちょっと長いけどご容赦。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// OS-specific startup can set startupRand if the OS passes
+</span></span></span><span class="line"><span class="cl"><span class="c1">// random data to the process at startup time.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// For example Linux passes 16 bytes in the auxv vector.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span> <span class="nx">startupRand</span> <span class="p">[]</span><span class="kt">byte</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// globalRand holds the global random state.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// It is only used at startup and for creating new m&#39;s.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Otherwise the per-m random state should be used
+</span></span></span><span class="line"><span class="cl"><span class="c1">// by calling goodrand.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span> <span class="nx">globalRand</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">lock</span>  <span class="nx">mutex</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">seed</span>  <span class="p">[</span><span class="mi">32</span><span class="p">]</span><span class="kt">byte</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">state</span> <span class="nx">chacha8rand</span><span class="p">.</span><span class="nx">State</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">init</span>  <span class="kt">bool</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">readRandomFailed</span> <span class="kt">bool</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// randinit initializes the global random state.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// It must be called before any use of grand.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">randinit</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">lock</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">globalRand</span><span class="p">.</span><span class="nx">init</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fatal</span><span class="p">(</span><span class="s">&#34;randinit twice&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">seed</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">seed</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">startupRand</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="nx">i</span><span class="p">,</span> <span class="nx">c</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">startupRand</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">seed</span><span class="p">[</span><span class="nx">i</span><span class="o">%</span><span class="nb">len</span><span class="p">(</span><span class="nx">seed</span><span class="p">)]</span> <span class="p">^=</span> <span class="nx">c</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">clear</span><span class="p">(</span><span class="nx">startupRand</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">startupRand</span> <span class="p">=</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nf">readRandom</span><span class="p">(</span><span class="nx">seed</span><span class="p">[:])</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nx">seed</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// readRandom should never fail, but if it does we&#39;d rather
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="c1">// not make Go binaries completely unusable, so make up
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="c1">// some random data based on the current time.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="nx">readRandomFailed</span> <span class="p">=</span> <span class="kc">true</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">readTimeRandom</span><span class="p">(</span><span class="nx">seed</span><span class="p">[:])</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">globalRand</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Init</span><span class="p">(</span><span class="o">*</span><span class="nx">seed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">clear</span><span class="p">(</span><span class="nx">seed</span><span class="p">[:])</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">globalRand</span><span class="p">.</span><span class="nx">init</span> <span class="p">=</span> <span class="kc">true</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">lock</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// readTimeRandom stretches any entropy in the current time
+</span></span></span><span class="line"><span class="cl"><span class="c1">// into entropy the length of r and XORs it into r.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// This is a fallback for when readRandom does not read
+</span></span></span><span class="line"><span class="cl"><span class="c1">// the full requested amount.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Whatever entropy r already contained is preserved.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">readTimeRandom</span><span class="p">(</span><span class="nx">r</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Inspired by wyrand.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// An earlier version of this code used getg().m.procid as well,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// but note that this is called so early in startup that procid
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// is not initialized yet.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">v</span> <span class="o">:=</span> <span class="nb">uint64</span><span class="p">(</span><span class="nf">nanotime</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nb">len</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span> <span class="p">&gt;</span> <span class="mi">0</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">v</span> <span class="p">^=</span> <span class="mh">0xa0761d6478bd642f</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">v</span> <span class="o">*=</span> <span class="mh">0xe7037ed1a0b428db</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">size</span> <span class="o">:=</span> <span class="mi">8</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">8</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">size</span> <span class="p">=</span> <span class="nb">len</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">size</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">r</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">^=</span> <span class="nb">byte</span><span class="p">(</span><span class="nx">v</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="nx">i</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">r</span> <span class="p">=</span> <span class="nx">r</span><span class="p">[</span><span class="nx">size</span><span class="p">:]</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">v</span> <span class="p">=</span> <span class="nx">v</span><span class="o">&gt;&gt;</span><span class="mi">32</span> <span class="p">|</span> <span class="nx">v</span><span class="o">&lt;&lt;</span><span class="mi">32</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/runtime">runtime/rand.go</a></q></div></figcaption>
+</figure>
+<p>これは ChaCha8 の状態（主に seed）を管理してる部分かな。
+最初の seed は乱数デバイスから取ってるんだね。
+これに失敗すると時刻から生成する，と。
+ユーザ側は明示的に seed を指定する必要がなくなるということやね。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// readTimeRandom stretches any entropy in the current time
+</span></span></span><span class="line"><span class="cl"><span class="c1">// into entropy the length of r and XORs it into r.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// This is a fallback for when readRandom does not read
+</span></span></span><span class="line"><span class="cl"><span class="c1">// the full requested amount.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Whatever entropy r already contained is preserved.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">readTimeRandom</span><span class="p">(</span><span class="nx">r</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Inspired by wyrand.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// An earlier version of this code used getg().m.procid as well,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// but note that this is called so early in startup that procid
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// is not initialized yet.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">v</span> <span class="o">:=</span> <span class="nb">uint64</span><span class="p">(</span><span class="nf">nanotime</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nb">len</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span> <span class="p">&gt;</span> <span class="mi">0</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">v</span> <span class="p">^=</span> <span class="mh">0xa0761d6478bd642f</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">v</span> <span class="o">*=</span> <span class="mh">0xe7037ed1a0b428db</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">size</span> <span class="o">:=</span> <span class="mi">8</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span> <span class="p">&lt;</span> <span class="mi">8</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">size</span> <span class="p">=</span> <span class="nb">len</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">size</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">r</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">^=</span> <span class="nb">byte</span><span class="p">(</span><span class="nx">v</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="nx">i</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">r</span> <span class="p">=</span> <span class="nx">r</span><span class="p">[</span><span class="nx">size</span><span class="p">:]</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">v</span> <span class="p">=</span> <span class="nx">v</span><span class="o">&gt;&gt;</span><span class="mi">32</span> <span class="p">|</span> <span class="nx">v</span><span class="o">&lt;&lt;</span><span class="mi">32</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// bootstrapRand returns a random uint64 from the global random generator.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">bootstrapRand</span><span class="p">()</span> <span class="kt">uint64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">lock</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">!</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">init</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fatal</span><span class="p">(</span><span class="s">&#34;randinit missed&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">globalRand</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Next</span><span class="p">();</span> <span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">lock</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">x</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">globalRand</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Refill</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// bootstrapRandReseed reseeds the bootstrap random number generator,
+</span></span></span><span class="line"><span class="cl"><span class="c1">// clearing from memory any trace of previously returned random numbers.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">bootstrapRandReseed</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lock</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">lock</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">!</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">init</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fatal</span><span class="p">(</span><span class="s">&#34;randinit missed&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">globalRand</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Reseed</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">unlock</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">globalRand</span><span class="p">.</span><span class="nx">lock</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// rand32 is uint32(rand()), called from compiler-generated code.
+</span></span></span><span class="line"><span class="cl"><span class="c1">//go:nosplit
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">rand32</span><span class="p">()</span> <span class="kt">uint32</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nb">uint32</span><span class="p">(</span><span class="nf">rand</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// rand returns a random uint64 from the per-m chacha8 state.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Do not change signature: used via linkname from other packages.
+</span></span></span><span class="line"><span class="cl"><span class="c1">//go:nosplit
+</span></span></span><span class="line"><span class="cl"><span class="c1">//go:linkname rand
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">rand</span><span class="p">()</span> <span class="kt">uint64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Note: We avoid acquirem here so that in the fast path
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// there is just a getg, an inlined c.Next, and a return.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// The performance difference on a 16-core AMD is
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 3.7ns/call this way versus 4.3ns/call with acquirem (+16%).
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">mp</span> <span class="o">:=</span> <span class="nf">getg</span><span class="p">().</span><span class="nx">m</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">c</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">mp</span><span class="p">.</span><span class="nx">chacha8</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Note: c.Next is marked nosplit,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// so we don&#39;t need to use mp.locks
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// on the fast path, which is that the
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// first attempt succeeds.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">x</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nf">Next</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">x</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">mp</span><span class="p">.</span><span class="nx">locks</span><span class="o">++</span> <span class="c1">// hold m even though c.Refill may do stack split checks
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nx">c</span><span class="p">.</span><span class="nf">Refill</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">mp</span><span class="p">.</span><span class="nx">locks</span><span class="o">--</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// mrandinit initializes the random state of an m.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">mrandinit</span><span class="p">(</span><span class="nx">mp</span> <span class="o">*</span><span class="nx">m</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">var</span> <span class="nx">seed</span> <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">uint64</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">seed</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">seed</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">=</span> <span class="nf">bootstrapRand</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">bootstrapRandReseed</span><span class="p">()</span> <span class="c1">// erase key we just extracted
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">mp</span><span class="p">.</span><span class="nx">chacha8</span><span class="p">.</span><span class="nf">Init64</span><span class="p">(</span><span class="nx">seed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">mp</span><span class="p">.</span><span class="nx">cheaprand</span> <span class="p">=</span> <span class="nf">rand</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/runtime">runtime/rand.go</a></q></div></figcaption>
+</figure>
+<p><code>mrandinit()</code> 関数でランタイムを初期化して，それを使って実際に乱数を取得してるのが <code>rand()</code> 関数だね。
+ふむふむ。</p>
+<h2>math/rand パッケージのトップレベル関数群にランタイムの ChaCha8 を組み込む</h2>
+<p>それじゃあ <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> パッケージの方を見てみよう。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">//go:linkname runtime_rand runtime.rand
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">runtime_rand</span><span class="p">()</span> <span class="kt">uint64</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand">math/rand/rand.go</a></q></div></figcaption>
+</figure>
+<p><code>go:linkname</code> ディレクティブの説明は割愛する。
+こうやってリンクしてるということで飲み込んでいただければ（笑） そうそう。
+<code>go:linkname</code> ディレクティブは <a href="https://pkg.go.dev/unsafe" title="unsafe package - unsafe - Go Packages"><code>unsafe</code></a> パッケージを要求するので，真似するときは要注意だよ。</p>
+<p>ともかく，この <code>runtime_rand()</code> 関数を使って <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>rand</code></a><code>.Source</code> インタフェース互換の構造体 <code>runtimeSource</code> を定義している。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// runtimeSource is an implementation of Source64 that uses the runtime
+</span></span></span><span class="line"><span class="cl"><span class="c1">// fastrand functions.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">runtimeSource</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// The mutex is used to avoid race conditions in Read.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">mu</span> <span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="o">*</span><span class="nx">runtimeSource</span><span class="p">)</span> <span class="nf">Int63</span><span class="p">()</span> <span class="kt">int64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nb">int64</span><span class="p">(</span><span class="nf">runtime_rand</span><span class="p">()</span> <span class="o">&amp;</span> <span class="nx">rngMask</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="o">*</span><span class="nx">runtimeSource</span><span class="p">)</span> <span class="nf">Seed</span><span class="p">(</span><span class="kt">int64</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">panic</span><span class="p">(</span><span class="s">&#34;internal error: call to runtimeSource.Seed&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="o">*</span><span class="nx">runtimeSource</span><span class="p">)</span> <span class="nf">Uint64</span><span class="p">()</span> <span class="kt">uint64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">runtime_rand</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand">math/rand/rand.go</a></q></div></figcaption>
+</figure>
+<p><code>Seed()</code> メソッドを呼び出したら panic 吐くとか容赦ないな（笑） <code>runtimeSource</code> はこんな風に使う。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// globalRandGenerator is the source of random numbers for the top-level
+</span></span></span><span class="line"><span class="cl"><span class="c1">// convenience functions. When possible it uses the runtime fastrand64
+</span></span></span><span class="line"><span class="cl"><span class="c1">// function to avoid locking. This is not possible if the user called Seed,
+</span></span></span><span class="line"><span class="cl"><span class="c1">// either explicitly or implicitly via GODEBUG=randautoseed=0.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span> <span class="nx">globalRandGenerator</span> <span class="nx">atomic</span><span class="p">.</span><span class="nx">Pointer</span><span class="p">[</span><span class="nx">Rand</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">randautoseed</span> <span class="p">=</span> <span class="nx">godebug</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="s">&#34;randautoseed&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// globalRand returns the generator to use for the top-level convenience
+</span></span></span><span class="line"><span class="cl"><span class="c1">// functions.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">globalRand</span><span class="p">()</span> <span class="o">*</span><span class="nx">Rand</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">r</span> <span class="o">:=</span> <span class="nx">globalRandGenerator</span><span class="p">.</span><span class="nf">Load</span><span class="p">();</span> <span class="nx">r</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">r</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// This is the first call. Initialize based on GODEBUG.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kd">var</span> <span class="nx">r</span> <span class="o">*</span><span class="nx">Rand</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">randautoseed</span><span class="p">.</span><span class="nf">Value</span><span class="p">()</span> <span class="o">==</span> <span class="s">&#34;0&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">randautoseed</span><span class="p">.</span><span class="nf">IncNonDefault</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">r</span> <span class="p">=</span> <span class="nf">New</span><span class="p">(</span><span class="nb">new</span><span class="p">(</span><span class="nx">lockedSource</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">r</span><span class="p">.</span><span class="nf">Seed</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">r</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Rand</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">src</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">runtimeSource</span><span class="p">{},</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">s64</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">runtimeSource</span><span class="p">{},</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">!</span><span class="nx">globalRandGenerator</span><span class="p">.</span><span class="nf">CompareAndSwap</span><span class="p">(</span><span class="kc">nil</span><span class="p">,</span> <span class="nx">r</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Two different goroutines called some top-level
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// function at the same time. While the results in
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// that case are unpredictable, if we just use r here,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// and we are using a seed, we will most likely return
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// the same value for both calls. That doesn&#39;t seem ideal.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// Just use the first one to get in.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">return</span> <span class="nx">globalRandGenerator</span><span class="p">.</span><span class="nf">Load</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">r</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand">math/rand/rand.go</a></q></div></figcaption>
+</figure>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// Seed uses the provided seed value to initialize the default Source to a
+</span></span></span><span class="line"><span class="cl"><span class="c1">// deterministic state. Seed values that have the same remainder when
+</span></span></span><span class="line"><span class="cl"><span class="c1">// divided by 2³¹-1 generate the same pseudo-random sequence.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Seed, unlike the [Rand.Seed] method, is safe for concurrent use.
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// If Seed is not called, the generator is seeded randomly at program startup.
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Prior to Go 1.20, the generator was seeded like Seed(1) at program startup.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// To force the old behavior, call Seed(1) at program startup.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Alternately, set GODEBUG=randautoseed=0 in the environment
+</span></span></span><span class="line"><span class="cl"><span class="c1">// before making any calls to functions in this package.
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Deprecated: As of Go 1.20 there is no reason to call Seed with
+</span></span></span><span class="line"><span class="cl"><span class="c1">// a random value. Programs that call Seed with a known value to get
+</span></span></span><span class="line"><span class="cl"><span class="c1">// a specific sequence of results should use New(NewSource(seed)) to
+</span></span></span><span class="line"><span class="cl"><span class="c1">// obtain a local random generator.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">Seed</span><span class="p">(</span><span class="nx">seed</span> <span class="kt">int64</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">orig</span> <span class="o">:=</span> <span class="nx">globalRandGenerator</span><span class="p">.</span><span class="nf">Load</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// If we are already using a lockedSource, we can just re-seed it.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="nx">orig</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">orig</span><span class="p">.</span><span class="nx">src</span><span class="p">.(</span><span class="o">*</span><span class="nx">lockedSource</span><span class="p">);</span> <span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nx">orig</span><span class="p">.</span><span class="nf">Seed</span><span class="p">(</span><span class="nx">seed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Otherwise either
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 1) orig == nil, which is the normal case when Seed is the first
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// top-level function to be called, or
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 2) orig is already a runtimeSource, in which case we need to change
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// to a lockedSource.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// Either way we do the same thing.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">    <span class="nx">r</span> <span class="o">:=</span> <span class="nf">New</span><span class="p">(</span><span class="nb">new</span><span class="p">(</span><span class="nx">lockedSource</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">r</span><span class="p">.</span><span class="nf">Seed</span><span class="p">(</span><span class="nx">seed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">!</span><span class="nx">globalRandGenerator</span><span class="p">.</span><span class="nf">CompareAndSwap</span><span class="p">(</span><span class="nx">orig</span><span class="p">,</span> <span class="nx">r</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Something changed underfoot. Retry to be safe.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nf">Seed</span><span class="p">(</span><span class="nx">seed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand">math/rand/rand.go</a></q></div></figcaption>
+</figure>
+<p>つまり，環境変数 <code>GODEBUG</code> で明示的に指定（<code>randautoseed=0</code>）するか最初に <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>rand</code></a><code>.Seed()</code> 関数を呼び出すかしない限りランタイムに組み込んだ ChaCha8 の疑似乱数生成器が有効になるっちうわけだ。
+ちなみに <code>lockedSource</code> は <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> パッケージに従来からある疑似乱数生成器で，名前の通り，ちゃんと mutex で排他処理している。</p>
+<h2>math/rand/v2 パッケージにおける Source インタフェースの定義</h2>
+<p>では，いよいよ <a href="https://go.dev/">Go</a> 1.22 で追加された <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> パッケージを見てみよう。</p>
+<p><a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> パッケージと <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> パッケージとの大きな違いは <code>rand.Source</code> インタフェースが非互換になっていることだろう。</p>
+<p><a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> パッケージの <code>Source</code> インタフェースの定義は以下の通り。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// A Source represents a source of uniformly-distributed
+</span></span></span><span class="line"><span class="cl"><span class="c1">// pseudo-random int64 values in the range [0, 1&lt;&lt;63).
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// A Source is not safe for concurrent use by multiple goroutines.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">Source</span> <span class="kd">interface</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">Int63</span><span class="p">()</span> <span class="kt">int64</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">Seed</span><span class="p">(</span><span class="nx">seed</span> <span class="kt">int64</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// A Source64 is a [Source] that can also generate
+</span></span></span><span class="line"><span class="cl"><span class="c1">// uniformly-distributed pseudo-random uint64 values in
+</span></span></span><span class="line"><span class="cl"><span class="c1">// the range [0, 1&lt;&lt;64) directly.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// If a [Rand] r&#39;s underlying [Source] s implements Source64,
+</span></span></span><span class="line"><span class="cl"><span class="c1">// then r.Uint64 returns the result of one call to s.Uint64
+</span></span></span><span class="line"><span class="cl"><span class="c1">// instead of making two calls to s.Int63.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">Source64</span> <span class="kd">interface</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">Source</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">Uint64</span><span class="p">()</span> <span class="kt">uint64</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand">math/rand/rand.go</a></q></div></figcaption>
+</figure>
+<p>これに対して <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> ではこう定義されている。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// A Source is a source of uniformly-distributed
+</span></span></span><span class="line"><span class="cl"><span class="c1">// pseudo-random uint64 values in the range [0, 1&lt;&lt;64).
+</span></span></span><span class="line"><span class="cl"><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// A Source is not safe for concurrent use by multiple goroutines.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">Source</span> <span class="kd">interface</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">Uint64</span><span class="p">()</span> <span class="kt">uint64</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand/v2">math/rand/v2/rand.go</a></q></div></figcaption>
+</figure>
+<p>どえらシンプル！ <code>Seed()</code> メソッドがなくなったのは大きいね。
+これによって <code>runtimeSource</code> やトップレベル関数群が参照する <code>globalRand</code> の定義もめっさシンプルになった。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// globalRand is the source of random numbers for the top-level
+</span></span></span><span class="line"><span class="cl"><span class="c1">// convenience functions.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">var</span> <span class="nx">globalRand</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">Rand</span><span class="p">{</span><span class="nx">src</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">runtimeSource</span><span class="p">{}}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//go:linkname runtime_rand runtime.rand
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">runtime_rand</span><span class="p">()</span> <span class="kt">uint64</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// runtimeSource is a Source that uses the runtime fastrand functions.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">runtimeSource</span> <span class="kd">struct</span><span class="p">{}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="o">*</span><span class="nx">runtimeSource</span><span class="p">)</span> <span class="nf">Uint64</span><span class="p">()</span> <span class="kt">uint64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">runtime_rand</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand/v2">math/rand/v2/rand.go</a></q></div></figcaption>
+</figure>
+<p>うんうん。
+シンプルが一番だね。</p>
+<h2>ChaCha8 を rand.Sorce にする</h2>
+<p>ChaCha8 を疑似乱数の <code>Source</code> として明示的に組み込む場合は， <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>rand</code></a><code>.NewChaCha8()</code> 関数を使って生成する。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;internal/chacha8rand&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// A ChaCha8 is a ChaCha8-based cryptographically strong
+</span></span></span><span class="line"><span class="cl"><span class="c1">// random number generator.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">ChaCha8</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">state</span> <span class="nx">chacha8rand</span><span class="p">.</span><span class="nx">State</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// NewChaCha8 returns a new ChaCha8 seeded with the given seed.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">NewChaCha8</span><span class="p">(</span><span class="nx">seed</span> <span class="p">[</span><span class="mi">32</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="o">*</span><span class="nx">ChaCha8</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">c</span> <span class="o">:=</span> <span class="nb">new</span><span class="p">(</span><span class="nx">ChaCha8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">c</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Init</span><span class="p">(</span><span class="nx">seed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">c</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Seed resets the ChaCha8 to behave the same way as NewChaCha8(seed).
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">c</span> <span class="o">*</span><span class="nx">ChaCha8</span><span class="p">)</span> <span class="nf">Seed</span><span class="p">(</span><span class="nx">seed</span> <span class="p">[</span><span class="mi">32</span><span class="p">]</span><span class="kt">byte</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">c</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Init</span><span class="p">(</span><span class="nx">seed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Uint64 returns a uniformly distributed random uint64 value.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">c</span> <span class="o">*</span><span class="nx">ChaCha8</span><span class="p">)</span> <span class="nf">Uint64</span><span class="p">()</span> <span class="kt">uint64</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">x</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">c</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Next</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nx">x</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">c</span><span class="p">.</span><span class="nx">state</span><span class="p">.</span><span class="nf">Refill</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand/v2">math/rand/v2/chacha8.go</a></q></div></figcaption>
+</figure>
+<p>ランタイムに組み込まれているものと違って，こちらは排他処理を行っていない。
+並行的に安全（concurrency safe）ではないわけだ。
+なので平行処理下で <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> の ChaCha8 を扱う場合は要注意である。
+つか，平行処理下で ChaCha8 を使うならトップレベル関数群を使うべきだろう。</p>
+<h2>PCG を rand.Sorce にする</h2>
+<p><a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> にはもうひとつ疑似乱数生成器が用意されている。
+PCG (Permuted Congruential Generator) というそうな。</p>
+<figure lang="en">
+<blockquote class="nobox"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// A PCG is a PCG generator with 128 bits of internal state.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// A zero PCG is equivalent to NewPCG(0, 0).
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">PCG</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">hi</span> <span class="kt">uint64</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">lo</span> <span class="kt">uint64</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// NewPCG returns a new PCG seeded with the given values.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">NewPCG</span><span class="p">(</span><span class="nx">seed1</span><span class="p">,</span> <span class="nx">seed2</span> <span class="kt">uint64</span><span class="p">)</span> <span class="o">*</span><span class="nx">PCG</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">&amp;</span><span class="nx">PCG</span><span class="p">{</span><span class="nx">seed1</span><span class="p">,</span> <span class="nx">seed2</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div>via <q><a href="https://pkg.go.dev/math/rand/v2">math/rand/v2/pcg.go</a></q></div></figcaption>
+</figure>
+<p>PCG は線形合同法（LCG）のバリエーションなんだそうで， LCG の統計学上の欠点を改善したものらしい。
+2014年に発表された比較的新しいアルゴリズムのようだが，今のところは欠点のようなものは特に指摘されてないとか。
+当然ながら暗号技術分野では使えない。</p>
+<ul>
+<li><a href="http://www.pcg-random.org/index.html">PCG, A Family of Better Random Number Generators | PCG, A Better Random Number Generator</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Permuted_congruential_generator">Permuted congruential generator - Wikipedia</a></li>
+<li><a href="https://ja.wikipedia.org/wiki/Permuted_congruential_generator">Permuted congruential generator - Wikipedia</a> : 日本語</li>
+</ul>
+<p>こちらも並行的に安全ではないのでご注意を。</p>
+<h2>これから math/rand を使う理由はないかな</h2>
+<p>今までは <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> で用意されている疑似乱数生成器は暗号技術的にセキュアではない（要件である「予測困難性」を満たさない）ため使いどころを考えなければならなかったが <a href="https://go.dev/">Go</a> 1.22 から <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a>, <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> ともに ChaCha8 が既定の疑似乱数生成器なったため用途を選ばずカジュアルに使えるようになるだろう。
+そうなると，これから疑似乱数生成器を使おうというとききに，わざわざ <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> を使う理由はないかな。
+<a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> って無駄に複雑になってる感じだもんなぁ。</p>
+<p>ちなみに <a href="https://pkg.go.dev/math/rand/v2" title="rand package - math/rand/v2 - Go Packages"><code>math/rand/v2</code></a> では <code>Read()</code> 関数もなくなっているが， <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>math/rand</code></a> でも <a href="https://pkg.go.dev/math/rand" title="rand package - math/rand - Go Packages"><code>rand</code></a><code>.Read()</code> 関数は Deprecated になってるし，<a href="https://go.dev/doc/go1.22#math_rand_v2" title="Go 1.22 Release Notes - The Go Programming Language">リリースノート</a>を見ると， <code>Read()</code> 関数が使いたきゃ <a href="https://pkg.go.dev/crypto/rand" title="rand package - crypto/rand - Go Packages"><code>crypto/rand</code></a> パッケージを使え，みたいなことが書いてあるので，まぁそういうことなんだろう。</p>
+<h2>ブックマーク</h2>
+<ul>
+<li><a href="https://go.dev/doc/go1.22">Go 1.22 Release Notes - The Go Programming Language</a></li>
+<li><a href="https://tools.ietf.org/html/rfc4086">RFC 4086 - Randomness Requirements for Security</a> （<a href="https://www.nic.ad.jp/ja/tech/ipa/RFC4086JA.html" title="セキュリティのための乱雑性についての要件">日本語訳</a>）</li>
+<li><a href="https://text.baldanders.info/golang/pseudo-random-number-generator/">Go の疑似乱数生成器は並行的に安全ではないらしい（追記あり）</a></li>
+</ul>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/416Stewy0NS._SL160_.jpg" width="123" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B099928SJD?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">プログラミング言語Go</a></dt>
+    <dd>アラン・ドノバン (著), ブライアン・カーニハン (著), 柴田芳樹 (著)</dd>
+    <dd>丸善出版 2016-06-20 (Release 2021-07-13)</dd>
+    <dd>Kindle版</dd>
+    <dd>B099928SJD (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">Kindle 版出た！ 一部内容が古びてしまったが，この本は Go 言語の教科書と言ってもいいだろう。感想は<a href="/remark/2016/07/go-programming-language/" >こちら</a>。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2021-05-22">2021-05-22</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- プログラミング言語Go -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ</a></dt>
+    <dd>Teiva Harsanyi (著), 柴田 芳樹 (著)</dd>
+    <dd>インプレス 2023-08-18 (Release 2023-08-18)</dd>
+    <dd>Kindle版</dd>
+    <dd>B0CFL1DK8Q (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://book.impress.co.jp/books/1122101133">版元</a>で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2023-08-18">2023-08-18</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Go言語 100Tips -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Go言語による並行処理</a></dt>
+    <dd>Katherine Cox-Buday (著), 山口 能迪 (翻訳)</dd>
+    <dd>オライリージャパン 2018-10-26</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://www.oreilly.co.jp/books/9784873118468/">Eブック版もある</a>。感想は<a href="https://text.baldanders.info/remark/2018/11/concurrency-in-go/">こちら</a>。 Go 言語で並行処理を書くならこの本は必読書になるだろう。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2020-01-13">2020-01-13</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Go言語による並行処理 -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41&#43;ew2wl2jL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">効率的なGo ―データ指向によるGoアプリケーションの性能最適化</a></dt>
+    <dd>Bartłomiej Płotka (著), 山口 能迪 (翻訳)</dd>
+    <dd>オライリー・ジャパン 2024-02-24</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4814400535 (ASIN), 9784814400539 (EAN), 4814400535 (ISBN)</dd>
+  </dl>
+  <p class="description">ついに Effective Go のタイトルを冠した本の邦訳が出た。<a href="https://www.oreilly.co.jp/books/9784814400539/">版元</a>で Ebook を買える。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2024-02-22">2024-02-22</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 効率的なGo : Effective Go -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51t6yHHVwEL._SL160_.jpg" width="113" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B015643CPE?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">暗号技術入門 第3版　秘密の国のアリス</a></dt>
+    <dd>結城 浩 (著)</dd>
+    <dd>SBクリエイティブ 2015-08-25 (Release 2015-09-17)</dd>
+    <dd>Kindle版</dd>
+    <dd>B015643CPE (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">SHA-3 や Bitcoin/Blockchain など新しい知見や技術要素を大幅追加。暗号技術を使うだけならこれ1冊でとりあえず無問題。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-09-20">2015-09-20</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 暗号技術入門 第3版 -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B00I8ETG96?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51bXS7crIjL._SL160_.jpg" width="117" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B00I8ETG96?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">赤ずきんチャチャ 1 (りぼんマスコットコミックスDIGITAL)</a></dt>
+    <dd>彩花みん (著)</dd>
+    <dd>集英社 1993-02-15 (Release 2014-02-25)</dd>
+    <dd>Kindle版</dd>
+    <dd>B00I8ETG96 (ASIN)</dd>
+  </dl>
+  <p class="description">そういえばコミックは読んでないかな。「リボン」は読まなかったからなぁ...</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2024-03-07">2024-03-07</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 赤ずきんチャチャ -->
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/zap-and-golog/">Zap と go-log を試す</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>GitHub に<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>他のフィードバック手段として Mastodon などの SNS や電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2024-03-07</time>
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><abbr class="emoji-chars" title="Bluesky">🦋</abbr></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fgolang%2fpseudo-random-number-generator-v2%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.123.7</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
