@@ -2,13 +2,301 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2024-08-19:/</id>
-	<updated>2024-08-20T23:09:31+00:00</updated>
+	<id>tag:text.Baldanders.info,2024-08-23:/</id>
+	<updated>2024-08-23T11:53:38+00:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>『効率的な Go』読書会 4回目</title>
+		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/08/efficient-go-4/" />
+		<id>tag:text.Baldanders.info,2024-08-23:/remark/2024/08/efficient-go-4/</id>
+		<published>2024-08-23T11:52:01+00:00</published>
+		<updated>2024-08-23T11:53:38+00:00</updated>
+		<summary>逆アセンブルと自動最適化について覚え書き</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;先日『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』の4回目の読書会が行われた。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://yokohama-go-reading.connpass.com/event/325866/&#34;&gt;第61回横浜Go読書会（オンライン） - connpass&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;実は3回目は私用で欠席したのだった。
+あとで復習しないとなー。&lt;/p&gt;
+&lt;p&gt;前回の3回目と今回の4回目は3章の「効率化の攻略」という大事な章を含んでいるのだが，この辺の話を書きはじめると（量的に）大変なことになるので，この記事では4章の「Go での CPU リソースの（ちょっとした）解説」の最初の方に出てくる &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コードをアセンブラコードに変換して眺める話を実際に手を動かして試すに留める。
+覚え書きいうやつやね。&lt;/p&gt;
+&lt;p&gt;なお，今回の &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コンパイラのバージョンは先日&lt;a href=&#34;https://text.baldanders.info/release/2024/08/go-1_23_0-is-released/&#34; title=&#34;Go 1.23 のリリース&#34;&gt;リリース&lt;/a&gt;されたばかりの 1.23.0 を使用している。
+このため『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』で例示されている内容とはだいぶ異なっている点に注意してほしい。&lt;/p&gt;
+&lt;h2&gt;サンプルコード&lt;/h2&gt;
+&lt;p&gt;まずはサンプルコードを書いてみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;bytes&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;os&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;strconv&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fileName&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ReadFile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fileName&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;line&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;bytes&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Split&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;byte&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;¥n&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;num&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;strconv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ParseInt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;line&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;),&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;10&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;num&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;numbers.txt&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Fprintln&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Stderr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これは『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』4.2節に出てくるコードに &lt;code&gt;main()&lt;/code&gt; 関数を付加したものである。
+なんで &lt;code&gt;main()&lt;/code&gt; 関数を付加したかというと，そうしないと &lt;code&gt;go build&lt;/code&gt; が通らないから。&lt;/p&gt;
+&lt;h2&gt;アセンブラコードを出力しながらビルドする&lt;/h2&gt;
+&lt;p&gt;コンパイルオプションに &lt;code&gt;-S&lt;/code&gt; を付加すると標準エラー出力に &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の疑似アセンブリ言語のコードを吐き出しながらビルドを行う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go build -gcflags=&amp;#34;-S&amp;#34; sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;実際に吐き出した内容はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;# command-line-arguments
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;main.Sum STEXT size=237 args=0x10 locals=0x88 funcid=0x0 align=0x0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0000 00000 (/path/to/sum.go:10)    TEXT    main.Sum(SB), ABIInternal, $136-16
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0000 00000 (/path/to/sum.go:10)    LEAQ    -8(SP), R12
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0005 00005 (/path/to/sum.go:10)    CMPQ    R12, 16(R14)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0009 00009 (/path/to/sum.go:10)    PCDATA    $0, $-2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0009 00009 (/path/to/sum.go:10)    JLS    207
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x000f 00015 (/path/to/sum.go:10)    PCDATA    $0, $-1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;各インストラクションの意味については以下の記事が参考になる。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/hsaki/articles/godoc-asm-ja&#34;&gt;解説&amp;amp;翻訳 - A Quick Guide to Go&amp;rsquo;s Assembler&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;ちなみにこのインストラクションは AMD (or Intel) 系のもので，たとえば Apple Mx チップ用にビルドすると異なるインストラクションが吐き出されたりするらしい。&lt;/p&gt;
+&lt;h2&gt;コンパイラによる自動最適化の決定を表示する&lt;/h2&gt;
+&lt;p&gt;コンパイルオプションに &lt;code&gt;-m=&amp;lt;number&amp;gt;&lt;/code&gt; を付加するとコンパイラによる自動最適化の決定を標準エラー出力に表示しながらビルドしてくれる（数字は詳細度を示す）。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go build -gcflags=&amp;#34;-m=1&amp;#34; sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;# command-line-arguments
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: can inline atomic.(*Pointer[os.dirInfo]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: can inline atomic.(*Pointer[os.dirInfo]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: can inline atomic.(*Pointer[os.dirInfo]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: can inline atomic.(*Pointer[os.dirInfo]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:15:34: inlining call to bytes.Split
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:13: inlining call to fmt.Println
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:10:10: leaking param: fileName
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:15:45: ([]byte)(&amp;#34;¥n&amp;#34;) does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:16:39: string(line) does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:28:15: ... argument does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:13: ... argument does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:14: n escapes to heap
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;たとえば “&lt;code&gt;inlining call to bytes.Split&lt;/code&gt;” は &lt;code&gt;bytes.Split()&lt;/code&gt; 関数をインライン化することを指している。
+“&lt;code&gt;does not escape&lt;/code&gt;” は値がスタック上に積まれることを意味する。
+逆に “&lt;code&gt;escapes to heap&lt;/code&gt;” は値をヒープ上に置くことを意味している。&lt;/p&gt;
+&lt;p&gt;いやぁ，この機能は知らんかった。
+めっさお役立ちやん。
+この情報を考慮してアセンブラコードを見れば実際にどういう風にコンパイルされているか分かりやすくなる。&lt;/p&gt;
+&lt;h2&gt;バイナリコードを逆アセンブルする&lt;/h2&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』ではバイナリの逆アセンブルに &lt;code&gt;objdump&lt;/code&gt; コマンドを使用しているが，これって多分 Windows に（標準では）ないコマンドだよね。
+あと，今どきの Linux ディストリビューションには GCC 等の開発環境が入ってなかったりする。
+この場合は，以下のように開発環境を入れれば &lt;code&gt;objdump&lt;/code&gt; コマンドもインストールされる（Debian/Ubuntu の場合）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo apt install build-essential
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;逆アセンブルする際は &lt;code&gt;objdump&lt;/code&gt; コマンドを生で使うのではなく &lt;code&gt;go tool&lt;/code&gt; コマンドから呼び出すのがよさげ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go tool objdump -S sum
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の疑似アセンブリ言語に逆アセンブルした結果が標準出力に表示される。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;TEXT main.Sum(SB) /path/to/sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Sum(fileName string) (ret int64, _ error) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e000        4c8d6424f8        LEAQ -0x8(SP), R12
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e005        4d3b6610        CMPQ R12, 0x10(R14)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e009        0f86c0000000        JBE 0x49e0cf
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e00f        55            PUSHQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e010        4889e5            MOVQ SP, BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e013        4883c480        ADDQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e017        4889842490000000    MOVQ AX, 0x90(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    b, err := os.ReadFile(fileName)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e01f        90            NOPL
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e020        e87b74ffff        CALL os.ReadFile(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    if err != nil {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e025        4885ff            TESTQ DI, DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e028        752c            JNE 0x49e056
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e02a        66c7442465c2a5        MOVW $-0x5a3e, 0x65(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e031        c64424676e        MOVB $0x6e, 0x67(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e036        488d7c2465        LEAQ 0x65(SP), DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e03b        be03000000        MOVL $0x3, SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e040        4989f0            MOVQ SI, R8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e043        4531c9            XORL R9, R9
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e046        49c7c2ffffffff        MOVQ $-0x1, R10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e04d        e84e54fdff        CALL bytes.genSplit(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e052        31c9            XORL CX, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e054        eb2b            JMP 0x49e081
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        return 0, err
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e056        31c0            XORL AX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e058        4889fb            MOVQ DI, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e05b        4889f1            MOVQ SI, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e05e        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e062        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e063        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e064        488b542478        MOVQ 0x78(SP), DX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e069        4883c218        ADDQ $0x18, DX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e06d        488b5c2470        MOVQ 0x70(SP), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e072        48ffcb            DECQ BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e075        488b742468        MOVQ 0x68(SP), SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e07a        488d0c06        LEAQ 0(SI)(AX*1), CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e07e        4889d0            MOVQ DX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e081        4885db            TESTQ BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e084        7e3c            JLE 0x49e0c2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e086        48895c2470        MOVQ BX, 0x70(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e08b        48894c2468        MOVQ CX, 0x68(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e090        4889442478        MOVQ AX, 0x78(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e095        488b18            MOVQ 0(AX), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e098        488b4808        MOVQ 0x8(AX), CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        num, err := strconv.ParseInt(string(line), 10, 64)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e09c        488d442445        LEAQ 0x45(SP), AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0a1        e8fa93fcff        CALL runtime.slicebytetostring(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0a6        b90a000000        MOVL $0xa, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ab        bf40000000        MOVL $0x40, DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b0        e8ab6dfdff        CALL strconv.ParseInt(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        if err != nil {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b5        4885db            TESTQ BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b8        74aa            JE 0x49e064
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            return 0, err
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ba        31c0            XORL AX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0bc        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c0        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c1        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    return ret, nil
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c2        4889c8            MOVQ CX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c5        31db            XORL BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c7        31c9            XORL CX, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c9        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0cd        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ce        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Sum(fileName string) (ret int64, _ error) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0cf        4889442408        MOVQ AX, 0x8(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0d4        48895c2410        MOVQ BX, 0x10(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0d9        e882c3fcff        CALL runtime.morestack_noctxt.abi0(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0de        488b442408        MOVQ 0x8(SP), AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0e3        488b5c2410        MOVQ 0x10(SP), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0e8        e913ffffff        JMP main.Sum(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ちょっと長いけど &lt;code&gt;Sum()&lt;/code&gt; 関数部分を抜粋してみた。
+たとえば，前節で &lt;code&gt;bytes.Split()&lt;/code&gt; 関数がインライ化されていることが示されているが，実際にどのようなコードになっているかよく分かる（&lt;code&gt;bytes.genSplit()&lt;/code&gt; 関数を呼び出してるだけだが）。&lt;/p&gt;
+&lt;p&gt;それにしても『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』の例示とはだいぶ違うなぁ。&lt;/p&gt;
+&lt;p&gt;元の &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コードで &lt;code&gt;ret += num&lt;/code&gt; に相当する部分をハイライトにしているが，『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』では&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;0x4f9b6d        488b742450      MOVQ 0x50(SP), SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;0x4f9b72        4801c6          ADDQ AX, SI
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『効率的な Go』 p.123&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;てな感じに書かれているのに対し， &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; 1.23 で実際に試してみると &lt;code&gt;ADDQ&lt;/code&gt; インストラクションが見当たらない。
+あれー？ とよく見てみたら &lt;code&gt;LEAQ&lt;/code&gt; インストラクションを使ってるのかよ&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;h2&gt;最適化の調整は最後の手段&lt;/h2&gt;
+&lt;p&gt;今回試してみて分かったのは，コンパイラによる自動最適化は &lt;a href=&#34;https://go.dev/&#34;&gt;GO&lt;/a&gt; のバージョンによって大きく異なるということだ。
+だから，最適化の部分で無理やりチューニング（&lt;code&gt;-N&lt;/code&gt; オプションで最適化を無効にする，または特定の処理ブロックをアセンブラで書く等）しようとしても逆に非効率な構成になる可能性もある。
+変態的なコードも自動最適化の妨げとなる。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;巧妙すぎるコードは読みづらく、プログラムされた機能の維持が困難になります。また、コンパイラーがパターンを最適化したものと一致させようとすると、コンパイラーを混乱させることにもなります。慣用的なコードを使い、関数やループを単純にしておくと、コンパイラーが最適化を適用してくれる可能性が高くなり、あなたが最適化する必要がなくなります！&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『効率的な Go』 p.131&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;どうしても最適化部分を弄らないといけないとしても，それは最後の手段になるのだろう。&lt;/p&gt;
+&lt;p&gt;4章ではほかにも「メモリウォール問題」「スケジューラー」「並行処理」といった CPU に近いレイヤの話が出てくる。
+特に組み込みとかやってる人は興味ある話題かもしれない。&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41&amp;#43;ew2wl2jL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;効率的なGo ―データ指向によるGoアプリケーションの性能最適化&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Bartłomiej Płotka (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリー・ジャパン 2024-02-24&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4814400535 (ASIN), 9784814400539 (EAN), 4814400535 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814400539/&#34;&gt;版元&lt;/a&gt;で Ebook を買える。Go言語のリファレンス本ではない。フトウェア工学，プログラミング（の考え方）を学ぶ教科書的な位置づけかなぁ。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-04-21&#34;&gt;2024-04-21&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 効率的なGo : Efficient Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873119979?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41WaZWxEzVL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873119979?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による分散サービス ―信頼性、拡張性、保守性の高いシステムの構築&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Travis Jeffery (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2022-08-03&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873119979 (ASIN), 9784873119977 (EAN), 4873119979 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873119977/&#34;&gt;版元&lt;/a&gt;でデジタル版を購入。&lt;a href=&#34;https://technical-book-reading-2.connpass.com/&#34;&gt;読書会&lt;/a&gt;の課題図書。ハンズオンぽい構成でコードがたくさん書かれているのがよい。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-08-03&#34;&gt;2022-08-03&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による分散サービス --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;&lt;code&gt;LEA&lt;/code&gt; インストラクションは第1オペランドの値を第2オペランドで示すレジスタにロードするのだが，たとえば第1オペランドが &lt;code&gt;0(SI)(AX*1)&lt;/code&gt; なら 0+SIレジスタの値+AXレジスタの値 みたいな感じで足し算を同時に行う。しかも足し算の結果でフラグ値が変わらない（副作用なし）という便利な機能らしい。元々はスタック上の値を効率よく取り出すためのインストラクションのようだが，今回のように足し算命令としても使われるそうな。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>World Photography Day に参加してみた</title>
 		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/08/world-photography-day/" />
@@ -1526,251 +1814,6 @@ Garmin Edge では &lt;a href=&#34;https://www.strava.com/&#34; title=&#34;Strav
   &lt;p class=&#34;description&#34;&gt;アニメ版仮面ライダーW「風都探偵」の劇中歌。mora で&lt;a href=&#34;https://mora.jp/package/43000002/ANTCD-A0000007935_F/&#34;&gt;高解像度版&lt;/a&gt;が買える。いかにもアニソンぽい曲で大変よろしい！&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-07-21&#34;&gt;2024-07-21&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt; &lt;!-- 仮面ライダーW 風都探偵 Let’s go ahead --&gt;
-</content>
-	</entry><entry>
-		<title>お散歩カメラ 2024-07-20</title>
-		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/07/20-osanpo-camera/" />
-		<id>tag:text.Baldanders.info,2024-07-21:/remark/2024/07/20-osanpo-camera/</id>
-		<published>2024-07-21T12:55:44+00:00</published>
-		<updated>2024-07-27T19:59:02+00:00</updated>
-		<summary>祝♪ 復活のナビ先生 / Strava オススメのルートを試してみる / 定点観測 / そうだ。温泉に行こう</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;h2&gt;祝♪ 復活のナビ先生&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/07/13-osanpo-camera/#navi&#34; title=&#34;スマホアプリのナビゲーションは地図が見れてナンボ？&#34;&gt;前回&lt;/a&gt;「もしアプリが復帰したらサイコン同時使用とかできないだろうか」と書いたが &lt;a href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: trimm ROLLIN サイクルコンピュータ GPS 自転車 速度計 ワイヤレス ナビゲーション ANT+センサー対応 Bluetooth 心拍数 高度計 2.7インチ スピードセンサー(device only) : スポーツ＆アウトドア&#34;&gt;trimm ROLLIN&lt;/a&gt; の&lt;a href=&#34;https://play.google.com/store/apps/details?id=bike.trimm.rideWithMe&amp;amp;hl=en_US&#34; title=&#34;trimm Cycling Center - Apps on Google Play&#34;&gt;専用アプリ&lt;/a&gt;の故障がようやく直った模様。
-めでたい！ とはいえ既にメインのサイコンは &lt;a href=&#34;https://www.amazon.co.jp/dp/B08BZ5T9NZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon | GARMIN ガーミン エッジ(Edge) 130plus 日本版 本体のみ GPS ブルートゥース Android/iOS対応 (010-02385-05)【日本正規品】 | ガーミン(GARMIN) | トレッキング用GPS・アクセサリ&#34;&gt;GARMIN Edge 130 plus&lt;/a&gt; で運用を始めているので &lt;a href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: trimm ROLLIN サイクルコンピュータ GPS 自転車 速度計 ワイヤレス ナビゲーション ANT+センサー対応 Bluetooth 心拍数 高度計 2.7インチ スピードセンサー(device only) : スポーツ＆アウトドア&#34;&gt;trimm ROLLIN&lt;/a&gt; はナビゲーション専用機として使うことにしよう。&lt;/p&gt;
-&lt;p&gt;試してみたが，心拍数をモニタする&lt;a href=&#34;https://text.baldanders.info/remark/2023/08/monitoring-heart-rate-2/&#34; title=&#34;Garmin vívosmart 5 を買っちまった（心臓リハビリ＠がんばらない 2）&#34;&gt;スマートバンド&lt;/a&gt;は同時に2つのサイコンと接続できるが，&lt;del&gt;手持ちのケイデンスセンサでは2つ同時に接続できないようだ&lt;/del&gt;。
-まぁ，ナビ動作中はケイデンスはさほど気にしないし。
-&lt;a href=&#34;https://www.j-cast.com/2021/06/26414470.html&#34; title=&#34;「大丈夫だ問題ない」大流行に「罪悪感しかない」　伝説のゲーム「エルシャダイ」生みの親の「懺悔」: J-CAST ニュース&#34;&gt;大丈夫だ問題ない&lt;/a&gt;。&lt;/p&gt;
-&lt;div class=&#34;box&#34;&gt;&lt;h3&gt;【2024-07-27 追記】&lt;/h3&gt;
-&lt;p&gt;後日に分かったが &lt;a href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: trimm ROLLIN サイクルコンピュータ GPS 自転車 速度計 ワイヤレス ナビゲーション ANT+センサー対応 Bluetooth 心拍数 高度計 2.7インチ スピードセンサー(device only) : スポーツ＆アウトドア&#34;&gt;trimm ROLLIN&lt;/a&gt; 側でケイデンスセンサを認識できなかったのは単にペアリングが外れてたから，だった。
-&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: trimm ROLLIN サイクルコンピュータ GPS 自転車 速度計 ワイヤレス ナビゲーション ANT+センサー対応 Bluetooth 心拍数 高度計 2.7インチ スピードセンサー(device only) : スポーツ＆アウトドア&#34;&gt;trimm ROLLIN&lt;/a&gt; 側でペアリングし直したら &lt;a href=&#34;https://www.amazon.co.jp/dp/B08BZ5T9NZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon | GARMIN ガーミン エッジ(Edge) 130plus 日本版 本体のみ GPS ブルートゥース Android/iOS対応 (010-02385-05)【日本正規品】 | ガーミン(GARMIN) | トレッキング用GPS・アクセサリ&#34;&gt;GARMIN Edge 130 plus&lt;/a&gt; と同時にモニタできることを確認できた。
-まぁ，どのみちナビ中はケイデンスとか見ないのでいいんだけど（笑）&lt;/p&gt;&lt;/div&gt;
-&lt;h2&gt;Strava オススメのルートを試してみる&lt;/h2&gt;
-&lt;p&gt;最近 &lt;a href=&#34;https://www.strava.com/&#34; title=&#34;Strava&#34;&gt;Strava&lt;/a&gt; が30日間の「サブスクリプションプレビュー」ってのをやっていて，プレミアム機能を試せる。
-特にパーソナルヒートマップとルート探索機能が面白い。
-他の &lt;a href=&#34;https://www.strava.com/&#34; title=&#34;Strava&#34;&gt;Strava&lt;/a&gt; ユーザが公開しているアクティビティ情報を元にルート候補を推薦してくれるらしい。&lt;/p&gt;
-&lt;p&gt;その候補の中から面白いルートがあったので試してみることにした。
-具体的には宍道湖大橋北詰から湖沿いの国道431号を西進し，免許センターから一畑電車沿いの道を通って宍道湖北部広域農道へ出る。
-そこから更に松江西部農免農道に入り，松江城を回って宍道湖大橋北詰に戻るルート。
-具体的には以下の通り。
-約17kmほどの道のりかな。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./cycling-route.png&#34;&gt;&lt;img src=&#34;./cycling-route.png&#34; srcset=&#34;./cycling-route.png 1810w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;国道431号-宍道湖北部広域農道-松江西部農免農道&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./cycling-route.png&#34;&gt;国道431号-宍道湖北部広域農道-松江西部農免農道&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;これを GPX 形式のファイルで出力して &lt;a href=&#34;https://play.google.com/store/apps/details?id=bike.trimm.rideWithMe&amp;amp;hl=en_US&#34; title=&#34;trimm Cycling Center - Apps on Google Play&#34;&gt;trimm Cycling Center&lt;/a&gt; にインポートして実際にナビしてもらうことにした。&lt;/p&gt;
-&lt;p&gt;まずはスタート地点へ。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867328402/&#34;&gt;&lt;img src=&#34;./53867328402_6298ac2b73_e.jpg&#34; srcset=&#34;./53867328402_6298ac2b73_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;宍道湖大橋北詰バス停付近からスタート | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867328402/&#34;&gt;宍道湖大橋北詰バス停付近からスタート | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;なんだこの絵。
-なぜ頭にスイカ？？？ まぁいいや。&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08BZ5T9NZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon | GARMIN ガーミン エッジ(Edge) 130plus 日本版 本体のみ GPS ブルートゥース Android/iOS対応 (010-02385-05)【日本正規品】 | ガーミン(GARMIN) | トレッキング用GPS・アクセサリ&#34;&gt;GARMIN Edge 130 plus&lt;/a&gt; ではそのままモニタリングを続け，新たに &lt;a href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: trimm ROLLIN サイクルコンピュータ GPS 自転車 速度計 ワイヤレス ナビゲーション ANT+センサー対応 Bluetooth 心拍数 高度計 2.7インチ スピードセンサー(device only) : スポーツ＆アウトドア&#34;&gt;trimm ROLLIN&lt;/a&gt; を起動してマウントにセットしナビを開始する。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868647680/&#34;&gt;&lt;img src=&#34;./53868647680_16082b97f4_e.jpg&#34; srcset=&#34;./53868647680_16082b97f4_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;復活のナビ先生 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868647680/&#34;&gt;復活のナビ先生 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08BZ5T9NZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon | GARMIN ガーミン エッジ(Edge) 130plus 日本版 本体のみ GPS ブルートゥース Android/iOS対応 (010-02385-05)【日本正規品】 | ガーミン(GARMIN) | トレッキング用GPS・アクセサリ&#34;&gt;GARMIN Edge 130 plus&lt;/a&gt; のほうはステムバッグに放り込んでおけばいいだろう。&lt;/p&gt;
-&lt;p&gt;宍道湖沿いを西に向かって走り出す。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868587804/&#34;&gt;&lt;img src=&#34;./53868587804_79b89dd30a_e.jpg&#34; srcset=&#34;./53868587804_79b89dd30a_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;宍道湖沿いの道は自転車に優しくない | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868587804/&#34;&gt;宍道湖沿いの道は自転車に優しくない | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;前にフォーゲルパークの近くに&lt;a href=&#34;https://text.baldanders.info/remark/2023/09/matsue-vogel-park/&#34; title=&#34;そうだ，松江フォーゲルパーク（の近く）へ行こう&#34;&gt;行った&lt;/a&gt;ときも思ったが，宍道湖沿いの道はホンマに自転車に優しくないよなぁ。
-まぁ，ロードバイクでバビューンと飛ばしていくならどうってことないんだろうけど，私のはただのクロスバイクだし，そもそも脚力ないからなぁ&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://maps.app.goo.gl/ULutdQbLNaKKpYLF6&#34;&gt;免許センター&lt;/a&gt;から&lt;a href=&#34;https://www.ichibata.co.jp/railway/&#34; title=&#34;ばたでん【一畑電車株式会社】&#34;&gt;一畑電車&lt;/a&gt;沿いの道へ。
-ちょっと寄り道して朝日が丘駅の写真を撮っておくか。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867337417/&#34;&gt;&lt;img src=&#34;./53867337417_017d8786bf_e.jpg&#34; srcset=&#34;./53867337417_017d8786bf_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;一畑電車 朝日が丘駅 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867337417/&#34;&gt;一畑電車 朝日が丘駅 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;前に&lt;a href=&#34;https://text.baldanders.info/remark/2022/02/moving-2022/#lic&#34; title=&#34;引っ越し 2022&#34;&gt;免許の更新&lt;/a&gt;をしたときにこの駅を利用したんだよな。&lt;/p&gt;
-&lt;p&gt;ここから宍道湖北部広域農道に入り，さらに松江西部農免農道に入る。&lt;/p&gt;
-&lt;p&gt;農免農道の正式名称は「農林漁業用揮発油税財源身替農道」と言うそうな。
-なんか農林漁業用の機械にかかる油（揮発油）に対する税金を免除する代わりに，その揮発油税で作ったのが農免農道ってことらしい。&lt;/p&gt;
-&lt;p&gt;松江西部農免農道は2008年に開通までこぎつけたが，農免農道事業自体は当時の民主党の「事業仕分け」の対象になったんだそうで，2010年以降は新規着手されてないんだとか。
-なので，割とレアな道路ということになるだろうか。&lt;/p&gt;
-&lt;p&gt;農道と言うだけあって，道路の周りは一面田んぼでなかなか壮観だ。
-以下は松江・出雲の&lt;span&gt;&lt;a href=&#34;https://www.city.matsue.lg.jp/material/files/group/32/sh.pdf&#34;&gt;郷土史 &lt;sup&gt;&lt;i class=&#34;far fa-file-pdf&#34;&gt;&lt;/i&gt;&lt;/sup&gt;&lt;/a&gt;&lt;/span&gt; には必ず出てくる佐陀川の眺めである。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868595734/&#34;&gt;&lt;img src=&#34;./53868595734_c977dc2240_e.jpg&#34; srcset=&#34;./53868595734_c977dc2240_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;佐陀川 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868595734/&#34;&gt;佐陀川 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;宍道湖北部広域農道も松江西部農免農道も自転車に優しい道だった。
-自転車も通行可能な広い歩道。
-勾配も殆どなくて快適にペダルを漕げる。
-休日だったからかもしれないけど，自動車の流量も少な目。
-いい事尽くしである。&lt;/p&gt;
-&lt;p&gt;今度免許の更新に行くときは宍道湖沿いの国道431号じゃなくて，遠回りでもこっちの農道を通っていこう。
-それまで農道とその周辺の道を探検しておきたい。&lt;/p&gt;
-&lt;h3&gt;喋らないナビ先生&lt;/h3&gt;
-&lt;p&gt;今回は &lt;a href=&#34;https://www.strava.com/&#34; title=&#34;Strava&#34;&gt;Strava&lt;/a&gt; のデータ（GPX 形式）を &lt;a href=&#34;https://play.google.com/store/apps/details?id=bike.trimm.rideWithMe&amp;amp;hl=en_US&#34; title=&#34;trimm Cycling Center - Apps on Google Play&#34;&gt;trimm Cycling Center&lt;/a&gt; にインポートして利用したんだけど，この方法だと上手くナビゲーションしてくれないようだ。
-要するに，単純に道を塗りつぶしたデータを地図に貼り付けただけみたいな状態で，ナビゲーションに必要な道路分岐の情報が脱落してしまってるらしい。
-なので，ルートから外れてもだんまりで，ルートの再検索もしてくれない。
-これに気が付かなくて何度かコースアウトしてしまった（常にナビ画面を見てるわけじゃないからね）。&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: trimm ROLLIN サイクルコンピュータ GPS 自転車 速度計 ワイヤレス ナビゲーション ANT+センサー対応 Bluetooth 心拍数 高度計 2.7インチ スピードセンサー(device only) : スポーツ＆アウトドア&#34;&gt;trimm ROLLIN&lt;/a&gt; でナビゲーションしてもらいたいならルートは &lt;a href=&#34;https://play.google.com/store/apps/details?id=bike.trimm.rideWithMe&amp;amp;hl=en_US&#34; title=&#34;trimm Cycling Center - Apps on Google Play&#34;&gt;trimm Cycling Center&lt;/a&gt; で自前で作らないといけないみたい。
-まぁ，そのくらいは大したことないし，次回以降はそれで行こう。&lt;/p&gt;
-&lt;h2&gt;定点観測&lt;/h2&gt;
-&lt;p&gt;今日は午後から市内で用事があったので，上述のサイクリングのあと，用事を済ませながらいつもの定点観測。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868284781/&#34;&gt;&lt;img src=&#34;./53868284781_8a1d1fa1fc_e.jpg&#34; srcset=&#34;./53868284781_8a1d1fa1fc_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;今日の大山 from 松江城 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868284781/&#34;&gt;今日の大山 from 松江城 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868636249/&#34;&gt;&lt;img src=&#34;./53868636249_7c6f920dfd_e.jpg&#34; srcset=&#34;./53868636249_7c6f920dfd_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;今日の松江城 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868636249/&#34;&gt;今日の松江城 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;ついでに松江城の喫茶店で昼飯。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867381207/&#34;&gt;&lt;img src=&#34;./53867381207_41cf43933b_e.jpg&#34; srcset=&#34;./53867381207_41cf43933b_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;松江城 興雲閣 亀田山喫茶室 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867381207/&#34;&gt;松江城 興雲閣 亀田山喫茶室 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;h2&gt;そうだ。温泉に行こう&lt;/h2&gt;
-&lt;p&gt;思ったより早く用事が済んだので，暑い時間帯であるが&lt;a href=&#34;https://www.kumanokan.jp/&#34; title=&#34;八雲温泉ゆうあい熊野館&#34;&gt;八雲温泉&lt;/a&gt;に行くことにした。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867532427/&#34;&gt;&lt;img src=&#34;./53867532427_a7139ff897_e.jpg&#34; srcset=&#34;./53867532427_a7139ff897_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;八雲温泉へGo | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53867532427/&#34;&gt;八雲温泉へGo | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868850895/&#34;&gt;&lt;img src=&#34;./53868850895_d6e3d99c3d_e.jpg&#34; srcset=&#34;./53868850895_d6e3d99c3d_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;八雲温泉上がりのコーヒー牛乳＆日焼け止め | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868850895/&#34;&gt;八雲温泉上がりのコーヒー牛乳＆日焼け止め | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;夕方近くだと結構人が多いのな。
-やっぱ地元の銭湯なんだな，ここ（笑）&lt;/p&gt;
-&lt;p&gt;さて帰宅するか。
-その前にコメダでクールダウン。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868749053/&#34;&gt;&lt;img src=&#34;./53868749053_b12c5780b2_e.jpg&#34; srcset=&#34;./53868749053_b12c5780b2_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;クールダウン＆糖分補給中 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/53868749053/&#34;&gt;クールダウン＆糖分補給中 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;夏場のかき氷は偉大である！&lt;/p&gt;
-&lt;h2&gt;参考&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08BZ5T9NZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41lISPITGVS._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08BZ5T9NZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;GARMIN ガーミン エッジ(Edge) 130plus 日本版 本体のみ GPS ブルートゥース Android/iOS対応 (010-02385-05)【日本正規品】&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;ガーミン(GARMIN)&lt;/dd&gt;
-    &lt;dd&gt;スポーツ用品&lt;/dd&gt;
-    &lt;dd&gt;B08BZ5T9NZ (ASIN), 0753759265137 (EAN), 753759265137 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;Garmin 製のいっちゃん安いサイクルコンピュータ。白黒液晶で筐体も小さいけど視認性は問題ない。ボタンが硬くてちょっと操作し辛い。ルートナビゲーションはホントに簡易表示のみなのでナビ機能が欲しい人は上位機種を検討したほうがいい。ほかは申し分なし。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-06-30&#34;&gt;2024-06-30&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- GARMIN EDGE 130 PLUS サイクルコンピュータ --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41YvUM53eFL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0BLNFPWTQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;trimm ROLLIN サイクルコンピュータ GPS 自転車 速度計 ワイヤレス ナビゲーション ANT&amp;#43;センサー対応 Bluetooth 心拍数 高度計 2.7インチ スピードセンサー(device only)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Trimm&lt;/dd&gt;
-    &lt;dd&gt;&lt;/dd&gt;
-    &lt;dd&gt;B0BLNFPWTQ (ASIN), 8809748020286 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;韓国企業だけどモノは made in Chaina って書いてあった。ナビ機能付きで2万円以下というのは安い。スマホアプリと連携させて操作する。モノクロ液晶だがバッテリ消費は少なめ。各種センサーやスマートウォッチと連携可能。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-07-29&#34;&gt;2023-07-29&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- trimm ROLLIN サイクルコンピュータ --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B09XGYX7JF?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/31ZZiso7kIL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B09XGYX7JF?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;GARMIN(ガーミン) vívosmart 5 Black S/M バンド型スマートウォッチ 心拍計【日本正規品】&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;ガーミン(GARMIN) (Release 2022-04-21)&lt;/dd&gt;
-    &lt;dd&gt;エレクトロニクス&lt;/dd&gt;
-    &lt;dd&gt;B09XGYX7JF (ASIN), 0753759301590 (EAN), 753759301590 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;サイクルコンピュータと Bluetooth または ANT+ で連携可能なスマートバンド（活動量計）として購入。 Garmin 製なのに自前では GPS 機能がない（スマホの GPS 機能と組み合わせて使う）。活動量計としての機能は十分というかありすぎる（笑）&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-08-01&#34;&gt;2023-08-01&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- GARMIN vívosmart 5 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B09TVLHJ1X?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/31S-IHi04IL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B09TVLHJ1X?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;ミニサイズ Shokz OpenRun Mini 骨伝導イヤホン 公式ストア正規品 ワイヤレス 急速充電 驚きの通話品質 IP67防塵防水 bluetooth5.1 2 30日間返品無料 コズミックブラック&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Shenzhen Shokz Co., Ltd.&lt;/dd&gt;
-    &lt;dd&gt;エレクトロニクス&lt;/dd&gt;
-    &lt;dd&gt;B09TVLHJ1X (ASIN), 4512223694288 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;以前のものはマルチファンクションキーが利かなくなったので Black Friday の安売りのタイミングで買い替え。私のように頭の小さい人向け（笑） 値段並みの音質はある，と思う。耳が自由って素晴らしい。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-12-04&#34;&gt;2022-12-04&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Shokz OpenRun Mini 骨伝導ヘッドセット --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08L4WKDZ7?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41MZe0XgHdL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08L4WKDZ7?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Canon コンパクトデジタルカメラ PowerShot ZOOM 写真と動画が撮れる望遠鏡 PSZOOM&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;キヤノン (Release 2020-12-10)&lt;/dd&gt;
-    &lt;dd&gt;エレクトロニクス&lt;/dd&gt;
-    &lt;dd&gt;B08L4WKDZ7 (ASIN), 4549292179675 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;望遠鏡型コンパクトデジカメ。メモリと充電器（要 Power Delivery）は別に用意する必要がある。使い勝手はまぁまぁ。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-12-04&#34;&gt;2022-12-04&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- PowerShot ZOOM --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08K34WLXD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41GknHod8AL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08K34WLXD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;[FAIRWEATHER(フェアウェザー)] stem bag x-pac/coyote&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;FAIRWEATHER(フェアウェザー)&lt;/dd&gt;
-    &lt;dd&gt;&lt;/dd&gt;
-    &lt;dd&gt;B08K34WLXD (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;スポーツサイクルのステム部分に取り付けられる小物入れ。防水仕様。底に小さなハトメ穴が空いていて，万一水が入った場合でも排出できるようになっている。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-05-03&#34;&gt;2023-05-03&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- ステムバッグ（stem bag） --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BT1X9H7B?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41Ef2UTIwKL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0BT1X9H7B?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;ビオレUＶ アクアリッチ アクアプロテクトミスト 60ミリリットル (x 1)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;花王 (Release 2023-02-08)&lt;/dd&gt;
-    &lt;dd&gt;ヘルスケア&amp;amp;ケア用品&lt;/dd&gt;
-    &lt;dd&gt;B0BT1X9H7B (ASIN), 4901301416438 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;スプレータイプで白くならない。鞄に忍ばせて手軽に使える。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-07-29&#34;&gt;2023-07-29&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 日焼け止め ミストタイプ --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B09NRGCBY5?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41-u0o&amp;#43;02sL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B09NRGCBY5?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;ビオレUＶ アクアリッチ アクアプロテクトローション 70ミリリットル (x 1)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;花王 (Release 2022-02-04)&lt;/dd&gt;
-    &lt;dd&gt;ヘルスケア&amp;amp;ケア用品&lt;/dd&gt;
-    &lt;dd&gt;B09NRGCBY5 (ASIN), 4901301406866 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;乳液タイプの日焼け止め。白くならない。お肌しっとり。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-05-24&#34;&gt;2024-05-24&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 日焼け止め 乳液タイプ --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B09Z6F7MGT?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51qhOPSEaCL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B09Z6F7MGT?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;経口補水液 OS-1 オーエスワン 500ml × 6本 オリジナルポケットティッシュ付き&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;&lt;/dd&gt;
-    &lt;dd&gt;&lt;/dd&gt;
-    &lt;dd&gt;B09Z6F7MGT (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;経口補水液。サイクリングの際にドラッグストアで購入している（ドラッグストアのほうが安い）。夏場はどうしても汗をかくからね。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-06-01&#34;&gt;2024-06-01&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- OS-1 経口補水液 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CZQ9YF7Y?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/31QRHB5BOAL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CZQ9YF7Y?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;[HAYAKAWA FACTORY] Tシャツ シャーロック・ホームズ 221B BAKER STREET (L, ネイビー／ゴールド)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;&lt;/dd&gt;
-    &lt;dd&gt;ウェア&amp;amp;シューズ&lt;/dd&gt;
-    &lt;dd&gt;B0CZQ9YF7Y (ASIN), 4580448303032 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;ついカッとなってポチった。反省はしない。購入時には M サイズがなかった orz&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-05-08&#34;&gt;2024-05-08&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Tシャツ シャーロック・ホームズ 221B BAKER STREET --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08M23DNWH?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/510C3zFiQNL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08M23DNWH?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;復活のイデオン&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;たいらいさお (メインアーティスト)&lt;/dd&gt;
-    &lt;dd&gt;SUNRISE Music Label 2009-08-26 (Release 2020-11-05)&lt;/dd&gt;
-    &lt;dd&gt;MP3 ダウンロード&lt;/dd&gt;
-    &lt;dd&gt;B08M23DNWH (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;「伝説巨神イデオン」サントラに収録。「復活のイデオン」は名曲だと思う。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-04-04&#34;&gt;2023-04-04&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 復活のイデオン --&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.strava.com/&#34; title=&#34;Strava&#34;&gt;Strava&lt;/a&gt; のセグメント公開記録を見ると，トップ目の人は国道431号線を時速40km以上で走ってる。これなら原チャリとさして変わらん。私はその半分の速度が精一杯だけど。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
 </content>
 	</entry>
 </feed>

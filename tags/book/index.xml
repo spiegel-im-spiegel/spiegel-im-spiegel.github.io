@@ -2,13 +2,300 @@
 	<title>List of Book - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/book/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/book/index.xml" />
-	<id>tag:text.Baldanders.info,2024-08-11:/tags</id>
-	<updated>2024-08-11T13:54:27+09:00</updated>
+	<id>tag:text.Baldanders.info,2024-08-23:/tags</id>
+	<updated>2024-08-23T20:52:01+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>『効率的な Go』読書会 4回目</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/08/efficient-go-4/" />
+		<id>tag:text.Baldanders.info,2024-08-23:/remark/2024/08/efficient-go-4/</id>
+		<published>2024-08-23T11:52:01+00:00</published>
+		<updated>2024-08-23T11:53:38+00:00</updated>
+		<summary>逆アセンブルと自動最適化について覚え書き</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;先日『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』の4回目の読書会が行われた。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://yokohama-go-reading.connpass.com/event/325866/&#34;&gt;第61回横浜Go読書会（オンライン） - connpass&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;実は3回目は私用で欠席したのだった。
+あとで復習しないとなー。&lt;/p&gt;
+&lt;p&gt;前回の3回目と今回の4回目は3章の「効率化の攻略」という大事な章を含んでいるのだが，この辺の話を書きはじめると（量的に）大変なことになるので，この記事では4章の「Go での CPU リソースの（ちょっとした）解説」の最初の方に出てくる &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コードをアセンブラコードに変換して眺める話を実際に手を動かして試すに留める。
+覚え書きいうやつやね。&lt;/p&gt;
+&lt;p&gt;なお，今回の &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コンパイラのバージョンは先日&lt;a href=&#34;https://text.baldanders.info/release/2024/08/go-1_23_0-is-released/&#34; title=&#34;Go 1.23 のリリース&#34;&gt;リリース&lt;/a&gt;されたばかりの 1.23.0 を使用している。
+このため『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』で例示されている内容とはだいぶ異なっている点に注意してほしい。&lt;/p&gt;
+&lt;h2&gt;サンプルコード&lt;/h2&gt;
+&lt;p&gt;まずはサンプルコードを書いてみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;bytes&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;os&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;strconv&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fileName&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ReadFile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fileName&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;line&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;bytes&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Split&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;byte&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;¥n&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;num&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;strconv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ParseInt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;line&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;),&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;10&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;num&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;numbers.txt&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Fprintln&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Stderr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これは『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』4.2節に出てくるコードに &lt;code&gt;main()&lt;/code&gt; 関数を付加したものである。
+なんで &lt;code&gt;main()&lt;/code&gt; 関数を付加したかというと，そうしないと &lt;code&gt;go build&lt;/code&gt; が通らないから。&lt;/p&gt;
+&lt;h2&gt;アセンブラコードを出力しながらビルドする&lt;/h2&gt;
+&lt;p&gt;コンパイルオプションに &lt;code&gt;-S&lt;/code&gt; を付加すると標準エラー出力に &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の疑似アセンブリ言語のコードを吐き出しながらビルドを行う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go build -gcflags=&amp;#34;-S&amp;#34; sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;実際に吐き出した内容はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;# command-line-arguments
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;main.Sum STEXT size=237 args=0x10 locals=0x88 funcid=0x0 align=0x0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0000 00000 (/path/to/sum.go:10)    TEXT    main.Sum(SB), ABIInternal, $136-16
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0000 00000 (/path/to/sum.go:10)    LEAQ    -8(SP), R12
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0005 00005 (/path/to/sum.go:10)    CMPQ    R12, 16(R14)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0009 00009 (/path/to/sum.go:10)    PCDATA    $0, $-2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0009 00009 (/path/to/sum.go:10)    JLS    207
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x000f 00015 (/path/to/sum.go:10)    PCDATA    $0, $-1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;各インストラクションの意味については以下の記事が参考になる。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/hsaki/articles/godoc-asm-ja&#34;&gt;解説&amp;amp;翻訳 - A Quick Guide to Go&amp;rsquo;s Assembler&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;ちなみにこのインストラクションは AMD (or Intel) 系のもので，たとえば Apple Mx チップ用にビルドすると異なるインストラクションが吐き出されたりするらしい。&lt;/p&gt;
+&lt;h2&gt;コンパイラによる自動最適化の決定を表示する&lt;/h2&gt;
+&lt;p&gt;コンパイルオプションに &lt;code&gt;-m=&amp;lt;number&amp;gt;&lt;/code&gt; を付加するとコンパイラによる自動最適化の決定を標準エラー出力に表示しながらビルドしてくれる（数字は詳細度を示す）。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go build -gcflags=&amp;#34;-m=1&amp;#34; sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;# command-line-arguments
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: can inline atomic.(*Pointer[os.dirInfo]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: can inline atomic.(*Pointer[os.dirInfo]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: can inline atomic.(*Pointer[os.dirInfo]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: can inline atomic.(*Pointer[os.dirInfo]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:15:34: inlining call to bytes.Split
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:13: inlining call to fmt.Println
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:10:10: leaking param: fileName
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:15:45: ([]byte)(&amp;#34;¥n&amp;#34;) does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:16:39: string(line) does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:28:15: ... argument does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:13: ... argument does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:14: n escapes to heap
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;たとえば “&lt;code&gt;inlining call to bytes.Split&lt;/code&gt;” は &lt;code&gt;bytes.Split()&lt;/code&gt; 関数をインライン化することを指している。
+“&lt;code&gt;does not escape&lt;/code&gt;” は値がスタック上に積まれることを意味する。
+逆に “&lt;code&gt;escapes to heap&lt;/code&gt;” は値をヒープ上に置くことを意味している。&lt;/p&gt;
+&lt;p&gt;いやぁ，この機能は知らんかった。
+めっさお役立ちやん。
+この情報を考慮してアセンブラコードを見れば実際にどういう風にコンパイルされているか分かりやすくなる。&lt;/p&gt;
+&lt;h2&gt;バイナリコードを逆アセンブルする&lt;/h2&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』ではバイナリの逆アセンブルに &lt;code&gt;objdump&lt;/code&gt; コマンドを使用しているが，これって多分 Windows に（標準では）ないコマンドだよね。
+あと，今どきの Linux ディストリビューションには GCC 等の開発環境が入ってなかったりする。
+この場合は，以下のように開発環境を入れれば &lt;code&gt;objdump&lt;/code&gt; コマンドもインストールされる（Debian/Ubuntu の場合）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo apt install build-essential
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;逆アセンブルする際は &lt;code&gt;objdump&lt;/code&gt; コマンドを生で使うのではなく &lt;code&gt;go tool&lt;/code&gt; コマンドから呼び出すのがよさげ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go tool objdump -S sum
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の疑似アセンブリ言語に逆アセンブルした結果が標準出力に表示される。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;TEXT main.Sum(SB) /path/to/sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Sum(fileName string) (ret int64, _ error) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e000        4c8d6424f8        LEAQ -0x8(SP), R12
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e005        4d3b6610        CMPQ R12, 0x10(R14)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e009        0f86c0000000        JBE 0x49e0cf
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e00f        55            PUSHQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e010        4889e5            MOVQ SP, BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e013        4883c480        ADDQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e017        4889842490000000    MOVQ AX, 0x90(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    b, err := os.ReadFile(fileName)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e01f        90            NOPL
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e020        e87b74ffff        CALL os.ReadFile(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    if err != nil {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e025        4885ff            TESTQ DI, DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e028        752c            JNE 0x49e056
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e02a        66c7442465c2a5        MOVW $-0x5a3e, 0x65(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e031        c64424676e        MOVB $0x6e, 0x67(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e036        488d7c2465        LEAQ 0x65(SP), DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e03b        be03000000        MOVL $0x3, SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e040        4989f0            MOVQ SI, R8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e043        4531c9            XORL R9, R9
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e046        49c7c2ffffffff        MOVQ $-0x1, R10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e04d        e84e54fdff        CALL bytes.genSplit(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e052        31c9            XORL CX, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e054        eb2b            JMP 0x49e081
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        return 0, err
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e056        31c0            XORL AX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e058        4889fb            MOVQ DI, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e05b        4889f1            MOVQ SI, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e05e        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e062        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e063        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e064        488b542478        MOVQ 0x78(SP), DX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e069        4883c218        ADDQ $0x18, DX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e06d        488b5c2470        MOVQ 0x70(SP), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e072        48ffcb            DECQ BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e075        488b742468        MOVQ 0x68(SP), SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e07a        488d0c06        LEAQ 0(SI)(AX*1), CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e07e        4889d0            MOVQ DX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e081        4885db            TESTQ BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e084        7e3c            JLE 0x49e0c2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e086        48895c2470        MOVQ BX, 0x70(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e08b        48894c2468        MOVQ CX, 0x68(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e090        4889442478        MOVQ AX, 0x78(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e095        488b18            MOVQ 0(AX), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e098        488b4808        MOVQ 0x8(AX), CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        num, err := strconv.ParseInt(string(line), 10, 64)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e09c        488d442445        LEAQ 0x45(SP), AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0a1        e8fa93fcff        CALL runtime.slicebytetostring(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0a6        b90a000000        MOVL $0xa, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ab        bf40000000        MOVL $0x40, DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b0        e8ab6dfdff        CALL strconv.ParseInt(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        if err != nil {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b5        4885db            TESTQ BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b8        74aa            JE 0x49e064
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            return 0, err
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ba        31c0            XORL AX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0bc        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c0        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c1        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    return ret, nil
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c2        4889c8            MOVQ CX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c5        31db            XORL BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c7        31c9            XORL CX, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c9        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0cd        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ce        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Sum(fileName string) (ret int64, _ error) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0cf        4889442408        MOVQ AX, 0x8(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0d4        48895c2410        MOVQ BX, 0x10(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0d9        e882c3fcff        CALL runtime.morestack_noctxt.abi0(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0de        488b442408        MOVQ 0x8(SP), AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0e3        488b5c2410        MOVQ 0x10(SP), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0e8        e913ffffff        JMP main.Sum(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ちょっと長いけど &lt;code&gt;Sum()&lt;/code&gt; 関数部分を抜粋してみた。
+たとえば，前節で &lt;code&gt;bytes.Split()&lt;/code&gt; 関数がインライ化されていることが示されているが，実際にどのようなコードになっているかよく分かる（&lt;code&gt;bytes.genSplit()&lt;/code&gt; 関数を呼び出してるだけだが）。&lt;/p&gt;
+&lt;p&gt;それにしても『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』の例示とはだいぶ違うなぁ。&lt;/p&gt;
+&lt;p&gt;元の &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コードで &lt;code&gt;ret += num&lt;/code&gt; に相当する部分をハイライトにしているが，『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』では&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;0x4f9b6d        488b742450      MOVQ 0x50(SP), SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;0x4f9b72        4801c6          ADDQ AX, SI
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『効率的な Go』 p.123&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;てな感じに書かれているのに対し， &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; 1.23 で実際に試してみると &lt;code&gt;ADDQ&lt;/code&gt; インストラクションが見当たらない。
+あれー？ とよく見てみたら &lt;code&gt;LEAQ&lt;/code&gt; インストラクションを使ってるのかよ&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;h2&gt;最適化の調整は最後の手段&lt;/h2&gt;
+&lt;p&gt;今回試してみて分かったのは，コンパイラによる自動最適化は &lt;a href=&#34;https://go.dev/&#34;&gt;GO&lt;/a&gt; のバージョンによって大きく異なるということだ。
+だから，最適化の部分で無理やりチューニング（&lt;code&gt;-N&lt;/code&gt; オプションで最適化を無効にする，または特定の処理ブロックをアセンブラで書く等）しようとしても逆に非効率な構成になる可能性もある。
+変態的なコードも自動最適化の妨げとなる。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;巧妙すぎるコードは読みづらく、プログラムされた機能の維持が困難になります。また、コンパイラーがパターンを最適化したものと一致させようとすると、コンパイラーを混乱させることにもなります。慣用的なコードを使い、関数やループを単純にしておくと、コンパイラーが最適化を適用してくれる可能性が高くなり、あなたが最適化する必要がなくなります！&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『効率的な Go』 p.131&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;どうしても最適化部分を弄らないといけないとしても，それは最後の手段になるのだろう。&lt;/p&gt;
+&lt;p&gt;4章ではほかにも「メモリウォール問題」「スケジューラー」「並行処理」といった CPU に近いレイヤの話が出てくる。
+特に組み込みとかやってる人は興味ある話題かもしれない。&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41&amp;#43;ew2wl2jL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;効率的なGo ―データ指向によるGoアプリケーションの性能最適化&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Bartłomiej Płotka (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリー・ジャパン 2024-02-24&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4814400535 (ASIN), 9784814400539 (EAN), 4814400535 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814400539/&#34;&gt;版元&lt;/a&gt;で Ebook を買える。Go言語のリファレンス本ではない。フトウェア工学，プログラミング（の考え方）を学ぶ教科書的な位置づけかなぁ。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-04-21&#34;&gt;2024-04-21&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 効率的なGo : Efficient Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873119979?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41WaZWxEzVL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873119979?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による分散サービス ―信頼性、拡張性、保守性の高いシステムの構築&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Travis Jeffery (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2022-08-03&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873119979 (ASIN), 9784873119977 (EAN), 4873119979 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873119977/&#34;&gt;版元&lt;/a&gt;でデジタル版を購入。&lt;a href=&#34;https://technical-book-reading-2.connpass.com/&#34;&gt;読書会&lt;/a&gt;の課題図書。ハンズオンぽい構成でコードがたくさん書かれているのがよい。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-08-03&#34;&gt;2022-08-03&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による分散サービス --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;&lt;code&gt;LEA&lt;/code&gt; インストラクションは第1オペランドの値を第2オペランドで示すレジスタにロードするのだが，たとえば第1オペランドが &lt;code&gt;0(SI)(AX*1)&lt;/code&gt; なら 0+SIレジスタの値+AXレジスタの値 みたいな感じで足し算を同時に行う。しかも足し算の結果でフラグ値が変わらない（副作用なし）という便利な機能らしい。元々はスタック上の値を効率よく取り出すためのインストラクションのようだが，今回のように足し算命令としても使われるそうな。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>七辻ゆゆさんの作品群が自己出版される</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/08/nanatsuji-yuyu/" />
 		<id>tag:text.Baldanders.info,2024-08-11:/remark/2024/08/nanatsuji-yuyu/</id>
@@ -541,7 +828,7 @@ www.hayakawabooks.com/n/nac6f0e5bd...&lt;br&gt;&lt;br&gt;&lt;a href=&#34;https:/
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/05/efficient-go-2/" />
 		<id>tag:text.Baldanders.info,2024-05-18:/remark/2024/05/efficient-go-2/</id>
 		<published>2024-05-18T11:19:34+00:00</published>
-		<updated>2024-05-19T07:59:02+00:00</updated>
+		<updated>2024-08-23T08:21:01+00:00</updated>
 		<summary>第2章だけ立ち読みするってのも手かも知れない。</summary>
 		<author>
 			<name>Spiegel</name>
@@ -659,7 +946,7 @@ www.hayakawabooks.com/n/nac6f0e5bd...&lt;br&gt;&lt;br&gt;&lt;a href=&#34;https:/
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/04/efficient-go-1/" />
 		<id>tag:text.Baldanders.info,2024-04-21:/remark/2024/04/efficient-go-1/</id>
 		<published>2024-04-21T04:18:52+00:00</published>
-		<updated>2024-05-18T11:19:50+00:00</updated>
+		<updated>2024-08-23T08:21:01+00:00</updated>
 		<summary>『効率的な Go』読書会が始まった</summary>
 		<author>
 			<name>Spiegel</name>
@@ -1382,166 +1669,6 @@ www.hayakawabooks.com/n/nac6f0e5bd...&lt;br&gt;&lt;br&gt;&lt;a href=&#34;https:/
   &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://wirelesswire.jp/author/yomoyomo/&#34;&gt;WirelessWire News 連載&lt;/a&gt;の書籍化。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2019/01/infoshare2/&#34;&gt;こちら&lt;/a&gt;。祝 &lt;a href=&#34;https://www.amazon.co.jp/dp/B08DD2MC46?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1&#34;&gt;Kindle 化&lt;/a&gt;！&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2018-12-31&#34;&gt;2018-12-31&lt;/abbr&gt;&lt;/p&gt;
 &lt;/div&gt; &lt;!-- 続・情報共有の未来 --&gt;
-</content>
-	</entry><entry>
-		<title>お散歩カメラ 2023-06-03</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2023/06/03-osanpo-camera/" />
-		<id>tag:text.Baldanders.info,2023-06-03:/remark/2023/06/03-osanpo-camera/</id>
-		<published>2023-06-03T11:10:48+00:00</published>
-		<updated>2024-01-02T11:40:36+00:00</updated>
-		<summary>千本ダムと日野目天神社 / 今日も7%勾配を越えて松江城へ / 久しぶりのお好み焼 / さぁ，帰りませう</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;今回の台風，本州直撃こそなかったけど四国から紀伊半島・東海・関東と前線の雨雲が居座って大変だったみたいですねぇ。
-お見舞い申し上げます。&lt;/p&gt;
-&lt;p&gt;私の居る松江市は防災無線が鳴ることもなく夕方には晴れ上がっていました。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52945160963/&#34;&gt;&lt;img src=&#34;./52945160963_9a5ce868df_e.jpg&#34; srcset=&#34;./52945160963_9a5ce868df_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;台風一過 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52945160963/&#34;&gt;台風一過 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;というわけで，今日は自転車でお出かけするしかない！&lt;/p&gt;
-&lt;h2&gt;千本ダムと日野目天神社&lt;/h2&gt;
-&lt;p&gt;とりあえず&lt;ruby&gt;&lt;rb&gt;忌部&lt;/rb&gt;&lt;rp&gt; (&lt;/rp&gt;&lt;rt&gt;いんべ&lt;/rt&gt;&lt;rp&gt;) &lt;/rp&gt;&lt;/ruby&gt;の&lt;a href=&#34;https://goo.gl/maps/EAzaq1N4fxGfpaa16&#34;&gt;千本ダム&lt;/a&gt;に行くべ。
-というわけで，行ってきた。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946814315/&#34;&gt;&lt;img src=&#34;./52946814315_c751d266ce_e.jpg&#34; srcset=&#34;./52946814315_c751d266ce_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;松江 千本ダム | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946814315/&#34;&gt;松江 千本ダム | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;周辺を歩いて散策しようと思ったが，草刈りとか側溝の掃除とかされてる方々が沢山いたので，遠慮して&lt;a href=&#34;https://goo.gl/maps/DxjFa1DwjbU4JtBk9&#34;&gt;千本水神社&lt;/a&gt;のお参りだけしておいた。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946896198/&#34;&gt;&lt;img src=&#34;./52946896198_3095377bed_e.jpg&#34; srcset=&#34;./52946896198_3095377bed_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;松江 千本水神社 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946896198/&#34;&gt;松江 千本水神社 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;おおっ！ ちゃんと周辺の草刈りがされている。
-お疲れ様です。&lt;/p&gt;
-&lt;p&gt;折角なのでもう少し足を延ばして「&lt;a href=&#34;https://goo.gl/maps/Rji9TwrWsBHzqZ7X8&#34;&gt;&lt;ruby&gt;&lt;rb&gt;日野目天神社&lt;/rb&gt;&lt;rp&gt; (&lt;/rp&gt;&lt;rt&gt;ひのめてんじんじゃ&lt;/rt&gt;&lt;rp&gt;) &lt;/rp&gt;&lt;/ruby&gt;&lt;/a&gt;」まで行ってみた。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946580479/&#34;&gt;&lt;img src=&#34;./52946580479_b9dcd6d4c6_e.jpg&#34; srcset=&#34;./52946580479_b9dcd6d4c6_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;松江 日野目天神社 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946580479/&#34;&gt;松江 日野目天神社 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;本殿？ ていうか祠？ はこんな感じ。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946827085/&#34;&gt;&lt;img src=&#34;./52946827085_b2bf3d0559_e.jpg&#34; srcset=&#34;./52946827085_b2bf3d0559_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;松江 日野目天神社 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946827085/&#34;&gt;松江 日野目天神社 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;h2&gt;今日も7%勾配を越えて松江城へ&lt;/h2&gt;
-&lt;p&gt;神社巡りに満足したので取って返してコメダで休憩。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946444416/&#34;&gt;&lt;img src=&#34;./52946444416_5a47923459_e.jpg&#34; srcset=&#34;./52946444416_5a47923459_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;コメダで休憩中 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946444416/&#34;&gt;コメダで休憩中 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;やっぱコメダは小倉トーストだよね。&lt;/p&gt;
-&lt;p&gt;充分身体を休めたら，今回も7%勾配の陸橋を登るです。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946541506/&#34;&gt;&lt;img src=&#34;./52946541506_a1bb214f16_e.jpg&#34; srcset=&#34;./52946541506_a1bb214f16_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;行くぜ！ 7%勾配 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946541506/&#34;&gt;行くぜ！ 7%勾配 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;そのまま宍道湖沿いをゆっくり流す。
-おっ，釣り船が出てるな。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52947010598/&#34;&gt;&lt;img src=&#34;./52947010598_543a51dcf2_e.jpg&#34; srcset=&#34;./52947010598_543a51dcf2_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;今日の宍道湖 釣り人の人 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52947010598/&#34;&gt;今日の宍道湖 釣り人の人 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;そのまま&lt;a href=&#34;https://www.library.pref.shimane.lg.jp/&#34;&gt;島根県立図書館&lt;/a&gt;まで行き，駐輪場に自転車を止めて松江城に登ってみる。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52945950717/&#34;&gt;&lt;img src=&#34;./52945950717_4b1bd39716_e.jpg&#34; srcset=&#34;./52945950717_4b1bd39716_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;今日の松江城 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52945950717/&#34;&gt;今日の松江城 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;ついでに大山も撮ってみたが写真じゃほぼ分からんな（笑）&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946937780/&#34;&gt;&lt;img src=&#34;./52946937780_d6e4385829_e.jpg&#34; srcset=&#34;./52946937780_d6e4385829_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;今日の大山 from 松江城 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946937780/&#34;&gt;今日の大山 from 松江城 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;そうそう。
-今日のバードウォッチング。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52947015948/&#34;&gt;&lt;img src=&#34;./52947015948_23d2fe33d9_e.jpg&#34; srcset=&#34;./52947015948_23d2fe33d9_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;今日のバードウォッチング | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52947015948/&#34;&gt;今日のバードウォッチング | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;セグロセキレイかな。
-この辺の野鳥ってあんまり人を恐れないよね。
-走ってる自転車の前を平気で横切ったりするし。
-私のほうがビビるっての。&lt;/p&gt;
-&lt;p&gt;このあとは周辺をウロウロしたり&lt;a href=&#34;https://www.library.pref.shimane.lg.jp/&#34;&gt;図書館&lt;/a&gt;で和んだり。&lt;/p&gt;
-&lt;h2&gt;久しぶりのお好み焼&lt;/h2&gt;
-&lt;p&gt;昼になったのでなに食おうか考えて「ラーメンでも食いに行くか」と思ったのだが，そういえば職場の人が「島根大学の近くに広島のお好み焼のお店ができた」と言っていたのを思い出した。
-ちょろんと行ってみるべ。
-混んでたら諦める。
-&lt;a href=&#34;https://goo.gl/maps/2bK3UuDCSs5r6yZf9&#34;&gt;ここ&lt;/a&gt;かな？&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52947232198/&#34;&gt;&lt;img src=&#34;./52947232198_e02a2fee6e_e.jpg&#34; srcset=&#34;./52947232198_e02a2fee6e_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;お好み焼 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52947232198/&#34;&gt;お好み焼 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;運良く席が空いてた。
-「&lt;a href=&#34;https://nikkan-spa.jp/1916810&#34; title=&#34;広島で「広島焼き」がタブー扱いされる理由を探る。「口にしたら生きては帰れない」 | 日刊SPA!&#34;&gt;広島焼き&lt;/a&gt;」でも「広島風」でも「お好み焼き&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;」でもなく「お好み焼」のお店。
-さっそく肉玉そばを注文する。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946056647/&#34;&gt;&lt;img src=&#34;./52946056647_3aa5339241_e.jpg&#34; srcset=&#34;./52946056647_3aa5339241_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;久しぶり、肉玉そば | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946056647/&#34;&gt;久しぶり、肉玉そば | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;というわけで，今日のメシ活でした。&lt;/p&gt;
-&lt;h2&gt;さぁ，帰りませう&lt;/h2&gt;
-&lt;p&gt;このあとは，楽山公園経由で&lt;a href=&#34;https://www.library.pref.shimane.lg.jp/&#34;&gt;図書館&lt;/a&gt;に戻り，夕方まで読書。
-時間が来たのでまた宍道湖沿いをのんびり帰った。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946905686/&#34;&gt;&lt;img src=&#34;./52946905686_a8732de1da_e.jpg&#34; srcset=&#34;./52946905686_a8732de1da_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;今日の宍道湖 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/52946905686/&#34;&gt;今日の宍道湖 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;今日もたくさん動いた。
-&lt;a href=&#34;https://text.baldanders.info/remark/2022/12/monitoring-heart-rate/&#34; title=&#34;心拍数を監視する&#34;&gt;Fitbit の報告&lt;/a&gt;によると18K歩以上歩いたことになっている（自転車での移動も含む）。&lt;/p&gt;
-&lt;p&gt;明日はのんびりしよう。&lt;/p&gt;
-&lt;p&gt;そうそう。
-日焼け止めを塗り忘れて腕とか真っ赤になってしまった。
-次回は忘れないようにしないと。
-これからは通勤時も日焼け止めがいるかな。&lt;/p&gt;
-&lt;h2&gt;参考&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08L4WKDZ7?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41MZe0XgHdL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08L4WKDZ7?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Canon コンパクトデジタルカメラ PowerShot ZOOM 写真と動画が撮れる望遠鏡 PSZOOM&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;キヤノン (Release 2020-12-10)&lt;/dd&gt;
-    &lt;dd&gt;エレクトロニクス&lt;/dd&gt;
-    &lt;dd&gt;B08L4WKDZ7 (ASIN), 4549292179675 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;望遠鏡型コンパクトデジカメ。メモリと充電器（要 Power Delivery）は別に用意する必要がある。使い勝手はまぁまぁ。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-12-04&#34;&gt;2022-12-04&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- PowerShot ZOOM --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08K34WLXD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41GknHod8AL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08K34WLXD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;[FAIRWEATHER(フェアウェザー)] stem bag x-pac/coyote&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;FAIRWEATHER(フェアウェザー)&lt;/dd&gt;
-    &lt;dd&gt;&lt;/dd&gt;
-    &lt;dd&gt;B08K34WLXD (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;スポーツサイクルのステム部分に取り付けられる小物入れ。防水仕様。底に小さなハトメ穴が空いていて，万一水が入った場合でも排出できるようになっている。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-05-03&#34;&gt;2023-05-03&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- ステムバッグ（stem bag） --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08FSBNJG8?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/31vqXm740wL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08FSBNJG8?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Fitbit Inspire2 フィットネストラッカー Black ブラック L/Sサイズ [日本正規品]&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Fitbit (Release 2020-10-02)&lt;/dd&gt;
-    &lt;dd&gt;エレクトロニクス&lt;/dd&gt;
-    &lt;dd&gt;B08FSBNJG8 (ASIN), 0810038852805 (EAN), 810038852805 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;私の場合，心拍数がモニタできればいいので充分な性能。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-12-26&#34;&gt;2022-12-26&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Fitbit Inspire2 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08VMWL13F?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51yZmqxxGTL._SL160_.jpg&#34; width=&#34;120&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08VMWL13F?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;VAAM(ヴァーム) 明治 ヴァーム(VAAM) アスリート 顆粒 栄養ドリンク風味 4.7g×10袋&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;明治 (Release 2021-03-16)&lt;/dd&gt;
-    &lt;dd&gt;ヘルスケア&amp;amp;ケア用品&lt;/dd&gt;
-    &lt;dd&gt;B08VMWL13F (ASIN), 4902705035614 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;運動時に脂肪をエネルギーに変えやすくする働きがあるらしい。お試しで買ってみた。とりあえず1時間以上自転車に乗る場合に服用している。水に溶かさず飲むと書いてあるが，水と一緒に飲まないと大変なことになるので注意（経験済み）&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-11-04&#34;&gt;2022-11-04&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- VAAM --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BT1X9H7B?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41Ef2UTIwKL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0BT1X9H7B?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;ビオレUＶ アクアリッチ アクアプロテクトミスト 60ミリリットル (x 1)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;花王 (Release 2023-02-08)&lt;/dd&gt;
-    &lt;dd&gt;ヘルスケア&amp;amp;ケア用品&lt;/dd&gt;
-    &lt;dd&gt;B0BT1X9H7B (ASIN), 4901301416438 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;スプレータイプで白くならない。鞄に忍ばせて手軽に使える。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-07-29&#34;&gt;2023-07-29&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 日焼け止め --&gt;
-&lt;!-- eof --&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;広島の「お好み焼」は後ろに送り仮名がつかないのよ。細かい話だけど，こだわる人もおるけぇね。気ぃつけなはれや！&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
 </content>
 	</entry>
 </feed>

@@ -2,13 +2,300 @@
 	<title>List of Programming - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/programming/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/programming/index.xml" />
-	<id>tag:text.Baldanders.info,2024-08-14:/tags</id>
-	<updated>2024-08-14T08:49:49+09:00</updated>
+	<id>tag:text.Baldanders.info,2024-08-23:/tags</id>
+	<updated>2024-08-23T20:52:01+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>『効率的な Go』読書会 4回目</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/08/efficient-go-4/" />
+		<id>tag:text.Baldanders.info,2024-08-23:/remark/2024/08/efficient-go-4/</id>
+		<published>2024-08-23T11:52:01+00:00</published>
+		<updated>2024-08-23T11:53:38+00:00</updated>
+		<summary>逆アセンブルと自動最適化について覚え書き</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;先日『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』の4回目の読書会が行われた。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://yokohama-go-reading.connpass.com/event/325866/&#34;&gt;第61回横浜Go読書会（オンライン） - connpass&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;実は3回目は私用で欠席したのだった。
+あとで復習しないとなー。&lt;/p&gt;
+&lt;p&gt;前回の3回目と今回の4回目は3章の「効率化の攻略」という大事な章を含んでいるのだが，この辺の話を書きはじめると（量的に）大変なことになるので，この記事では4章の「Go での CPU リソースの（ちょっとした）解説」の最初の方に出てくる &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コードをアセンブラコードに変換して眺める話を実際に手を動かして試すに留める。
+覚え書きいうやつやね。&lt;/p&gt;
+&lt;p&gt;なお，今回の &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コンパイラのバージョンは先日&lt;a href=&#34;https://text.baldanders.info/release/2024/08/go-1_23_0-is-released/&#34; title=&#34;Go 1.23 のリリース&#34;&gt;リリース&lt;/a&gt;されたばかりの 1.23.0 を使用している。
+このため『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』で例示されている内容とはだいぶ異なっている点に注意してほしい。&lt;/p&gt;
+&lt;h2&gt;サンプルコード&lt;/h2&gt;
+&lt;p&gt;まずはサンプルコードを書いてみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;bytes&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;os&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;strconv&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fileName&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ReadFile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fileName&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;line&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;bytes&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Split&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;byte&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;¥n&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;num&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;strconv&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ParseInt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;line&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;),&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;10&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;num&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;ret&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;numbers.txt&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Fprintln&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Stderr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これは『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』4.2節に出てくるコードに &lt;code&gt;main()&lt;/code&gt; 関数を付加したものである。
+なんで &lt;code&gt;main()&lt;/code&gt; 関数を付加したかというと，そうしないと &lt;code&gt;go build&lt;/code&gt; が通らないから。&lt;/p&gt;
+&lt;h2&gt;アセンブラコードを出力しながらビルドする&lt;/h2&gt;
+&lt;p&gt;コンパイルオプションに &lt;code&gt;-S&lt;/code&gt; を付加すると標準エラー出力に &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の疑似アセンブリ言語のコードを吐き出しながらビルドを行う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go build -gcflags=&amp;#34;-S&amp;#34; sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;実際に吐き出した内容はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;# command-line-arguments
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;main.Sum STEXT size=237 args=0x10 locals=0x88 funcid=0x0 align=0x0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0000 00000 (/path/to/sum.go:10)    TEXT    main.Sum(SB), ABIInternal, $136-16
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0000 00000 (/path/to/sum.go:10)    LEAQ    -8(SP), R12
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0005 00005 (/path/to/sum.go:10)    CMPQ    R12, 16(R14)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0009 00009 (/path/to/sum.go:10)    PCDATA    $0, $-2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x0009 00009 (/path/to/sum.go:10)    JLS    207
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    0x000f 00015 (/path/to/sum.go:10)    PCDATA    $0, $-1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;各インストラクションの意味については以下の記事が参考になる。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://zenn.dev/hsaki/articles/godoc-asm-ja&#34;&gt;解説&amp;amp;翻訳 - A Quick Guide to Go&amp;rsquo;s Assembler&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;ちなみにこのインストラクションは AMD (or Intel) 系のもので，たとえば Apple Mx チップ用にビルドすると異なるインストラクションが吐き出されたりするらしい。&lt;/p&gt;
+&lt;h2&gt;コンパイラによる自動最適化の決定を表示する&lt;/h2&gt;
+&lt;p&gt;コンパイルオプションに &lt;code&gt;-m=&amp;lt;number&amp;gt;&lt;/code&gt; を付加するとコンパイラによる自動最適化の決定を標準エラー出力に表示しながらビルドしてくれる（数字は詳細度を示す）。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go build -gcflags=&amp;#34;-m=1&amp;#34; sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;# command-line-arguments
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: can inline atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: can inline atomic.(*Pointer[os.dirInfo]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: can inline atomic.(*Pointer[os.dirInfo]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: can inline atomic.(*Pointer[os.dirInfo]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: can inline atomic.(*Pointer[os.dirInfo]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:15:34: inlining call to bytes.Split
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:13: inlining call to fmt.Println
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:63:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).CompareAndSwap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:60:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Swap
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:57:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Store
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/usr/local/go1.23.0/src/sync/atomic/type.go:54:6: inlining call to atomic.(*Pointer[go.shape.struct { os.mu sync.Mutex; os.buf *[]uint8; os.nbuf int; os.bufp int }]).Load
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:10:10: leaking param: fileName
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:15:45: ([]byte)(&amp;#34;¥n&amp;#34;) does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:16:39: string(line) does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:28:15: ... argument does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:13: ... argument does not escape
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;./sum.go:31:14: n escapes to heap
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;たとえば “&lt;code&gt;inlining call to bytes.Split&lt;/code&gt;” は &lt;code&gt;bytes.Split()&lt;/code&gt; 関数をインライン化することを指している。
+“&lt;code&gt;does not escape&lt;/code&gt;” は値がスタック上に積まれることを意味する。
+逆に “&lt;code&gt;escapes to heap&lt;/code&gt;” は値をヒープ上に置くことを意味している。&lt;/p&gt;
+&lt;p&gt;いやぁ，この機能は知らんかった。
+めっさお役立ちやん。
+この情報を考慮してアセンブラコードを見れば実際にどういう風にコンパイルされているか分かりやすくなる。&lt;/p&gt;
+&lt;h2&gt;バイナリコードを逆アセンブルする&lt;/h2&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』ではバイナリの逆アセンブルに &lt;code&gt;objdump&lt;/code&gt; コマンドを使用しているが，これって多分 Windows に（標準では）ないコマンドだよね。
+あと，今どきの Linux ディストリビューションには GCC 等の開発環境が入ってなかったりする。
+この場合は，以下のように開発環境を入れれば &lt;code&gt;objdump&lt;/code&gt; コマンドもインストールされる（Debian/Ubuntu の場合）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo apt install build-essential
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;逆アセンブルする際は &lt;code&gt;objdump&lt;/code&gt; コマンドを生で使うのではなく &lt;code&gt;go tool&lt;/code&gt; コマンドから呼び出すのがよさげ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go tool objdump -S sum
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これで &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の疑似アセンブリ言語に逆アセンブルした結果が標準出力に表示される。
+こんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;TEXT main.Sum(SB) /path/to/sum.go
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Sum(fileName string) (ret int64, _ error) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e000        4c8d6424f8        LEAQ -0x8(SP), R12
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e005        4d3b6610        CMPQ R12, 0x10(R14)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e009        0f86c0000000        JBE 0x49e0cf
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e00f        55            PUSHQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e010        4889e5            MOVQ SP, BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e013        4883c480        ADDQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e017        4889842490000000    MOVQ AX, 0x90(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    b, err := os.ReadFile(fileName)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e01f        90            NOPL
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e020        e87b74ffff        CALL os.ReadFile(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    if err != nil {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e025        4885ff            TESTQ DI, DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e028        752c            JNE 0x49e056
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e02a        66c7442465c2a5        MOVW $-0x5a3e, 0x65(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e031        c64424676e        MOVB $0x6e, 0x67(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e036        488d7c2465        LEAQ 0x65(SP), DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e03b        be03000000        MOVL $0x3, SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e040        4989f0            MOVQ SI, R8
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e043        4531c9            XORL R9, R9
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e046        49c7c2ffffffff        MOVQ $-0x1, R10
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e04d        e84e54fdff        CALL bytes.genSplit(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e052        31c9            XORL CX, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e054        eb2b            JMP 0x49e081
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        return 0, err
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e056        31c0            XORL AX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e058        4889fb            MOVQ DI, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e05b        4889f1            MOVQ SI, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e05e        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e062        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e063        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e064        488b542478        MOVQ 0x78(SP), DX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e069        4883c218        ADDQ $0x18, DX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e06d        488b5c2470        MOVQ 0x70(SP), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e072        48ffcb            DECQ BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e075        488b742468        MOVQ 0x68(SP), SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e07a        488d0c06        LEAQ 0(SI)(AX*1), CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e07e        4889d0            MOVQ DX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e081        4885db            TESTQ BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e084        7e3c            JLE 0x49e0c2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e086        48895c2470        MOVQ BX, 0x70(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e08b        48894c2468        MOVQ CX, 0x68(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    for _, line := range bytes.Split(b, []byte(&amp;#34;¥n&amp;#34;)) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e090        4889442478        MOVQ AX, 0x78(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e095        488b18            MOVQ 0(AX), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e098        488b4808        MOVQ 0x8(AX), CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        num, err := strconv.ParseInt(string(line), 10, 64)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e09c        488d442445        LEAQ 0x45(SP), AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0a1        e8fa93fcff        CALL runtime.slicebytetostring(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0a6        b90a000000        MOVL $0xa, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ab        bf40000000        MOVL $0x40, DI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b0        e8ab6dfdff        CALL strconv.ParseInt(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        if err != nil {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b5        4885db            TESTQ BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0b8        74aa            JE 0x49e064
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            return 0, err
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ba        31c0            XORL AX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0bc        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c0        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c1        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    return ret, nil
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c2        4889c8            MOVQ CX, AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c5        31db            XORL BX, BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c7        31c9            XORL CX, CX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0c9        4883ec80        SUBQ $-0x80, SP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0cd        5d            POPQ BP
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0ce        c3            RET
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;func Sum(fileName string) (ret int64, _ error) {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0cf        4889442408        MOVQ AX, 0x8(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0d4        48895c2410        MOVQ BX, 0x10(SP)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0d9        e882c3fcff        CALL runtime.morestack_noctxt.abi0(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0de        488b442408        MOVQ 0x8(SP), AX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0e3        488b5c2410        MOVQ 0x10(SP), BX
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  0x49e0e8        e913ffffff        JMP main.Sum(SB)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ちょっと長いけど &lt;code&gt;Sum()&lt;/code&gt; 関数部分を抜粋してみた。
+たとえば，前節で &lt;code&gt;bytes.Split()&lt;/code&gt; 関数がインライ化されていることが示されているが，実際にどのようなコードになっているかよく分かる（&lt;code&gt;bytes.genSplit()&lt;/code&gt; 関数を呼び出してるだけだが）。&lt;/p&gt;
+&lt;p&gt;それにしても『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』の例示とはだいぶ違うなぁ。&lt;/p&gt;
+&lt;p&gt;元の &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コードで &lt;code&gt;ret += num&lt;/code&gt; に相当する部分をハイライトにしているが，『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;効率的なGo ―データ指向によるGoアプリケーションの性能最適化 | Bartłomiej Płotka, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;効率的な Go&lt;/a&gt;』では&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ret += num
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;0x4f9b6d        488b742450      MOVQ 0x50(SP), SI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;0x4f9b72        4801c6          ADDQ AX, SI
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『効率的な Go』 p.123&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;てな感じに書かれているのに対し， &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; 1.23 で実際に試してみると &lt;code&gt;ADDQ&lt;/code&gt; インストラクションが見当たらない。
+あれー？ とよく見てみたら &lt;code&gt;LEAQ&lt;/code&gt; インストラクションを使ってるのかよ&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;h2&gt;最適化の調整は最後の手段&lt;/h2&gt;
+&lt;p&gt;今回試してみて分かったのは，コンパイラによる自動最適化は &lt;a href=&#34;https://go.dev/&#34;&gt;GO&lt;/a&gt; のバージョンによって大きく異なるということだ。
+だから，最適化の部分で無理やりチューニング（&lt;code&gt;-N&lt;/code&gt; オプションで最適化を無効にする，または特定の処理ブロックをアセンブラで書く等）しようとしても逆に非効率な構成になる可能性もある。
+変態的なコードも自動最適化の妨げとなる。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;巧妙すぎるコードは読みづらく、プログラムされた機能の維持が困難になります。また、コンパイラーがパターンを最適化したものと一致させようとすると、コンパイラーを混乱させることにもなります。慣用的なコードを使い、関数やループを単純にしておくと、コンパイラーが最適化を適用してくれる可能性が高くなり、あなたが最適化する必要がなくなります！&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『効率的な Go』 p.131&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;どうしても最適化部分を弄らないといけないとしても，それは最後の手段になるのだろう。&lt;/p&gt;
+&lt;p&gt;4章ではほかにも「メモリウォール問題」「スケジューラー」「並行処理」といった CPU に近いレイヤの話が出てくる。
+特に組み込みとかやってる人は興味ある話題かもしれない。&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41&amp;#43;ew2wl2jL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;効率的なGo ―データ指向によるGoアプリケーションの性能最適化&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Bartłomiej Płotka (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリー・ジャパン 2024-02-24&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4814400535 (ASIN), 9784814400539 (EAN), 4814400535 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814400539/&#34;&gt;版元&lt;/a&gt;で Ebook を買える。Go言語のリファレンス本ではない。フトウェア工学，プログラミング（の考え方）を学ぶ教科書的な位置づけかなぁ。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-04-21&#34;&gt;2024-04-21&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 効率的なGo : Efficient Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873119979?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41WaZWxEzVL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873119979?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による分散サービス ―信頼性、拡張性、保守性の高いシステムの構築&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Travis Jeffery (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2022-08-03&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873119979 (ASIN), 9784873119977 (EAN), 4873119979 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873119977/&#34;&gt;版元&lt;/a&gt;でデジタル版を購入。&lt;a href=&#34;https://technical-book-reading-2.connpass.com/&#34;&gt;読書会&lt;/a&gt;の課題図書。ハンズオンぽい構成でコードがたくさん書かれているのがよい。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-08-03&#34;&gt;2022-08-03&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による分散サービス --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;&lt;code&gt;LEA&lt;/code&gt; インストラクションは第1オペランドの値を第2オペランドで示すレジスタにロードするのだが，たとえば第1オペランドが &lt;code&gt;0(SI)(AX*1)&lt;/code&gt; なら 0+SIレジスタの値+AXレジスタの値 みたいな感じで足し算を同時に行う。しかも足し算の結果でフラグ値が変わらない（副作用なし）という便利な機能らしい。元々はスタック上の値を効率よく取り出すためのインストラクションのようだが，今回のように足し算命令としても使われるそうな。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>Go 1.23 のリリース</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2024/08/go-1_23_0-is-released/" />
 		<id>tag:text.Baldanders.info,2024-08-14:/release/2024/08/go-1_23_0-is-released/</id>
@@ -1778,239 +2065,6 @@ use monochromatic numerals.&lt;/p&gt;
   &lt;p class=&#34;description&#34;&gt;ついカッとなってポチった。反省はしない&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-04-10&#34;&gt;2022-04-10&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt; &lt;!-- Golang Tシャツ --&gt;
-</content>
-	</entry><entry>
-		<title>Go 1.20.7 のリリース【セキュリティ・アップデート】</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2023/08/go-1_20_7-is-released/" />
-		<id>tag:text.Baldanders.info,2023-08-02:/release/2023/08/go-1_20_7-is-released/</id>
-		<published>2023-08-01T23:18:19+00:00</published>
-		<updated>2024-05-10T22:02:32+00:00</updated>
-		<summary>CVE ID ベースで合計3件の脆弱性の修正がある。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://groups.google.com/g/golang-announce/c/7b0c3Z5Ko8g&#34; title=&#34;[security] Go 1.20.7 and Go 1.19.12 pre-announcement&#34;&gt;予告&lt;/a&gt;どおり &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; 1.20.7 がリリースされた。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://groups.google.com/g/golang-announce/c/X0b6CsSAaYI&#34;&gt;[security] Go 1.20.7 and Go 1.19.12 are released&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;今回は CVE ID ベースで1件の脆弱性修正を含んでいる。&lt;/p&gt;
-&lt;h2&gt;&lt;a href=&#34;https://nvd.nist.gov/vuln/detail/CVE-2023-29409&#34;&gt;CVE-2023-29409&lt;/a&gt; crypto/tls: restrict RSA keys in certificates to &amp;lt;= 8192 bits&lt;/h2&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://groups.google.com/g/golang-announce/c/X0b6CsSAaYI&#34;&gt;&lt;p&gt;Extremely large RSA keys in certificate chains can cause a client/server to expend significant CPU time verifying signatures. Limit this by restricting the size of RSA keys transmitted during handshakes to &amp;lt;= 8192 bits.&lt;/p&gt;
-&lt;p&gt;Based on a survey of publicly trusted RSA keys, there are currently only three certificates in circulation with keys larger than this, and all three appear to be test certificates that are not actively deployed. It is possible there are larger keys in use in private PKIs, but we target the web PKI, so causing breakage here in the interests of increasing the default safety of users of &lt;code&gt;crypto/tls&lt;/code&gt; seems reasonable.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://groups.google.com/g/golang-announce/c/X0b6CsSAaYI&#34;&gt;Go 1.20.7 and Go 1.19.12 are released&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;どうやら 8192 bit 以上の RSA 鍵は取り扱わないことにしたようだ。
-まぁ，妥当かな。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;深刻度: 警告 (Score: 5.3)&lt;/li&gt;
-&lt;/ul&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;基本評価基準&lt;/th&gt;
-&lt;th&gt;評価値&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;攻撃元区分&lt;/td&gt;
-&lt;td&gt;ネットワーク&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;攻撃条件の複雑さ&lt;/td&gt;
-&lt;td&gt;低&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;必要な特権レベル&lt;/td&gt;
-&lt;td&gt;不要&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;ユーザ関与レベル&lt;/td&gt;
-&lt;td&gt;不要&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;スコープ&lt;/td&gt;
-&lt;td&gt;変更なし&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;機密性への影響&lt;/td&gt;
-&lt;td&gt;なし&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;完全性への影響&lt;/td&gt;
-&lt;td&gt;なし&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;可用性への影響&lt;/td&gt;
-&lt;td&gt;低&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;h2&gt;その他のパッケージの更新&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; 標準パッケージ以外にも以下のパッケージでセキュリティ・アップデートが行われている。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://groups.google.com/g/golang-announce/c/B15Lav568-o&#34;&gt;[security] Vulnerabilities in golang.org/x/net/html and golang.org/x/image/tiff&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h3&gt;&lt;a href=&#34;https://nvd.nist.gov/vuln/detail/CVE-2023-3978&#34;&gt;CVE-2023-3978&lt;/a&gt; Vulnerabilities in golang.org/x/net/html&lt;/h3&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://groups.google.com/g/golang-announce/c/B15Lav568-o&#34;&gt;Version v0.13.0 of &lt;a href=&#34;http://golang.org/x/net&#34;&gt;&lt;code&gt;golang.org/x/net&lt;/code&gt;&lt;/a&gt; fixes a vulnerability in the &lt;a href=&#34;http://golang.org/x/net/html&#34;&gt;&lt;code&gt;golang.org/x/net/html&lt;/code&gt;&lt;/a&gt; package which caused a mismatch between parsing and rendering.&lt;br&gt;
-Text nodes not in the HTML namespace were being incorrectly literally rendered, causing text which should&amp;rsquo;ve been escaped to not be. This could lead to an XSS attack.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://groups.google.com/g/golang-announce/c/B15Lav568-o&#34;&gt;Vulnerabilities in golang.org/x/net/html and golang.org/x/image/tiff&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;深刻度: 警告 (Score: 6.1)&lt;/li&gt;
-&lt;/ul&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;基本評価基準&lt;/th&gt;
-&lt;th&gt;評価値&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;攻撃元区分&lt;/td&gt;
-&lt;td&gt;ネットワーク&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;攻撃条件の複雑さ&lt;/td&gt;
-&lt;td&gt;低&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;必要な特権レベル&lt;/td&gt;
-&lt;td&gt;不要&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;ユーザ関与レベル&lt;/td&gt;
-&lt;td&gt;要&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;スコープ&lt;/td&gt;
-&lt;td&gt;変更あり&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;機密性への影響&lt;/td&gt;
-&lt;td&gt;低&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;完全性への影響&lt;/td&gt;
-&lt;td&gt;低&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;可用性への影響&lt;/td&gt;
-&lt;td&gt;なし&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;h3&gt;&lt;a href=&#34;https://nvd.nist.gov/vuln/detail/CVE-2023-29407&#34;&gt;CVE-2023-29407&lt;/a&gt; Vulnerabilities in golang.org/x/image/tiff&lt;/h3&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://groups.google.com/g/golang-announce/c/B15Lav568-o&#34;&gt;Version v0.10.0 of &lt;a href=&#34;http://golang.org/x/image&#34;&gt;&lt;code&gt;golang.org/x/image&lt;/code&gt;&lt;/a&gt; fixes two vulnerabilities in the &lt;a href=&#34;http://golang.org/x/image/tiff&#34;&gt;&lt;code&gt;golang.org/x/image/tiff&lt;/code&gt;&lt;/a&gt; package which can cause excessive CPU or memory consumption when parsing images.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://groups.google.com/g/golang-announce/c/B15Lav568-o&#34;&gt;Vulnerabilities in golang.org/x/net/html and golang.org/x/image/tiff&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;また TIFF か&amp;hellip;&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;深刻度: 警告 (Score: 6.5)&lt;/li&gt;
-&lt;/ul&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;基本評価基準&lt;/th&gt;
-&lt;th&gt;評価値&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;攻撃元区分&lt;/td&gt;
-&lt;td&gt;ネットワーク&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;攻撃条件の複雑さ&lt;/td&gt;
-&lt;td&gt;低&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;必要な特権レベル&lt;/td&gt;
-&lt;td&gt;不要&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;ユーザ関与レベル&lt;/td&gt;
-&lt;td&gt;要&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;スコープ&lt;/td&gt;
-&lt;td&gt;変更なし&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;機密性への影響&lt;/td&gt;
-&lt;td&gt;なし&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;完全性への影響&lt;/td&gt;
-&lt;td&gt;なし&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;可用性への影響&lt;/td&gt;
-&lt;td&gt;高&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;h2&gt;例によって&amp;hellip;&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.ubuntu.com/&#34; title=&#34;The leading operating system for PCs, IoT devices, servers and the cloud | Ubuntu&#34;&gt;Ubuntu&lt;/a&gt; の APT で管理している &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; コンパイラは古いので，&lt;a href=&#34;https://go.dev/dl/&#34; title=&#34;Downloads - go.dev&#34;&gt;ダウンロードページ&lt;/a&gt;からバイナリ（&lt;a href=&#34;https://go.dev/dl/go1.20.7.linux-amd64.tar.gz&#34;&gt;&lt;code&gt;go1.20.7.linux-amd64.tar.gz&lt;/code&gt;&lt;/a&gt;）を取ってきてインストールすることを推奨する。
-以下は完全手動での作業例。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cd /usr/local/src
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L &amp;#34;https://go.dev/dl/go1.20.7.linux-amd64.tar.gz&amp;#34; -O
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cd ..
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo unlink go # 以前の Go が入っている場合
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo tar xvf src/go1.20.7.linux-amd64.tar.gz
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo mv go go1.20.7
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo ln -s go1.20.7 go
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go version # /usr/local/go/bin にパスが通っている場合
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;go version go1.20.7 linux/amd64
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Windows はインストールパッケージを取ってきて直接インストールする。
-&lt;a href=&#34;https://scoop.sh/&#34;&gt;Scoop&lt;/a&gt; 経由でも OK&lt;/p&gt;
-&lt;p&gt;複数バージョンの Go コンパイラを扱いたい場合は&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go install golang.org/dl/go1.20.7@latest
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go1.20.7 download
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go1.20.7 version
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;go version go1.20.7 linux/amd64
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;てな感じで導入できる。&lt;/p&gt;
-&lt;p&gt;アップデートは計画的に。&lt;/p&gt;
-&lt;h2&gt;参考図書&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;123&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN), 9784621300251 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400047?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41dClAl3WKL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814400047?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;初めてのGo言語 ―他言語プログラマーのためのイディオマティックGo実践ガイド&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Jon Bodner (著), 武舎 広幸 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;オライリージャパン 2022-09-26&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4814400047 (ASIN), 9784814400041 (EAN), 4814400047 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;2021年に出た “&lt;a href=&#34;https://www.oreilly.com/library/view/learning-go/9781492077206/&#34;&gt;Learning Go&lt;/a&gt;” の邦訳版。私は&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814400041/&#34;&gt;版元&lt;/a&gt;で PDF 版を購入。 Go 特有の語法（idiom）を切り口として Go の機能やパッケージを解説している。 Go 1.19 対応。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-10-11&#34;&gt;2022-10-11&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 初めてのGo言語 --&gt;
 </content>
 	</entry>
 </feed>
