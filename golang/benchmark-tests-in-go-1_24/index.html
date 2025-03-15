@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.145.0">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/golang/benchmark-tests-in-go-1_24/">
+<script defer src="/fa/js/all.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho&family=Inconsolata:wght@400;700&family=Noto+Color+Emoji&family=Noto+Sans:wght@400;700&family=Noto+Serif&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    processEscapes: true,
+    tags: 'ams',
+    macros: {
+      ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1],
+      tcdegree: ['\\unicode{xb0}'],
+      tccelsius: ['\\unicode{x2103}'],
+      tcperthousand: ['\\unicode{x2030}'],
+      tcmu: ['\\unicode{x3bc}'],
+      tcohm: ['\\unicode{x3a9}']
+    }
+  },
+  chtml: {
+    matchFontHeight: false,
+    displayAlign: "left",
+    displayIndent: "2em"
+  }
+};
+</script>
+<script id="MathJax-script" async src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="me" href="https://fedibird.com/@spiegel">
+<title>Go 1.24 からのベンチマークテスト | text.Baldanders.info</title>
+<meta property="og:title" content="Go 1.24 からのベンチマークテスト">
+<meta name="description" content="for b.Loop() { ... } 内のコードは最適化されないことを保証する">
+<meta property="og:description" content="for b.Loop() { ... } 内のコードは最適化されないことを保証する">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<link rel="me" href="https://goark.fedicity.net/@spiegel">
+<meta name="keywords" content="programming, golang, book, testing, benchmark">
+<link rel='prev' href='https://text.baldanders.info/golang/pseudo-random-number-generator-v2/' title='Go 1.22 における疑似乱数生成器'>
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/golang/",
+	"url": "https://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/golang/benchmark-tests-in-go-1_24/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/golang/benchmark-tests-in-go-1_24/",
+	"url": "https://text.baldanders.info/golang/benchmark-tests-in-go-1_24/",
+	"mainEntityOfPage": "https://text.baldanders.info/golang/benchmark-tests-in-go-1_24/",
+	"inLanguage": "ja",
+	"name": "Go 1.24 からのベンチマークテスト",
+	"description": "for b.Loop() { ... } 内のコードは最適化されないことを保証する",
+	"headline": "for b.Loop() { ... } 内のコードは最適化されないことを保証する",
+	"keywords": "programming, golang, book, testing, benchmark",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2025-03-15T12:08:09+00:00",
+	"dateModified": "2025-03-15T12:08:17+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>Go 1.24 からのベンチマークテスト</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/benchmark/">benchmark</a> #<a href="/tags/book/">book</a> #<a href="/tags/golang/">golang</a> #<a href="/tags/programming/">programming</a> #<a href="/tags/testing/">testing</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fas fa-share-square"></i></span>&nbsp;:
+		&nbsp;<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fbenchmark-tests-in-go-1_24%2f&amp;title=Go%201.24%20%e3%81%8b%e3%82%89%e3%81%ae%e3%83%99%e3%83%b3%e3%83%81%e3%83%9e%e3%83%bc%e3%82%af%e3%83%86%e3%82%b9%e3%83%88" target="_blank"><span class="pocket-color"><abbr title="Share Pocket"><i class="fab fa-get-pocket" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fgolang%2fbenchmark-tests-in-go-1_24%2f" target="_blank"><span class="facebook-color"><abbr title="Share facebook"><i class="fab fa-facebook-square" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://twitter.com/share?text=Go%201.24%20%e3%81%8b%e3%82%89%e3%81%ae%e3%83%99%e3%83%b3%e3%83%81%e3%83%9e%e3%83%bc%e3%82%af%e3%83%86%e3%82%b9%e3%83%88&amp;url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fbenchmark-tests-in-go-1_24%2f" target="_blank"><span class="twitter-color"><abbr title="Share Twitter"><i class="fab fa-twitter-square" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="https://donshare.net/share.html?text=Go%201.24%20%e3%81%8b%e3%82%89%e3%81%ae%e3%83%99%e3%83%b3%e3%83%81%e3%83%9e%e3%83%bc%e3%82%af%e3%83%86%e3%82%b9%e3%83%88+by+@spiegel%40goark.fedicity.net%20+https%3a%2f%2ftext.baldanders.info%2fgolang%2fbenchmark-tests-in-go-1_24%2f" target="_blank"><span class="mastodon-color"><abbr title="Share Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a>
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/benchmark-tests-in-go-1_24/index.html">GitHub Page</a>
+</nav>
+
+<section>
+<p>現在『<a href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本">効率的なGo</a>』の読書会に参加してるんだけど，今回はその67回目の話。</p>
+<p>&ndash; <a href="https://yokohama-go-reading.connpass.com/event/346187/">第67回横浜Go読書会（オンライン） - connpass</a></p>
+<p>今回は「8章 ベンチマーク」の最初の部分まで読み勧めた。
+この辺からようやく <a href="https://go.dev/">Go</a> のツールを使った具体的な話になってくる。</p>
+<p>内容については本を読んでもらうとして，今回はベンチマーク・コードの話。
+<a href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本">件の本</a>では「ほとんどのベンチマークに必要な小さなボイラープレートの生テンプレート」として以下のコードを挙げている。</p>
+<figure>
+<blockquote class="nobox" cite="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkSum</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">b</span><span class="p">.</span><span class="nf">ReportAllocs</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// TODO(bwplotka): 必要な初期化処理を追加</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nx">b</span><span class="p">.</span><span class="nf">ResetTimer</span><span class="p">()</span>
+</span></span><span class="line hl"><span class="cl">    <span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">        <span class="c1">// TODO(bwplotka): テストされた機能を追加</span>
+</span></span><span class="line hl"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></blockquote>
+<figcaption><div><q><a href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">『効率的なGo』 リスト 8-1：Go のベンチマークの核となる要素</a></q>より</div></figcaption>
+</figure>
+<p>ちなみに <code>b.ReportAllocs()</code> はヒープメモリの割り当て回数と総量をレポートするための関数で， <code>go test -bench</code> コマンドでベンチマークテストを起動する際の <code>-benchmem</code> オプションと同じ効果がある。</p>
+<p>このコード中の <code>for</code> 文でカウンターを回しているのだが <a href="https://go.dev/">Go</a> 1.24 から <a href="https://pkg.go.dev/testing" title="testing package - testing - Go Packages"><code>testing</code></a><code>.B.Loop()</code> メソッドが追加され <code>for</code> ループの記述が大きく改善された。</p>
+<figure lang="en">
+<blockquote cite="https://go.dev/doc/go1.24#new-benchmark-function"><p>Benchmarks may now use the faster and less error-prone <a href="https://go.dev/pkg/testing#B.Loop"><code>testing.B.Loop</code></a> method to perform benchmark iterations like <code>for b.Loop() { ... }</code> in place of the typical loop structures involving <code>b.N</code> like for range <code>b.N</code>. This offers two significant advantages:</p>
+<ul>
+<li>The benchmark function will execute exactly once per <code>-count</code>, so expensive setup and cleanup steps execute only once.</li>
+<li>Function call parameters and results are kept alive, preventing the compiler from fully optimizing away the loop body.</li>
+</ul></blockquote>
+<figcaption><div>via <q><a href="https://go.dev/doc/go1.24#new-benchmark-function">Go 1.24 Release Notes - The Go Programming Language</a></q></div></figcaption>
+</figure>
+<p>最初のほうの「コストのかかるセットアップおよびクリーンアップ手順は1回だけ実行される」というのは分かりにくいが，実は <a href="https://pkg.go.dev/testing" title="testing package - testing - Go Packages"><code>testing</code></a><code>.B.Loop()</code> メソッドを使うと，先のテンプレートコードにある <code>b.ResetTimer()</code> を省略できて，純粋に <code>for b.Loop() { ... }</code> 内の処理だけ計測される。</p>
+<p>もうひとつはもっと重要で <code>for b.Loop() { ... }</code> 内のコードは最適化されないことを保証するというものだ。
+たとえば</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Add</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span> <span class="kt">int</span><span class="p">)</span> <span class="kt">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">a</span> <span class="o">+</span> <span class="nx">b</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>という関数のベンチマークを取ろうとして素朴に</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="k">for</span> <span class="k">range</span> <span class="nx">b</span><span class="p">.</span><span class="nx">N</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">_</span> <span class="p">=</span> <span class="nf">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>なんてなコードを書いたら，最悪の場合，最適化でループ内の処理がまるごと無くなりかねない<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。
+<a href="https://pkg.go.dev/testing" title="testing package - testing - Go Packages"><code>testing</code></a><code>.B.Loop()</code> メソッドを使うことでそうした事態を回避できるというわけだ。</p>
+<p>お試しに何か書いてみよう<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。
+まずはこんな関数を書いてみる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">sample</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Sum</span><span class="p">(</span><span class="nx">data</span> <span class="p">[]</span><span class="kt">int</span><span class="p">)</span> <span class="kt">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">total</span> <span class="o">:=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">value</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">data</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">total</span> <span class="o">+=</span> <span class="nx">value</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">total</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>よくある合計値を返す関数ですな。
+作成した <code>sample.Sum()</code> 関数のベンチマークテストのコードは以下の通り。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">sample_test</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;math/rand/v2&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;sample&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="s">&#34;testing&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">intList</span><span class="p">(</span><span class="nx">n</span> <span class="kt">int</span><span class="p">)</span> <span class="p">[]</span><span class="kt">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">list</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">int</span><span class="p">,</span> <span class="nx">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">list</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">list</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="p">=</span> <span class="nx">rand</span><span class="p">.</span><span class="nf">Int</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">list</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">BenchmarkSum</span><span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">b</span><span class="p">.</span><span class="nf">ReportAllocs</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">input</span> <span class="o">:=</span> <span class="nf">intList</span><span class="p">(</span><span class="mi">128</span> <span class="o">&lt;&lt;</span> <span class="mi">10</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line hl"><span class="cl">	<span class="k">for</span> <span class="nx">b</span><span class="p">.</span><span class="nf">Loop</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line hl"><span class="cl">		<span class="nx">sample</span><span class="p">.</span><span class="nf">Sum</span><span class="p">(</span><span class="nx">input</span><span class="p">)</span>
+</span></span><span class="line hl"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>さっそく実行してみよう<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go test -run &#39;^$&#39; -bench &#39;^BenchmarkSum$&#39; -count 6 | tee sample_sum_bench_v1.txt
+</span></span><span class="line"><span class="cl">goos: linux
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: sample
+</span></span><span class="line"><span class="cl">cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+</span></span><span class="line"><span class="cl">BenchmarkSum-12        37249         32302 ns/op           0 B/op          0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12        36802         32570 ns/op           0 B/op          0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12        36495         34515 ns/op           0 B/op          0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12        36825         32516 ns/op           0 B/op          0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12        37101         32142 ns/op           0 B/op          0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12        37298         32072 ns/op           0 B/op          0 allocs/op
+</span></span><span class="line"><span class="cl">PASS
+</span></span><span class="line"><span class="cl">ok      sample	7.260s
+</span></span></code></pre></div><p>ヒープの使用もカウントされてないし，上手くいってるっぽいな。</p>
+<p>もうひとつ。
+『<a href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本">効率的なGo</a>』では <a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat" title="benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages">benchstat</a> コマンドの紹介もされていた。
+上のベンチマーク結果について簡単な統計処理をしてくれるらしい。
+これも試してみよう。</p>
+<p>まずはコマンドのインストール。</p>
+<pre tabindex="0"><code>$ go install golang.org/x/perf/cmd/benchstat@latest
+</code></pre><p>先程のベンチマーク結果を <a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat" title="benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages">benchstat</a> コマンドに食わせてみる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ benchstat sample_sum_bench_v1.txt
+</span></span><span class="line"><span class="cl">goos: linux
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: sample
+</span></span><span class="line"><span class="cl">cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+</span></span><span class="line"><span class="cl">       │ sample_sum_bench_v1.txt │
+</span></span><span class="line"><span class="cl">       │         sec/op          │
+</span></span><span class="line"><span class="cl">Sum-12               32.41µ ± 6%
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">       │ sample_sum_bench_v1.txt │
+</span></span><span class="line"><span class="cl">       │          B/op           │
+</span></span><span class="line"><span class="cl">Sum-12                0.000 ± 0%
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">       │ sample_sum_bench_v1.txt │
+</span></span><span class="line"><span class="cl">       │        allocs/op        │
+</span></span><span class="line"><span class="cl">Sum-12                0.000 ± 0%
+</span></span></code></pre></div><p>んー。
+$6\,\%$ の分散はちょっと大きいかなぁ。
+『<a href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本">効率的なGo</a>』によると，分散が $5\,\%$ 以上ある場合は環境ノイズ（バックグラウンドのプロセスとかメモリスワップとか）が大きい可能性があるらしい。
+まぁ，今回はこのまま進めよう。</p>
+<p><a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat" title="benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages">benchstat</a> で統計処理を行う場合は <code>-count</code> オプションを使って少なくとも6回以上は繰り返すべきと書かれている。
+これによって環境ノイズを検出しやすくなる。</p>
+<p><a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat" title="benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages">benchstat</a> コマンドは複数のベンチマーク結果を比較することもできる。</p>
+<p>たとえば，先ほどの <code>Sum()</code> 関数のループ回数を半分にしたら速くなるだろうか。
+試してみよう。
+まず <code>Sum()</code> 関数を以下のように書き直す（ほとんど GitHub Copilot が書いたけど<code>w</code>）。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Sum</span><span class="p">(</span><span class="nx">data</span> <span class="p">[]</span><span class="kt">int</span><span class="p">)</span> <span class="kt">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">total</span> <span class="o">:=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">l</span> <span class="o">:=</span> <span class="nb">len</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">h</span> <span class="o">:=</span> <span class="nx">l</span> <span class="o">/</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">h</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">total</span> <span class="o">+=</span> <span class="nx">data</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">+</span> <span class="nx">data</span><span class="p">[</span><span class="nx">l</span><span class="o">-</span><span class="nx">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">h</span><span class="o">*</span><span class="mi">2</span> <span class="o">!=</span> <span class="nx">l</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">total</span> <span class="o">+=</span> <span class="nx">data</span><span class="p">[</span><span class="nx">h</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">total</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>これに対して先ほどと同じ条件でベンチマークテストを行う。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go test -run &#39;^$&#39; -bench &#39;^BenchmarkSum$&#39; -count 6 | tee sample_sum_bench_v2.txt
+</span></span><span class="line"><span class="cl">goos: linux
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: sample
+</span></span><span class="line"><span class="cl">cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+</span></span><span class="line"><span class="cl">BenchmarkSum-12    	   30920	     39051 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12    	   30186	     39492 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12    	   30282	     39615 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12    	   30373	     39535 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12    	   30525	     39413 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">BenchmarkSum-12    	   30379	     39540 ns/op	       0 B/op	       0 allocs/op
+</span></span><span class="line"><span class="cl">PASS
+</span></span><span class="line"><span class="cl">ok  	sample	7.215s
+</span></span></code></pre></div><p>ありゃ。
+さっきより遅くなっちゃった？ <a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat" title="benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages">benchstat</a> コマンドで確認してみよう。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ benchstat sample_sum_bench_v1.txt sample_sum_bench_v2.txt
+</span></span><span class="line"><span class="cl">goos: linux
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: sample
+</span></span><span class="line"><span class="cl">cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+</span></span><span class="line"><span class="cl">       │ sample_sum_bench_v1.txt │      sample_sum_bench_v2.txt       │
+</span></span><span class="line"><span class="cl">       │         sec/op          │   sec/op     vs base               │
+</span></span><span class="line"><span class="cl">Sum-12               32.41µ ± 6%   39.51µ ± 1%  +21.92% (p=0.002 n=6)
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">       │ sample_sum_bench_v1.txt │    sample_sum_bench_v2.txt    │
+</span></span><span class="line"><span class="cl">       │          B/op           │    B/op     vs base           │
+</span></span><span class="line"><span class="cl">Sum-12                0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=6) ¹
+</span></span><span class="line"><span class="cl">¹ all samples are equal
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">       │ sample_sum_bench_v1.txt │    sample_sum_bench_v2.txt    │
+</span></span><span class="line"><span class="cl">       │        allocs/op        │ allocs/op   vs base           │
+</span></span><span class="line"><span class="cl">Sum-12                0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=6) ¹
+</span></span><span class="line"><span class="cl">¹ all samples are equal
+</span></span></code></pre></div><p>$22\,\%$ 近く遅くなっちゃったよ <code>orz</code></p>
+<p><code>p</code> の値は統計的有意性を表す <a href="https://ja.wikipedia.org/wiki/P%E5%80%A4" title="p値 - Wikipedia">$p\,値$</a>のことで，既定では $\alpha=0.05$ に設定されている（$\alpha$ の値は <code>-alpha</code> オプションで変更できる）。
+つまり <code>p</code> の値が 0.05 より小さければ有意な値であると見なすことができる。</p>
+<p>それはともかく，とりあえずループ回数を畳み込むのはなしの方向で。</p>
+<p>&hellip;てな感じで <a href="https://pkg.go.dev/golang.org/x/perf/cmd/benchstat" title="benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages">benchstat</a> コマンドを使えば統計学や誤差論の知識がなくてもある程度の判断を下すことができる。</p>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41&#43;ew2wl2jL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">効率的なGo ―データ指向によるGoアプリケーションの性能最適化</a></dt>
+    <dd>Bartłomiej Płotka (著), 山口 能迪 (翻訳)</dd>
+    <dd>オライリー・ジャパン 2024-02-24</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4814400535 (ASIN), 9784814400539 (EAN), 4814400535 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://www.oreilly.co.jp/books/9784814400539/">版元</a>で Ebook を買える。Go言語のリファレンス本ではない。フトウェア工学，プログラミング（の考え方）を学ぶ教科書的な位置づけかなぁ。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2024-04-21">2024-04-21</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 効率的なGo : Efficient Go -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51wZEHUKZiL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ</a></dt>
+    <dd>James Cutajar (著), 柴田 芳樹 (著)</dd>
+    <dd>インプレス 2024-12-04 (Release 2024-12-04)</dd>
+    <dd>Kindle版</dd>
+    <dd>B0DNYMMBBQ (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://technical-book-reading-2.connpass.com/event/337562/">読書会</a>のために購入。インプレス社の本は Kindle 版より版元で <a href="https://book.impress.co.jp/books/1123101144">PDF 版</a>を買うのがオススメ。「並行処理」について原理的な解説から丁寧に書かれている。 Go で解説されているが Go 以外の言語でも応用できる。
+</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2025-01-25">2025-01-25</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Go言語で学ぶ並行プログラミング -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ</a></dt>
+    <dd>Teiva Harsanyi (著), 柴田 芳樹 (著)</dd>
+    <dd>インプレス 2023-08-18 (Release 2023-08-18)</dd>
+    <dd>Kindle版</dd>
+    <dd>B0CFL1DK8Q (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://book.impress.co.jp/books/1122101133">版元</a>で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2023-08-18">2023-08-18</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Go言語 100Tips -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="122" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt>
+    <dd>Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)</dd>
+    <dd>丸善出版 2016-06-20</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- プログラミング言語Go -->
+<div class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1">
+<p>実際に試してみたが10億回ループしてたので，やはり中身が消えてると思われる。ちなみにループ部分を <code>for b.Loop() { ... }</code> にしたら6億回のループになったので，多分そういうことなんだろう。&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2">
+<p>今回の記事のコードは <a href="https://pkg.go.dev/testing" title="testing package - testing - Go Packages"><code>testing</code> パッケージ</a>のドキュメントにあるサンプルコードを参考にしている。&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3">
+<p><code>-run '^$'</code> オプションはひとつもテストを実行しないことを示す。 <code>-bench '^BenchmarkSum$'</code> オプションは指定したベンチマークテストコードを実行することを示す。 <code>-count 6</code> は指定したベンチマークテストを6回繰り返すことを示す。ベンチマークテストを繰り返すのは統計処理を行うため。&#160;<a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/pseudo-random-number-generator-v2/">Go 1.22 における疑似乱数生成器</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>GitHub に<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>他のフィードバック手段として Mastodon などの SNS や電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2025-03-15</time>
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><span class="bluesky-color"><abbr title="Bluesky"><i class="fa-brands fa-bluesky"></i></abbr></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fgolang%2fbenchmark-tests-in-go-1_24%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.145.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>

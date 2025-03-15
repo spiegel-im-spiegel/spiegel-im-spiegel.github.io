@@ -2,13 +2,274 @@
 	<title>List of Golang - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/golang/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/golang/index.xml" />
-	<id>tag:text.Baldanders.info,2025-03-02:/tags</id>
-	<updated>2025-03-02T21:46:52+09:00</updated>
+	<id>tag:text.Baldanders.info,2025-03-15:/tags</id>
+	<updated>2025-03-15T21:08:09+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>Go 1.24 からのベンチマークテスト</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/benchmark-tests-in-go-1_24/" />
+		<id>tag:text.Baldanders.info,2025-03-15:/golang/benchmark-tests-in-go-1_24/</id>
+		<published>2025-03-15T12:08:09+00:00</published>
+		<updated>2025-03-15T12:08:17+00:00</updated>
+		<summary>for b.Loop() { ... } 内のコードは最適化されないことを保証する</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;現在『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本&#34;&gt;効率的なGo&lt;/a&gt;』の読書会に参加してるんだけど，今回はその67回目の話。&lt;/p&gt;
+&lt;p&gt;&amp;ndash; &lt;a href=&#34;https://yokohama-go-reading.connpass.com/event/346187/&#34;&gt;第67回横浜Go読書会（オンライン） - connpass&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;今回は「8章 ベンチマーク」の最初の部分まで読み勧めた。
+この辺からようやく &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; のツールを使った具体的な話になってくる。&lt;/p&gt;
+&lt;p&gt;内容については本を読んでもらうとして，今回はベンチマーク・コードの話。
+&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本&#34;&gt;件の本&lt;/a&gt;では「ほとんどのベンチマークに必要な小さなボイラープレートの生テンプレート」として以下のコードを挙げている。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;BenchmarkSum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;testing&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;B&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ReportAllocs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// TODO(bwplotka): 必要な初期化処理を追加&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ResetTimer&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;N&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;c1&#34;&gt;// TODO(bwplotka): テストされた機能を追加&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『効率的なGo』 リスト 8-1：Go のベンチマークの核となる要素&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;ちなみに &lt;code&gt;b.ReportAllocs()&lt;/code&gt; はヒープメモリの割り当て回数と総量をレポートするための関数で， &lt;code&gt;go test -bench&lt;/code&gt; コマンドでベンチマークテストを起動する際の &lt;code&gt;-benchmem&lt;/code&gt; オプションと同じ効果がある。&lt;/p&gt;
+&lt;p&gt;このコード中の &lt;code&gt;for&lt;/code&gt; 文でカウンターを回しているのだが &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; 1.24 から &lt;a href=&#34;https://pkg.go.dev/testing&#34; title=&#34;testing package - testing - Go Packages&#34;&gt;&lt;code&gt;testing&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.B.Loop()&lt;/code&gt; メソッドが追加され &lt;code&gt;for&lt;/code&gt; ループの記述が大きく改善された。&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote cite=&#34;https://go.dev/doc/go1.24#new-benchmark-function&#34;&gt;&lt;p&gt;Benchmarks may now use the faster and less error-prone &lt;a href=&#34;https://go.dev/pkg/testing#B.Loop&#34;&gt;&lt;code&gt;testing.B.Loop&lt;/code&gt;&lt;/a&gt; method to perform benchmark iterations like &lt;code&gt;for b.Loop() { ... }&lt;/code&gt; in place of the typical loop structures involving &lt;code&gt;b.N&lt;/code&gt; like for range &lt;code&gt;b.N&lt;/code&gt;. This offers two significant advantages:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The benchmark function will execute exactly once per &lt;code&gt;-count&lt;/code&gt;, so expensive setup and cleanup steps execute only once.&lt;/li&gt;
+&lt;li&gt;Function call parameters and results are kept alive, preventing the compiler from fully optimizing away the loop body.&lt;/li&gt;
+&lt;/ul&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://go.dev/doc/go1.24#new-benchmark-function&#34;&gt;Go 1.24 Release Notes - The Go Programming Language&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;最初のほうの「コストのかかるセットアップおよびクリーンアップ手順は1回だけ実行される」というのは分かりにくいが，実は &lt;a href=&#34;https://pkg.go.dev/testing&#34; title=&#34;testing package - testing - Go Packages&#34;&gt;&lt;code&gt;testing&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.B.Loop()&lt;/code&gt; メソッドを使うと，先のテンプレートコードにある &lt;code&gt;b.ResetTimer()&lt;/code&gt; を省略できて，純粋に &lt;code&gt;for b.Loop() { ... }&lt;/code&gt; 内の処理だけ計測される。&lt;/p&gt;
+&lt;p&gt;もうひとつはもっと重要で &lt;code&gt;for b.Loop() { ... }&lt;/code&gt; 内のコードは最適化されないことを保証するというものだ。
+たとえば&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Add&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;a&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;a&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;という関数のベンチマークを取ろうとして素朴に&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;N&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Add&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;なんてなコードを書いたら，最悪の場合，最適化でループ内の処理がまるごと無くなりかねない&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+&lt;a href=&#34;https://pkg.go.dev/testing&#34; title=&#34;testing package - testing - Go Packages&#34;&gt;&lt;code&gt;testing&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.B.Loop()&lt;/code&gt; メソッドを使うことでそうした事態を回避できるというわけだ。&lt;/p&gt;
+&lt;p&gt;お試しに何か書いてみよう&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
+まずはこんな関数を書いてみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sample&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;data&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;total&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;data&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;		&lt;span class=&#34;nx&#34;&gt;total&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;value&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;total&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;よくある合計値を返す関数ですな。
+作成した &lt;code&gt;sample.Sum()&lt;/code&gt; 関数のベンチマークテストのコードは以下の通り。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sample_test&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;s&#34;&gt;&amp;#34;math/rand/v2&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;s&#34;&gt;&amp;#34;sample&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;s&#34;&gt;&amp;#34;testing&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;intList&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;list&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;make&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;([]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;list&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;		&lt;span class=&#34;nx&#34;&gt;list&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;rand&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;list&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;BenchmarkSum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;testing&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;B&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;ReportAllocs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;input&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;intList&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;128&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;10&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;b&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Loop&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;		&lt;span class=&#34;nx&#34;&gt;sample&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;input&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;さっそく実行してみよう&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go test -run &amp;#39;^$&amp;#39; -bench &amp;#39;^BenchmarkSum$&amp;#39; -count 6 | tee sample_sum_bench_v1.txt
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goos: linux
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goarch: amd64
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pkg: sample
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12        37249         32302 ns/op           0 B/op          0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12        36802         32570 ns/op           0 B/op          0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12        36495         34515 ns/op           0 B/op          0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12        36825         32516 ns/op           0 B/op          0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12        37101         32142 ns/op           0 B/op          0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12        37298         32072 ns/op           0 B/op          0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;PASS
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ok      sample	7.260s
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ヒープの使用もカウントされてないし，上手くいってるっぽいな。&lt;/p&gt;
+&lt;p&gt;もうひとつ。
+『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本&#34;&gt;効率的なGo&lt;/a&gt;』では &lt;a href=&#34;https://pkg.go.dev/golang.org/x/perf/cmd/benchstat&#34; title=&#34;benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages&#34;&gt;benchstat&lt;/a&gt; コマンドの紹介もされていた。
+上のベンチマーク結果について簡単な統計処理をしてくれるらしい。
+これも試してみよう。&lt;/p&gt;
+&lt;p&gt;まずはコマンドのインストール。&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;$ go install golang.org/x/perf/cmd/benchstat@latest
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;先程のベンチマーク結果を &lt;a href=&#34;https://pkg.go.dev/golang.org/x/perf/cmd/benchstat&#34; title=&#34;benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages&#34;&gt;benchstat&lt;/a&gt; コマンドに食わせてみる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ benchstat sample_sum_bench_v1.txt
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goos: linux
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goarch: amd64
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pkg: sample
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │ sample_sum_bench_v1.txt │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │         sec/op          │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Sum-12               32.41µ ± 6%
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │ sample_sum_bench_v1.txt │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │          B/op           │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Sum-12                0.000 ± 0%
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │ sample_sum_bench_v1.txt │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │        allocs/op        │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Sum-12                0.000 ± 0%
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;んー。
+$6\,\%$ の分散はちょっと大きいかなぁ。
+『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本&#34;&gt;効率的なGo&lt;/a&gt;』によると，分散が $5\,\%$ 以上ある場合は環境ノイズ（バックグラウンドのプロセスとかメモリスワップとか）が大きい可能性があるらしい。
+まぁ，今回はこのまま進めよう。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://pkg.go.dev/golang.org/x/perf/cmd/benchstat&#34; title=&#34;benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages&#34;&gt;benchstat&lt;/a&gt; で統計処理を行う場合は &lt;code&gt;-count&lt;/code&gt; オプションを使って少なくとも6回以上は繰り返すべきと書かれている。
+これによって環境ノイズを検出しやすくなる。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://pkg.go.dev/golang.org/x/perf/cmd/benchstat&#34; title=&#34;benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages&#34;&gt;benchstat&lt;/a&gt; コマンドは複数のベンチマーク結果を比較することもできる。&lt;/p&gt;
+&lt;p&gt;たとえば，先ほどの &lt;code&gt;Sum()&lt;/code&gt; 関数のループ回数を半分にしたら速くなるだろうか。
+試してみよう。
+まず &lt;code&gt;Sum()&lt;/code&gt; 関数を以下のように書き直す（ほとんど GitHub Copilot が書いたけど&lt;code&gt;w&lt;/code&gt;）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;data&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;total&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;l&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;len&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;nx&#34;&gt;h&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;l&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;/&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;h&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;		&lt;span class=&#34;nx&#34;&gt;total&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;l&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;h&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;l&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;		&lt;span class=&#34;nx&#34;&gt;total&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;h&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;total&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これに対して先ほどと同じ条件でベンチマークテストを行う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go test -run &amp;#39;^$&amp;#39; -bench &amp;#39;^BenchmarkSum$&amp;#39; -count 6 | tee sample_sum_bench_v2.txt
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goos: linux
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goarch: amd64
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pkg: sample
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12    	   30920	     39051 ns/op	       0 B/op	       0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12    	   30186	     39492 ns/op	       0 B/op	       0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12    	   30282	     39615 ns/op	       0 B/op	       0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12    	   30373	     39535 ns/op	       0 B/op	       0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12    	   30525	     39413 ns/op	       0 B/op	       0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;BenchmarkSum-12    	   30379	     39540 ns/op	       0 B/op	       0 allocs/op
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;PASS
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ok  	sample	7.215s
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ありゃ。
+さっきより遅くなっちゃった？ &lt;a href=&#34;https://pkg.go.dev/golang.org/x/perf/cmd/benchstat&#34; title=&#34;benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages&#34;&gt;benchstat&lt;/a&gt; コマンドで確認してみよう。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ benchstat sample_sum_bench_v1.txt sample_sum_bench_v2.txt
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goos: linux
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;goarch: amd64
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;pkg: sample
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;cpu: AMD Ryzen 5 PRO 4650G with Radeon Graphics
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │ sample_sum_bench_v1.txt │      sample_sum_bench_v2.txt       │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │         sec/op          │   sec/op     vs base               │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Sum-12               32.41µ ± 6%   39.51µ ± 1%  +21.92% (p=0.002 n=6)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │ sample_sum_bench_v1.txt │    sample_sum_bench_v2.txt    │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │          B/op           │    B/op     vs base           │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Sum-12                0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=6) ¹
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;¹ all samples are equal
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │ sample_sum_bench_v1.txt │    sample_sum_bench_v2.txt    │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       │        allocs/op        │ allocs/op   vs base           │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Sum-12                0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=6) ¹
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;¹ all samples are equal
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;$22\,\%$ 近く遅くなっちゃったよ &lt;code&gt;orz&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;p&lt;/code&gt; の値は統計的有意性を表す &lt;a href=&#34;https://ja.wikipedia.org/wiki/P%E5%80%A4&#34; title=&#34;p値 - Wikipedia&#34;&gt;$p\,値$&lt;/a&gt;のことで，既定では $\alpha=0.05$ に設定されている（$\alpha$ の値は &lt;code&gt;-alpha&lt;/code&gt; オプションで変更できる）。
+つまり &lt;code&gt;p&lt;/code&gt; の値が 0.05 より小さければ有意な値であると見なすことができる。&lt;/p&gt;
+&lt;p&gt;それはともかく，とりあえずループ回数を畳み込むのはなしの方向で。&lt;/p&gt;
+&lt;p&gt;&amp;hellip;てな感じで &lt;a href=&#34;https://pkg.go.dev/golang.org/x/perf/cmd/benchstat&#34; title=&#34;benchstat command - golang.org/x/perf/cmd/benchstat - Go Packages&#34;&gt;benchstat&lt;/a&gt; コマンドを使えば統計学や誤差論の知識がなくてもある程度の判断を下すことができる。&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41&amp;#43;ew2wl2jL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;効率的なGo ―データ指向によるGoアプリケーションの性能最適化&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Bartłomiej Płotka (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリー・ジャパン 2024-02-24&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4814400535 (ASIN), 9784814400539 (EAN), 4814400535 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814400539/&#34;&gt;版元&lt;/a&gt;で Ebook を買える。Go言語のリファレンス本ではない。フトウェア工学，プログラミング（の考え方）を学ぶ教科書的な位置づけかなぁ。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-04-21&#34;&gt;2024-04-21&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 効率的なGo : Efficient Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51wZEHUKZiL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;James Cutajar (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2024-12-04 (Release 2024-12-04)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0DNYMMBBQ (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34;&gt;読書会&lt;/a&gt;のために購入。インプレス社の本は Kindle 版より版元で &lt;a href=&#34;https://book.impress.co.jp/books/1123101144&#34;&gt;PDF 版&lt;/a&gt;を買うのがオススメ。「並行処理」について原理的な解説から丁寧に書かれている。 Go で解説されているが Go 以外の言語でも応用できる。
+&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-01-25&#34;&gt;2025-01-25&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語で学ぶ並行プログラミング --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Teiva Harsanyi (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2023-08-18 (Release 2023-08-18)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0CFL1DK8Q (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://book.impress.co.jp/books/1122101133&#34;&gt;版元&lt;/a&gt;で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-08-18&#34;&gt;2023-08-18&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語 100Tips --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;実際に試してみたが10億回ループしてたので，やはり中身が消えてると思われる。ちなみにループ部分を &lt;code&gt;for b.Loop() { ... }&lt;/code&gt; にしたら6億回のループになったので，多分そういうことなんだろう。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;
+&lt;p&gt;今回の記事のコードは &lt;a href=&#34;https://pkg.go.dev/testing&#34; title=&#34;testing package - testing - Go Packages&#34;&gt;&lt;code&gt;testing&lt;/code&gt; パッケージ&lt;/a&gt;のドキュメントにあるサンプルコードを参考にしている。&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34;&gt;
+&lt;p&gt;&lt;code&gt;-run &#39;^$&#39;&lt;/code&gt; オプションはひとつもテストを実行しないことを示す。 &lt;code&gt;-bench &#39;^BenchmarkSum$&#39;&lt;/code&gt; オプションは指定したベンチマークテストコードを実行することを示す。 &lt;code&gt;-count 6&lt;/code&gt; は指定したベンチマークテストを6回繰り返すことを示す。ベンチマークテストを繰り返すのは統計処理を行うため。&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>Typst におけるデータと制御</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/typst/6-data-and-control/" />
 		<id>tag:text.Baldanders.info,2025-03-02:/typst/6-data-and-control/</id>
@@ -2143,200 +2404,6 @@ JSON ファイルの作成は &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&g
   &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://book.mynavi.jp/manatee/c-r/books/detail/id=134168&#34;&gt;本の森.jp で PDF 版&lt;/a&gt;を購入。ハンズオン的な内容らしい。実は Wio Terminal を買ったまま放置プレイ中なので，楽しみにしている。&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-11-12&#34;&gt;2022-11-12&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt; &lt;!-- 基礎から学ぶ TinyGo の組込み開発 --&gt;
-</content>
-	</entry><entry>
-		<title>Chromebook を導入する 7 — VS Code の導入</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2024/05/chromebook-7/" />
-		<id>tag:text.Baldanders.info,2024-05-12:/remark/2024/05/chromebook-7/</id>
-		<published>2024-05-12T08:48:44+00:00</published>
-		<updated>2024-05-12T09:35:08+00:00</updated>
-		<summary>多分シリーズ最終回。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/03/chromebook-1/&#34;&gt;Chromebook を導入する 1&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/04/chromebook-2/&#34;&gt;Chromebook を導入する 2 — Linux サブシステム&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/04/chromebook-3/&#34;&gt;Chromebook を導入する 3 — GnuPG &amp;amp; OpenSSH&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/04/chromebook-4/&#34;&gt;Chromebook を導入する 4 — Flatpak で Firefox を導入する&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/04/chromebook-5/&#34;&gt;Chromebook を導入する 5 — APT で Firefox を導入する&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/05/chromebook-6/&#34;&gt;Chromebook を導入する 6 — Git &amp;amp; Go コンパイラ&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2024/05/chromebook-7/&#34;&gt;Chromebook を導入する 7 — VS Code の導入&lt;/a&gt; ← イマココ&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;このシリーズとしては多分最終回。
-スキマ時間でちまちまやってたから，やたら時間がかかってしまった。&lt;/p&gt;
-&lt;h2&gt;VS Code のインストール&lt;/h2&gt;
-&lt;p&gt;ググってみると Chromebook の古いバージョンの記事が多く悩ましいのだが，現状では APT 版をインストールするので問題ないようだ。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://code.visualstudio.com/docs/setup/linux&#34;&gt;Running Visual Studio Code on Linux&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;上の記事を参考に以下の手順でインストールした&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cd /etc/apt/keyrings/
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo curl -L https://packages.microsoft.com/keys/microsoft.asc -O
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ echo &amp;#34;deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/repos/code stable main&amp;#34; | sudo tee /etc/apt/sources.list.d/vscode.list &amp;gt; /dev/null
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo apt update
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo apt install code
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これでランチャーに VS Code のアイコンが入る。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./launcher.png&#34;&gt;&lt;img src=&#34;./launcher.png&#34; srcset=&#34;./launcher.png 647w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Chromebook ランチャー&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./launcher.png&#34;&gt;Chromebook ランチャー&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;さっそく&lt;a href=&#34;https://text.baldanders.info/remark/2024/05/chromebook-6/&#34; title=&#34;Chromebook を導入する 6 — Git &amp;amp; Go コンパイラ&#34;&gt;前回&lt;/a&gt;作った &lt;code&gt;hello&lt;/code&gt; プロジェクトのディレクトリに入って &lt;code&gt;code .&lt;/code&gt; で起動してみる。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./vscode.png&#34;&gt;&lt;img src=&#34;./vscode.png&#34; srcset=&#34;./vscode.png 1024w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;VS Code&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./vscode.png&#34;&gt;VS Code&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;うんうん。
-問題ないかな。
-&lt;a href=&#34;https://text.baldanders.info/remark/2021/06/new-machine-here/&#34; title=&#34;自宅マシンを買うた（これで私も人並みに...）&#34;&gt;自宅機&lt;/a&gt;に比べれば若干もったりしてるが，気になるほどではない。
-ChromeOS 標準のエディタに比べればキビキビ動く（笑）&lt;/p&gt;
-&lt;p&gt;細かい設定や &lt;a href=&#34;https://go.dev/&#34; title=&#34;The Go Programming Language&#34;&gt;Go&lt;/a&gt; や markdown 関連の設定については以前に書いた記事を参照のこと。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2021/02/installing-vscode-again/&#34;&gt;パソコンに Visual Studio Code を導入する（再チャレンジ）&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2021/02/golang-with-vscode/&#34;&gt;Go と VS Code&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2021/02/markdown-with-vscode/&#34;&gt;Markdown と VS Code&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;一部記述が古くなってるが，まだ使えるな。
-何でも取っておくものである。&lt;/p&gt;
-&lt;h2&gt;Inconsolata フォントのインストール&lt;/h2&gt;
-&lt;p&gt;私はコード表示用のフォントに昔から Inconsolata を使っている。&lt;/p&gt;
-&lt;p&gt;今回の Chromebook には既定で入ってないようなので入れておく。
-フォントは GitHub のリポジトリからダウンロードできる。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://github.com/googlefonts/Inconsolata/releases&#34;&gt;Releases · googlefonts/Inconsolata · GitHub&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Zip ファイルを解凍し，中に入ってる OTF フォント全部を &lt;code&gt;/usr/local/share/fonts&lt;/code&gt; ディレクトリに突っ込んで &lt;code&gt;fc-cache -fv&lt;/code&gt; とすればOK。
-確認は &lt;code&gt;fc-list&lt;/code&gt; コマンドでできる。&lt;/p&gt;
-&lt;p&gt;VS Code で使う場合は設定の “Editor: Font Family” の項目に設定すればよい。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./vscode-settings-font-family.png&#34;&gt;&lt;img src=&#34;./vscode-settings-font-family.png&#34; srcset=&#34;./vscode-settings-font-family.png 1200w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Editor: Font Family&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./vscode-settings-font-family.png&#34;&gt;Editor: Font Family&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;VS Code は複数のフォントを（優先順位を付けて）指定できるのがいいよね。&lt;/p&gt;
-&lt;h2&gt;ファンクションキーがない？&lt;/h2&gt;
-&lt;p&gt;VS Code のキーアサインの設定をしようとして気がついたのだが Chromebook にはファンクションキーがなかった。
-いや，いまさら気づくとか &lt;code&gt;orz&lt;/code&gt;&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://nj-clucker.com/chromebook-function-key/&#34;&gt;Chromebook でファンクションキーを使う方法。F1 から F12 までどこに割り振られているのか？！&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;なるほど。
-&lt;span&gt;&lt;span class=&#34;box&#34;&gt; &lt;i class=&#34;fa-solid fa-magnifying-glass&#34;&gt;&lt;/i&gt; &lt;/span&gt;&lt;/span&gt; キーと組み合わせて使うのか。
-覚えておこう。
-しかし &lt;code&gt;Shift+Ctrl+F1&lt;/code&gt; とかって組み合わせたらエラいことになるな。&lt;/p&gt;
-&lt;h2&gt;ようやく&lt;/h2&gt;
-&lt;p&gt;Chromebook のセットアップが終わったよ。
-これで外出先でも遊べるようになった。&lt;/p&gt;
-&lt;p&gt;でも1kg強の重量は重いよなぁ。
-このスペックでせめて1kg未満にならんもんかねぇ。
-それとも Chromebook を担ぐためにもう少し容量の大きいメッセンジャーバッグかリュックを買うべきだろうか。
-それも本末転倒だよなー。&lt;/p&gt;
-&lt;h2&gt;参考&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BKKF7JHV?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41OOqwWbGBL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0BKKF7JHV?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;【Amazon.co.jp限定】 ASUS Chromebook クロームブック Flip CX1 11.6インチ 2-in-1 タッチスクリーン 日本語キーボード 重量1.32kg トランスペアレントシルバー CX1102FKA-MK0037&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;ASUS (Release 2022-11-04)&lt;/dd&gt;
-    &lt;dd&gt;Personal Computers&lt;/dd&gt;
-    &lt;dd&gt;B0BKKF7JHV (ASIN), 0195553939942 (EAN), 195553939942 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;ASUS 製 Chromebook。11.6インチディスプレイ，8GBメモリ，32GBストレージ。正直，ストレージはもう少し欲しかったがメモリ容量優先で選んだ。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-03-27&#34;&gt;2024-03-27&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- ASUS Chromebook --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B079MCPJGH?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41PXfQ8766L._SL160_.jpg&#34; width=&#34;156&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B079MCPJGH?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;CloudValley 0.6mm 超薄型 ウェブカメラカバー、メタルカメラカバー カメラ目隠し MacBook air・ノートパソコン・iMac・デスクトップ・PC・MacBook Pro・iPad・iPhone 8/7/6用、プライバシーウェブカメラプロテクション 【2本セット】ブラック&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;CloudValley&lt;/dd&gt;
-    &lt;dd&gt;Personal Computers&lt;/dd&gt;
-    &lt;dd&gt;B079MCPJGH (ASIN), 0654070887322 (EAN), 654070887322 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;ノートPCに見られるのが嫌なので目隠しした。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-03-30&#34;&gt;2024-03-30&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- カメラ 目隠し シャッター --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08LMYWKZD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/317ZXhs7GQL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08LMYWKZD?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;エレコム ワイヤレスマウス Bluetooth Slint M-TM10BBBU/EC 薄型 静音 4ボタン プレゼンモード機能付 Windows Mac Android iOS iPadOS FireOS対応 ネイビーブルー&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;エレコム(ELECOM) (Release 2020-11-24)&lt;/dd&gt;
-    &lt;dd&gt;Personal Computers&lt;/dd&gt;
-    &lt;dd&gt;B08LMYWKZD (ASIN), 4549550198189 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;静音マウスを使いだしたら普通のマウスがカチカチ煩いと感じるようになってしまい，仕方ないので Bluetooth 無線マウスも静音マウスに替えた。単三電池一本で駆動するの助かる。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-04-13&#34;&gt;2024-04-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Bluetooth 無線静音マウス --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B07KJWYQJW?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41eb8MUNhHL._SL160_.jpg&#34; width=&#34;118&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B07KJWYQJW?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Anker PowerExpand&amp;#43; 7-in-1 USB-C PD メディア ハブ 85Wパススルー充電 Power Delivery USB-Cポート HDMI USB-Aポート&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Anker&lt;/dd&gt;
-    &lt;dd&gt;&lt;/dd&gt;
-    &lt;dd&gt;B07KJWYQJW (ASIN), 0848061003871 (EAN), 848061003871 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;購入した Chromebook と周辺機器を繋ぐために購入。 USB-C は電源用（Power Delivery 対応）とデータ用の口がある。 HDMI の口もありモニタと繋ぐこともできる。 USB-DAC も繋がる。助かる。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-05-06&#34;&gt;2024-05-06&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- ANKER PowerExpand USB メディアハブ --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08P54PQDB?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/31yRFa0S-&amp;#43;L._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08P54PQDB?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;[クローム] メッセンジャーバッグ SIMPLE MESSENGER/シンプル メッセンジャー BLACK (現行モデル) 12L 防水 メンズ&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;CHROME(クローム)&lt;/dd&gt;
-    &lt;dd&gt;ウェア&amp;amp;シューズ&lt;/dd&gt;
-    &lt;dd&gt;B08P54PQDB (ASIN), 0841916163973 (EAN), 841916163973 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;プライベートお出かけ用。たまたま安売りの時に購入できた。チャリンコ乗ってても背中がゆさゆさしない。大きすぎず丁度いいサイズ。鞄の蓋がマジックテープでちょっと煩いのが玉に瑕だが，概ね満足。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-10-08&#34;&gt;2022-10-08&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- メッセンジャーバッグ --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B09BMPZ3BZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51Q5HoOI9xL._SL160_.jpg&#34; width=&#34;112&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B09BMPZ3BZ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Chromebook仕事術 最速で業務に生かす基本＋活用ワザ できるビジネスシリーズ&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;株式会社インサイトイメージ (著)&lt;/dd&gt;
-    &lt;dd&gt;インプレス 2021-08-04 (Release 2021-08-04)&lt;/dd&gt;
-    &lt;dd&gt;Kindle版&lt;/dd&gt;
-    &lt;dd&gt;B09BMPZ3BZ (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;Chromebook の操作・設定の基本部分について一通り網羅している感じ。参考になった。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-03-28&#34;&gt;2024-03-28&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Chromebook仕事術 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4295013498?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51Z5QFGJTFL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4295013498?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;スーパーユーザーなら知っておくべきLinuxシステムの仕組み&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Brian Ward (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;インプレス 2022-03-08 (Release 2022-03-08)&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4295013498 (ASIN), 9784295013495 (EAN), 4295013498 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://book.impress.co.jp/books/1121101019&#34;&gt;版元で PDF 版が買える&lt;/a&gt;。セキュリティ・エリアにも持ち込めるよう紙の本を買ったのだが，&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/272189/&#34;&gt;オンライン読書会&lt;/a&gt;が始まったので PDF 版も購入。Linux システムの扱い方に関するリファレンス本として優れている。最初に軽く流し読みして，必要に応じて該当項目を拾い読みしていけばいいだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-02-11&#34;&gt;2023-02-11&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Linuxシステムの仕組み --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;Ubuntu の話であるが APT v2.8 から仕様が色々と変わるらしい（&lt;a href=&#34;https://gihyo.jp/admin/serial/01/ubuntu-recipe/0812&#34;&gt;第812回　aptの新機能あれこれ ［Ubuntu 24.04 LTS版］&lt;/a&gt;）。特にリポジトリ情報の記述が deb822 形式に変わるようで，おそらく ChromeOS にも影響が出てくるはず。ちなみに現行（2024-05 時点）の APT のバージョンを見たら 2.6.1 だった。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
 </content>
 	</entry>
 </feed>
