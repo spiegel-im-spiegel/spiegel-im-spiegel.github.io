@@ -132,7 +132,7 @@
 	"keywords": "book, golang, engineering, programming, concurrency",
 	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
 	"datePublished": "2025-03-22T14:49:15+00:00",
-	"dateModified": "2025-03-22T14:56:13+00:00",
+	"dateModified": "2025-03-22T23:45:22+00:00",
 	"publisher": {
 		"@id": "https://text.baldanders.info/#org"
 	},
@@ -281,11 +281,13 @@
 </span></span></code></pre></div></blockquote>
 <figcaption><div><q><a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">『Go言語で学ぶ並行プログラミング』第5章</a></q>より</div></figcaption>
 </figure>
-<p>これを実行すると大抵は（<code>Wait()</code> で受ける相手が起動する前に <code>Signal()</code> を投げちゃうので）デッドロック状態になるのだが，状態によっては上手く動いてしまうことがあるのよ。
+<p>これを実行すると大抵は（<code>Wait()</code> で受ける相手が起動する前に <code>Signal()</code> を投げちゃうので）デッドロック状態になるのだが<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>，状態によっては上手く動いてしまうことがあるのよ。
 動いたり動かなかったりするってのが一番厄介。</p>
 <p>ちなみに Java の条件変数の場合は，ロックをせずにシグナルを投げようとすると例外が発生するらしい。</p>
 <p>そういえばシグナルを投げるメソッドには <code>Broadcast()</code> もあり，こちらは <code>Wait()</code> で一時停止している全ての goroutine が起こされる。
-<code>Signal()</code> と <code>Broadcast()</code> のどちらを使うかは状況によると思うが，読書会主催の<a href="https://connpass.com/user/yoshiki_shibata/">柴田芳樹</a>さんは対象の goroutine のうちどれが起きるのか明確に分からない場合は（ひとつだけ起こしたい場合でも）なるべく <code>Signal()</code> ではなく <code>Broadcast()</code> を使うべきだと言っておられた。</p>
+<code>Signal()</code> と <code>Broadcast()</code> のどちらを使うかは状況によると思うが，読書会主催の<a href="https://connpass.com/user/yoshiki_shibata/">柴田芳樹</a>さんは対象の goroutine のうちどれが起きるのか明確に分からない場合は（ひとつだけ起こしたい場合でも）なるべく <code>Signal()</code> ではなく <code>Broadcast()</code> を使うべきだと言っておられた。
+<code>Wait()</code> で待ち状態になっている側も，どういうタイミングで起こされるか分からないので，起こされたら必ず条件判定を行って条件に合致しなければ再び <code>Wait()</code> するという処理が必要になる。
+だからループを構成するんだねぇ。</p>
 <h2>書き込み優先な RWMutex</h2>
 <p><a href="https://go.dev/">Go</a> では，共有資源に対して</p>
 <ol>
@@ -294,7 +296,7 @@
 </ol>
 <p>場合に読み込み側と書き込み側で優先度の異なるロックをかける <a href="https://pkg.go.dev/sync" title="sync package - sync - Go Packages"><code>sync</code></a><code>.RWMutex</code> 型ってのがある。
 『<a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon">Go言語で学ぶ並行プログラミング</a>』の第4章では，標準の <a href="https://pkg.go.dev/sync" title="sync package - sync - Go Packages"><code>sync</code></a><code>.RWMutex</code> を使わずリーダー・ライター・ミューテックスを自作している。</p>
-<p>ただし第4章で作ったのは読み込み優先の実装だったので，読み込み側が次々とロックを取ってしまうと，いつまで経っても書き込み側がロックを取れない事態になる<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。
+<p>ただし第4章で作ったのは読み込み優先の実装だったので，読み込み側が次々とロックを取ってしまうと，いつまで経っても書き込み側がロックを取れない事態になる<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。
 この場合はデッドロックにもならないので，これはこれで厄介である。
 これを解消するためには書き込み側を優先するロックにする必要がある。
 第5章では，条件変数を用いて，自作リーダー・ライター・ミューテックスを書き込み優先に修正するくだりがある。</p>
@@ -306,7 +308,7 @@
 ここで繋がったよ（笑）</p>
 <h2>セマフォ</h2>
 <p>セマフォ（semaphore）は並行処理の最大数を制御する仕組みである。
-たとえば計算資源をフルに使わせたくない場合に，ある時点の並行処理の最大数を（おそらくプロセッサ数以下に）抑えることで実現できる。</p>
+たとえば計算資源をフルに使わせたくない場合に，ある時点の並行処理の最大数を（おそらくプロセッサ数以下に）抑える目的で使ったりする。</p>
 <p>『<a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon">Go言語で学ぶ並行プログラミング</a>』では条件変数を使ってセマフォを自作している。
 一方 <a href="https://go.dev/">Go</a> の標準パッケージにはセマフォはないが <a href="https://pkg.go.dev/golang.org/x/sync/semaphore" title="semaphore package - golang.org/x/sync/semaphore - Go Packages"><code>golang.org/x/sync/semaphore</code></a> パッケージを使うことでセマフォを扱うことができる。
 こちらはほぼ標準パッケージに近いのでバンバン使っていいだろう。</p>
@@ -464,7 +466,10 @@
 <hr>
 <ol>
 <li id="fn:1">
-<p>リーダー・ライター・ミューテックスで書き込み側がいつまでもロックを獲得できない状態を writer-starvation と呼ぶ。『<a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon">Go言語で学ぶ並行プログラミング</a>』における “starvation” の定義は「他の貪欲な実行によって資源が長時間（または無期限に）利用できなくなり、共有資源へのアクセスを得ることができない状況を指します」としている。書き込み側が starvation になるから writer-starvation ということらしい。辞書的な “starvation” の意味は「食糧の不足によって栄養失調が続き、体調の維持が困難になっている状態」みたいな意味だそうな。継続的な飢餓状態ってことやね。&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+<p><a href="https://go.dev/">Go</a> ではメインを含む全ての goroutine が待機状態になって（タイマーやシグナル等で）起こされる見込みがない状態を検出するとデッドロック（deadlock）と見なして <code>panic</code> を投げる。だから <a href="https://go.dev/">Go</a> の並行処理ではデッドロックは検出しやすく，それゆえにデバッグも（比較的）しやすい。&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2">
+<p>リーダー・ライター・ミューテックスで書き込み側がいつまでもロックを獲得できない状態を writer-starvation と呼ぶ。『<a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon">Go言語で学ぶ並行プログラミング</a>』における “starvation” の定義は「他の貪欲な実行によって資源が長時間（または無期限に）利用できなくなり、共有資源へのアクセスを得ることができない状況を指します」としている。書き込み側が starvation になるから writer-starvation ということらしい。辞書的な “starvation” の意味は「食糧の不足によって栄養失調が続き、体調の維持が困難になっている状態」みたいな意味だそうな。継続的な飢餓状態ってことやね。&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
 </li>
 </ol>
 </div>
@@ -493,7 +498,7 @@
 	</div>
 	<div class="userinfo-info" id="maker">
 		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
-		in <time property='dc:dateCopyrighted'>2025-03-22</time>
+		in <time property='dc:dateCopyrighted'>2025-03-22</time> (revised in 2025-03-23)
 		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
 		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><span class="bluesky-color"><abbr title="Bluesky"><i class="fa-brands fa-bluesky"></i></abbr></span></a></li></ul>
 	</div>
