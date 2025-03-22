@@ -2,18 +2,334 @@
 	<title>List of Concurrency - text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/concurrency/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/concurrency/index.xml" />
-	<id>tag:text.Baldanders.info,2025-01-25:/tags</id>
-	<updated>2025-01-25T23:27:33+09:00</updated>
+	<id>tag:text.Baldanders.info,2025-03-22:/tags</id>
+	<updated>2025-03-22T23:49:15+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>条件変数とセマフォ（『Go言語で学ぶ並行プログラミング』読書会3回目）</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/learn-concurrent-programming-with-go-3/" />
+		<id>tag:text.Baldanders.info,2025-03-22:/golang/learn-concurrent-programming-with-go-3/</id>
+		<published>2025-03-22T14:49:15+00:00</published>
+		<updated>2025-03-22T14:49:20+00:00</updated>
+		<summary>条件変数 / 書き込み優先な RWMutex / セマフォ</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;「&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/347110/&#34; title=&#34;第3回『Go言語で学ぶ並行プログラミング』オンライン読書会 - connpass&#34;&gt;第3回『Go言語で学ぶ並行プログラミング』オンライン読書会&lt;/a&gt;」の話題より。
+ちなみに第2回は記事にしていない。
+あしからず。&lt;/p&gt;
+&lt;h2&gt;条件変数&lt;/h2&gt;
+&lt;p&gt;条件変数（condition variable）というのは，ミューテックス（mutex）と組み合わせて，並行処理が特定の条件が発生するまで待たせたいときに使う。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; では標準パッケージの &lt;a href=&#34;https://pkg.go.dev/sync&#34; title=&#34;sync package - sync - Go Packages&#34;&gt;&lt;code&gt;sync&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Cond&lt;/code&gt; 型で提供されている。
+こんな感じで使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;NewCond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Mutex&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{})&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ちなみに &lt;a href=&#34;https://docs.oracle.com/en/java/javase/24/docs/api/java.base/java/util/concurrent/locks/Condition.html&#34; title=&#34;Condition (Java SE 24 &amp;amp; JDK 24)&#34;&gt;Java&lt;/a&gt; では&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-java&#34; data-lang=&#34;java&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;final&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Lock&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;lock&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;new&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ReentrantLock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;final&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Condition&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;condLock&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;lock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;newCondition&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;みたいな感じにミューテックス・インスタンスから生成する。
+おそらく言語やライブラリやフレームワークによって色々あるだろう。&lt;/p&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』に出ていた例題は&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Stingy と Spendy の２人の登場人物（goroutine）&lt;/li&gt;
+&lt;li&gt;２人は共通の銀行口座を持っていて現在100ドルの残高がある&lt;/li&gt;
+&lt;li&gt;Stingy は毎回10ドルずつ100万回入金する&lt;/li&gt;
+&lt;li&gt;Spendy は毎回50ドルずつ20万回出金する&lt;/li&gt;
+&lt;li&gt;銀行口座の残高をマイナスにしてはいけない（← ここが条件変数の条件）&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;という要件で入出金の様子をコードで書くというもの。
+過程をすっ飛ばして最終形を挙げておく。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;os&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;sync&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;time&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;100&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;mutex&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Mutex&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;NewCond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;mutex&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;go&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;stingy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;go&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;spendy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Sleep&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;time&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Second&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;mutex&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Lock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Money in bank account: &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;mutex&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Unlock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;stingy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;L&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Lock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Signal&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;L&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Unlock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Stingy Done&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;spendy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;200000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;L&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Lock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;50&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Wait&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;50&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;money&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Money is negative!&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Exit&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;L&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Unlock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Spendy Done&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』第5章&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;&lt;code&gt;spendy()&lt;/code&gt; 関数内 &lt;code&gt;cond.Wait()&lt;/code&gt; の動作は分かりにくいかもしれないが，内部ではミューテックスを解放して待ち状態に入っている。
+その後 &lt;code&gt;Signal()&lt;/code&gt; を受け取ったらミューテックスを再取得して実行を再開する。
+ここで &lt;code&gt;*money &amp;lt; 50&lt;/code&gt; の条件に合致すればループを抜けて出金操作を行うわけだ（合致しなければ再び &lt;code&gt;Wait()&lt;/code&gt;）。&lt;/p&gt;
+&lt;p&gt;このコードの注意点は2つ。
+ひとつは &lt;code&gt;Signal()&lt;/code&gt; や &lt;code&gt;Wait()&lt;/code&gt; の前後は必ず &lt;code&gt;Lock() ... Unlock()&lt;/code&gt; で囲っておくこと。
+もうひとつは &lt;code&gt;Wait()&lt;/code&gt; 付近で条件を記述する際は &lt;code&gt;if&lt;/code&gt; 文ではなく &lt;code&gt;for&lt;/code&gt; 文でループを構成すること。
+後者はわかりやすいよね。
+前者は，たとえば以下のようなコードがあって&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;sync&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/*
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;Note: this program has a bug for demonstration purposes
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;We demonstrate how to fix this problem in the next listing
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;doWork&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Work started&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Work finished&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Signal&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;NewCond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;sync&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Mutex&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{})&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;L&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Lock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;50000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;go&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;doWork&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Waiting for child goroutine&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Wait&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Child goroutine finished&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;cond&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;L&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Unlock&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』第5章&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;これを実行すると大抵は（&lt;code&gt;Wait()&lt;/code&gt; で受ける相手が起動する前に &lt;code&gt;Signal()&lt;/code&gt; を投げちゃうので）デッドロック状態になるのだが，状態によっては上手く動いてしまうことがあるのよ。
+動いたり動かなかったりするってのが一番厄介。&lt;/p&gt;
+&lt;p&gt;ちなみに Java の条件変数の場合は，ロックをせずにシグナルを投げようとすると例外が発生するらしい。&lt;/p&gt;
+&lt;p&gt;そういえばシグナルを投げるメソッドには &lt;code&gt;Broadcast()&lt;/code&gt; もあり，こちらは &lt;code&gt;Wait()&lt;/code&gt; で一時停止している全ての goroutine が起こされる。
+&lt;code&gt;Signal()&lt;/code&gt; と &lt;code&gt;Broadcast()&lt;/code&gt; のどちらを使うかは状況によると思うが，読書会主催の&lt;a href=&#34;https://connpass.com/user/yoshiki_shibata/&#34;&gt;柴田芳樹&lt;/a&gt;さんは対象の goroutine のうちどれが起きるのか明確に分からない場合は（ひとつだけ起こしたい場合でも）なるべく &lt;code&gt;Signal()&lt;/code&gt; ではなく &lt;code&gt;Broadcast()&lt;/code&gt; を使うべきだと言っておられた。&lt;/p&gt;
+&lt;h2&gt;書き込み優先な RWMutex&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; では，共有資源に対して&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;書き込みを行うスレッド（goroutine）はひとつだけ&lt;/li&gt;
+&lt;li&gt;読み込み専用スレッドは複数ある&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;場合に読み込み側と書き込み側で優先度の異なるロックをかける &lt;a href=&#34;https://pkg.go.dev/sync&#34; title=&#34;sync package - sync - Go Packages&#34;&gt;&lt;code&gt;sync&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.RWMutex&lt;/code&gt; 型ってのがある。
+『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』の第4章では，標準の &lt;a href=&#34;https://pkg.go.dev/sync&#34; title=&#34;sync package - sync - Go Packages&#34;&gt;&lt;code&gt;sync&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.RWMutex&lt;/code&gt; を使わずリーダー・ライター・ミューテックスを自作している。&lt;/p&gt;
+&lt;p&gt;ただし第4章で作ったのは読み込み優先の実装だったので，読み込み側が次々とロックを取ってしまうと，いつまで経っても書き込み側がロックを取れない事態になる&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+この場合はデッドロックにもならないので，これはこれで厄介である。
+これを解消するためには書き込み側を優先するロックにする必要がある。
+第5章では，条件変数を用いて，自作リーダー・ライター・ミューテックスを書き込み優先に修正するくだりがある。&lt;/p&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』は比較的簡単なサンプルコードで仕組みを紹介しているのがとてもいいと思う。&lt;/p&gt;
+&lt;p&gt;ちなみに標準の &lt;a href=&#34;https://pkg.go.dev/sync&#34; title=&#34;sync package - sync - Go Packages&#34;&gt;&lt;code&gt;sync&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.RWMutex&lt;/code&gt; は書き込み優先である。&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote cite=&#34;https://pkg.go.dev/sync#RWMutex&#34;&gt;If any goroutine calls &lt;a href=&#34;https://pkg.go.dev/sync#RWMutex.Lock&#34;&gt;&lt;code&gt;RWMutex.Lock&lt;/code&gt;&lt;/a&gt; while the lock is already held by one or more readers, concurrent calls to &lt;a href=&#34;https://pkg.go.dev/sync#RWMutex.RLock&#34;&gt;&lt;code&gt;RWMutex.RLock&lt;/code&gt;&lt;/a&gt; will block until the writer has acquired (and released) the lock, to ensure that the lock eventually becomes available to the writer. Note that this prohibits recursive read-locking. A &lt;a href=&#34;https://pkg.go.dev/sync#RWMutex.RLock&#34;&gt;&lt;code&gt;RWMutex.RLock&lt;/code&gt;&lt;/a&gt; cannot be upgraded into a &lt;a href=&#34;https://pkg.go.dev/sync#RWMutex.Lock&#34;&gt;&lt;code&gt;RWMutex.Lock&lt;/code&gt;&lt;/a&gt;, nor can a &lt;a href=&#34;https://pkg.go.dev/sync#RWMutex.Lock&#34;&gt;&lt;code&gt;RWMutex.Lock&lt;/code&gt;&lt;/a&gt; be downgraded into a &lt;a href=&#34;https://pkg.go.dev/sync#RWMutex.RLock&#34;&gt;&lt;code&gt;RWMutex.RLock&lt;/code&gt;&lt;/a&gt;.&lt;/blockquote&gt;&lt;/figure&gt;
+&lt;p&gt;だから第4章では標準を使わなかったんだねぇ。
+ここで繋がったよ（笑）&lt;/p&gt;
+&lt;h2&gt;セマフォ&lt;/h2&gt;
+&lt;p&gt;セマフォ（semaphore）は並行処理の最大数を制御する仕組みである。
+たとえば計算資源をフルに使わせたくない場合に，ある時点の並行処理の最大数を（おそらくプロセッサ数以下に）抑えることで実現できる。&lt;/p&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』では条件変数を使ってセマフォを自作している。
+一方 &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の標準パッケージにはセマフォはないが &lt;a href=&#34;https://pkg.go.dev/golang.org/x/sync/semaphore&#34; title=&#34;semaphore package - golang.org/x/sync/semaphore - Go Packages&#34;&gt;&lt;code&gt;golang.org/x/sync/semaphore&lt;/code&gt;&lt;/a&gt; パッケージを使うことでセマフォを扱うことができる。
+こちらはほぼ標準パッケージに近いのでバンバン使っていいだろう。&lt;/p&gt;
+&lt;p&gt;この記事では &lt;a href=&#34;https://pkg.go.dev/golang.org/x/sync/semaphore&#34; title=&#34;semaphore package - golang.org/x/sync/semaphore - Go Packages&#34;&gt;&lt;code&gt;golang.org/x/sync/semaphore&lt;/code&gt;&lt;/a&gt; パッケージに載っているサンプルコードを挙げておく。&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://pkg.go.dev/golang.org/x/sync/semaphore&#34;&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;context&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;log&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;runtime&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;&amp;#34;golang.org/x/sync/semaphore&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// Example_workerPool demonstrates how to use a semaphore to limit the number of&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// goroutines working on parallel tasks.&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;//&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// This use of a semaphore mimics a typical “worker pool” pattern, but without&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// the need to explicitly shut down idle workers when the work is done.&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;ctx&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;context&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;TODO&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;kd&#34;&gt;var&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;maxWorkers&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;runtime&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;GOMAXPROCS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;sem&lt;/span&gt;        &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;semaphore&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;NewWeighted&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;int64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;maxWorkers&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;out&lt;/span&gt;        &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;make&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;([]&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// Compute the output using up to maxWorkers goroutines at a time.&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;range&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;out&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;c1&#34;&gt;// When maxWorkers goroutines are in flight, Acquire blocks until one of the&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;c1&#34;&gt;// workers finishes.&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sem&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Acquire&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ctx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nx&#34;&gt;log&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Failed to acquire semaphore: %v&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;k&#34;&gt;break&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;go&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;k&#34;&gt;defer&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sem&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Release&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nx&#34;&gt;out&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;collatzSteps&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// Acquire all of the tokens to wait for any remaining workers to finish.&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;//&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// If you are already waiting for the workers by some other means (such as an&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// errgroup.Group), you can omit this final Acquire call.&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;sem&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Acquire&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ctx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;int64&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;maxWorkers&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;log&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Failed to acquire semaphore: %v&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;out&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// collatzSteps computes the number of steps to reach 1 under the Collatz&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// conjecture. (See https://en.wikipedia.org/wiki/Collatz_conjecture.)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;collatzSteps&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;steps&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nb&#34;&gt;panic&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;nonpositive input&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;steps&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;steps&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nb&#34;&gt;panic&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;too many steps&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;%&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;/=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;k&#34;&gt;continue&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;kd&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;maxInt&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(^&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;uint&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;maxInt&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;nb&#34;&gt;panic&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;overflow&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;steps&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://pkg.go.dev/golang.org/x/sync/semaphore&#34;&gt;semaphore package - golang.org/x/sync/semaphore - Go Packages&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E3%82%B3%E3%83%A9%E3%83%83%E3%83%84%E3%81%AE%E5%95%8F%E9%A1%8C&#34; title=&#34;コラッツの問題 - Wikipedia&#34;&gt;コラッツ予想&lt;/a&gt;？ このサンプルでは，メイン以外の goroutine の間では共有資源の異なるアドレスにアクセスするためデータ競合（data race）は起きないことに注意。
+データ競合が発生し得るのであればミューテックスを使ってアクセス制御を行う必要がある。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://pkg.go.dev/golang.org/x/sync/semaphore&#34; title=&#34;semaphore package - golang.org/x/sync/semaphore - Go Packages&#34;&gt;&lt;code&gt;golang.org/x/sync/semaphore&lt;/code&gt;&lt;/a&gt; パッケージで実装されているセマフォは「重み付きセマフォ（weighted semaphore）」と呼ぶらしい。
+&lt;code&gt;Acquire()&lt;/code&gt; および &lt;code&gt;Release()&lt;/code&gt; で獲得数・解放数を指定できる。
+上のサンプルコードでは最後の &lt;code&gt;sem.Acquire(ctx, int64(maxWorkers))&lt;/code&gt; でメイン以外の goroutine が稼働していないことを確認している（稼働していれば待ちになる）。
+なお &lt;code&gt;Release()&lt;/code&gt; 時にカウントがマイナスになると &lt;code&gt;panic&lt;/code&gt; を吐くようだ。&lt;/p&gt;
+&lt;h2&gt;今回はここまで&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/350009/&#34; title=&#34;第4回『Go言語で学ぶ並行プログラミング』オンライン読書会 - connpass&#34;&gt;次回&lt;/a&gt;は第6章の「バリア（barrier）」の話からである。
+楽しみ！&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/cutajarj/ConcurrentProgrammingWithGo&#34;&gt;cutajarj/ConcurrentProgrammingWithGo: Listings from manning book&lt;/a&gt; : 『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』に出てくるサンプルコード&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51wZEHUKZiL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;James Cutajar (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2024-12-04 (Release 2024-12-04)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0DNYMMBBQ (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34;&gt;読書会&lt;/a&gt;のために購入。インプレス社の本は Kindle 版より版元で &lt;a href=&#34;https://book.impress.co.jp/books/1123101144&#34;&gt;PDF 版&lt;/a&gt;を買うのがオススメ。「並行処理」について原理的な解説から丁寧に書かれている。 Go で解説されているが Go 以外の言語でも応用できる。
+&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-01-25&#34;&gt;2025-01-25&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語で学ぶ並行プログラミング --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Teiva Harsanyi (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2023-08-18 (Release 2023-08-18)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0CFL1DK8Q (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://book.impress.co.jp/books/1122101133&#34;&gt;版元&lt;/a&gt;で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-08-18&#34;&gt;2023-08-18&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語 100Tips --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;リーダー・ライター・ミューテックスで書き込み側がいつまでもロックを獲得できない状態を writer-starvation と呼ぶ。『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』における “starvation” の定義は「他の貪欲な実行によって資源が長時間（または無期限に）利用できなくなり、共有資源へのアクセスを得ることができない状況を指します」としている。書き込み側が starvation になるから writer-starvation ということらしい。辞書的な “starvation” の意味は「食糧の不足によって栄養失調が続き、体調の維持が困難になっている状態」みたいな意味だそうな。継続的な飢餓状態ってことやね。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>goroutine はグリーンスレッドではない（『Go言語で学ぶ並行プログラミング』読書会1回目）</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2025/01/learn-concurrent-programming-with-go-1/" />
-		<id>tag:text.Baldanders.info,2025-01-25:/remark/2025/01/learn-concurrent-programming-with-go-1/</id>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/learn-concurrent-programming-with-go-1/" />
+		<id>tag:text.Baldanders.info,2025-01-25:/golang/learn-concurrent-programming-with-go-1/</id>
 		<published>2025-01-25T14:27:33+00:00</published>
-		<updated>2025-01-26T00:24:30+00:00</updated>
+		<updated>2025-03-22T14:49:20+00:00</updated>
 		<summary>「並行処理」と「並列処理」を使って文を書け</summary>
 		<author>
 			<name>Spiegel</name>
@@ -23,7 +339,205 @@
 	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
 
 
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;今日は「&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34; title=&#34;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会 - connpass&#34;&gt;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会&lt;/a&gt;」だった。&lt;/p&gt;
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;div class=&#34;box&#34;&gt;「&lt;a href=&#34;https://text.baldanders.info/remark/&#34;&gt;しっぽのさきっちょ&lt;/a&gt;）」側の同名記事をこちらのセクションに移動しました。&lt;/div&gt;
+&lt;p&gt;「&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34; title=&#34;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会 - connpass&#34;&gt;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会&lt;/a&gt;」の話題より。&lt;/p&gt;
+&lt;p&gt;対象となる『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』は，版元から PDF 版を&lt;a href=&#34;https://book.impress.co.jp/books/1123101144&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス - インプレスブックス&#34;&gt;購入&lt;/a&gt;した。
+インプレス社って絶版でもないのにいつの間にか Kindle 版を引っ込めたりするそうで，デジタル版を買うなら PDF 版を買うのがオススメらしい。
+まぁ，技術参考書は PDF 版のほうが取り回ししやすいからな。
+紙はかさばるし。&lt;/p&gt;
+&lt;p&gt;事前にざっと斜め読みしたのだが，解説が丁寧という印象。
+タイトル通り &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; 言語を前提に書かれているが C/C++ や Java などの構文型のプログラミング言語に慣れているのなら難しくないと思う。&lt;/p&gt;
+&lt;p&gt;まずは1章から順に読むのがおすすめ。
+「並行処理，&lt;a href=&#34;https://zenn.dev/activecore/articles/9862409de182c7&#34; title=&#34;エンジニア完全に理解した&#34;&gt;完全に理解した&lt;/a&gt;」という人も復習のつもりで順に読んでいくのがいいだろう。&lt;/p&gt;
+&lt;h2&gt;並行と並列&lt;/h2&gt;
+&lt;p&gt;以前，読書感想文で『&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語による並行処理 | Katherine Cox-Buday, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;Go言語による並行処理&lt;/a&gt;』を&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34; title=&#34;『Go 言語による並行処理』は Go 言語プログラマ必読書だろう&#34;&gt;大絶賛&lt;/a&gt;したのだが，その中の「2.1 並行性と並列性の違い」の中で&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;並行性はコードの性質を指し、並列性は動作しているプログラムの性質を指します。&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語による並行処理』 p.23&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;と書かれている。
+『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』では更に具体的に&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;並行性とは、多くのタスクを同時にどのように実行するかを計画する（planning）ことです。並列性とは、多くのタスクを同時に実行する（performing）ことです。&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』 p.39&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;と書かれている。
+たとえば&lt;/p&gt;
+&lt;div class=&#34;box&#34;&gt;&lt;em&gt;問. 「並行処理」と「並列処理」を使って文を書け&lt;/em&gt;&lt;/div&gt;
+&lt;p&gt;みたいな問題があったら&lt;/p&gt;
+&lt;div class=&#34;box&#34;&gt;並行処理を組み込んだプログラムを書いて実行したところ正しく並列処理が行われた。&lt;/div&gt;
+&lt;p&gt;みたいに回答するのがいいだろうか（笑）&lt;/p&gt;
+&lt;p&gt;今回の&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34; title=&#34;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会 - connpass&#34;&gt;読書会&lt;/a&gt;は第3章にかかった辺りまでだったが，今のところ『&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語による並行処理 | Katherine Cox-Buday, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;Go言語による並行処理&lt;/a&gt;』よりは『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』のほうがオススメな感じ。
+まぁ，あとから出た本だからねぇ。&lt;/p&gt;
+&lt;h2&gt;goroutine はグリーンスレッドではない&lt;/h2&gt;
+&lt;p&gt;並行処理の仕組みとしてカーネルが用意している機能にはプロセスとスレッドがある。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;オペレーティングシステムの各プロセスは、他のプロセスから隔離された独自のメモリ空間を持っています。通常、プロセスは独立して動作し、他のプロセスとの相互作用は最小限です。プロセスは、多くの資源を消費する代償として、隔離を提供します。たとえば、あるプロセスがエラーでクラッシュしても、そのプロセスは独自のメモリ空間を持っているため、他のプロセスに影響を与えることはありません。この隔離の欠点は、多くのメモリを消費してしまうことです。さらに、メモリ領域やその他のシステム資源を確保する必要があるため、プロセスの起動には（スレッドに比べて）少し時間がかかります。&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』 p.20&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;p&gt;新たなスレッドを作成する場合、オペレーティングシステムが作成する必要があるのは、スタック領域、レジスタ、プログラムカウンタを管理するのに十分な資源だけです。新たなスレッドは、同じプロセスのコンテキスト内で実行されます。対照的に、新たなプロセスを作成する場合、オペレーティングシステムはそれに完全に新たなメモリ空間を割り当てる必要があります。この理由から、スレッドはプロセスよりもはるかに軽量であり、システムが資源を使い果たすまでに、プロセスよりも多くのスレッドを作成することが通常可能です。さらに、新たに割り当てる資源がかなり少ないため、スレッドの起動はプロセスの起動よりもはるかに速いです。&lt;/p&gt;
+&lt;p&gt;[&amp;hellip;]&lt;/p&gt;
+&lt;p&gt;ただし、この追加の性能には、ある代償が伴います。同じメモリ空間で作業するということは、プロセスが提供する隔離が得られないことを意味します。そのため、あるスレッドが他のスレッドの作業に干渉して被害を与える可能性があります。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』 p.25&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;各スレッドがどの CPU コアに割り当てられるかはカーネルが決定する。
+このため上述のスレッドのことを特に「カーネルレベルスレッド」と呼ぶ。&lt;/p&gt;
+&lt;p&gt;カーネルレベルスレッドがあるということはユーザー空間で完全にアプリケーションが制御する「ユーザーレベルスレッド」もあるわけだ。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;p&gt;ユーザーレベルスレッドの主な利点は性能です。ユーザーレベルスレッドのコンテキストスイッチは、カーネルレベルスレッドのコンテキストスイッチよりも高速です。なぜなら、カーネルレベルのコンテキストスイッチでは、オペレーティングシステムが介入して次に実行するスレッドを選択する必要があるからです。カーネルを呼び出さずに実行を切り替えることができれば、実行中のプロセスは、キャッシュをフラッシュして処理速度を低下させる必要がなく、CPU を保持し続けられます。&lt;/p&gt;
+&lt;p&gt;ユーザーレベルスレッドを使うことの不都合な点は、ブロッキング I/O 呼び出しを行うコードを実行するときに現れます。ファイルからの読み込みが必要な状況を考えてみましょう。オペレーティングシステムはプロセスを 1 つの実行のスレッドと見なすため、ユーザーレベルスレッドがこのブロッキング読み込み呼び出しを実行すると、プロセス全体がスケジュールから外されます。同じプロセス内に他のユーザーレベルスレッドが存在する場合、読み込み操作が完了するまで、それらのスレッドは実行されません。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』 p.33-34&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;で， &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; の goroutine はどれやねん？ という話だが，実はカーネルレベルスレッドとユーザーレベルスレッドを組み合わせたハイブリッドな構成となっている。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go はハイブリッドシステムを採用することで、ユーザーレベルスレッドの優れた性能を提供し、不都合な点がほとんどありません。これは、カーネルレベルスレッドの集まりを使い、それぞれがゴルーチンのキューを管理することで実現しています。複数のカーネルレベルスレッドがあるので、複数のプロセッサが利用可能な場合、複数のプロセッサを利用できます。&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』 p.34-35&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;これを「M:N スレッディングモデル」と呼ぶ。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go がゴルーチンに使っているシステムは、M:N スレッディングモデル（threading model）と呼ばれることがあります。M:N とするのは M 個のユーザーレベルスレッド（ゴルーチン）がN 個のカーネルレベルスレッドにマッピングされている場合です。これは、通常のユーザーレベルスレッドとは対照的です。通常のユーザーレベルスレッドは、N:1 スレッディングモデルと呼ばれ、1 つのカーネルレベルスレッドに対して N 個のユーザーレベルスレッドという意味です。M:N モデルのランタイムを実装するには、カーネルレベルスレッドの集まり上でユーザーレベルスレッドを移動させてバランスを取るための多くの技法が必要なため、他のモデルよりも複雑になります。&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』 p.35&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;一方で「グリーンスレッド」という言葉があるのだが，これは Java の用語らしい。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;グリーンスレッド（green thread）という用語は、プログラミング言語 Java のバージョン 1.1で生まれました 。Java のオリジナルのグリーンスレッドは、ユーザーレベルスレッドの実装でした。単一のコア上でのみ実行され、JVM によって完全に管理されていました 。Javaバージョン 1.3 では、グリーンスレッドはカーネルレベルスレッドに取って代わられました。それ以来、多くの開発者がユーザーレベルスレッドの他の実装を指すために用語「グリーンスレッド」を使っています。後述するように、Go のランタイムはゴルーチンが複数の CPU を十分に活用できるようにしているので、 Go のゴルーチンをグリーンスレッドと呼ぶのはおそらく不正確です。&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語で学ぶ並行プログラミング』 p.34&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;へー。
+よその記事で goroutine をグリーンスレッドと書いてる気がするなぁ。
+直すの面倒だし，過去記事は放置で，これから気をつけることにしよう。&lt;/p&gt;
+&lt;p&gt;ちなみに Java 21 からは &lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; に似たスレッドモデルが正式に導入されていて，これは「仮想スレッド（virtual thread）」と呼ぶそうな。&lt;/p&gt;
+&lt;h2&gt;Go のメモリモデル&lt;/h2&gt;
+&lt;p&gt;翻訳者で&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34; title=&#34;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会 - connpass&#34;&gt;読書会&lt;/a&gt;の主催者である&lt;a href=&#34;https://note.com/yoshiki_shibata&#34; title=&#34;柴田 芳樹｜note&#34;&gt;柴田芳樹&lt;/a&gt;さんが今回おっしゃっていたが（実は訳者あとがきでも言及されている），『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』にはメモリモデルについての解説がない。
+並行処理とメモリ共有は密接な関係があるのでメモリモデルについても解説があればよかったのに，という感じ。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34;&gt;Go&lt;/a&gt; のメモリモデルについては公式のドキュメントがある。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://go.dev/ref/mem&#34;&gt;The Go Memory Model - The Go Programming Language&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;このドキュメントの冒頭に&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote cite=&#34;https://go.dev/ref/mem&#34;&gt;If you must read the rest of this document to understand the behavior of your program, you are being too clever.&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://go.dev/ref/mem&#34;&gt;The Go Memory Model&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;とか皮肉（？）な文章が書かれていて笑っちまったよ。&lt;/p&gt;
+&lt;p&gt;それはともかく，中身をちょろんと紹介すると，たとえば&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;var&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;a&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;a&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;a&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;hello, world&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;go&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;というコードがあったとき “&lt;code&gt;hello, world&lt;/code&gt;” と出力されることが保証されるというもの。&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote cite=&#34;https://go.dev/ref/mem&#34;&gt;The go statement that starts a new goroutine is synchronized before the start of the goroutine&amp;rsquo;s execution.&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://go.dev/ref/mem&#34;&gt;The Go Memory Model&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;「当たり前やんけ！」と思うかもしれないが &lt;code&gt;hello()&lt;/code&gt; 関数と &lt;code&gt;f()&lt;/code&gt; 関数が異なる CPU コアで並列に実行される場合，この「保証」はかなり重要である。&lt;/p&gt;
+&lt;p&gt;マルチコアプロセッサでは（システムバスを通じて）メモリに直接アクセスするのではなく，メモリキャッシュを挟んだ間接的なアクセスになる。
+この際に複数の CPU コアとメモリとの間にデータ競合が起きないよう「キャッシュ・コヒーレンシー・プロトコル（cache-coherency protocols）」が走るらしい。&lt;/p&gt;
+&lt;p&gt;このプロトコルが正しく働いて CPU レベルでのデータ競合が起きないことが保証できないと，並行処理下で「何も信用できない」ことになってしまう。&lt;/p&gt;
+&lt;p&gt;キャッシュ・コヒーレンシー・プロトコル周りの話を始めるとそれだけで本が書けるそうで，実際に紹介してもらったが，かなりの分量があって理解するのも大変とのこと。
+たぶん『&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語による並行処理 | Katherine Cox-Buday, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;Go言語による並行処理&lt;/a&gt;』にメモリモデルの解説を入れると分量が1.5倍とか2倍とかになるんじゃないのかな（笑）&lt;/p&gt;
+&lt;h2&gt;というわけで&lt;/h2&gt;
+&lt;p&gt;次回以降の読書会も楽しみである。
+記事にするかどうかは不明。&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/cutajarj/ConcurrentProgrammingWithGo&#34;&gt;cutajarj/ConcurrentProgrammingWithGo: Listings from manning book&lt;/a&gt; : 『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ | James Cutajar, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語で学ぶ並行プログラミング&lt;/a&gt;』に出てくるサンプルコード&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51wZEHUKZiL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;James Cutajar (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2024-12-04 (Release 2024-12-04)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0DNYMMBBQ (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34;&gt;読書会&lt;/a&gt;のために購入。インプレス社の本は Kindle 版より版元で &lt;a href=&#34;https://book.impress.co.jp/books/1123101144&#34;&gt;PDF 版&lt;/a&gt;を買うのがオススメ。「並行処理」について原理的な解説から丁寧に書かれている。 Go で解説されているが Go 以外の言語でも応用できる。
+&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-01-25&#34;&gt;2025-01-25&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語で学ぶ並行プログラミング --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Teiva Harsanyi (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2023-08-18 (Release 2023-08-18)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0CFL1DK8Q (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://book.impress.co.jp/books/1122101133&#34;&gt;版元&lt;/a&gt;で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-08-18&#34;&gt;2023-08-18&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語 100Tips --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CX1NVW3F?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/414YsJmBYNL._SL160_.jpg&#34; width=&#34;120&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CX1NVW3F?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;へぇ～ボタン 懐かし玩具 リセットボタン&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;ノーブランド品&lt;/dd&gt;
+    &lt;dd&gt;&lt;/dd&gt;
+    &lt;dd&gt;B0CX1NVW3F (ASIN)&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;へーへーへー&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-01-25&#34;&gt;2025-01-25&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- へぇ～ボタン へーボタン --&gt;
+</content>
+	</entry><entry>
+		<title>goroutine はグリーンスレッドではない（『Go言語で学ぶ並行プログラミング』読書会1回目）</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2025/01/learn-concurrent-programming-with-go-1/" />
+		<id>tag:text.Baldanders.info,2025-01-25:/remark/2025/01/learn-concurrent-programming-with-go-1/</id>
+		<published>2025-01-25T14:27:33+00:00</published>
+		<updated>2025-03-22T14:49:20+00:00</updated>
+		<summary>「並行処理」と「並列処理」を使って文を書け</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;div class=&#34;box&#34;&gt;&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/golang/&#34;&gt;プログラミング言語 Go&lt;/a&gt;」セクションの&lt;a href=&#34;https://text.baldanders.info/golang/learn-concurrent-programming-with-go-1/&#34;&gt;同名記事&lt;/a&gt;に移動しました。&lt;/p&gt;
+&lt;script&gt;
+location.href = &#34;/golang/learn-concurrent-programming-with-go-1/&#34;;
+&lt;/script&gt;&lt;/div&gt;
+&lt;p&gt;今日は「&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34; title=&#34;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会 - connpass&#34;&gt;第1回『Go言語で学ぶ並行プログラミング』オンライン読書会&lt;/a&gt;」だった。&lt;/p&gt;
 &lt;p&gt;版元から PDF 版を&lt;a href=&#34;https://book.impress.co.jp/books/1123101144&#34; title=&#34;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス - インプレスブックス&#34;&gt;購入&lt;/a&gt;した。
 インプレス社って絶版でもないのにいつの間にか Kindle 版を引っ込めたりするそうで，デジタル版を買うなら PDF 版を買うのがオススメらしい。
 まぁ，技術参考書は PDF 版のほうが取り回ししやすいからな。
@@ -1545,209 +2059,6 @@ WebAssembly や Plan 9 が non-preemptive になるのは分かるが， ARM ア
 &lt;ol&gt;
 &lt;li id=&#34;fn:1&#34;&gt;
 &lt;p&gt;&lt;a href=&#34;https://golang.org/pkg/math/rand/&#34; title=&#34;rand - The Go Programming Language&#34;&gt;math/rand&lt;/a&gt; パッケージに実装されている擬似乱数生成器は&lt;a href=&#34;https://groups.google.com/forum/#!topic/golang-nuts/RZ1G3_cxMcM&#34;&gt;ラグ付フィボナッチ法（Lagged Fibonacci Generator）のバリエーション&lt;/a&gt;らしい。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>Go 1.12 がリリースされた</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2019/02/go-1_12-is-released/" />
-		<id>tag:text.Baldanders.info,2019-02-26:/release/2019/02/go-1_12-is-released/</id>
-		<published>2019-02-26T14:03:40+00:00</published>
-		<updated>2024-05-10T22:02:32+00:00</updated>
-		<summary>主な変更点としては TLS 1.3 の暫定的なサポートとモジュール・モードの挙動の一部が変わったことだろうか。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;Go 1.12 がリリースされた。
-そういえば2月ももう終わりか。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/go1.12&#34;&gt;Go 1.12 is released - The Go Blog&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://golang.org/doc/go1.12&#34;&gt;Go 1.12 Release Notes - The Go Programming Language&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;主な変更点としては TLS 1.3 の暫定的なサポート（有効にするには環境変数の設定が必要）と&lt;a href=&#34;https://text.baldanders.info/golang/go-module-aware-mode/&#34; title=&#34;モジュール対応モードへの移行を検討する&#34;&gt;モジュール・モード&lt;/a&gt;の挙動の一部が変わったことだろうか。&lt;/p&gt;
-&lt;p&gt;たとえば環境変数 &lt;code&gt;$GO111MODULE&lt;/code&gt; を &lt;code&gt;on&lt;/code&gt; にしておけば &lt;a href=&#34;https://github.com/mattn&#34;&gt;mattn&lt;/a&gt; さんの &lt;a href=&#34;https://github.com/mattn/jvgrep&#34; title=&#34;mattn/jvgrep: grep for japanese vimmer&#34;&gt;jvgrep&lt;/a&gt; をインストールする際にも任意のフォルダで&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go get github.com/mattn/jvgrep@latest
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とすればよい。
-ダミーの &lt;code&gt;go.mod&lt;/code&gt; ファイルを作る必要はなくなった。
-ブラボー！&lt;/p&gt;
-&lt;p&gt;Go 1.13 からはモジュール・モードが既定になるようで，「GOPATH モードじゃないと困る」とかじゃなければ環境変数 &lt;code&gt;$GO111MODULE&lt;/code&gt; は &lt;code&gt;on&lt;/code&gt; のままにしてしまえばいいんじゃないのかなぁ。&lt;/p&gt;
-&lt;p&gt;あと地味だが嬉しい変更としては，並行処理下で正規表現パッケージ &lt;a href=&#34;https://golang.org/pkg/regexp/&#34; title=&#34;regexp - The Go Programming Language&#34;&gt;&lt;code&gt;regexp&lt;/code&gt;&lt;/a&gt; を使う際に &lt;a href=&#34;https://golang.org/pkg/regexp/&#34; title=&#34;regexp - The Go Programming Language&#34;&gt;&lt;code&gt;regexp&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Regexp.Copy()&lt;/code&gt; でクローンを作らなくてもブロッキングが起きないようになった。&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt; はこの 1.12 から 1.13 にかけて大きく変わる予感がする（今のところ後方互換性は確保されるだろうが）。
-色々と試していって慣れていくのがいいかもしれない。&lt;/p&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/golang/go-module-aware-mode/&#34;&gt;モジュール対応モードへの移行を検討する&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/golang/regular-expression/&#34;&gt;正規表現に関する戯れ言&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;参考図書&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
-</content>
-	</entry><entry>
-		<title>『Go 言語による並行処理』は Go 言語プログラマ必読書だろう</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2018/11/concurrency-in-go/" />
-		<id>tag:text.Baldanders.info,2018-11-03:/remark/2018/11/concurrency-in-go/</id>
-		<published>2018-11-03T00:50:43+00:00</published>
-		<updated>2024-05-10T22:02:32+00:00</updated>
-		<summary>並行処理プログラミングが難しいのは，デザイン・パターンの熟成がまだ若いことと，パターンの組み合わせの選択が複雑な点にあると思う。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;やぁ！ ついに “&lt;a href=&#34;https://katherine.cox-buday.com/concurrency-in-go/&#34;&gt;Concurrency in Go&lt;/a&gt;” の邦訳版が登場したですよ。
-めでたい！&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;の特徴はいくつかあるが，大きなものとして「並行処理&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;」を前提とした言語設計が挙げられる。&lt;/p&gt;
-&lt;p&gt;並行処理では &lt;a href=&#34;https://dl.acm.org/citation.cfm?doid=359576.359585&#34;&gt;CSP (Communicating Sequential Processes)&lt;/a&gt; の成果が取り入れられている。
-これが goroutine と channel である。&lt;/p&gt;
-&lt;p&gt;Goroutine は軽量スレッドなどと呼ばれることもあるが&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;，厳密には coroutine の一種である。
-Main goroutine を含む各 goroutine はランタイム・プログラムに組み込まれたスケジューラによって制御される。
-つまり実行時の並列処理の詳細はコードレベルでは隠蔽されているのだ。
-故にプログラマはコード上の並行処理にのみ注力して記述すればいいことになる。
-OS スレッドの仕様がどうなってるとか無駄にデカいスレッドをプールの中でどう使い回すかとか，生産性の欠片もないようなことは考えなくていいわけだ&lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;p&gt;Channel は入出力プリミティブで，これによって goroutine 間のメッセージ・パッシング（message passing）を実現している。
-たとえば以下のような感じで記述する&lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt; &lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;//main goroutine&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;make&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;chan&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{})&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;//create channel&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;go&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;//sub goroutine&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;-&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;Hello, world!&amp;#34;&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;//send&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;p&#34;&gt;}()&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;-&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;hello&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;//receive&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;（&lt;code&gt;go&lt;/code&gt; 構文（&lt;a href=&#34;https://go.dev/ref/spec#Go_statements&#34; title=&#34;The Go Programming Language Specification - The Go Programming Language&#34;&gt;go statement&lt;/a&gt;）でキックされた関数が sub goroutine となる。関数閉包（closure）になっている点に注目）&lt;/p&gt;
-&lt;p&gt;これらに加えて，同期をとるための &lt;a href=&#34;https://golang.org/pkg/sync/&#34; title=&#34;sync - The Go Programming Language&#34;&gt;&lt;code&gt;sync&lt;/code&gt;&lt;/a&gt; パッケージやコールグラフの各枝をキャンセルするための &lt;a href=&#34;https://golang.org/pkg/context/&#34; title=&#34;context - The Go Programming Language&#34;&gt;&lt;code&gt;context&lt;/code&gt;&lt;/a&gt; パッケージが標準ライブラリで用意されている。&lt;/p&gt;
-&lt;p&gt;メッセージ・パッシングを構成するか &lt;a href=&#34;https://golang.org/pkg/sync/&#34; title=&#34;sync - The Go Programming Language&#34;&gt;&lt;code&gt;sync&lt;/code&gt;&lt;/a&gt; パッケージ等を用いて legacy なメモリアクセス同期を構成するか（あるいはそれらを組み合わせるか）の判断は難しいが，2.4章に大まかな指針が挙げられているので参考になるだろう。
-ただし，今まで無理やりメモリアクセス同期で運用していたもののうちかなりのものを軽くて（スレッドセーフという意味で）安全なメッセージ・パッシングに置き換えられるのは確かである。&lt;/p&gt;
-&lt;p&gt;そうそう。
-『&lt;a href=&#34;https://www.amazon.co.jp/exec/obidos/ASIN/4873118468/baldandersinf-22/&#34; title=&#34;Go言語による並行処理 | Katherine Cox-Buday, 山口 能迪 |本 | 通販 | Amazon&#34;&gt;Go 言語による並行処理&lt;/a&gt;』では &lt;a href=&#34;https://golang.org/pkg/context/&#34; title=&#34;context - The Go Programming Language&#34;&gt;&lt;code&gt;context&lt;/code&gt;&lt;/a&gt; パッケージについてページを割いて紹介されているのだ&lt;sup id=&#34;fnref:5&#34;&gt;&lt;a href=&#34;#fn:5&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;5&lt;/a&gt;&lt;/sup&gt;（4.12章）。
-&lt;a href=&#34;https://golang.org/pkg/context/&#34; title=&#34;context - The Go Programming Language&#34;&gt;&lt;code&gt;context&lt;/code&gt;&lt;/a&gt; パッケージをデザイン・パターンとして日本語できちんと紹介している Web 記事や書籍はあまり見かけないので，単純に嬉しい。&lt;/p&gt;
-&lt;p&gt;並行処理プログラミングが難しいのは，デザイン・パターン（4章で言及されている）の熟成がまだ若いこと，パターンの組み合わせ最適化が複雑なこと，もっと言うなら並行処理の設計は context driven であること，にあると思う（だからこそ &lt;a href=&#34;https://golang.org/pkg/context/&#34; title=&#34;context - The Go Programming Language&#34;&gt;&lt;code&gt;context&lt;/code&gt;&lt;/a&gt; パッケージは秀逸なのよ）。
-デザイン・パターンは（数学の公式と同じく）思考のショートカットなので，そのパターンを構成することの意味を分かった上で適用しないと失敗することが多いんじゃないだろうか。&lt;/p&gt;
-&lt;p&gt;この本を読んで「よっしゃ，明日から立派な goroutine 使いだ！」とはならないと思うけど，有象無象なコピペ・プログラマじゃなく，きちんと &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;のプログラミングを勉強したいのであれば，この本は必読書になると思う。
-少なくとも（立ち読みででも）2章までは熟読すべき。&lt;/p&gt;
-&lt;p&gt;ところで余談だが，補遺Bは日本語版オリジナルの章だそうだけど，その中に &lt;a href=&#34;https://blog.golang.org/go2draft&#34; title=&#34;Go 2 Draft Designs - The Go Blog&#34;&gt;Go 2 ドラフト&lt;/a&gt;で提案されている Generics についてしれっと書かれている。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;div style=&#34;position: relative; margin: 0 2rem; padding-bottom: 56.25%; padding-top: 30px; height: 0; overflow: hidden;&#34;&gt;
-	&lt;iframe class=&#34;youtube-player&#34; style=&#34;position: absolute; top: 0; left: 0; width: 100%; height: 100%;&#34; allowfullscreen frameborder=&#34;0&#34; src=&#34;https://www.youtube-nocookie.com/embed/6wIP3rO6On8&#34; allowfullscreen&gt;&lt;/iframe&gt;
-&lt;/div&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.youtube.com/watch?v=6wIP3rO6On8&#34;&gt;Go 2 Drafts Announcement - YouTube&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;次期 &lt;a href=&#34;https://golang.org/&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;に搭載される（かもしれない） Generics についての解説は以下を参考にどうぞ。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://qiita.com/lufia/items/242d25e8c93d88e22a2e&#34;&gt;Go 2のgenerics/contract簡易まとめ&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://mattn.kaoriya.net/software/lang/go/concurrency-in-go.htm&#34;&gt;Big Sky :: 書評「Go言語による並行処理」&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;http://mattn.kaoriya.net/software/lang/go/20160706165757.htm&#34;&gt;Big Sky :: golang の channel を使ったテクニックあれこれ&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://mattn.kaoriya.net/software/lang/go/20180531104907.htm&#34;&gt;Big Sky :: Go 言語の非同期パターン&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;http://postd.cc/go_concurrency_visualize/&#34;&gt;Go言語の並行性を映像化する | プログラミング | POSTD&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;http://qiita.com/tfutada/items/a289628d8b2d0af6152d&#34;&gt;Go言語の並行処理デザインパターン by Rob Pike 前編 - Qiita&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;http://qiita.com/tfutada/items/dc8db894ac270a79ef2b&#34;&gt;Go言語の並行処理デザインパターン by Rob Pike 後編 - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://budougumi0617.github.io/2020/02/21/use-context/&#34;&gt;context.TODO()を使って漸進的にcontext対応を始める - My External Storage&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/golang/ticker/&#34;&gt;time.Ticker で遊ぶ&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2020/01/concurrency-in-go-digital/&#34;&gt;『Go 言語による並行処理』はEブック版がオススメ&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;参考図書&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;「同時に複数の動作が行われていること」を意味する言葉として「並行（concurrent）」と「並列（parallel）」が混同されることがあるが，プログラミングにおいては，書かれたコードの性質をを表すものを「並行」，動作するランタイム・プログラム（群）の性質を表すものを「並列」と呼んで区別している。両者は密接に関連しているが等価ではない。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:2&#34;&gt;
-&lt;p&gt;OS スレッドに比べて goroutine を駆動する（ランタイム・プログラムが展開する）グリーン・スレッドは非常に軽量らしい。初期のメモリ割当で数キロバイト程度で，実行時に自動的に増減するようだ。 Goroutine のリソースの概算については3.1章で言及されている。&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:3&#34;&gt;
-&lt;p&gt;ある規模以上のシステムの場合は流量制限等をかける必要があるかも知れない。大規模システム開発での注意点については5章で言及されている。&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:4&#34;&gt;
-&lt;p&gt;受信（&lt;code&gt;&amp;lt;-chan&lt;/code&gt;）は単項演算子で，送信（&lt;code&gt;chan&amp;lt;-&lt;/code&gt;）は送信構文（send statement）で記述する。&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:5&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://golang.org/pkg/context/&#34; title=&#34;context - The Go Programming Language&#34;&gt;&lt;code&gt;context&lt;/code&gt;&lt;/a&gt; パッケージはバージョン 1.7 から標準ライブラリに組み込まれたため，古い参考書には載っていない。なお &lt;a href=&#34;https://golang.org/pkg/context/&#34; title=&#34;context - The Go Programming Language&#34;&gt;&lt;code&gt;context&lt;/code&gt;&lt;/a&gt; パッケージにはキャンセルの伝搬以外にもコールグラフ間でデータを受け渡す機能もある。もっともこちらは濫用するとヤバいけど。&amp;#160;&lt;a href=&#34;#fnref:5&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
