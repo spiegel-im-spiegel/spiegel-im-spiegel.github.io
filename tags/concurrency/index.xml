@@ -2,18 +2,220 @@
 	<title>List of Concurrency [text.Baldanders.info]</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/concurrency/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/concurrency/index.xml" />
-	<id>tag:text.Baldanders.info,2025-08-23:/tags</id>
-	<updated>2025-08-23T23:16:37+09:00</updated>
+	<id>tag:text.Baldanders.info,2025-09-02:/tags</id>
+	<updated>2025-09-02T15:05:52+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>“Philosophers” を Go で解く（問題編）</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/philosophers-1/" />
+		<id>tag:text.Baldanders.info,2025-09-02:/golang/philosophers-1/</id>
+		<published>2025-09-02T06:05:52+00:00</published>
+		<updated>2025-09-02T06:06:09+00:00</updated>
+		<summary>ルールの説明について</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;先日書いた&lt;a href=&#34;https://text.baldanders.info/remark/2025/08/learn-concurrent-programming-with-go/&#34; target=&#34;_blank&#34; title=&#34;『Go言語で学ぶ並行プログラミング』は必読書である（夏の読書感想文2）&#34;&gt;読書感想文&lt;/a&gt;の最後の方で「&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E9%A3%9F%E4%BA%8B%E3%81%99%E3%82%8B%E5%93%B2%E5%AD%A6%E8%80%85%E3%81%AE%E5%95%8F%E9%A1%8C&#34; target=&#34;_blank&#34; title=&#34;食事する哲学者の問題 - Wikipedia&#34;&gt;食事する哲学者の問題&lt;/a&gt;」を紹介したが，今回から数回に渡ってこの問題を &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; で解く記事を書いてみる。&lt;/p&gt;
+&lt;p&gt;読書会で教えて頂いたテキストは “Philosophers - I never thought philosophy would be so deadly” というのだが，ググっても（フリーで使えそうな）オリジナルっぽい文書が見つからないので，問題について説明するところから始めたいと思う（今回のために多少アレンジしている。あしからず）。&lt;/p&gt;
+&lt;h2&gt;基本ルール&lt;/h2&gt;
+&lt;p&gt;まず，基本のルールについて。&lt;/p&gt;
+&lt;div class=&#34;box&#34;&gt;&lt;ol&gt;
+&lt;li&gt;円卓に2人以上の哲学者が座っている&lt;/li&gt;
+&lt;li&gt;哲学者は「食べる」→「寝る」→「考える」のローテーションを逐次繰り返す。哲学者間で行動の差異はない
+&lt;ul&gt;
+&lt;li&gt;「食べる」間は「寝る」「考える」を行わない&lt;/li&gt;
+&lt;li&gt;「寝る」間は「食べる」「考える」を行わない&lt;/li&gt;
+&lt;li&gt;「考える」間は「食べる」「寝る」を行わない&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;円卓の中央には大きなスパゲッティボールがあり，哲学者は食事の際はそれぞれボールからスパゲッティを取って食べる&lt;/li&gt;
+&lt;li&gt;スパゲッティを取って食べるためのフォークは哲学者の人数分だけあり，各哲学者から見て左右に1本ずつ配置されている&lt;/li&gt;
+&lt;li&gt;食事の際はフォークが必ず2本必要。各哲学者は左右にある2本のフォークを取って食事を行う（他のフォークは使わない）
+&lt;ul&gt;
+&lt;li&gt;フォークを使っている間は他の哲学者は同じフォークを使えない&lt;/li&gt;
+&lt;li&gt;食事が終わったらフォークを戻し，他の哲学者が使えるようにする&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;哲学者はお互いの状態を知らず，コミュニケーションすることもない&lt;/li&gt;
+&lt;li&gt;哲学者は一定時間食事をしないと餓死する&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;p&gt;スパゲッティ・フォーク・哲学者の配置を簡単に図示してみる（図は哲学者が5人の場合）。&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39; cite=&#34;https://ivy-zhou.github.io/notes/2018/02/15/se-350-textbook-notes.html&#34;&gt;
+&lt;a href=&#34;https://ivy-zhou.github.io/notes/2018/02/15/se-350-textbook-notes.html&#34;&gt;&lt;img src=&#34;./image-20180407011914220.png&#34; srcset=&#34;./image-20180407011914220.png 1048w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;“SE 350 Textbook Notes - Sentences” (CC-BY-NC)&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://ivy-zhou.github.io/notes/2018/02/15/se-350-textbook-notes.html&#34;&gt;“SE 350 Textbook Notes - Sentences” (CC-BY-NC)&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;同じフォークを哲学者同士で使い回すんかい！ とか生々しい話はいったん考えない。
+まぁ，哲学者って &lt;del&gt;頭おかしい&lt;/del&gt; 変わり者が多そうだし（笑）&lt;/p&gt;
+&lt;p&gt;このルール下で餓死者を出さずに全員が一定回数以上食事を行うにはどうすればいいか，という問いである。
+このシミュレーションを &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; で組んでみよう，というわけだ。&lt;/p&gt;
+&lt;h2&gt;パラメータおよび終了条件&lt;/h2&gt;
+&lt;p&gt;シミュレーションに必要な各種パラメータを以下に示す。&lt;/p&gt;
+&lt;table&gt;
+  &lt;thead&gt;
+      &lt;tr&gt;
+          &lt;th style=&#34;text-align: left&#34;&gt;シンボル&lt;/th&gt;
+          &lt;th style=&#34;text-align: center&#34;&gt;型&lt;/th&gt;
+          &lt;th style=&#34;text-align: left&#34;&gt;説明&lt;/th&gt;
+      &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+      &lt;tr&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;&lt;code&gt;nmPhilos&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: center&#34;&gt;&lt;code&gt;int&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;哲学者およびフォークの数（$\ge 2$）&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;&lt;code&gt;tmDie&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: center&#34;&gt;&lt;code&gt;int&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;餓死するまでの時間（$\gt 0\,\mathrm{ms}$）&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;&lt;code&gt;tmEat&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: center&#34;&gt;&lt;code&gt;int&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;「食べる」時間（$\gt 0\,\mathrm{ms}$）&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;&lt;code&gt;tmSleep&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: center&#34;&gt;&lt;code&gt;int&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;「寝る」時間（$\gt 0\,\mathrm{ms}$）&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;&lt;code&gt;tmThink&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: center&#34;&gt;&lt;code&gt;int&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;「考える」時間（$\gt 0\,\mathrm{ms}$）&lt;/td&gt;
+      &lt;/tr&gt;
+      &lt;tr&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;&lt;code&gt;nmEat&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: center&#34;&gt;&lt;code&gt;int&lt;/code&gt;&lt;/td&gt;
+          &lt;td style=&#34;text-align: left&#34;&gt;各哲学者が最低限食事を行う回数（$\ge 0$）&lt;/td&gt;
+      &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;シミュレーションの終了条件は以下の通り：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;哲学者はシミュレーション開始または食事を開始してから &lt;code&gt;tmDie&lt;/code&gt; ミリ秒以内に次の食事を始めないと餓死する&lt;/li&gt;
+&lt;li&gt;哲学者の誰か1人が餓死した場合または全員が &lt;code&gt;nmEat&lt;/code&gt; 回以上食事を行った場合はシミュレーションを終了する
+&lt;ul&gt;
+&lt;li&gt;デッドロックを検出した場合は餓死確定とみなしてシミュレーションを終了する（&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; ランタイムの標準機能&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;）&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;nmEat&lt;/code&gt; が 0 の場合は誰かが餓死しない限り処理を継続する&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;その他 注意事項およびヒント&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;パラメータを含め，変数をグローバル変数として配置しない&lt;/li&gt;
+&lt;li&gt;以下のイベントに対してログを出力する。タイムスタンプはミリ秒単位
+&lt;ul&gt;
+&lt;li&gt;哲学者 X がフォークを持った&lt;/li&gt;
+&lt;li&gt;哲学者 X がフォークを戻した&lt;/li&gt;
+&lt;li&gt;哲学者 X が「食べる」を開始した&lt;/li&gt;
+&lt;li&gt;哲学者 X が「寝る」を開始した&lt;/li&gt;
+&lt;li&gt;哲学者 X が「考える」を開始した&lt;/li&gt;
+&lt;li&gt;哲学者 X が餓死した&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;ライブラリは &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; の標準パッケージのみ使用する。サードパーティ製のパッケージは使用しない&lt;/li&gt;
+&lt;li&gt;哲学者の行動は goroutine による並行処理として実装する&lt;/li&gt;
+&lt;li&gt;フォークは哲学者間の共有資源とみなし mutex を使って排他制御を行う&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;こんなところかな。
+さぁ，みんなで考えよう！（続く）&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51wZEHUKZiL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;James Cutajar (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2024-12-04 (Release 2024-12-04)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0DNYMMBBQ (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34;&gt;読書会&lt;/a&gt;のために購入。インプレス社の本は Kindle 版より版元で &lt;a href=&#34;https://book.impress.co.jp/books/1123101144&#34;&gt;PDF 版&lt;/a&gt;を買うのがオススメ。「並行処理」について原理的な解説から丁寧に書かれている。 Go で解説されているが Go 以外の言語でも応用できる。
+&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-01-25&#34;&gt;2025-01-25&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語で学ぶ並行プログラミング --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Teiva Harsanyi (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2023-08-18 (Release 2023-08-18)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0CFL1DK8Q (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://book.impress.co.jp/books/1122101133&#34;&gt;版元&lt;/a&gt;で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-08-18&#34;&gt;2023-08-18&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語 100Tips --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4908686122?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51UR-fn8fmL._SL160_.jpg&#34; width=&#34;112&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4908686122?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Goならわかるシステムプログラミング 第2版&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;渋川よしき (著), ごっちん (イラスト)&lt;/dd&gt;
+    &lt;dd&gt;ラムダノート 2022-03-23&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4908686122 (ASIN), 9784908686122 (EAN), 4908686122 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;第1版はとても&lt;a href=&#34;https://text.baldanders.info/remark/2018/10/system-programming-in-golang/&#34;&gt;ためになる内容&lt;/a&gt;だったので第2版も &lt;a href=&#34;https://www.lambdanote.com/collections/frontpage/products/go-2-pdf&#34;&gt;PDF 版&lt;/a&gt;で確保しておく。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-10-08&#34;&gt;2022-10-08&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Goならわかるシステムプログラミング 第2版 --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; ランタイムは全ての goroutine が停止するとデッドロックとみなしてプロセスを終了する。なお &lt;code&gt;Sleep&lt;/code&gt; 等のタイマーやネットワーク通信などの一時停止状態は除く。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;
+&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; の標準パッケージでは semaphore は（ユーザが利用できる形では）提供されていない。事実上の準標準パッケージとしては &lt;a href=&#34;https://pkg.go.dev/golang.org/x/sync/semaphore&#34; target=&#34;_blank&#34; title=&#34;semaphore package - golang.org/x/sync/semaphore - Go Packages&#34;&gt;&lt;code&gt;golang.org/x/sync/semaphore&lt;/code&gt;&lt;/a&gt; が重み付きセマフォ（weighted semaphore）として公開されている。&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>『Go言語で学ぶ並行プログラミング』は必読書である（夏の読書感想文2）</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2025/08/learn-concurrent-programming-with-go/" />
 		<id>tag:text.Baldanders.info,2025-08-23:/remark/2025/08/learn-concurrent-programming-with-go/</id>
 		<published>2025-08-23T14:16:37+00:00</published>
-		<updated>2025-08-29T23:54:26+00:00</updated>
+		<updated>2025-09-02T06:06:09+00:00</updated>
 		<summary>特に第1部と第3部は全てのプログラマが読むべき内容だと思う</summary>
 		<author>
 			<name>Spiegel</name>
@@ -77,7 +279,7 @@
 &lt;/figure&gt;
 &lt;p&gt;食事にはひとりあたり2つのフォークが必要なのに人数分しか用意されていない。
 そのままだとフォークの取り合いによるデッドロックが発生してしまうわけだ。
-デッドロックによる飢餓（starvation）が発生しないようにするにはどうするか，という問題である（他にもいくつか条件があるが割愛する。詳しくは上述のリンク先の記事をどうぞ）。&lt;/p&gt;
+デッドロックによる飢餓（starvation）が発生しないようにするにはどうするか，という問題である（他にもいくつか条件があるが割愛する）。&lt;/p&gt;
 &lt;p&gt;並行プログラミングの練習問題として丁度いいよね。
 これを &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; で解くことを「夏休みの自由研究」にしようかと思っていたのだが，もたもたしてるうちに夏が終わりそうである。&lt;/p&gt;
 &lt;h2&gt;ブックマーク&lt;/h2&gt;
@@ -1743,160 +1945,6 @@ Web クローラとか使い道は色々あるかもしれない。&lt;/p&gt;
   &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
-</content>
-	</entry><entry>
-		<title>Go 1.14 リリース候補版</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/release/2020/02/go1_14-rc/" />
-		<id>tag:text.Baldanders.info,2020-02-08:/release/2020/02/go1_14-rc/</id>
-		<published>2020-02-08T06:33:22+00:00</published>
-		<updated>2024-05-10T22:02:32+00:00</updated>
-		<summary>この記事では個人的に気になった点をかいつまんで紹介する。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; 1.14 のリリース候補版が出た。
-これに伴ってリリースノートのドラフト版も更新されたようだ。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://groups.google.com/forum/#!topic/golang-announce/mB1Mp9RlQw8&#34; target=&#34;_blank&#34;&gt;Go 1.14 Release Candidate 1 is released - Google group&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://tip.golang.org/doc/go1.14&#34; target=&#34;_blank&#34;&gt;Go 1.14 Release Notes - The Go Programming Language&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;更にブログでは以下の記事で 1.15 についても言及されている。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/go1.15-proposals&#34; target=&#34;_blank&#34;&gt;Proposals for Go 1.15 - The Go Blog&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;詳しくはそれぞれの記事を読んでもらうとして，この記事では個人的に気になった点をかいつまんで紹介する。&lt;/p&gt;
-&lt;h2&gt;Try 終了のお知らせ&lt;/h2&gt;
-&lt;p&gt;「&lt;a href=&#34;https://text.baldanders.info/release/2019/06/next-steps-toward-go-2/&#34; target=&#34;_blank&#34; title=&#34;Go 1.13 と 1.14 （Go 2 へ向けて）&#34;&gt;Go 1.13 と 1.14&lt;/a&gt;」で紹介した &lt;code&gt;try()&lt;/code&gt; 組み込み関数の導入は見送られたらしい。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://blog.golang.org/go1.15-proposals&#34;&gt;&lt;q&gt;Our attempt seven months ago at providing a better error handling mechanism, the &lt;a href=&#34;https://golang.org/issue/32437&#34; target=&#34;_blank&#34;&gt;try proposal&lt;/a&gt;, met good support but also strong opposition and we decided to abandon it. In its aftermath there were many follow-up proposals, but none of them seemed convincing enough, clearly superior to the try proposal, or less likely to cause similar controversy&lt;/q&gt;.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://blog.golang.org/go1.15-proposals&#34;&gt;Proposals for Go 1.15&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;というわけで，エラー・ハンドリング周りはこれ以上の仕様追加・変更は（1.x の間は）なさそうである。&lt;/p&gt;
-&lt;h2&gt;埋め込み Interface の改善&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; 1.14 では埋め込み interface の仕様が一部変更になる。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://tip.golang.org/doc/go1.14&#34;&gt;&lt;q&gt;Per the &lt;a href=&#34;https://github.com/golang/proposal/blob/master/design/6977-overlapping-interfaces.md&#34; target=&#34;_blank&#34;&gt;overlapping interfaces proposal&lt;/a&gt;, Go 1.14 now permits embedding of interfaces with overlapping method sets: methods from an embedded interface may have the same names and identical signatures as methods already present in the (embedding) interface. This solves problems that typically (but not exclusively) occur with diamond-shaped embedding graphs. Explicitly declared methods in an interface must remain unique, as before&lt;/q&gt;.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://tip.golang.org/doc/go1.14&#34;&gt;Go 1.14 Release Notes (draft)&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; では interface は振る舞いのみを定義する型だが，入れ子にすることができる。
-こんな感じ。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Person&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Age&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Employee&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Person&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Level&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;この例では &lt;code&gt;Employee&lt;/code&gt; interface 型に &lt;code&gt;Person&lt;/code&gt; interface 型が埋め込まれている。
-つまり &lt;code&gt;Employee&lt;/code&gt; 型では &lt;code&gt;Name()&lt;/code&gt;, &lt;code&gt;Age()&lt;/code&gt;, &lt;code&gt;Level()&lt;/code&gt;, &lt;code&gt;String()&lt;/code&gt; 各メソッドを要求しているわけだ。&lt;/p&gt;
-&lt;p&gt;ここで &lt;code&gt;Person&lt;/code&gt; 型に &lt;code&gt;String()&lt;/code&gt; メソッドを付けることを考える。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Person&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Name&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Age&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;修正された &lt;code&gt;Person&lt;/code&gt; 型を使って &lt;code&gt;Employee&lt;/code&gt; 型を定義しようとしても &lt;q lang=&#34;en&#34;&gt;&lt;code&gt;duplicate method String&lt;/code&gt;&lt;/q&gt; とコンパイルエラーになる。
-Interface 型の間で定義するメソッドを調整すればいいのだが，他パッケージの interface 型を埋め込む場合は，そのパッケージの仕様変更の影響をモロに受けることになる。&lt;/p&gt;
-&lt;p&gt;更に&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./diamond.puml&#34;&gt;&lt;img src=&#34;./diamond.png&#34; srcset=&#34;./diamond.png 946w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;/figure&gt;
-&lt;p&gt;のようなひし形構造になっている場合はより複雑になる。&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; 1.14 では（関数型の同一性も含めて）同じメソッドについては重複を許容する。
-上述のコード例でもコンパイル・エラーにならないわけだ。&lt;/p&gt;
-&lt;p&gt;ただし&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;E1&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;M&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;bool&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;E2&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;M&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;float32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;bool&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;type&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;I&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;interface&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;E1&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;E2&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;では（メソッド &lt;code&gt;M()&lt;/code&gt; の型が同一ではないので）相変わらずコンパイル・エラーになるようだ。&lt;/p&gt;
-&lt;h2&gt;Preemptive なスケジューリング&lt;/h2&gt;
-&lt;p&gt;これは &lt;a href=&#34;https://shimane-go.connpass.com/&#34; target=&#34;_blank&#34; title=&#34;Shimane.go - connpass&#34;&gt;Shimane.go&lt;/a&gt; の Slack で教えてもらったのだが， &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; 1.14 では preemptive (非協調的) なスケジューリング実装になるようだ。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://tip.golang.org/doc/go1.14&#34;&gt;&lt;q&gt;Goroutines are now asynchronously preemptible. As a result, loops without function calls no longer potentially deadlock the scheduler or significantly delay garbage collection&lt;/q&gt;.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://tip.golang.org/doc/go1.14&#34;&gt;Go 1.14 Release Notes (draft)&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;もともと &lt;a href=&#34;https://golang.org/&#34; target=&#34;_blank&#34; title=&#34;The Go Programming Language&#34;&gt;Go 言語&lt;/a&gt;には，ランタイムによって並列処理の実装詳細を隠蔽することにより，コード記述としての平行処理に注力できるというメリットがあるが preemptive なスケジューリングによって強化されることになる。&lt;/p&gt;
-&lt;p&gt;ただし全てのプラットフォームで有効になるのではなく&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;windows/arm&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;darwin/arm&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;js/wasm&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;plan9/*&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;は例外となるらしい。
-WebAssembly や Plan 9 が non-preemptive になるのは分かるが， ARM アーキテクチャって実装が難しいのか？&lt;/p&gt;
-&lt;h2&gt;モジュール対応モード&lt;/h2&gt;
-&lt;p&gt;モジュール対応モード（module-aware mode）も色々と機能追加されるようだ。
-特に &lt;code&gt;vendor&lt;/code&gt; ディレクトリとの組み合わせは色々とできそうだ。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://tip.golang.org/doc/go1.14&#34;&gt;&lt;q&gt;When the main module contains a top-level &lt;code&gt;vendor&lt;/code&gt; directory and its &lt;code&gt;go.mod&lt;/code&gt; file specifies go 1.14 or higher, the go command now defaults to &lt;code&gt;-mod=vendor&lt;/code&gt; for operations that accept that flag. A new value for that flag, &lt;code&gt;-mod=mod&lt;/code&gt;, causes the go command to instead load modules from the module cache (as when no vendor directory is present)&lt;/q&gt;.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://tip.golang.org/doc/go1.14&#34;&gt;Go 1.14 Release Notes (draft)&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;この辺は &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; 1.14 正式版がリリースされてから試してみよう。&lt;/p&gt;
-&lt;h2&gt;Launched &lt;a href=&#34;https://pkg.go.dev/&#34; target=&#34;_blank&#34;&gt;pkg.go.dev&lt;/a&gt;&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://blog.golang.org/pkg.go.dev-2020&#34; target=&#34;_blank&#34;&gt;Next steps for pkg.go.dev - The Go Blog&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;&lt;a href=&#34;https://pkg.go.dev/&#34; target=&#34;_blank&#34;&gt;pkg.go.dev&lt;/a&gt; は従来の &lt;a href=&#34;https://godoc.org/&#34; target=&#34;_blank&#34;&gt;godoc.org&lt;/a&gt; から置き換えることができる。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://blog.golang.org/pkg.go.dev-2020&#34;&gt;&lt;q&gt;Like &lt;a href=&#34;https://godoc.org/&#34; target=&#34;_blank&#34;&gt;godoc.org&lt;/a&gt;, pkg.go.dev serves Go documentation. However, it also understands modules and has information about past versions of a package!&lt;/q&gt;&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://blog.golang.org/pkg.go.dev-2020&#34;&gt;Next steps for pkg.go.dev&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;実際に2020年後半には &lt;a href=&#34;https://godoc.org/&#34; target=&#34;_blank&#34;&gt;godoc.org&lt;/a&gt; へのリクエストを &lt;a href=&#34;https://pkg.go.dev/&#34; target=&#34;_blank&#34;&gt;pkg.go.dev&lt;/a&gt; にリダイレクトする計画があるらしい。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://blog.golang.org/pkg.go.dev-2020&#34;&gt;&lt;q&gt;To minimize confusion about which site to use, later this year we are planning to redirect traffic from &lt;a href=&#34;https://godoc.org/&#34; target=&#34;_blank&#34;&gt;godoc.org&lt;/a&gt; to the corresponding page on &lt;a href=&#34;https://pkg.go.dev/&#34; target=&#34;_blank&#34;&gt;pkg.go.dev&lt;/a&gt;&lt;/q&gt;.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://blog.golang.org/pkg.go.dev-2020&#34;&gt;Next steps for pkg.go.dev&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;標準パッケージもサードパーティのパッケージも同等に扱えるので，今後は &lt;a href=&#34;https://pkg.go.dev/&#34; target=&#34;_blank&#34;&gt;pkg.go.dev&lt;/a&gt; を参照するのがいいかもしれない。&lt;/p&gt;
-&lt;h2&gt;参考図書&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語による並行処理&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Katherine Cox-Buday (著), 山口 能迪 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;オライリージャパン 2018-10-26&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784873118468/&#34;&gt;Eブック版もある&lt;/a&gt;。感想は&lt;a href=&#34;https://text.baldanders.info/remark/2018/11/concurrency-in-go/&#34;&gt;こちら&lt;/a&gt;。 Go 言語で並行処理を書くならこの本は必読書になるだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2020-01-13&#34;&gt;2020-01-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Go言語による並行処理 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4908686033?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51RKK5&amp;#43;6bpL._SL160_.jpg&#34; width=&#34;112&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4908686033?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Goならわかるシステムプログラミング&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;渋川 よしき (著), ごっちん (イラスト)&lt;/dd&gt;
-    &lt;dd&gt;ラムダノート 2017-10-23&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4908686033 (ASIN), 9784908686030 (EAN), 4908686033 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.lambdanote.com/collections/go/products/go-ebook&#34;&gt;PDF 版&lt;/a&gt;あり。ファイルやソケットなどに代表される順次アクセスの汎化である io.Reader / io.Writer およびその派生・特化クラス，またプロセスやスレッドに関する解説が秀逸だと思う。さらに Docker コアの libcontainer についても解説がある。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2018-10-19&#34;&gt;2018-10-19&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Goならわかるシステムプログラミング --&gt;
 </content>
 	</entry>
 </feed>
