@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.152.2">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/golang/goroutine-synchronization-with-waitgroup-and-barrier/">
+<script defer src="/fa/js/all.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho:wght@400;700&family=Intel+One+Mono:wght@400;700&family=Noto+Color+Emoji&family=Noto+Sans:wght@400;700&family=Noto+Serif+Hentaigana:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="me" href="https://fedibird.com/@spiegel">
+<title>並行処理を待ち合わせる（WaitGroup と Barrier パターン） [text.Baldanders.info]</title>
+<meta property="og:title" content="並行処理を待ち合わせる（WaitGroup と Barrier パターン）">
+<meta name="description" content="この記事では比較的簡単な実装である，複数の goroutine を待ち合わせる方法を紹介する。">
+<meta property="og:description" content="この記事では比較的簡単な実装である，複数の goroutine を待ち合わせる方法を紹介する。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<link rel="me" href="https://goark.fedicity.net/@spiegel">
+<meta name="keywords" content="concurrency, programming, golang">
+<link rel='prev' href='https://text.baldanders.info/golang/parsing-command-line-flags-with-struct2flag/' title='struct2flag でコマンドライン解析【追記あり】'>
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/golang/",
+	"url": "https://text.baldanders.info/golang/",
+	"inLanguage": "ja",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/golang/goroutine-synchronization-with-waitgroup-and-barrier/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/golang/goroutine-synchronization-with-waitgroup-and-barrier/",
+	"url": "https://text.baldanders.info/golang/goroutine-synchronization-with-waitgroup-and-barrier/",
+	"mainEntityOfPage": "https://text.baldanders.info/golang/goroutine-synchronization-with-waitgroup-and-barrier/",
+	"inLanguage": "ja",
+	"name": "並行処理を待ち合わせる（WaitGroup と Barrier パターン）",
+	"description": "この記事では比較的簡単な実装である，複数の goroutine を待ち合わせる方法を紹介する。",
+	"headline": "この記事では比較的簡単な実装である，複数の goroutine を待ち合わせる方法を紹介する。",
+	"keywords": "concurrency, programming, golang",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2025-11-09T10:39:03+00:00",
+	"dateModified": "2025-11-09T10:42:05+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>並行処理を待ち合わせる（WaitGroup と Barrier パターン）</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/concurrency/">concurrency</a> #<a href="/tags/golang/">golang</a> #<a href="/tags/programming/">programming</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fa-solid fa-share-from-square"></i></span>&nbsp;:
+		&nbsp;<a href="https://getpocket.com/edit?url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fgoroutine-synchronization-with-waitgroup-and-barrier%2f&amp;title=%e4%b8%a6%e8%a1%8c%e5%87%a6%e7%90%86%e3%82%92%e5%be%85%e3%81%a1%e5%90%88%e3%82%8f%e3%81%9b%e3%82%8b%ef%bc%88WaitGroup%20%e3%81%a8%20Barrier%20%e3%83%91%e3%82%bf%e3%83%bc%e3%83%b3%ef%bc%89" target="_blank"><span class="pocket-color"><abbr title="Share Pocket"><i class="fab fa-get-pocket" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fgolang%2fgoroutine-synchronization-with-waitgroup-and-barrier%2f" target="_blank"><span class="facebook-color"><abbr title="Share facebook"><i class="fab fa-square-facebook" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://x.com/intent/post?text=%e4%b8%a6%e8%a1%8c%e5%87%a6%e7%90%86%e3%82%92%e5%be%85%e3%81%a1%e5%90%88%e3%82%8f%e3%81%9b%e3%82%8b%ef%bc%88WaitGroup%20%e3%81%a8%20Barrier%20%e3%83%91%e3%82%bf%e3%83%bc%e3%83%b3%ef%bc%89+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fgolang%2fgoroutine-synchronization-with-waitgroup-and-barrier%2f" target="_blank"><span class="x-twitter-color"><abbr title="Share Twitter"><i class="fa-brands fa-square-x-twitter" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="https://donshare.net/share.html?text=%e4%b8%a6%e8%a1%8c%e5%87%a6%e7%90%86%e3%82%92%e5%be%85%e3%81%a1%e5%90%88%e3%82%8f%e3%81%9b%e3%82%8b%ef%bc%88WaitGroup%20%e3%81%a8%20Barrier%20%e3%83%91%e3%82%bf%e3%83%bc%e3%83%b3%ef%bc%89+by+@spiegel%40goark.fedicity.net%20+https%3a%2f%2ftext.baldanders.info%2fgolang%2fgoroutine-synchronization-with-waitgroup-and-barrier%2f" target="_blank"><span class="mastodon-color"><abbr title="Share Mastodon"><i class="fa-brands fa-mastodon" aria-hidden="true"></i></abbr></span></a>
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/goroutine-synchronization-with-waitgroup-and-barrier/index.html">GitHub Page</a>
+</nav>
+
+<section>
+<p><a href="https://go.dev/">Go</a> の goroutine は起動すると外側から直接制御する方法がない。
+とはいっても goroutine 間で同期を取ることは多く，そのための仕組みがいくつか提供されている。
+この記事では比較的簡単な実装である，複数の goroutine を待ち合わせる方法を紹介する。</p>
+<h2>タスクの完了を待ち合わせる</h2>
+<p>まずは5つの goroutine を起動し，それぞれ某かのタスクを実行するプログラムを考える。
+まずは素朴に以下のコードで<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;math/rand/v2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">tasks</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="c1">// Number of tasks</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Start Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Random duration between 1 and 5 seconds</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;End Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;All Complete&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>（<a href="https://go.dev/">Go</a> の関数は全て関数閉包（closure）として機能するため goroutine として定義した関数はループ変数 <code>t</code> を close over している。この <code>for-range</code> ブロックのループ変数 <code>t</code> は，ループするごとに新たにインスタンスが生成されている点に注意）</p>
+<p>実際には，このコードはうまく動かない。
+実行するとこんな感じ：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample1.go
+</span></span><span class="line"><span class="cl">All Complete
+</span></span></code></pre></div><p>実はメイン goroutine が終了する際に他の goroutine も強制終了されてしまうため，このような結果になる。
+これを安直に解決する手段として，メイン goroutine を適当な時間スリープさせる方法がある。
+たとえばこんな感じ<sup id="fnref1:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;math/rand/v2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">tasks</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="c1">// Number of tasks</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Start Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Random duration between 1 and 5 seconds</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;End Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">	</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;All Complete&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>これを実行すると確かに</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample1b.go
+</span></span><span class="line"><span class="cl">Start Task: 5
+</span></span><span class="line"><span class="cl">Start Task: 4
+</span></span><span class="line"><span class="cl">Start Task: 2
+</span></span><span class="line"><span class="cl">Start Task: 1
+</span></span><span class="line"><span class="cl">Start Task: 3
+</span></span><span class="line"><span class="cl">End Task: 3
+</span></span><span class="line"><span class="cl">End Task: 5
+</span></span><span class="line"><span class="cl">End Task: 4
+</span></span><span class="line"><span class="cl">End Task: 1
+</span></span><span class="line"><span class="cl">End Task: 2
+</span></span><span class="line"><span class="cl">All Complete
+</span></span></code></pre></div><p>などと一見うまく動いているようだが，このスリープ時間には根拠がないため（10秒もあれば全タスク完了してるやろ？），条件が変わればうまく動かなくなる可能性がある。</p>
+<p>複数のタスクの完了を待ち合わせるために，標準パッケージには <a href="https://pkg.go.dev/sync" title="sync package - sync - Go Packages"><code>sync</code></a><code>.WaitGroup</code> が用意されている。
+使い方はこんな感じ：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;math/rand/v2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;sync&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">tasks</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">5</span><span class="w">             </span><span class="c1">// Number of tasks</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">WaitGroup</span><span class="p">{}</span><span class="w"> </span><span class="c1">// WaitGroup to synchronize goroutines</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="nx">tasks</span><span class="p">)</span><span class="w">          </span><span class="c1">// Add the number of tasks to the WaitGroup</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="k">defer</span><span class="w"> </span><span class="nx">wg</span><span class="p">.</span><span class="nf">Done</span><span class="p">()</span><span class="w"> </span><span class="c1">// Ensure Done is called when the goroutine completes</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Start Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Random duration between 1 and 5 seconds</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;End Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait for all goroutines to finish</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;All Complete&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>これは goroutine の総数があらかじめ分かっている場合だが goroutine 数が動的に変化する場合でも使える。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;math/rand/v2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;sync&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">WaitGroup</span><span class="p">{}</span><span class="w"> </span><span class="c1">// WaitGroup to synchronize goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="nx">t</span><span class="o">++</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">		</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="c1">// Add a task to the WaitGroup</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="k">defer</span><span class="w"> </span><span class="nx">wg</span><span class="p">.</span><span class="nf">Done</span><span class="p">()</span><span class="w"> </span><span class="c1">// Ensure Done is called when the goroutine completes</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Start Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Random duration between 1 and 5 seconds</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;End Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">if</span><span class="w"> </span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span><span class="w"> </span><span class="p">&gt;</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="c1">// Randomly decide to stop adding tasks</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="k">break</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait for all goroutines to finish</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;All Complete&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>ポイントは goroutine を起動する直前に <code>wg.Add(1)</code> を呼び出すことである。
+実行結果はこんな感じ。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample1d.go
+</span></span><span class="line"><span class="cl">Start Task: 3
+</span></span><span class="line"><span class="cl">Start Task: 1
+</span></span><span class="line"><span class="cl">Start Task: 2
+</span></span><span class="line"><span class="cl">End Task: 2
+</span></span><span class="line"><span class="cl">End Task: 1
+</span></span><span class="line"><span class="cl">End Task: 3
+</span></span><span class="line"><span class="cl">All Complete
+</span></span></code></pre></div><h3>for ブロックのループ変数について</h3>
+<p>先ほどのサンプルコードでは <code>for</code> ブロック</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="nx">t</span><span class="o">++</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="o">...</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>で宣言したループ変数 <code>t</code> をそのまま goroutine 内で参照しているが，古いバージョンの <a href="https://go.dev/">Go</a> では意図しない出力になる。
+これはループ変数 <code>t</code> が <code>for</code> ブロック内で単一のインスタンスになっていて，ループするごとに値が上書きされるためである。
+この問題を回避するために以下のように <code>t</code> を shadowing する方法が推奨されていた。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="nx">t</span><span class="o">++</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">    </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="c1">// Shadowing to capture the current value of t</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="o">...</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>最近のバージョン（1.22 以降）では <code>for</code> ブロック内でループ変数が内部の関数（閉包）から直接参照されている場合は暗黙的に shadowing が行われる。
+上述のような記述は不要になったわけだ。</p>
+<h3>WaitGroup.Go メソッド</h3>
+<p><a href="https://go.dev/">Go</a> 1.25 で <a href="https://pkg.go.dev/sync" title="sync package - sync - Go Packages"><code>sync</code></a><code>.WaitGroup</code> に <code>Go()</code> メソッドが追加された。
+実装はこんな感じ。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// Go calls f in a new goroutine and adds that task to the [WaitGroup].</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// When f returns, the task is removed from the WaitGroup.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// The function f must not panic.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// If the WaitGroup is empty, Go must happen before a [WaitGroup.Wait].</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// Typically, this simply means Go is called to start tasks before Wait is called.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// If the WaitGroup is not empty, Go may happen at any time.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// This means a goroutine started by Go may itself call Go.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// If a WaitGroup is reused to wait for several independent sets of tasks,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// new Go calls must happen after all previous Wait calls have returned.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// In the terminology of [the Go memory model], the return from f</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// &#34;synchronizes before&#34; the return of any Wait call that it unblocks.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">//
+</span></span></span><span class="line"><span class="cl"><span class="c1">// [the Go memory model]: https://go.dev/ref/mem</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">wg</span><span class="w"> </span><span class="o">*</span><span class="nx">WaitGroup</span><span class="p">)</span><span class="w"> </span><span class="nf">Go</span><span class="p">(</span><span class="nx">f</span><span class="w"> </span><span class="kd">func</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">defer</span><span class="w"> </span><span class="nx">wg</span><span class="p">.</span><span class="nf">Done</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nf">f</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>つまり，<code>Go()</code> メソッド内部で <code>Add(1)</code> と <code>Done()</code> が呼び出され，かつ引数の関数 <code>f</code> を goroutine として起動する。
+これを使うと，以下のようにコードが簡潔になる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;math/rand/v2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;sync&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">tasks</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">5</span><span class="w">             </span><span class="c1">// Number of tasks</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">WaitGroup</span><span class="p">{}</span><span class="w"> </span><span class="c1">// WaitGroup to synchronize goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">		</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Go</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Start Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Random duration between 1 and 5 seconds</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;End Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">		</span><span class="p">})</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait for all goroutines to finish</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;All Complete&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>この辺も定番の慣用句（idiom）だったので，<code>Go()</code> メソッドの追加は嬉しい改善点と言えるだろう。</p>
+<h2>タスクの開始を待ち合わせる</h2>
+<p>前節とは異なり，特定の条件が成立するまで各 goroutine を停止し，条件が成立したら一斉に実行を再開したい場合がある。
+条件が成立するまでタスクを止めるため，この実装パターンをバリア（Barrier）と呼ぶ。</p>
+<p><a href="https://go.dev/">Go</a> の標準パッケージにはバリア・パターンを直接提供するする仕組みはないが，条件変数を制御する <a href="https://pkg.go.dev/sync" title="sync package - sync - Go Packages"><code>sync</code></a><code>.Cond</code> を用いて比較的簡単に実装できる。</p>
+<p>前節のコードを元に，指定した数の goroutine の起動が揃うまで待機し，揃った時点で一斉にタスクを開始するコードを実装してみよう。
+まずはバリアパターンを駆動する構造体 <code>Barrier</code> を定義する。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">type</span><span class="w"> </span><span class="nx">Barrier</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">total</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="c1">// Number of goroutines to wait for</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">count</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="c1">// Current count of arrived goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">cond</span><span class="w">  </span><span class="o">*</span><span class="nx">sync</span><span class="p">.</span><span class="nx">Cond</span><span class="w"> </span><span class="c1">// Condition variable to manage waiting and signaling</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>この構造体の初期化関数を以下のように定義する。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">NewBarrier</span><span class="p">(</span><span class="nx">total</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">Barrier</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">Barrier</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">total</span><span class="p">:</span><span class="w"> </span><span class="nx">total</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">count</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">cond</span><span class="p">:</span><span class="w">  </span><span class="nx">sync</span><span class="p">.</span><span class="nf">NewCond</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span><span class="p">{}),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>さらに <code>Barrier</code> に対して <code>Wait()</code> メソッドを定義する。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">b</span><span class="w"> </span><span class="o">*</span><span class="nx">Barrier</span><span class="p">)</span><span class="w"> </span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nx">L</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span><span class="w">         </span><span class="c1">// Acquire the lock before modifying count</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">defer</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nx">L</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span><span class="w"> </span><span class="c1">// Ensure the lock is released when done</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">b</span><span class="p">.</span><span class="nx">count</span><span class="o">++</span><span class="w">               </span><span class="c1">// Increment the count of arrived goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">if</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">count</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">total</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">b</span><span class="p">.</span><span class="nx">count</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nf">Broadcast</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wake up all waiting goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait until the barrier is released</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p><code>Wait()</code> メソッドが呼ばれるたびに <code>count</code> がインクリメントされ，<code>count</code> が <code>total</code> に達したら <code>cond.Broadcast()</code> メソッドで全ての待機中 goroutine を起こす。</p>
+<p><code>Barrier</code> を使った <code>main()</code> 関数はこんな感じ：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">tasks</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">5</span><span class="w">                   </span><span class="c1">// Number of tasks</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">	</span><span class="nx">barrier</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nf">NewBarrier</span><span class="p">(</span><span class="nx">tasks</span><span class="p">)</span><span class="w"> </span><span class="c1">// Create a barrier for the tasks</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Simulate preparation time</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Ready Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">			</span><span class="nx">barrier</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait at the barrier</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Start Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Random duration between 1 and 5 seconds</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;End Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;All Complete&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>これを実行するとこんな感じになる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run sample2.go
+</span></span><span class="line"><span class="cl">Ready Task: 2
+</span></span><span class="line"><span class="cl">Ready Task: 3
+</span></span><span class="line"><span class="cl">Ready Task: 1
+</span></span><span class="line"><span class="cl">Ready Task: 4
+</span></span><span class="line"><span class="cl">Ready Task: 5
+</span></span><span class="line"><span class="cl">Start Task: 5
+</span></span><span class="line"><span class="cl">Start Task: 4
+</span></span><span class="line"><span class="cl">Start Task: 3
+</span></span><span class="line"><span class="cl">Start Task: 2
+</span></span><span class="line"><span class="cl">Start Task: 1
+</span></span><span class="line"><span class="cl">End Task: 2
+</span></span><span class="line"><span class="cl">End Task: 1
+</span></span><span class="line"><span class="cl">End Task: 3
+</span></span><span class="line"><span class="cl">End Task: 4
+</span></span><span class="line"><span class="cl">End Task: 5
+</span></span><span class="line"><span class="cl">All Complete
+</span></span></code></pre></div><p>各 goroutine とも <code>Ready</code> 状態が揃ってからタスクを開始しているのが分かる<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>。</p>
+<p>さらにこれに前節の完了待ち合わせ機能を入れたコード全体は以下の通り：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;math/rand/v2&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;sync&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">type</span><span class="w"> </span><span class="nx">Barrier</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">total</span><span class="w"> </span><span class="kt">int</span><span class="w">        </span><span class="c1">// Number of goroutines to wait for</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">count</span><span class="w"> </span><span class="kt">int</span><span class="w">        </span><span class="c1">// Current count of arrived goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">cond</span><span class="w">  </span><span class="o">*</span><span class="nx">sync</span><span class="p">.</span><span class="nx">Cond</span><span class="w"> </span><span class="c1">// Condition variable to manage waiting and signaling</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">NewBarrier</span><span class="p">(</span><span class="nx">total</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="nx">Barrier</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">Barrier</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">total</span><span class="p">:</span><span class="w"> </span><span class="nx">total</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">count</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">cond</span><span class="p">:</span><span class="w">  </span><span class="nx">sync</span><span class="p">.</span><span class="nf">NewCond</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span><span class="p">{}),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">b</span><span class="w"> </span><span class="o">*</span><span class="nx">Barrier</span><span class="p">)</span><span class="w"> </span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nx">L</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span><span class="w">         </span><span class="c1">// Acquire the lock before modifying count</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">defer</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nx">L</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span><span class="w"> </span><span class="c1">// Ensure the lock is released when done</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">b</span><span class="p">.</span><span class="nx">count</span><span class="o">++</span><span class="w">               </span><span class="c1">// Increment the count of arrived goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">if</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">count</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">total</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">b</span><span class="p">.</span><span class="nx">count</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nf">Broadcast</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wake up all waiting goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="nx">b</span><span class="p">.</span><span class="nx">cond</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait until the barrier is released</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">tasks</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">5</span><span class="w">                   </span><span class="c1">// Number of tasks</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">barrier</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nf">NewBarrier</span><span class="p">(</span><span class="nx">tasks</span><span class="p">)</span><span class="w"> </span><span class="c1">// Create a barrier for the tasks</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">WaitGroup</span><span class="p">{}</span><span class="w">       </span><span class="c1">// WaitGroup to synchronize goroutines</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="nx">tasks</span><span class="p">)</span><span class="w">                </span><span class="c1">// Add the number of tasks to the WaitGroup</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="k">defer</span><span class="w"> </span><span class="nx">wg</span><span class="p">.</span><span class="nf">Done</span><span class="p">()</span><span class="w">                                         </span><span class="c1">// Ensure Done is called when the goroutine completes</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Simulate preparation time</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Ready Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">barrier</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait at the barrier</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Start Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Duration</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">IntN</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span><span class="w"> </span><span class="c1">// Random duration between 1 and 5 seconds</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">			</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;End Task:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">t</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">		</span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span><span class="w"> </span><span class="c1">// Wait for all goroutines to finish</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;All Complete&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>起動条件は何でもいい。
+今回のように決められた数の goroutine が揃ったら即起動でもいいし，特定の時刻が来たら待機中の goroutine を起こすでもいいだろう。
+Channel と組み合わせる方法もあるかも知れない。</p>
+<h2>ブックマーク</h2>
+<ul>
+<li><a href="https://future-architect.github.io/articles/20240129a/">Go 1.22リリース連載始まります &amp; ループの変化とTinyGo 0.31 | フューチャー技術ブログ</a></li>
+<li><a href="https://zenn.dev/kudotaka0421/articles/9659653cae84f0">[Go 1.25] WaitGroup.Go()を使って既存コードを書き換える際の注意点</a></li>
+</ul>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51wZEHUKZiL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ</a></dt>
+    <dd>James Cutajar (著), 柴田 芳樹 (著)</dd>
+    <dd>インプレス 2024-12-04 (Release 2024-12-04)</dd>
+    <dd>Kindle版</dd>
+    <dd>B0DNYMMBBQ (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://technical-book-reading-2.connpass.com/event/337562/">読書会</a>のために購入。インプレス社の本は Kindle 版より版元で <a href="https://book.impress.co.jp/books/1123101144">PDF 版</a>を買うのがオススメ。「並行処理」について原理的な解説から丁寧に書かれている。 Go で解説されているが Go 以外の言語でも応用できる。
+</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2025-01-25">2025-01-25</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Go言語で学ぶ並行プログラミング -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="122" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt>
+    <dd>Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)</dd>
+    <dd>丸善出版 2016-06-20</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- プログラミング言語Go -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ</a></dt>
+    <dd>Teiva Harsanyi (著), 柴田 芳樹 (著)</dd>
+    <dd>インプレス 2023-08-18 (Release 2023-08-18)</dd>
+    <dd>Kindle版</dd>
+    <dd>B0CFL1DK8Q (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><a href="https://book.impress.co.jp/books/1122101133">版元</a>で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2023-08-18">2023-08-18</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Go言語 100Tips -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4814401191?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41X10&#43;elsuL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4814401191?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">初めてのGo言語 第2版 ―他言語プログラマーのためのイディオマティックGo実践ガイド</a></dt>
+    <dd>Jon Bodner (著), 武舎 広幸 (翻訳)</dd>
+    <dd>オライリー・ジャパン 2025-08-05 (Release 2025-08-05)</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4814401191 (ASIN), 9784814401192 (EAN), 4814401191 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="4">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="far fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description">第2版。 Generics の説明が大幅に改訂されたらしい。練習問題も追加されている。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2025-11-02">2025-11-02</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 初めてのGo言語 第2版 -->
+<div class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1">
+<p><code>for i := range n { ... }</code> は <a href="https://go.dev/">Go</a> 1.22 で導入された range over int と呼ばれる構文で ，<code>for i := 0; i &lt; n; i++ { ... }</code> と同じ意味になる。糖衣構文（syntactic sugar）の一種ですな。&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a>&#160;<a href="#fnref1:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2">
+<p>今回の記事は『<a href="https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1" title="Amazon.co.jp: Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ eBook : James Cutajar, 柴田 芳樹: Kindleストア">Go言語で学ぶ並行プログラミング</a>』を参考にしている。 <a href="https://pkg.go.dev/sync" title="sync package - sync - Go Packages"><code>sync</code></a><code>.Cond</code> の <code>Broadcast()</code> メソッドは待機中の全ての goroutine を起こすため，実際には起こされたタイミングで本当に条件を満たしているかどうか確認する処理が必要かもしれない。もし条件を満たしていなければ再び <code>Wait()</code> する。&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/parsing-command-line-flags-with-struct2flag/">struct2flag でコマンドライン解析【追記あり】</a></div>
+<div class="next-page"></div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>GitHub に<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>他のフィードバック手段として Mastodon などの SNS や電子メールも利用できます。電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo">
+	<div class="userinfo-avater">
+		<a href="https://baldanders.info/profile/"><img src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="avatar" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2025-11-09</time>
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><span class="bluesky-color"><abbr title="Bluesky"><i class="fa-brands fa-bluesky"></i></abbr></span></a></li><li><a rel="me" href="https://www.strava.com/athletes/122077389"><span class="strava-color"><abbr title="Strava"><i class="fa-brands fa-strava"></i></abbr></span></a></li><li><a rel="me" href="https://x.com/spiegel_2007"><span class="x-twitter-color"><abbr title="X (Twitter)"><i class="fab fa-x-twitter"></i></abbr></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fgolang%2fgoroutine-synchronization-with-waitgroup-and-barrier%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.152.2</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
