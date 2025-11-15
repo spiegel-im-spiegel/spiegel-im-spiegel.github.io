@@ -2,13 +2,229 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2025-11-14:/</id>
-	<updated>2025-11-14T09:07:26+00:00</updated>
+	<id>tag:text.Baldanders.info,2025-11-15:/</id>
+	<updated>2025-11-15T11:05:35+00:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>Close 関数のエラーを無視しない（『効率的なGo』読書会より）</title>
+		<category term="golang" label="golang" scheme="https://text.baldanders.info/golang/" />
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/golang/defer-close-handle-the-error/" />
+		<id>tag:text.Baldanders.info,2025-11-15:/golang/defer-close-handle-the-error/</id>
+		<published>2025-11-15T11:04:13+00:00</published>
+		<updated>2025-11-15T11:05:35+00:00</updated>
+		<summary>最終回の範囲（11章）から個人的に気になった部分を取り上げる。</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; target=&#34;_blank&#34; title=&#34;Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本&#34;&gt;効率的なGo&lt;/a&gt;』の&lt;a href=&#34;https://yokohama-go-reading.connpass.com/event/373111/&#34; target=&#34;_blank&#34; title=&#34;第75回横浜Go読書会（オンライン） - connpass&#34;&gt;読書会&lt;/a&gt;は無事に最終回を迎えた。
+今回は，&lt;a href=&#34;https://yokohama-go-reading.connpass.com/event/373111/&#34; target=&#34;_blank&#34; title=&#34;第75回横浜Go読書会（オンライン） - connpass&#34;&gt;読書会&lt;/a&gt;最終回の範囲（11章 最適化パターン）から個人的に気になった部分を取り上げる。&lt;/p&gt;
+&lt;h2&gt;Close 関数のエラーを無視しない&lt;/h2&gt;
+&lt;p&gt;以下のサンプルコードを起点にする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;os&amp;#34;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;doWithFile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;filename&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Open&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;filename&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;defer&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Close&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Perform file operations here...&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;doWithFile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;example.txt&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Fprintln&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Stderr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;panic&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;注目するのは &lt;code&gt;defer f.Close()&lt;/code&gt; の部分。
+&lt;code&gt;f.Close()&lt;/code&gt; メソッドはエラーを返す可能性があるが，このコードではエラーを捨てている。
+この手のサンプルコードはよく見るし私も過去記事で書いたような気がするが，エラーハンドリングの観点からは悪いコードということになる。&lt;/p&gt;
+&lt;p&gt;ファイルアクセスではクローズ処理の際にバッファに残ってるデータをフラッシュする場合がある。
+特に zip ファイルの書き込み処理とかでは終端レコードをクローズ時に書き込んだりするので，絶対にエラーを無視してはいけない。&lt;/p&gt;
+&lt;p&gt;一般的にクロージング・メソッドを含むパッケージや構造体ではクローズ処理時のエラーを適切に処理する必要がある。
+だからといって &lt;code&gt;defer&lt;/code&gt; を使わないのはもったいない。
+今回の場合は以下のように書き換える。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;doWithFile&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;filename&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Open&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;filename&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;defer&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;f&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Close&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ErrClosed&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;			&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;errors&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Join&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Perform file operations here...&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ポイントは2つ。&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;返り値を &lt;code&gt;err error&lt;/code&gt; と名前付きにすること&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;defer&lt;/code&gt; 処理を無名関数 &lt;code&gt;func() { ... }()&lt;/code&gt; で囲み，内部で適切にエラー処理を行うこと&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;最近の &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; は（&lt;a href=&#34;https://pkg.go.dev/errors&#34; target=&#34;_blank&#34; title=&#34;errors package - errors - Go Packages&#34;&gt;&lt;code&gt;errors&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Join()&lt;/code&gt; など）複数エラーを記述できるようになったのでハンドリングが簡潔になった&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
+よしよし。&lt;/p&gt;
+&lt;h2&gt;最後まで読み切ってからクローズする&lt;/h2&gt;
+&lt;p&gt;次のサンプルコードはこれ。
+HTTP レスポンスデータを処理する関数である。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;doWithResp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Response&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;defer&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Body&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Close&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ErrClosed&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;			&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;errors&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Join&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;StatusCode&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;StatusOK&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Errorf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;bad status: %s&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Status&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Perform operations with the response&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;a href=&#34;https://pkg.go.dev/net/http&#34; target=&#34;_blank&#34; title=&#34;http package - net/http - Go Packages&#34;&gt;&lt;code&gt;net/http&lt;/code&gt;&lt;/a&gt; パッケージのドキュメントには冒頭に&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote cite=&#34;https://pkg.go.dev/net/http&#34;&gt;&lt;p&gt;The caller must close the response body when finished with it:&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;resp, err := http.Get(&amp;#34;http://example.com/&amp;#34;)
+if err != nil {
+	// handle error
+}
+defer resp.Body.Close()
+body, err := io.ReadAll(resp.Body)
+// ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://pkg.go.dev/net/http&#34;&gt;http package - net/http - Go Packages&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;と書かれていて，必ず &lt;a href=&#34;https://pkg.go.dev/net/http&#34; target=&#34;_blank&#34; title=&#34;http package - net/http - Go Packages&#34;&gt;&lt;code&gt;http&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Response.Body.Close()&lt;/code&gt; メソッドを呼び出すよう指示されている。
+クローズ処理を行わないと内部でゴルーチン・リークが発生するらしい。&lt;/p&gt;
+&lt;p&gt;ただ &lt;a href=&#34;https://pkg.go.dev/net/http&#34; target=&#34;_blank&#34; title=&#34;http package - net/http - Go Packages&#34;&gt;&lt;code&gt;http&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Response.Body&lt;/code&gt; に関しては，ただクローズするだけでは駄目で，クローズする前にデータを最後まで読み切ることが推奨されている。&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote cite=&#34;https://pkg.go.dev/net/http&#34;&gt;If the Body is not both read to EOF and closed, the &lt;a href=&#34;https://pkg.go.dev/net/http#Client&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;Client&lt;/code&gt;&lt;/a&gt;&amp;rsquo;s underlying &lt;a href=&#34;https://pkg.go.dev/net/http#RoundTripper&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;RoundTripper&lt;/code&gt;&lt;/a&gt; (typically &lt;a href=&#34;https://pkg.go.dev/net/http#Transport&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;Transport&lt;/code&gt;&lt;/a&gt;) may not be able to re-use a persistent TCP connection to the server for a subsequent &amp;ldquo;keep-alive&amp;rdquo; request.&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://pkg.go.dev/net/http&#34;&gt;http package - net/http - Go Packages&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;これについては『&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; target=&#34;_blank&#34; title=&#34;Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ | Teiva Harsanyi, 柴田 芳樹 | 工学 | Kindleストア | Amazon&#34;&gt;Go言語 100Tips&lt;/a&gt;』にも解説がある。&lt;/p&gt;
+&lt;figure&gt;
+&lt;blockquote cite=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;p&gt;もう 1 つ覚えておくべき重要なことは、ボディをクローズするときの動作は、そのボディから読み込んだかどうかによって異なることです。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;読み込まずにボディをクローズすると、デフォルトの HTTP トランスポートがコネクションをクローズするかもしれません。&lt;/li&gt;
+&lt;li&gt;読み込んだ後にボディをクローズしても、デフォルトの HTTP トランスポートはコネクションをクローズしないので、再利用できる可能性があります。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;したがって、&lt;code&gt;getStatusCode&lt;/code&gt; が繰り返し呼ばれ、キープアライブ（keep-alive）のコネクションを使いたい場合、必要がないと思ってもボディを読み込むべきです。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;『Go言語 100Tips』 10. No.79：一時的な資源をクローズしない&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;これを踏まえて，最初のサンプルコードを書き換えると以下のようになる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;doWithResp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Response&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;defer&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;_&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;rerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;io&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Copy&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;io&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Discard&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Body&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Body&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Close&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;os&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ErrClosed&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;			&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;errors&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Join&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;rerr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;cerr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;errors&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Join&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;rerr&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;StatusCode&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;StatusOK&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Errorf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;bad status: %s&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Status&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Perform operations with the response&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2&gt;余談&lt;/h2&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; target=&#34;_blank&#34; title=&#34;Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本&#34;&gt;効率的なGo&lt;/a&gt;』は，ちぃっと難しかった。
+何が難しいって書籍内参照が前の章や跡の章に飛びまくって「何だっけこれ？」ってなることが多くて。
+まるで longjump だらけのスパゲッティコードを読んでる気分だった。
+これを曲がりなりにも理解するにはあと2,3回は周回する必要があるかな。&lt;/p&gt;
+&lt;p&gt;『&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34; target=&#34;_blank&#34; title=&#34;Amazon.co.jp: 効率的なGo ―データ指向によるGoアプリケーションの性能最適化 : Bartłomiej Płotka, 山口 能迪: 本&#34;&gt;効率的なGo&lt;/a&gt;』では標準パッケージの中身にも踏み込んでカスタマイズしたパッケージ置き換えるといったことも行っている。
+今回挙げた例についても，エラーハンドリングに関しては&lt;a href=&#34;https://github.com/efficientgo/core&#34; target=&#34;_blank&#34; title=&#34;efficientgo/core: Set of core packages every Go project needs. Minimal API, strictly versioned and with ~no dependencies.&#34;&gt;独自のパッケージ&lt;/a&gt;が用意されている。
+参考になるだろう。&lt;/p&gt;
+&lt;p&gt;今回の&lt;a href=&#34;https://yokohama-go-reading.connpass.com/event/373111/&#34; target=&#34;_blank&#34; title=&#34;第75回横浜Go読書会（オンライン） - connpass&#34;&gt;読書会&lt;/a&gt;の最後の方で話題になったのだが，2025年12月に『&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814401369/&#34; target=&#34;_blank&#34; title=&#34;実用 Go言語 第2版 - O&amp;#39;Reilly Japan&#34;&gt;実用 Go言語 第2版&lt;/a&gt;』が出るそうで。
+買わなきゃ。
+先日買った『&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814401192/&#34; target=&#34;_blank&#34; title=&#34;初めてのGo言語 第2版 - O&amp;#39;Reilly Japan&#34;&gt;初めてのGo言語 第2版&lt;/a&gt;』もまだ読み終わってないんだけど。&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41&amp;#43;ew2wl2jL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814400535?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;効率的なGo ―データ指向によるGoアプリケーションの性能最適化&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Bartłomiej Płotka (著), 山口 能迪 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリー・ジャパン 2024-02-24&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4814400535 (ASIN), 9784814400539 (EAN), 4814400535 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.oreilly.co.jp/books/9784814400539/&#34;&gt;版元&lt;/a&gt;で Ebook を買える。Go言語のリファレンス本ではない。フトウェア工学，プログラミング（の考え方）を学ぶ教科書的な位置づけかなぁ。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-04-21&#34;&gt;2024-04-21&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 効率的なGo : Efficient Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Teiva Harsanyi (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2023-08-18 (Release 2023-08-18)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0CFL1DK8Q (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://book.impress.co.jp/books/1122101133&#34;&gt;版元&lt;/a&gt;で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-08-18&#34;&gt;2023-08-18&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語 100Tips --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4814401191?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41X10&amp;#43;elsuL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4814401191?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;初めてのGo言語 第2版 ―他言語プログラマーのためのイディオマティックGo実践ガイド&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Jon Bodner (著), 武舎 広幸 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;オライリー・ジャパン 2025-08-05 (Release 2025-08-05)&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4814401191 (ASIN), 9784814401192 (EAN), 4814401191 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;第2版。 Generics の説明が大幅に改訂されたらしい。練習問題も追加されている。&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-11-02&#34;&gt;2025-11-02&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- 初めてのGo言語 第2版 --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg&#34; width=&#34;122&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
+    &lt;dd&gt;丸善出版 2016-06-20&lt;/dd&gt;
+    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
+    &lt;dd&gt;4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2016-07-13&#34;&gt;2016-07-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;拙作の &lt;a href=&#34;https://github.com/goark/errs&#34; target=&#34;_blank&#34; title=&#34;goark/errs: Error handling for Golang&#34;&gt;&lt;code&gt;goark/errs&lt;/code&gt;&lt;/a&gt; パッケージもよろしく（宣伝）。こちらも複数エラーに対応している他，エラーの出力を JSON 形式に出来る。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>ダッシュとかチルダとか</title>
 		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2025/11/dashes-and-tildes/" />
@@ -1557,145 +1773,6 @@ JR宍道駅も通過。&lt;/p&gt;
   &lt;p class=&#34;description&#34;&gt;「おとしばなし」と読むらしい。語るように歌い，歌うように語る。「&lt;a href=&#34;https://www.youtube.com/@JuufuuteiRaden&#34;&gt;儒烏風亭らでん&lt;/a&gt;」らしい秀逸な作品。 mora で&lt;a href=&#34;https://mora.jp/package/43000066/CVRD-606H/&#34;&gt;高解像度版&lt;/a&gt;が買える。&lt;/p&gt;
   &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-08-03&#34;&gt;2025-08-03&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
 &lt;/div&gt; &lt;!-- 落噺 おとしばなし 儒烏風亭らでん --&gt;
-</content>
-	</entry><entry>
-		<title>豆名月（十三夜，季秋の名月？）</title>
-		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2025/11/mame-meigetsu-on-the-thirteenth-night-of-late-autumn/" />
-		<id>tag:text.Baldanders.info,2025-11-02:/remark/2025/11/mame-meigetsu-on-the-thirteenth-night-of-late-autumn/</id>
-		<published>2025-11-02T10:56:20+00:00</published>
-		<updated>2025-11-04T09:36:31+00:00</updated>
-		<summary>今日の午後は天気が良さそうなので，温泉の後，お散歩へ</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja" xml:base="https://text.baldanders.info/">&lt;p&gt;11月初っ端の三連休。
-いかがお過ごしでしょうか。&lt;/p&gt;
-&lt;p&gt;松江は天気が微妙でなかなか遊びに出掛けられないのだが，今日の午後は天気が良さそうなので，とりあえず&lt;a href=&#34;https://www.kumanokan.jp/&#34; target=&#34;_blank&#34; title=&#34;八雲温泉ゆうあい熊野館&#34;&gt;八雲温泉&lt;/a&gt;へ。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/54896023200/&#34;&gt;&lt;img src=&#34;./54896023200_57cf11bd9c_e.jpg&#34; srcset=&#34;./54896023200_57cf11bd9c_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;八雲温泉上がりのコーヒー牛乳 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/54896023200/&#34;&gt;八雲温泉上がりのコーヒー牛乳 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.kisuki-milk.co.jp/&#34; target=&#34;_blank&#34; title=&#34;木次乳業&#34;&gt;木次乳業&lt;/a&gt;さん，いつもお世話になっています。&lt;/p&gt;
-&lt;p&gt;時間が中途半端なので，中海の&lt;a href=&#34;https://maps.app.goo.gl/7mkk9fMPUfqYJxDu6&#34; target=&#34;_blank&#34; title=&#34;意東海岸&#34;&gt;意東海岸&lt;/a&gt;まで行って帰るお散歩コース。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/54896080943/&#34;&gt;&lt;img src=&#34;./54896080943_92d2eed288_e.jpg&#34; srcset=&#34;./54896080943_92d2eed288_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;中海と大山（意東海岸） | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/54896080943/&#34;&gt;中海と大山（意東海岸） | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;おー。
-雲が多いので無理かと思ったが，大山が見えてる。&lt;/p&gt;
-&lt;p&gt;帰り道。
-ふと見上げたら月に向かって飛行機が飛んでるように見える。
-慌ててシャッターを切った。&lt;/p&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/54896094909/&#34;&gt;&lt;img src=&#34;./54896094909_3263401f0c_e.jpg&#34; srcset=&#34;./54896094909_3263401f0c_e.jpg 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;十三夜の月と飛行機 | Flickr&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;https://www.flickr.com/photos/spiegel/54896094909/&#34;&gt;十三夜の月と飛行機 | Flickr&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;そういえば今日は十三夜（新月（朔）の日を&lt;ruby&gt;&lt;rb&gt;一日&lt;/rb&gt;&lt;rp&gt; (&lt;/rp&gt;&lt;rt&gt;ついたち&lt;/rt&gt;&lt;rp&gt;) &lt;/rp&gt;&lt;/ruby&gt;として十三日目の夜）である。
-旧暦九月の十三夜の月は「豆名月」とか「栗名月」とか呼ばれている。
-ちなみに先月の&lt;a href=&#34;https://www.nao.ac.jp/astro/sky/2025/10-topics01.html&#34; target=&#34;_blank&#34; title=&#34;中秋の名月（2025年10月） | 国立天文台(NAOJ)&#34;&gt;中秋の名月&lt;/a&gt;は「芋名月」などと呼ばれたりする。&lt;/p&gt;
-&lt;p&gt;旧暦八月の十五夜の月が「中秋の名月」なんだから，旧暦九月の十三夜の月は「季秋の名月」とか呼んだりしないのだろうか。
-聞いたことないけど（笑）&lt;/p&gt;
-&lt;p&gt;ちなみに今度の満月（2025-11-05）は&lt;a href=&#34;https://www.nao.ac.jp/astro/sky/2025/11-topics03.html&#34; target=&#34;_blank&#34; title=&#34;2025年で地球にいちばん近い満月（2025年11月） | 国立天文台(NAOJ)&#34;&gt;2025年で最も地球に近い満月&lt;/a&gt;らしい。
-俗に言う「スーパームーン&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;」というやつやね。
-晴れるといいですねぇ。&lt;/p&gt;
-&lt;p&gt;さらに 2025-11-07 は立冬。
-伝統的季節の節月区切りでは立冬から立春までが冬になる。
-なお，天文学的季節では&lt;a href=&#34;https://text.baldanders.info/remark/2025/03/four-seasons/&#34; target=&#34;_blank&#34; title=&#34;春夏秋冬は「四季」ではない？&#34;&gt;冬至から春分までが冬&lt;/a&gt;らしい。&lt;/p&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2025/03/four-seasons/&#34; target=&#34;_blank&#34;&gt;春夏秋冬は「四季」ではない？&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
-&lt;blockquote class=&#34;nobox&#34; cite=&#34;https://www.youtube.com/watch?v=jhDBHYQJCJE&#34;&gt;&lt;div style=&#34;position: relative; margin: 0 2rem; padding-bottom: 56.25%; padding-top: 30px; height: 0; overflow: hidden;&#34;&gt;
-&lt;iframe class=&#34;youtube-player&#34; style=&#34;position: absolute; top: 0; left: 0; width: 100%; height: 100%;&#34; allowfullscreen frameborder=&#34;0&#34; src=&#34;https://www.youtube-nocookie.com/embed/jhDBHYQJCJE&#34; allowfullscreen&gt;&lt;/iframe&gt;
-&lt;/div&gt;&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://www.youtube.com/watch?v=jhDBHYQJCJE&#34;&gt;2025年11月の星空情報（十三夜と土星／地球に近い満月／月と木星が接近／11月の月の暦） - YouTube&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;h2&gt;参考&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B08L4WKDZ7?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41MZe0XgHdL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B08L4WKDZ7?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Canon コンパクトデジタルカメラ PowerShot ZOOM 写真と動画が撮れる望遠鏡 PSZOOM&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;キヤノン (Release 2020-12-10)&lt;/dd&gt;
-    &lt;dd&gt;エレクトロニクス&lt;/dd&gt;
-    &lt;dd&gt;B08L4WKDZ7 (ASIN), 4549292179675 (EAN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;望遠鏡型コンパクトデジカメ。メモリと充電器（要 Power Delivery）は別に用意する必要がある。使い勝手はまぁまぁ。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2022-12-04&#34;&gt;2022-12-04&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- PowerShot ZOOM --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BD7FGVR6?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/41p6YH0OjrL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0BD7FGVR6?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;GARMIN(ガーミン)Edge Explore 2 Power サイクルコンピューター【日本正規品】&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;ガーミン(GARMIN) (Release 2022-09-22)&lt;/dd&gt;
-    &lt;dd&gt;スポーツ用品&lt;/dd&gt;
-    &lt;dd&gt;B0BD7FGVR6 (ASIN), 0753759310660 (EAN), 753759310660 (UPC)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;Garmin 製のルート探索・ナビゲーション特化のサイコン。タッチパネル助かる。充電ポートは USB-C (not PD)。また別売りの&lt;a href=&#34;https://www.amazon.co.jp/dp/B0BD6SH1LH?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1&#34;&gt;変換ケーブル&lt;/a&gt;を使いモバイルバッテリからパワーマウント経由で給電することもできる。ライドタイプが「ロード」「屋内」「グラベル」の3種類しかない。 Live Segment 非対応。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-08-11&#34;&gt;2024-08-11&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- GARMIN EDGE Explore 2 サイクルコンピュータ --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4416723660?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/317XDfcuC0L._SL160_.jpg&#34; width=&#34;112&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4416723660?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;天文年鑑 2025年版&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;天文年鑑編集委員会 (編集)&lt;/dd&gt;
-    &lt;dd&gt;誠文堂新光社 2024-12-05 (Release 2024-12-05)&lt;/dd&gt;
-    &lt;dd&gt;単行本&lt;/dd&gt;
-    &lt;dd&gt;4416723660 (ASIN), 9784416723661 (EAN), 4416723660 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;天文ファン必携。2025年版。これが届くと年末って感じ。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2024-12-05&#34;&gt;2024-12-05&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 天文年鑑 2025年版 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4627275110?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51UOq7TlGyL._SL160_.jpg&#34; width=&#34;112&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4627275110?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;天体物理学&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Arnab Rai Choudhuri (著), 森 正樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;森北出版 2019-05-28&lt;/dd&gt;
-    &lt;dd&gt;単行本&lt;/dd&gt;
-    &lt;dd&gt;4627275110 (ASIN), 9784627275119 (EAN), 4627275110 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;興味本位で買うにはちょっとビビる値段なので図書館で借りて読んでいたが，やっぱり手元に置いておきたいのでエイヤで買った。まえがきによると，この手のタイプの教科書はあまりないらしい。内容は非常に堅実で分かりやすい。理系の学部生レベルなら問題なく読めるかな。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2019-11-13&#34;&gt;2019-11-13&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 天体物理学 --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0FNVV83KN?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51l3UVPYQzL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0FNVV83KN?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;アワータイムイエロー&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;ReGLOSS (メインアーティスト)&lt;/dd&gt;
-    &lt;dd&gt;hololive RECORDS 2025-09-14 (Release 2025-09-14)&lt;/dd&gt;
-    &lt;dd&gt;MP3 ダウンロード&lt;/dd&gt;
-    &lt;dd&gt;B0FNVV83KN (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;a href=&#34;https://www.youtube.com/watch?v=TO4W5iUe4Jw&#34;&gt;MV&lt;/a&gt; がカッコよくて速攻で買った。 mora で&lt;a href=&#34;https://mora.jp/package/43000066/CVRD-624H/&#34;&gt;高解像度版&lt;/a&gt;が買える。秋のイメージらしいがノリのいい曲。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-09-14&#34;&gt;2025-09-14&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- アワータイムイエロー Hour Time Yellow ReGLOSS --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0FKB9Y1GL?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/619K-F97tFL._SL160_.jpg&#34; width=&#34;160&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0FKB9Y1GL?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;落噺 (儒烏風亭らでん SOLO)&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;ReGLOSS (メインアーティスト)&lt;/dd&gt;
-    &lt;dd&gt;cover corp. 2025-08-03 (Release 2025-08-03)&lt;/dd&gt;
-    &lt;dd&gt;MP3 ダウンロード&lt;/dd&gt;
-    &lt;dd&gt;B0FKB9Y1GL (ASIN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;「おとしばなし」と読むらしい。語るように歌い，歌うように語る。「&lt;a href=&#34;https://www.youtube.com/@JuufuuteiRaden&#34;&gt;儒烏風亭らでん&lt;/a&gt;」らしい秀逸な作品。 mora で&lt;a href=&#34;https://mora.jp/package/43000066/CVRD-606H/&#34;&gt;高解像度版&lt;/a&gt;が買える。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-08-03&#34;&gt;2025-08-03&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- 落噺 おとしばなし 儒烏風亭らでん --&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;「スーパームーン」は定義が曖昧だそうで，天文用語としては使えないらしい。まぁ，慣用句としてなら（そこで星に興味を持ってもらえるなら）アリなんだろうけど。&lt;a href=&#34;https://www.nao.ac.jp/faq/a0310.html&#34; target=&#34;_blank&#34; title=&#34;質問3-10）伝統的七夕について教えて | 国立天文台&#34;&gt;伝統的七夕&lt;/a&gt;みたいに権威的な機関（IAU とかw）が定義を決めてしまえば，それであっという間に定着しそうだな。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
 </content>
 	</entry>
 </feed>
