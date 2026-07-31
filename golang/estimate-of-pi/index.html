@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.164.0">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/golang/estimate-of-pi/">
+<script defer src="/fa/js/all.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho:wght@400;700&family=Intel+One+Mono:wght@400;700&family=Noto+Color+Emoji&family=Noto+Sans:wght@400;700&family=Noto+Serif+Hentaigana:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+<script>
+MathJax = {
+  loader: {
+    load: ['[tex]/ams', '[tex]/textcomp']
+  },
+  tex: {
+    packages: {'[+]': ['ams', 'textcomp']},
+    inlineMath: {'[+]': [['$', '$']]},
+    tags: 'ams',
+    macros: {
+      ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1],
+      tcdegree: ['\\unicode{xb0}'],
+      tccelsius: ['\\unicode{x2103}'],
+      tcperthousand: ['\\unicode{x2030}'],
+      tcmu: ['\\unicode{x3bc}'],
+      tcohm: ['\\unicode{x3a9}']
+    }
+  },
+  chtml: {
+     
+    displayAlign: "left",
+    displayIndent: "2em"
+  },
+  output: {
+    font: 'mathjax-stix2'
+  }
+};
+</script>
+<script defer src="//cdn.jsdelivr.net/npm/mathjax@4/tex-chtml-nofont.js"></script>
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<link rel="me" href="https://web.brid.gy/text.baldanders.info">
+<link rel="site.standard.document" href="at://did:plc:crwrada4cit2ijjxuwz4bsjc/site.standard.document/golang/estimate-of-pi/" />
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="me" href="https://fedibird.com/@spiegel">
+<title>モンテカルロ法による円周率の推定（その1） [text.Baldanders.info]</title>
+<meta property="og:title" content="モンテカルロ法による円周率の推定（その1）">
+<meta name="description" content="乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。">
+<meta property="og:description" content="乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<link rel="me" href="https://goark.fedicity.net/@spiegel">
+<link rel="stylesheet" href="/mstdn_share/mstdn_share.css">
+<script src="/mstdn_share/mstdn_share.js"></script>
+<meta name="keywords" content="golang, math, random, circle-ratio">
+<link rel='prev' href='https://text.baldanders.info/golang/error-handling2/' title='Error の構造化'>
+<link rel='next' href='https://text.baldanders.info/golang/estimate-of-pi-2-cli/' title='モンテカルロ法による円周率の推定（その2 CLI）'>
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja-jp",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/golang/",
+	"url": "https://text.baldanders.info/golang/",
+	"inLanguage": "ja-jp",
+	"name": "プログラミング言語 Go",
+	"description": "Go 言語プログラミングに関する話題。",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/golang/estimate-of-pi/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/golang/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/golang/estimate-of-pi/",
+	"url": "https://text.baldanders.info/golang/estimate-of-pi/",
+	"mainEntityOfPage": "https://text.baldanders.info/golang/estimate-of-pi/",
+	"inLanguage": "ja-jp",
+	"name": "モンテカルロ法による円周率の推定（その1）",
+	"description": "乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。",
+	"headline": "乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。ので早速試してみる。",
+	"keywords": "golang, math, random, circle-ratio",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2016-11-05T14:26:29+00:00",
+	"dateModified": "2026-03-31T05:36:59+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/golang/">プログラミング言語 Go</a>
+</nav>
+<article>
+<h1>モンテカルロ法による円周率の推定（その1）</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/circle-ratio/">circle-ratio</a> #<a href="/tags/golang/">golang</a> #<a href="/tags/math/">math</a> #<a href="/tags/random/">random</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fa-solid fa-share-from-square"></i></span>&nbsp;:
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f" target="_blank"><span class="facebook-color"><abbr title="Share facebook"><i class="fab fa-square-facebook" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://x.com/intent/post?text=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae1%ef%bc%89+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f" target="_blank"><span class="x-twitter-color"><abbr title="Share Twitter"><i class="fa-brands fa-square-x-twitter" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<script>mstdn_share.set_share_text('モンテカルロ法による円周率の推定（その1） by @spiegel@goark.fedicity.net  https:\/\/text.baldanders.info\/golang\/estimate-of-pi\/');</script><span class="mastodon-color"><abbr title="Share Mastodon" class="mstdn_share"><i class="fa-brands fa-mastodon" aria-hidden="true"></i></abbr></span>
+		&nbsp;<a href="https://bsky.app/intent/compose?text=%e3%83%a2%e3%83%b3%e3%83%86%e3%82%ab%e3%83%ab%e3%83%ad%e6%b3%95%e3%81%ab%e3%82%88%e3%82%8b%e5%86%86%e5%91%a8%e7%8e%87%e3%81%ae%e6%8e%a8%e5%ae%9a%ef%bc%88%e3%81%9d%e3%81%ae1%ef%bc%89+by+@baldanders.info+https%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f" target="_blank"><span class="bluesky-color"><abbr title="Share Bluesky"><i class="fa-brands fa-bluesky" aria-hidden="true"></i></abbr></span></a>
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/golang/estimate-of-pi/index.html">GitHub Page</a>
+</nav>
+
+<section>
+<p>乱数（random number）についていい例題がないかなぁ，と考えて「円周率をモンテカルロ法で求めるやつやればいいぢゃん」と思いついた。
+ので早速試してみる。
+ちなみに「モンテカルロ法」というのは数値計算やシミュレーションに乱数を用いる手法をさす。</p>
+<ol>
+<li><a href="/golang/estimate-of-pi/">モンテカルロ法による円周率の推定（その1）</a> ← イマココ</li>
+<li><a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a></li>
+<li><a href="/golang/estimate-of-pi-3-gaussian/">モンテカルロ法による円周率の推定（その3 Gaussian）</a></li>
+<li><a href="/golang/estimate-of-pi-4-prng/">モンテカルロ法による円周率の推定（その4 PRNG）</a></li>
+</ol>
+<h2>モンテカルロ法による円周率の推定</h2>
+<p>では乱数を使ってどうやって円周率を求めるのか。
+まずは以下のように原点を中心とした半径 $1$ の円を考える。
+ただしここでは第一象限のみを対象とする。</p>
+<figure style='margin:0 auto;text-align:center;'><a href="./circle.png"><img src="./circle.png" srcset="./circle.png 500w" sizes="(min-width:600px) 500px, 80vw" alt="" loading="lazy"></a></figure>
+<p>そして $0 \le y \le 1$ および $0 \le y \le 1$ の範囲でランダムに点をプロットしていく。
+（以下の<a href="https://commons.wikimedia.org/wiki/File:Pi_30K.gif" title="File:Pi 30K.gif - Wikimedia Commons">図は Wikimedia Commons のもの</a>を拝借した。 <a href="https://creativecommons.org/licenses/by/3.0/" title="Creative Commons — Attribution 3.0 Unported — CC BY 3.0">CC-BY-3.0</a> で公開されている）</p>
+<figure style='margin:0 auto;text-align:center;'><a href="https://commons.wikimedia.org/wiki/File:Pi_30K.gif"><img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif" srcset="https://upload.wikimedia.org/wikipedia/commons/8/84/Pi_30K.gif 500w" sizes="(min-width:600px) 500px, 80vw" alt="From Wikimedia Commons" loading="lazy"></a><figcaption><div><a href="https://commons.wikimedia.org/wiki/File:Pi_30K.gif">From Wikimedia Commons</a></div></figcaption>
+</figure>
+<p>全ての点 $n$ が領域内に均等にプロットされていれば，円の内側に入る点の数 $m$ は，面積比から，以下の式のようになると期待できる。</p>
+<figure>
+<blockquote>
+\[
+m \simeq \frac{1}{4}{\pi}n
+\]
+</blockquote></figure>
+<p>この式を $\pi$ を求める形に変形すると</p>
+<figure>
+<blockquote>
+\[
+\pi \simeq \frac{4m}{n}
+\]
+</blockquote></figure>
+<p>となる。
+プロットした点が円の内側かどうかは原点からの距離で判定できる。
+すなわち</p>
+<figure>
+<blockquote>
+\[
+\sqrt{x^2 + y^2} \le 1
+\]
+</blockquote></figure>
+<p>を満たしていればよい。</p>
+<h2>math/rand パッケージ</h2>
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a> にはコア・パッケージとして <a href="https://golang.org/pkg/math/rand/" title="rand - The Go Programming Language"><code>math/rand</code></a> が用意されていて，このパッケージを使って擬似乱数を発生させることができる。
+今回は $0 \le r \le 1.0$ の範囲で乱数を発生させればいいのだが，生憎そのものズバリな関数が用意されていない。
+たとえば <code>rand.Float64()</code> が吐く値の範囲は $0 \le r \lt 1.0$ なのでそのままでは使えないのだ。</p>
+<p>そこで，こんなコードを考えてみる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;math/rand&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">rand</span><span class="p">.</span><span class="nf">Seed</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">UnixNano</span><span class="p">())</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nb">float64</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">Int63n</span><span class="p">(</span><span class="mi">10000001</span><span class="p">))</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nb">float64</span><span class="p">(</span><span class="mi">10000000</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p><code>rand.Int63n(n)</code> 関数は $0 \le i \lt n$ の範囲で整数を吐く。
+$n=10,000,001$ なら $0 \le i \le 10,000,000$ の範囲になる。
+これを $10,000,000$ で割って $0 \le r \le 1.0$ の範囲の乱数を作るのである。</p>
+<p>実際には2次元座標なので複素数（<a href="https://go.dev/ref/spec#Complex_numbers" title="Manipulating complex numbers">complex</a>）表現にして</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;math/cmplx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;math/rand&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">rand</span><span class="p">.</span><span class="nf">Seed</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">UnixNano</span><span class="p">())</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">c</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">complex</span><span class="p">(</span><span class="nb">float64</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">Int63n</span><span class="p">(</span><span class="mi">10000001</span><span class="p">))</span><span class="o">/</span><span class="nb">float64</span><span class="p">(</span><span class="mi">10000000</span><span class="p">),</span><span class="w"> </span><span class="nb">float64</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">Int63n</span><span class="p">(</span><span class="mi">10000001</span><span class="p">))</span><span class="o">/</span><span class="nb">float64</span><span class="p">(</span><span class="mi">10000000</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%v (%v)\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">,</span><span class="w"> </span><span class="nx">cmplx</span><span class="p">.</span><span class="nf">Abs</span><span class="p">(</span><span class="nx">c</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>とすればよい。
+ちなみに <code>cmplx.Abs()</code> 関数は複素数の絶対値を取るもので， $\sqrt{x^2 + y^2}$ と同じである。</p>
+<p>では，以上を踏まえてランダムな点を生成する <code>gencmplx</code> パッケージを作ってみよう。
+<a href="http://golang.org/ref/spec#Channel_types">channel</a> と <a href="http://golang.org/ref/spec#Go_statements">goroutine</a> を使ってこんな感じにするかな。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">gencmplx</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="s">&#34;math/rand&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="cp">//New returns generator of random complex number</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">New</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="nx">rand</span><span class="p">.</span><span class="nx">Source</span><span class="p">,</span><span class="w"> </span><span class="nx">count</span><span class="w"> </span><span class="kt">int64</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;-</span><span class="kd">chan</span><span class="w"> </span><span class="kt">complex128</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">chan</span><span class="w"> </span><span class="kt">complex128</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">r</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">rand</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">r</span><span class="w"> </span><span class="o">*</span><span class="nx">rand</span><span class="p">.</span><span class="nx">Rand</span><span class="p">,</span><span class="w"> </span><span class="nx">count</span><span class="w"> </span><span class="kt">int64</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">count</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nb">complex</span><span class="p">(</span><span class="nb">float64</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nf">Int63n</span><span class="p">(</span><span class="mi">10000001</span><span class="p">))</span><span class="o">/</span><span class="nb">float64</span><span class="p">(</span><span class="mi">10000000</span><span class="p">),</span><span class="w"> </span><span class="nb">float64</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nf">Int63n</span><span class="p">(</span><span class="mi">10000001</span><span class="p">))</span><span class="o">/</span><span class="nb">float64</span><span class="p">(</span><span class="mi">10000000</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">close</span><span class="p">(</span><span class="nx">ch</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}(</span><span class="nx">r</span><span class="p">,</span><span class="w"> </span><span class="nx">count</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">ch</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>後々のことを考えて，乱数の <code>rand.Source</code><sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup> と生成する点の個数は引数で指定するようにした。</p>
+<p>いっぽう， <code>gencmplx</code> パッケージの呼び出し側はこんな感じになる。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;math/rand&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;github.com/spiegel-im-spiegel/pi/gencmplx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">gencmplx</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">NewSource</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">UnixNano</span><span class="p">()),</span><span class="w"> </span><span class="nb">int64</span><span class="p">(</span><span class="mi">10000</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;%v\t%v\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nb">real</span><span class="p">(</span><span class="nx">p</span><span class="p">),</span><span class="w"> </span><span class="nb">imag</span><span class="p">(</span><span class="nx">p</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>ここでは少なめに1万個の点を生成している。
+<a href="http://golang.org/ref/spec#Channel_types">channel</a> <code>c</code> からの値の取り出しは for-range 構文を使うと記述がシンプルになり <code>c</code> が <code>close()</code> するまでループしてくれる。</p>
+<p>早速これを動かしてみよう。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run main.go &gt; plot-1.dat
+</span></span></code></pre></div><p>これで1万個の点を <a href="./plot-1.dat"><code>plot-1.dat</code></a> に格納したことになる。
+<a href="./plot-1.dat"><code>plot-1.dat</code></a> を <a href="http://www.gnuplot.info/" title="gnuplot homepage">gnuplot</a> に食わせてみるとこんな感じ。</p>
+<figure style='margin:0 auto;text-align:center;'><a href="./random-plot-1.png"><img src="./random-plot-1.png" srcset="./random-plot-1.png 500w" sizes="(min-width:600px) 500px, 80vw" alt="" loading="lazy"></a></figure>
+<p>うーん。
+均等？ なのかなぁ。
+まぁ，この辺の評価については「<a href="/golang/estimate-of-pi-3-gaussian/" title="モンテカルロ法による円周率の推定（その3 Gaussian）">その3</a>」以降で。</p>
+<p>最後に，生成した点の集合から円周率を推定するところまでやってみよう。
+<code>main()</code> 関数はこのように変える。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;math/cmplx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;math/rand&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;time&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;github.com/spiegel-im-spiegel/pi/gencmplx&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">c</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">gencmplx</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">NewSource</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nf">Now</span><span class="p">().</span><span class="nf">UnixNano</span><span class="p">()),</span><span class="w"> </span><span class="nb">int64</span><span class="p">(</span><span class="mi">100000</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">n</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="c1">// total</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">m</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="c1">// plot in circle</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">p</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">n</span><span class="o">++</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">cmplx</span><span class="p">.</span><span class="nf">Abs</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="nb">float64</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">m</span><span class="o">++</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;n = %v, m = %v, 4m/n = %v\n&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">m</span><span class="p">,</span><span class="w"> </span><span class="nb">float64</span><span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="nx">m</span><span class="p">)</span><span class="o">/</span><span class="nb">float64</span><span class="p">(</span><span class="nx">n</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>点の数は10万個まで増やしている。
+実行結果は</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">$ go run main2.go
+</span></span><span class="line"><span class="cl">n = 100000, m = 78397, 4m/n = 3.13588
+</span></span></code></pre></div><p>と，まぁそれっぽい値が出てきた。</p>
+<p>今回はここまで。</p>
+<h2>ブックマーク</h2>
+<ul>
+<li><a href="http://ruby.kyoto-wu.ac.jp/info-com/NumericalModels/RandomProcess/montecarlo.html">モンテカルロ法入門</a></li>
+<li><a href="http://qiita.com/intelfike/items/039eccffd422321ec6dd">golang complex(複素数)型を使う - Qiita</a>
+<ul>
+<li><a href="http://qiita.com/intelfike/items/f92f5c9ff2e515e16d47">golang complex(複素数)型の計算をする - Qiita</a></li>
+</ul>
+</li>
+<li><a href="http://www.cse.kyoto-su.ac.jp/~oomoto/lecture/program/gnuplot/gnuplot.html">GNUPLOTを用いたグラフ作成</a></li>
+</ul>
+<p><a href="/golang/bookmark/">Go 言語に関するブックマーク集はこちら</a>。</p>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="122" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt>
+    <dd>Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)</dd>
+    <dd>丸善出版 2016-06-20</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><strong>[Comment]</strong> 著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- プログラミング言語Go -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/B00I8AT1FO?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41353H&#43;BzFL._SL160_.jpg" width="113" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/B00I8AT1FO?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">数学ガール／乱択アルゴリズム</a></dt>
+    <dd>結城 浩 (著)</dd>
+    <dd>SBクリエイティブ 2011-02-25 (Release 2014-03-12)</dd>
+    <dd>Kindle版</dd>
+    <dd>B00I8AT1FO (ASIN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><strong>[Comment]</strong> 工学ガール，リサちゃん登場！</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2015-04-19">2015-04-19</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- 数学ガール／乱択アルゴリズム -->
+<div class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1">
+<p><code>rand.Source</code> は <a href="https://golang.org/doc/effective_go.html#interfaces_and_types" title="Effective Go - The Go Programming Language">interface</a> として定義されていて，これを満たす <a href="https://go.dev/ref/spec#Properties_of_types_and_values" title="Properties of types and values">type</a> であれば他の擬似乱数アルゴリズムも使えるようになっている。&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</div>
+
+</section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/golang/error-handling2/">Error の構造化</a></div>
+<div class="next-page"><a href="/golang/estimate-of-pi-2-cli/">モンテカルロ法による円周率の推定（その2 CLI）</a> &raquo;</div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>フィードバック手段として Mastodon などの SNS が利用できます。各ページの末尾に表示されているアイコンから各サービスのプロフィールにアクセスしてください。</p>
+<p>GitHub では<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>電子メールアドレスをご存知の方へ： 電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo h-card">
+	<div class="userinfo-avater">
+		<a class="u-url" rel="me" href="https://baldanders.info/profile/"><img class="u-photo" src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2016-11-05</time> (revised in 2026-03-31)
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><span class="bluesky-color"><abbr title="Bluesky"><i class="fa-brands fa-bluesky"></i></abbr></span></a></li><li><a rel="me" href="https://www.strava.com/athletes/122077389"><span class="strava-color"><abbr title="Strava"><i class="fa-brands fa-strava"></i></abbr></span></a></li><li><a rel="me" href="https://x.com/spiegel_2007"><span class="x-twitter-color"><abbr title="X (Twitter)"><i class="fab fa-x-twitter"></i></abbr></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fgolang%2festimate-of-pi%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+<li><a rel="me" href='https://fed.brid.gy/web/text.baldanders.info'>Bridgy Fed</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.164.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>

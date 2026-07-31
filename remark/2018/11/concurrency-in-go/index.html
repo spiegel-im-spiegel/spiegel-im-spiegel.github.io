@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.164.0">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/remark/2018/11/concurrency-in-go/">
+<script defer src="/fa/js/all.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho:wght@400;700&family=Intel+One+Mono:wght@400;700&family=Noto+Color+Emoji&family=Noto+Sans:wght@400;700&family=Noto+Serif+Hentaigana:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<link rel="me" href="https://web.brid.gy/text.baldanders.info">
+<link rel="site.standard.document" href="at://did:plc:crwrada4cit2ijjxuwz4bsjc/site.standard.document/remark/2018/11/concurrency-in-go/" />
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="me" href="https://fedibird.com/@spiegel">
+<title>『Go 言語による並行処理』は Go 言語プログラマ必読書だろう [text.Baldanders.info]</title>
+<meta property="og:title" content="『Go 言語による並行処理』は Go 言語プログラマ必読書だろう">
+<meta name="description" content="並行処理プログラミングが難しいのは，デザイン・パターンの熟成がまだ若いことと，パターンの組み合わせの選択が複雑な点にあると思う。">
+<meta property="og:description" content="並行処理プログラミングが難しいのは，デザイン・パターンの熟成がまだ若いことと，パターンの組み合わせの選択が複雑な点にあると思う。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/go-logo_blue.png">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<link rel="me" href="https://goark.fedicity.net/@spiegel">
+<link rel="stylesheet" href="/mstdn_share/mstdn_share.css">
+<script src="/mstdn_share/mstdn_share.js"></script>
+<meta name="keywords" content="book, golang, programming, concurrency, goroutine, channel, context, message-passing">
+<link rel='prev' href='https://text.baldanders.info/remark/2018/10/mathgirl-note-integral/' title='『数学ガールの秘密ノート／積分を見つめて』の感想を書くのを忘れていた'>
+<link rel='next' href='https://text.baldanders.info/remark/2018/11/resume-in-latex/' title='LaTeX で履歴書を書こう'>
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja-jp",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/remark/",
+	"url": "https://text.baldanders.info/remark/",
+	"inLanguage": "ja-jp",
+	"name": "しっぽのさきっちょ",
+	"description": "帰ってきた「しっぽのさきっちょ」。とりとめのない四方山話。",
+	"image": "https://text.baldanders.info/images/attention/remark.jpg",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/remark/2018/11/concurrency-in-go/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/remark/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/remark/2018/11/concurrency-in-go/",
+	"url": "https://text.baldanders.info/remark/2018/11/concurrency-in-go/",
+	"mainEntityOfPage": "https://text.baldanders.info/remark/2018/11/concurrency-in-go/",
+	"inLanguage": "ja-jp",
+	"name": "『Go 言語による並行処理』は Go 言語プログラマ必読書だろう",
+	"description": "並行処理プログラミングが難しいのは，デザイン・パターンの熟成がまだ若いことと，パターンの組み合わせの選択が複雑な点にあると思う。",
+	"headline": "並行処理プログラミングが難しいのは，デザイン・パターンの熟成がまだ若いことと，パターンの組み合わせの選択が複雑な点にあると思う。",
+	"keywords": "book, golang, programming, concurrency, goroutine, channel, context, message-passing",
+	"image": "https://text.baldanders.info/images/attention/go-logo_blue.png",
+	"datePublished": "2018-11-03T00:50:43+00:00",
+	"dateModified": "2024-05-10T22:02:32+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/remark/">しっぽのさきっちょ</a>
+</nav>
+<article>
+<h1>『Go 言語による並行処理』は Go 言語プログラマ必読書だろう</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/book/">book</a> #<a href="/tags/channel/">channel</a> #<a href="/tags/concurrency/">concurrency</a> #<a href="/tags/context/">context</a> #<a href="/tags/golang/">golang</a> #<a href="/tags/goroutine/">goroutine</a> #<a href="/tags/message-passing/">message-passing</a> #<a href="/tags/programming/">programming</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fa-solid fa-share-from-square"></i></span>&nbsp;:
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fremark%2f2018%2f11%2fconcurrency-in-go%2f" target="_blank"><span class="facebook-color"><abbr title="Share facebook"><i class="fab fa-square-facebook" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://x.com/intent/post?text=%e3%80%8eGo%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%82%88%e3%82%8b%e4%b8%a6%e8%a1%8c%e5%87%a6%e7%90%86%e3%80%8f%e3%81%af%20Go%20%e8%a8%80%e8%aa%9e%e3%83%97%e3%83%ad%e3%82%b0%e3%83%a9%e3%83%9e%e5%bf%85%e8%aa%ad%e6%9b%b8%e3%81%a0%e3%82%8d%e3%81%86+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fremark%2f2018%2f11%2fconcurrency-in-go%2f" target="_blank"><span class="x-twitter-color"><abbr title="Share Twitter"><i class="fa-brands fa-square-x-twitter" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<script>mstdn_share.set_share_text('『Go 言語による並行処理』は Go 言語プログラマ必読書だろう by @spiegel@goark.fedicity.net  https:\/\/text.baldanders.info\/remark\/2018\/11\/concurrency-in-go\/');</script><span class="mastodon-color"><abbr title="Share Mastodon" class="mstdn_share"><i class="fa-brands fa-mastodon" aria-hidden="true"></i></abbr></span>
+		&nbsp;<a href="https://bsky.app/intent/compose?text=%e3%80%8eGo%20%e8%a8%80%e8%aa%9e%e3%81%ab%e3%82%88%e3%82%8b%e4%b8%a6%e8%a1%8c%e5%87%a6%e7%90%86%e3%80%8f%e3%81%af%20Go%20%e8%a8%80%e8%aa%9e%e3%83%97%e3%83%ad%e3%82%b0%e3%83%a9%e3%83%9e%e5%bf%85%e8%aa%ad%e6%9b%b8%e3%81%a0%e3%82%8d%e3%81%86+by+@baldanders.info+https%3a%2f%2ftext.baldanders.info%2fremark%2f2018%2f11%2fconcurrency-in-go%2f" target="_blank"><span class="bluesky-color"><abbr title="Share Bluesky"><i class="fa-brands fa-bluesky" aria-hidden="true"></i></abbr></span></a>
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2018/11/concurrency-in-go/index.html">GitHub Page</a>
+</nav>
+
+<section><div>
+<div class="noextension">
+<a href="https://baldanders.info/public-domain-locked/" title="Public Domain Locked... | Baldanders.info"><img src="/images/Locked-150.png" alt="no extension" width="150"></a>
+</div>
+<p>やぁ！ ついに “<a href="https://katherine.cox-buday.com/concurrency-in-go/">Concurrency in Go</a>” の邦訳版が登場したですよ。
+めでたい！</p>
+<p><a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>の特徴はいくつかあるが，大きなものとして「並行処理<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>」を前提とした言語設計が挙げられる。</p>
+<p>並行処理では <a href="https://dl.acm.org/citation.cfm?doid=359576.359585">CSP (Communicating Sequential Processes)</a> の成果が取り入れられている。
+これが goroutine と channel である。</p>
+<p>Goroutine は軽量スレッドなどと呼ばれることもあるが<sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>，厳密には coroutine の一種である。
+Main goroutine を含む各 goroutine はランタイム・プログラムに組み込まれたスケジューラによって制御される。
+つまり実行時の並列処理の詳細はコードレベルでは隠蔽されているのだ。
+故にプログラマはコード上の並行処理にのみ注力して記述すればいいことになる。
+OS スレッドの仕様がどうなってるとか無駄にデカいスレッドをプールの中でどう使い回すかとか，生産性の欠片もないようなことは考えなくていいわけだ<sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>。</p>
+<p>Channel は入出力プリミティブで，これによって goroutine 間のメッセージ・パッシング（message passing）を実現している。
+たとえば以下のような感じで記述する<sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="cp">//main goroutine</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">hello</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">chan</span><span class="w"> </span><span class="kd">interface</span><span class="p">{})</span><span class="w"> </span><span class="cp">//create channel</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cp">//sub goroutine</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">hello</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s">&#34;Hello, world!&#34;</span><span class="w"> </span><span class="cp">//send</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="o">&lt;-</span><span class="nx">hello</span><span class="p">)</span><span class="w"> </span><span class="cp">//receive</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><p>（<code>go</code> 構文（<a href="https://go.dev/ref/spec#Go_statements" title="The Go Programming Language Specification - The Go Programming Language">go statement</a>）でキックされた関数が sub goroutine となる。関数閉包（closure）になっている点に注目）</p>
+<p>これらに加えて，同期をとるための <a href="https://golang.org/pkg/sync/" title="sync - The Go Programming Language"><code>sync</code></a> パッケージやコールグラフの各枝をキャンセルするための <a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージが標準ライブラリで用意されている。</p>
+<p>メッセージ・パッシングを構成するか <a href="https://golang.org/pkg/sync/" title="sync - The Go Programming Language"><code>sync</code></a> パッケージ等を用いて legacy なメモリアクセス同期を構成するか（あるいはそれらを組み合わせるか）の判断は難しいが，2.4章に大まかな指針が挙げられているので参考になるだろう。
+ただし，今まで無理やりメモリアクセス同期で運用していたもののうちかなりのものを軽くて（スレッドセーフという意味で）安全なメッセージ・パッシングに置き換えられるのは確かである。</p>
+<p>そうそう。
+『<a href="https://www.amazon.co.jp/exec/obidos/ASIN/4873118468/baldandersinf-22/" title="Go言語による並行処理 | Katherine Cox-Buday, 山口 能迪 |本 | 通販 | Amazon">Go 言語による並行処理</a>』では <a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージについてページを割いて紹介されているのだ<sup id="fnref:5"><a href="#fn:5" class="footnote-ref" role="doc-noteref">5</a></sup>（4.12章）。
+<a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージをデザイン・パターンとして日本語できちんと紹介している Web 記事や書籍はあまり見かけないので，単純に嬉しい。</p>
+<p>並行処理プログラミングが難しいのは，デザイン・パターン（4章で言及されている）の熟成がまだ若いこと，パターンの組み合わせ最適化が複雑なこと，もっと言うなら並行処理の設計は context driven であること，にあると思う（だからこそ <a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージは秀逸なのよ）。
+デザイン・パターンは（数学の公式と同じく）思考のショートカットなので，そのパターンを構成することの意味を分かった上で適用しないと失敗することが多いんじゃないだろうか。</p>
+<p>この本を読んで「よっしゃ，明日から立派な goroutine 使いだ！」とはならないと思うけど，有象無象なコピペ・プログラマじゃなく，きちんと <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>のプログラミングを勉強したいのであれば，この本は必読書になると思う。
+少なくとも（立ち読みででも）2章までは熟読すべき。</p>
+<p>ところで余談だが，補遺Bは日本語版オリジナルの章だそうだけど，その中に <a href="https://blog.golang.org/go2draft" title="Go 2 Draft Designs - The Go Blog">Go 2 ドラフト</a>で提案されている Generics についてしれっと書かれている。</p>
+<figure style='margin:0 auto;text-align:center;'>
+<blockquote class="nobox" cite="https://www.youtube.com/watch?v=6wIP3rO6On8"><div style="position: relative; margin: 0 2rem; padding-bottom: 56.25%; padding-top: 30px; height: 0; overflow: hidden;">
+<iframe class="youtube-player" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" allowfullscreen frameborder="0" src="https://www.youtube-nocookie.com/embed/6wIP3rO6On8" allowfullscreen></iframe>
+</div></blockquote>
+<figcaption><div><q><a href="https://www.youtube.com/watch?v=6wIP3rO6On8">Go 2 Drafts Announcement - YouTube</a></q>より</div></figcaption>
+</figure>
+<p>次期 <a href="https://golang.org/" title="The Go Programming Language">Go 言語</a>に搭載される（かもしれない） Generics についての解説は以下を参考にどうぞ。</p>
+<ul>
+<li><a href="https://qiita.com/lufia/items/242d25e8c93d88e22a2e">Go 2のgenerics/contract簡易まとめ</a></li>
+</ul>
+<h2>ブックマーク</h2>
+<ul>
+<li>
+<p><a href="https://mattn.kaoriya.net/software/lang/go/concurrency-in-go.htm">Big Sky :: 書評「Go言語による並行処理」</a></p>
+</li>
+<li>
+<p><a href="http://mattn.kaoriya.net/software/lang/go/20160706165757.htm">Big Sky :: golang の channel を使ったテクニックあれこれ</a></p>
+</li>
+<li>
+<p><a href="https://mattn.kaoriya.net/software/lang/go/20180531104907.htm">Big Sky :: Go 言語の非同期パターン</a></p>
+</li>
+<li>
+<p><a href="http://postd.cc/go_concurrency_visualize/">Go言語の並行性を映像化する | プログラミング | POSTD</a></p>
+</li>
+<li>
+<p><a href="http://qiita.com/tfutada/items/a289628d8b2d0af6152d">Go言語の並行処理デザインパターン by Rob Pike 前編 - Qiita</a></p>
+<ul>
+<li><a href="http://qiita.com/tfutada/items/dc8db894ac270a79ef2b">Go言語の並行処理デザインパターン by Rob Pike 後編 - Qiita</a></li>
+</ul>
+</li>
+<li>
+<p><a href="https://budougumi0617.github.io/2020/02/21/use-context/">context.TODO()を使って漸進的にcontext対応を始める - My External Storage</a></p>
+</li>
+<li>
+<p><a href="https://text.baldanders.info/golang/ticker/">time.Ticker で遊ぶ</a></p>
+</li>
+<li>
+<p><a href="https://text.baldanders.info/remark/2020/01/concurrency-in-go-digital/">『Go 言語による並行処理』はEブック版がオススメ</a></p>
+</li>
+</ul>
+<h2>参考図書</h2>
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/51pUKQajnaL._SL160_.jpg" width="125" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4873118468?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">Go言語による並行処理</a></dt>
+    <dd>Katherine Cox-Buday (著), 山口 能迪 (翻訳)</dd>
+    <dd>オライリージャパン 2018-10-26</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4873118468 (ASIN), 9784873118468 (EAN), 4873118468 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><strong>[Comment]</strong> <a href="https://www.oreilly.co.jp/books/9784873118468/">Eブック版もある</a>。感想は<a href="https://text.baldanders.info/remark/2018/11/concurrency-in-go/">こちら</a>。 Go 言語で並行処理を書くならこの本は必読書になるだろう。</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2020-01-13">2020-01-13</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- Go言語による並行処理 -->
+<div class="hreview">
+  <div class="photo"><a href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1"><img src="https://m.media-amazon.com/images/I/41meaSLNFfL._SL160_.jpg" width="122" alt="photo"></a></div>
+  <dl>
+    <dt class="item"><a class="fn url" href="https://www.amazon.co.jp/dp/4621300253?tag=baldandersinf-22&amp;linkCode=ogi&amp;th=1&amp;psc=1">プログラミング言語Go (ADDISON-WESLEY PROFESSIONAL COMPUTING SERIES)</a></dt>
+    <dd>Alan A.A. Donovan (著), Brian W. Kernighan (著), 柴田 芳樹 (翻訳)</dd>
+    <dd>丸善出版 2016-06-20</dd>
+    <dd>単行本（ソフトカバー）</dd>
+    <dd>4621300253 (ASIN), 9784621300251 (EAN), 4621300253 (ISBN)</dd>
+    <dd>評価<abbr class="rating fa-sm" title="5">&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i>&nbsp;<i class="fas fa-star"></i></abbr></dd>
+  </dl>
+  <p class="description"><strong>[Comment]</strong> 著者のひとりは（あの「バイブル」とも呼ばれる）通称 “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！</p>
+  <p class="powered-by">reviewed by <a href='#maker' class='reviewer'>Spiegel</a> on <abbr class="dtreviewed" title="2016-07-13">2016-07-13</abbr> (powered by <a href="https://affiliate.amazon.co.jp/assoc_credentials/home">PA-APIv5</a>)</p>
+</div> <!-- プログラミング言語Go -->
+<div class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1">
+<p>「同時に複数の動作が行われていること」を意味する言葉として「並行（concurrent）」と「並列（parallel）」が混同されることがあるが，プログラミングにおいては，書かれたコードの性質をを表すものを「並行」，動作するランタイム・プログラム（群）の性質を表すものを「並列」と呼んで区別している。両者は密接に関連しているが等価ではない。&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2">
+<p>OS スレッドに比べて goroutine を駆動する（ランタイム・プログラムが展開する）グリーン・スレッドは非常に軽量らしい。初期のメモリ割当で数キロバイト程度で，実行時に自動的に増減するようだ。 Goroutine のリソースの概算については3.1章で言及されている。&#160;<a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3">
+<p>ある規模以上のシステムの場合は流量制限等をかける必要があるかも知れない。大規模システム開発での注意点については5章で言及されている。&#160;<a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:4">
+<p>受信（<code>&lt;-chan</code>）は単項演算子で，送信（<code>chan&lt;-</code>）は送信構文（send statement）で記述する。&#160;<a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:5">
+<p><a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージはバージョン 1.7 から標準ライブラリに組み込まれたため，古い参考書には載っていない。なお <a href="https://golang.org/pkg/context/" title="context - The Go Programming Language"><code>context</code></a> パッケージにはキャンセルの伝搬以外にもコールグラフ間でデータを受け渡す機能もある。もっともこちらは濫用するとヤバいけど。&#160;<a href="#fnref:5" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</div>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2018/10/mathgirl-note-integral/">『数学ガールの秘密ノート／積分を見つめて』の感想を書くのを忘れていた</a></div>
+<div class="next-page"><a href="/remark/2018/11/resume-in-latex/">LaTeX で履歴書を書こう</a> &raquo;</div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>フィードバック手段として Mastodon などの SNS が利用できます。各ページの末尾に表示されているアイコンから各サービスのプロフィールにアクセスしてください。</p>
+<p>GitHub では<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>電子メールアドレスをご存知の方へ： 電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo h-card">
+	<div class="userinfo-avater">
+		<a class="u-url" rel="me" href="https://baldanders.info/profile/"><img class="u-photo" src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2018-11-03</time> (revised in 2024-05-11)
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><span class="bluesky-color"><abbr title="Bluesky"><i class="fa-brands fa-bluesky"></i></abbr></span></a></li><li><a rel="me" href="https://www.strava.com/athletes/122077389"><span class="strava-color"><abbr title="Strava"><i class="fa-brands fa-strava"></i></abbr></span></a></li><li><a rel="me" href="https://x.com/spiegel_2007"><span class="x-twitter-color"><abbr title="X (Twitter)"><i class="fab fa-x-twitter"></i></abbr></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fremark%2f2018%2f11%2fconcurrency-in-go%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+<li><a rel="me" href='https://fed.brid.gy/web/text.baldanders.info'>Bridgy Fed</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.164.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>

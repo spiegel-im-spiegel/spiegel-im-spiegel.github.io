@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="Hugo 0.164.0">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+<link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/apple-icon-144x144.png">
+<link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="https://text.baldanders.info/remark/2016/02/logjam-attack/">
+<script defer src="/fa/js/all.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho:wght@400;700&family=Intel+One+Mono:wght@400;700&family=Noto+Color+Emoji&family=Noto+Sans:wght@400;700&family=Noto+Serif+Hentaigana:wght@400;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/local-font.css" type='text/css'>
+<link rel="stylesheet" href="/css/baldanders-info-dark.css" type='text/css'>
+<script>
+MathJax = {
+  loader: {
+    load: ['[tex]/ams', '[tex]/textcomp']
+  },
+  tex: {
+    packages: {'[+]': ['ams', 'textcomp']},
+    inlineMath: {'[+]': [['$', '$']]},
+    tags: 'ams',
+    macros: {
+      ssqrt: ['\\sqrt{\\smash[b]{\\mathstrut #1}}', 1],
+      tcdegree: ['\\unicode{xb0}'],
+      tccelsius: ['\\unicode{x2103}'],
+      tcperthousand: ['\\unicode{x2030}'],
+      tcmu: ['\\unicode{x3bc}'],
+      tcohm: ['\\unicode{x3a9}']
+    }
+  },
+  chtml: {
+     
+    displayAlign: "left",
+    displayIndent: "2em"
+  },
+  output: {
+    font: 'mathjax-stix2'
+  }
+};
+</script>
+<script defer src="//cdn.jsdelivr.net/npm/mathjax@4/tex-chtml-nofont.js"></script>
+<link rel="alternate" href="https://text.baldanders.info/index.xml" type="application/rss+xml" title="text.Baldanders.info">
+<link rel="alternate" href="https://text.baldanders.info/index.json" type="application/json" title="text.Baldanders.info">
+<link rel="me" href="https://web.brid.gy/text.baldanders.info">
+<link rel="site.standard.document" href="at://did:plc:crwrada4cit2ijjxuwz4bsjc/site.standard.document/remark/2016/02/logjam-attack/" />
+<meta name="google-site-verification" content="jTjBCslPtf8gwVatiY-GDgGv7pV5csa8aUOw1MRPUD4">
+<link rel="me" href="https://fedibird.com/@spiegel">
+<title>TLS における Diffie-Hellman 鍵交換の脆弱性（再掲載） [text.Baldanders.info]</title>
+<meta property="og:title" content="TLS における Diffie-Hellman 鍵交換の脆弱性（再掲載）">
+<meta name="description" content="以前 Qiita に書いた記事を再掲載する。ちなみに元記事は2015年5月に公開している。">
+<meta property="og:description" content="以前 Qiita に書いた記事を再掲載する。ちなみに元記事は2015年5月に公開している。">
+<meta property="og:image" content="https://text.baldanders.info/images/attention/remark.jpg">
+<meta name="author" content="Spiegel">
+
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@spiegel_2007">
+<meta name="twitter:creator" content="@spiegel_2007">
+<link rel="me" href="https://goark.fedicity.net/@spiegel">
+<link rel="stylesheet" href="/mstdn_share/mstdn_share.css">
+<script src="/mstdn_share/mstdn_share.js"></script>
+<meta name="keywords" content="security, vulnerability, cryptography, openssl">
+<link rel='prev' href='https://text.baldanders.info/remark/2016/02/libgcrypt-1_6_5-security-fix-released/' title='Libgcrypt 1.6.5 with security fix released'>
+<link rel='next' href='https://text.baldanders.info/remark/2016/02/14-stories/' title='週末スペシャル： LIGO が重力波の「直接検出」に成功する！'>
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "WebSite",
+	"@id": "https://text.baldanders.info/",
+	"inLanguage": "ja-jp",
+	"name": "text.Baldanders.info",
+    "url": "https://text.baldanders.info/",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"image": "https://text.baldanders.info/images/attention/site.jpg",
+	"description": "帰ってきた「しっぽのさきっちょ」"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"@id": "https://text.baldanders.info/#org",
+	"name": "Spiegel",
+	"logo": {
+		"@type": "ImageObject",
+		"@id": "https://text.baldanders.info/#logo",
+		"url": "https://text.baldanders.info/images/avatar.jpg"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Person",
+	"@id": "https://text.baldanders.info/#maker",
+	"name": "Spiegel",
+	"url": "https://baldanders.info/profile/",
+	"image": "https://text.baldanders.info/images/avatar.jpg"
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Blog",
+	"@id": "https://text.baldanders.info/remark/",
+	"url": "https://text.baldanders.info/remark/",
+	"inLanguage": "ja-jp",
+	"name": "しっぽのさきっちょ",
+	"description": "帰ってきた「しっぽのさきっちょ」。とりとめのない四方山話。",
+	"image": "https://text.baldanders.info/images/attention/remark.jpg",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	}
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BreadcrumbList",
+	"@id": "https://text.baldanders.info/remark/2016/02/logjam-attack/#breadcrumb-list",
+	"itemListElement": [
+		{
+			"@type": "ListItem",
+			"position": 1,
+			"item": {
+				"@id": "https://text.baldanders.info/"
+			}
+		},
+		{
+			"@type": "ListItem",
+			"position": 2,
+			"item": {
+				"@id": "https://text.baldanders.info/remark/"
+			}
+		}
+	]
+}
+</script>
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "BlogPosting",
+	"@id": "https://text.baldanders.info/remark/2016/02/logjam-attack/",
+	"url": "https://text.baldanders.info/remark/2016/02/logjam-attack/",
+	"mainEntityOfPage": "https://text.baldanders.info/remark/2016/02/logjam-attack/",
+	"inLanguage": "ja-jp",
+	"name": "TLS における Diffie-Hellman 鍵交換の脆弱性（再掲載）",
+	"description": "以前 Qiita に書いた記事を再掲載する。ちなみに元記事は2015年5月に公開している。",
+	"headline": "以前 Qiita に書いた記事を再掲載する。ちなみに元記事は2015年5月に公開している。",
+	"keywords": "security, vulnerability, cryptography, openssl",
+	"image": "https://text.baldanders.info/images/attention/remark.jpg",
+	"datePublished": "2016-02-10T18:59:41+00:00",
+	"dateModified": "2020-06-07T02:09:49+00:00",
+	"publisher": {
+		"@id": "https://text.baldanders.info/#org"
+	},
+	"author": {
+		"@id": "https://text.baldanders.info/#maker"
+	},
+	"license": "https://creativecommons.org/licenses/by-sa/4.0/"
+}
+</script>
+</head>
+<body>
+
+<div id='container'>
+
+<main>
+<nav class="breadcrumb">
+<a href="https://text.baldanders.info/">text.Baldanders.info</a> &raquo; <a href="/remark/">しっぽのさきっちょ</a>
+</nav>
+<article>
+<h1>TLS における Diffie-Hellman 鍵交換の脆弱性（再掲載）</h1>
+<nav class="tags">
+	<div><a href='/tags/'>Tags</a>: #<a href="/tags/cryptography/">cryptography</a> #<a href="/tags/openssl/">openssl</a> #<a href="/tags/security/">security</a> #<a href="/tags/vulnerability/">vulnerability</a></div>
+	<div class="cloud">
+		<span class="share-color" title="Share this entry"><i class="fa-solid fa-share-from-square"></i></span>&nbsp;:
+		&nbsp;<a href="http://www.facebook.com/share.php?u=https%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f02%2flogjam-attack%2f" target="_blank"><span class="facebook-color"><abbr title="Share facebook"><i class="fab fa-square-facebook" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<a href="http://x.com/intent/post?text=TLS%20%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%20Diffie-Hellman%20%e9%8d%b5%e4%ba%a4%e6%8f%9b%e3%81%ae%e8%84%86%e5%bc%b1%e6%80%a7%ef%bc%88%e5%86%8d%e6%8e%b2%e8%bc%89%ef%bc%89+by+@spiegel_2007&amp;url=https%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f02%2flogjam-attack%2f" target="_blank"><span class="x-twitter-color"><abbr title="Share Twitter"><i class="fa-brands fa-square-x-twitter" aria-hidden="true"></i></abbr></span></a>
+		&nbsp;<script>mstdn_share.set_share_text('TLS における Diffie-Hellman 鍵交換の脆弱性（再掲載） by @spiegel@goark.fedicity.net  https:\/\/text.baldanders.info\/remark\/2016\/02\/logjam-attack\/');</script><span class="mastodon-color"><abbr title="Share Mastodon" class="mstdn_share"><i class="fa-brands fa-mastodon" aria-hidden="true"></i></abbr></span>
+		&nbsp;<a href="https://bsky.app/intent/compose?text=TLS%20%e3%81%ab%e3%81%8a%e3%81%91%e3%82%8b%20Diffie-Hellman%20%e9%8d%b5%e4%ba%a4%e6%8f%9b%e3%81%ae%e8%84%86%e5%bc%b1%e6%80%a7%ef%bc%88%e5%86%8d%e6%8e%b2%e8%bc%89%ef%bc%89+by+@baldanders.info+https%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f02%2flogjam-attack%2f" target="_blank"><span class="bluesky-color"><abbr title="Share Bluesky"><i class="fa-brands fa-bluesky" aria-hidden="true"></i></abbr></span></a>
+	</div>
+</nav>
+<nav class="history">History in
+  <a href="https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io/commits/master/remark/2016/02/logjam-attack/index.html">GitHub Page</a>
+</nav>
+
+<section><div>
+<div class="noextension">
+<a href="https://baldanders.info/public-domain-locked/" title="Public Domain Locked... | Baldanders.info"><img src="/images/Locked-150.png" alt="no extension" width="150"></a>
+</div>
+<p>なんか <a href="https://nodejs.org/">node.js</a> が今さら Logjam 攻撃に対応したとか言ってるので</p>
+<ul>
+<li><a href="https://nodejs.org/en/blog/release/v0.10.42/">Node v0.10.42 (LTS) | Node.js</a></li>
+<li><a href="https://nodejs.org/en/blog/release/v0.12.10/">Node v0.12.10 (LTS) | Node.js</a></li>
+<li><a href="https://nodejs.org/en/blog/release/v4.3.0/">Node v4.3.0 (LTS) | Node.js</a></li>
+<li><a href="https://nodejs.org/en/blog/release/v5.6.0/">Node v5.6.0 (Stable) | Node.js</a></li>
+</ul>
+<figure lang="en">
+<blockquote cite="https://nodejs.org/en/blog/release/v5.6.0/">
+<q>upgrade from 1.0.2e to 1.0.2f. To mitigate against the Logjam attack, TLS clients now reject Diffie-Hellman handshakes with parameters shorter than 1024-bits, up from the previous limit of 768-bits.</q>
+</blockquote>
+<figcaption><div>via <q><a href="https://nodejs.org/en/blog/release/v5.6.0/">Node v5.6.0 (Stable)</a></q></div></figcaption>
+</figure>
+<p>以前 <a href="http://qiita.com/spiegel-im-spiegel/items/af0cdb620ad79c4d0f36">Qiita に書いた記事</a>をこちらでも再掲載する。
+ちなみに元記事は2015年5月に公開している。</p>
+<p>ちなみに OpenSSL 1.0.2f では Logjam 攻撃への追加対応のほか，安全でない素数を生成する問題や SSLv2 をブロックできない問題に対応している。
+むしろこちらの方が重要か。</p>
+<ul>
+<li><a href="https://mta.openssl.org/pipermail/openssl-announce/2016-January/000061.html">[openssl-announce] OpenSSL Security Advisory</a></li>
+<li><a href="http://www.kb.cert.org/vuls/id/257823">Vulnerability Note VU#257823 - OpenSSL re-uses unsafe prime numbers in Diffie-Hellman protocol</a></li>
+<li><a href="http://jvn.jp/vu/JVNVU95668716/">JVNVU#95668716: OpenSSL の DH プロトコルにおける脆弱性</a></li>
+</ul>
+<p>安全でない素数を生成する問題については CVSSv3 基本値 <code>CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N</code> で 7.4 と見積もられている。</p>
+<table>
+	<thead>
+			<tr>
+					<th style="text-align: right">基本評価基準</th>
+					<th style="text-align: left">評価値</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td style="text-align: right">攻撃元区分（AV）</td>
+					<td style="text-align: left">ネットワーク（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">攻撃条件の複雑さ（AC）</td>
+					<td style="text-align: left">高（H）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">必要な特権レベル（PR）</td>
+					<td style="text-align: left">不要（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">ユーザ関与レベル（UI）</td>
+					<td style="text-align: left">不要（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">スコープ（S）</td>
+					<td style="text-align: left">変更なし (U)</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">情報漏えいの可能性（機密性への影響, C）</td>
+					<td style="text-align: left">高（H）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">情報改ざんの可能性（完全性への影響, I）</td>
+					<td style="text-align: left">高（H）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">業務停止の可能性（可用性への影響, A）</td>
+					<td style="text-align: left">なし（N）</td>
+			</tr>
+	</tbody>
+</table>
+<h2>脆弱性の内容</h2>
+<p>通称 “Logjam” 攻撃。</p>
+<p>かつて騒がれた FREAK 脆弱性と同じく， TLS 経路上に「中間者」がいる場合， Diffie-Hellman（DH）鍵交換で使われる鍵を輸出用の脆弱なものにダウングレードさせられる。
+FEAK のときとは異なり，特定の実装の脆弱性ではなく TLS プロトコルの欠陥。</p>
+<p>ちなみに DH 鍵交換アルゴリズムは公開鍵暗号の一種で，お互いに（もちろん第3者にも）秘密情報（秘密鍵）を知られることなく安全にセッション鍵を生成することができる。
+ベースとなるロジックは「離散対数問題」と呼ばれるもので ElGamal や DSA と同系統のロジック。なので，鍵長の管理も ElGamal や DSA と同等のものが要求される。</p>
+<p>暗号強度と各暗号方式の鍵長の関係は以下のとおり（単位はすべてビット）</p>
+<p><figure lang="en">
+<style>
+main table.nist2 th  {
+  vertical-align:middle;
+  text-align: center;
+}
+main table.nist2 td  {
+  vertical-align:middle;
+  text-align: center;
+}
+</style>
+<table class="nist2">
+<thead>
+<tr>
+<th>Security<br>Strength</th>
+<th>Symmetric<br> key<br> algorithms</th>
+<th>FFC<br>(DSA, DH,<br>MQV)</th>
+<th>IFC<br>(RSA)</th>
+<th>ECC<br>(ECDSA,<br>EdDSA, DH,<br>MQV)</th>
+</tr>
+</thead>
+<tbody>
+<tr><td> $\le 80$ </td><td>2TDEA</td><td> $L=1024$ <br> $N=160$ </td><td> $k=1024$ </td> <td> $f = 160\text{ - }223$ </td></tr>
+<tr><td> $112$ </td><td>3TDEA</td><td> $L=2048$ <br> $N=224$ </td><td>$k=2048$</td> <td>$f = 224\text{ - }255$</td></tr>
+<tr><td> $128$ </td><td>AES-128</td><td> $L=3072$ <br> $N=256$ </td><td>$k=3072$</td> <td>$f = 256\text{ - }383$</td></tr>
+<tr><td> $192$ </td><td>AES-192</td><td> $L=7680$ <br> $N=384$ </td><td>$k=7680$</td> <td>$f = 384\text{ - }511$</td></tr>
+<tr><td> $256$ </td><td>AES-256</td><td> $L=15360$ <br> $N=512$ </td><td>$k=15360$</td><td>$f=512+$</td></tr>
+</tbody>
+</table>
+<figcaption><div>Comparable security strengths of symmetric block cipher and asymmetric-key algorithms (via <q><a href='https://doi.org/10.6028/NIST.SP.800-57pt1r5'>SP 800-57 Part 1 Revision 5 <sup><i class='far fa-file-pdf'></i></sup></a></q> 5.6.1.1)</div></figcaption>
+</figure> <!-- 要 MathJax --></p>
+<p>2030年以降も安全に使える暗号強度は $128\,\mathrm{bits}$ 以上だと言われている。
+Logjam 攻撃では $L=512\,\mathrm{bits}$ にダウングレードさせられるが全くお話にならない強度だということが分かるだろう。</p>
+<p>暗号について詳しくは拙文「<a href="https://baldanders.info/spiegel/cc-license/">わかる！ OpenPGP 暗号</a>」の「<a href="https://baldanders.info/spiegel/cc-license/#appendix">暗号に関する雑多な話</a>」あたりをどうぞ。
+また <a href="https://gist.github.com/spiegel-im-spiegel/47f340122c895ccc8bb8">FREAK については Gist にまとめている</a>ので，そちらも参考にどうぞ。</p>
+<h2>影響度（CVSS）</h2>
+<p><a href="https://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2015-1716">CVE-2015-1716</a> より</p>
+<p>CVSSv2 基本値 5.0 (AV:N/AC:L/Au:N/C:P/I:N/A:N)</p>
+<table>
+	<thead>
+			<tr>
+					<th style="text-align: right">基本評価基準</th>
+					<th style="text-align: left">評価値</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td style="text-align: right">攻撃元区分（AV）</td>
+					<td style="text-align: left">ネットワーク（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">攻撃条件の複雑さ（AC）</td>
+					<td style="text-align: left">低（L）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">攻撃前の認証要否（Au）</td>
+					<td style="text-align: left">不要（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">情報漏えいの可能性（機密性への影響, C）</td>
+					<td style="text-align: left">部分的（P）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">情報改ざんの可能性（完全性への影響, I）</td>
+					<td style="text-align: left">なし（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">業務停止の可能性（可用性への影響, A）</td>
+					<td style="text-align: left">なし（N）</td>
+			</tr>
+	</tbody>
+</table>
+<p><a href="https://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2015-4000">CVE-2015-4000</a> より</p>
+<p>CVSSv2 基本値 4.3 (AV:N/AC:M/Au:N/C:N/I:P/A:N)</p>
+<table>
+	<thead>
+			<tr>
+					<th style="text-align: right">基本評価基準</th>
+					<th style="text-align: left">評価値</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td style="text-align: right">攻撃元区分（AV）</td>
+					<td style="text-align: left">ネットワーク（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">攻撃条件の複雑さ（AC）</td>
+					<td style="text-align: left">中（M）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">攻撃前の認証要否（Au）</td>
+					<td style="text-align: left">不要（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">情報漏えいの可能性（機密性への影響, C）</td>
+					<td style="text-align: left">なし（N）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">情報改ざんの可能性（完全性への影響, I）</td>
+					<td style="text-align: left">部分的（P）</td>
+			</tr>
+			<tr>
+					<td style="text-align: right">業務停止の可能性（可用性への影響, A）</td>
+					<td style="text-align: left">なし（N）</td>
+			</tr>
+	</tbody>
+</table>
+<p>CVSS については<a href="https://baldanders.info/spiegel/archive/cvss/cvss2.html">デモページ</a>を参照のこと。</p>
+<h2>影響を受ける実装</h2>
+<ul>
+<li>Microsoft : 影響あり。 <a href="https://technet.microsoft.com/library/security/MS15-055" title="マイクロソフト セキュリティ情報 MS15-055 - 重要">MS15-055</a> で修正済み</li>
+<li>OpenSSL 規定で輸出グレード暗号は無効化されているので，実質的には大丈夫？ : <a href="https://www.openssl.org/blog/blog/2015/05/20/logjam-freak-upcoming-changes/">Logjam, FREAK and Upcoming Changes in OpenSSL - OpenSSL Blog</a>
+<ul>
+<li><a href="http://www.forest.impress.co.jp/docs/news/20150615_706966.html">脆弱性を修正した「OpenSSL」の最新版が公開、“Logjam”脆弱性の修正も - 窓の杜</a></li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>また、「OpenSSL」v1.0.2b/v1.0.1nに関しては、TLS通信で暗号強度の弱い輸出グレードの暗号へ意図せずダウングレードされてしまう“Logjam”脆弱性（CVE-2015-4000）も修正されている。</p>
+</blockquote>
+<ul>
+<li>
+<p>Apple Safari : 影響あり。修正版なし</p>
+</li>
+<li>
+<p>Android : 影響あり。修正版なし</p>
+</li>
+<li>
+<p>Google Chrome : 影響あり。修正版なし。 Chrome 43 でも解消されてないらしい</p>
+</li>
+<li>
+<p>Mozilla Firefox : 影響あり。修正版なし</p>
+<ul>
+<li><a href="http://datyotosanpo.blog.fc2.com/blog-entry-69.html">脆弱性 Logjam Attack対策 for Firefox - ふらっと 気の向くままに</a> : Firefox が更新されるまで DH(E) を無効化する</li>
+</ul>
+</li>
+<li>
+<p>OpenVPN : 影響はほとんどない？</p>
+<ul>
+<li><a href="http://yamatamemo.blogspot.jp/2015/05/tlslogjamopenvpn.html">TLSの脆弱性「Logjam」のOpenVPNへの影響 « yamata::memo</a>
+<ul>
+<li>OpenVPNでは、サーバーセットアップ時に openssl dhparam コマンドを使ってOpenVPN専用のDHパラメータを生成しているため、DHパラメータを別個に生成しない使用方法よりは安全といえる。</li>
+<li>openssl dhparam コマンドの実行時に鍵長を 2048ビット以上にしていれば安全。1024ビットの場合は攻撃される可能性は否定できないが、それでも簡単ではない。</li>
+<li>TLS-Authが有効になっていればこの種のTLSのダウングレード攻撃は回避できる。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>OpenSSH : 影響あり。 <a href="https://jbeekman.nl/blog/2015/05/ssh-logjam/">On OpenSSH and Logjam – Technology &amp; Policy – Jethro Beekman</a></p>
+</li>
+<li>
+<p><a href="https://weakdh.org/sysadmin.html">Logjam: PFS Deployment Guide</a> : サーバ側での回避例</p>
+</li>
+</ul>
+<h2>影響の有無を確認する方法</h2>
+<p>ブラウザで “<a href="https://weakdh.org/">The Logjam Attack</a>” のサイトを訪れると自動的に判定してくれる。</p>
+<blockquote>
+<p>Warning! Your web browser is vulnerable to Logjam and can be tricked into using weak encryption. You should update your browser.</p>
+</blockquote>
+<p>と表示されると影響を受ける可能性がある。</p>
+<p>サーバ側は “<a href="https://weakdh.org/sysadmin.html">Guide to Deploying Diffie-Hellman for TLS</a>” のページにある “Server Test” で確認できる。</p>
+<h2>参考ページ</h2>
+<ul>
+<li><a href="https://weakdh.org/logjam.html">Logjam TLS Attack</a></li>
+<li><a href="https://weakdh.org/">Logjam: How Diffie-Hellman Fails in Practice</a>
+<ul>
+<li><a href="https://weakdh.org/imperfect-forward-secrecy.pdf">Imperfect Forward Secrecy: How Diffie-Hellman Fails in Practice</a> (PDF)</li>
+</ul>
+</li>
+<li><a href="http://www.st.ryukoku.ac.jp/~kjm/security/memo/2015/05.html#20150521_Logjam">セキュリティホール memo の記事</a></li>
+<li><a href="http://d.hatena.ne.jp/Kango/20150521/1432219012">Logjam Attackについてまとめてみた - piyolog</a></li>
+<li><a href="https://www.schneier.com/blog/archives/2015/05/the_logjam_and_.html">The Logjam (and Another) Vulnerability against Diffie-Hellman Key Exchange - Schneier on Security</a></li>
+<li><a href="http://tech.naviplus.co.jp/2015/05/25/openssh%E7%92%B0%E5%A2%83%E3%81%AB%E5%AF%BE%E3%81%99%E3%82%8Blogjam%E8%84%86%E5%BC%B1%E6%80%A7%E3%81%AE%E5%AF%BE%E5%BF%9C/">OpenSSH環境に対するLogjam脆弱性の対応 | NaviPlus Engineers&rsquo; Blog</a> : “<a href="https://jbeekman.nl/blog/2015/05/ssh-logjam/">On OpenSSH and Logjam</a>” の日本語解説</li>
+<li><a href="https://www.eff.org/deeplinks/2015/05/logjam-internet-breaks-again">Logjam, Part 1: Why the Internet is Broken Again (an Explainer) | Electronic Frontier Foundation</a></li>
+<li><a href="https://www.eff.org/deeplinks/2015/05/logjam-part-2-did-nsa-know-years-internet-was-broken">Logjam, Part 2: Did the NSA Know the Internet Was Broken? | Electronic Frontier Foundation</a></li>
+</ul>
+
+</div></section>
+
+</article>
+</main>
+<nav class="page-nav">
+<div class="prev-page">&laquo; <a href="/remark/2016/02/libgcrypt-1_6_5-security-fix-released/">Libgcrypt 1.6.5 with security fix released</a></div>
+<div class="next-page"><a href="/remark/2016/02/14-stories/">週末スペシャル： LIGO が重力波の「直接検出」に成功する！</a> &raquo;</div>
+</nav>
+
+<aside class="feedback" id='feedback'>
+<h1>Feedback</h1>
+<p>フィードバック手段として Mastodon などの SNS が利用できます。各ページの末尾に表示されているアイコンから各サービスのプロフィールにアクセスしてください。</p>
+<p>GitHub では<a href="https://github.com/spiegel-im-spiegel/github-pages-env/discussions">フィードバック用のディスカッションページ</a>を用意しました。
+書き込みには GitHub のアカウントが必要ですが，お気軽にご利用ください。</p>
+<p>電子メールアドレスをご存知の方へ： 電子メールを利用する際の公開鍵は<a href="https://baldanders.info/profile/">プロフィール</a>から取得できます。</p>
+</aside>
+<footer>
+
+
+<div class="userinfo h-card">
+	<div class="userinfo-avater">
+		<a class="u-url" rel="me" href="https://baldanders.info/profile/"><img class="u-photo" src="https://text.baldanders.info/images/avatar.jpg" width="48" height="48" alt="" id="logo"></a>
+	</div>
+	<div class="userinfo-info" id="maker">
+		Text by <a href="https://baldanders.info/profile/" rel="cc:attributionURL" property="cc:attributionName">Spiegel</a>
+		in <time property='dc:dateCopyrighted'>2016-02-11</time> (revised in 2020-06-07)
+		<a rel='cc:license' href="https://creativecommons.org/licenses/by-sa/4.0/"><i class="fab fa-creative-commons"></i>&nbsp;<i class="fab fa-creative-commons-by"></i>&nbsp;<i class="fab fa-creative-commons-sa"></i></a>
+		<ul class="social"><li><a rel="me" href="https://github.com/spiegel-im-spiegel"><span class="github-color"><abbr title="GitHub"><i class="fab fa-github"></i></abbr></span></a></li><li><a rel="me" href="https://www.flickr.com/photos/spiegel/"><span class="flickr-color"><abbr title="Flickr"><i class="fab fa-flickr"></i></abbr></span></a></li><li><a rel="me" href="https://goark.fedicity.net/@spiegel"><span class="mastodon-color"><abbr title="Mastodon"><i class="fa-brands fa-mastodon"></i></abbr></span></a></li><li><a rel="me" href="https://bsky.app/profile/baldanders.info"><span class="bluesky-color"><abbr title="Bluesky"><i class="fa-brands fa-bluesky"></i></abbr></span></a></li><li><a rel="me" href="https://www.strava.com/athletes/122077389"><span class="strava-color"><abbr title="Strava"><i class="fa-brands fa-strava"></i></abbr></span></a></li><li><a rel="me" href="https://x.com/spiegel_2007"><span class="x-twitter-color"><abbr title="X (Twitter)"><i class="fab fa-x-twitter"></i></abbr></span></a></li></ul>
+	</div>
+</div>
+
+<nav>
+<ul class='cloud center'>
+<li><a href='/about-feeds/'>Feeds</a></li>
+<li><a href='/reviews/'>Reviews</a></li>
+<li><a href='/site-policy/'>Policy</a></li>
+<li><a href='https://github.com/spiegel-im-spiegel/spiegel-im-spiegel.github.io'>Repository</a></li>
+<li><a href='https://validator.w3.org/nu/?doc=https%3a%2f%2ftext.baldanders.info%2fremark%2f2016%2f02%2flogjam-attack%2f&amp;showoutline=yes'>Debug</a></li>
+</ul>
+<ul class='cloud center'>
+<li><a href='https://baldanders.info/'>Home</a></li>
+<li><a href='https://photo.baldanders.info/'>Photos</a></li>
+<li><a href='https://slide.baldanders.info/'>Slide</a></li>
+<li><a href='https://zenn.dev/spiegel'>Zenn</a></li>
+<li><a rel="me" href='https://fed.brid.gy/web/text.baldanders.info'>Bridgy Fed</a></li>
+</ul>
+<ul class='cloud center'>
+<li>Powered by <a href='https://gohugo.io/'>Hugo 0.164.0</a> and <a href="https://github.com/spiegel-im-spiegel/hugo-theme-baldanders-info
+">Theme of Baldanders.info</a>.</li>
+</ul>
+</nav>
+</footer>
+</div>
+
+</body>
+</html>
