@@ -2,13 +2,387 @@
 	<title>List of Linux [text.Baldanders.info]</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/linux/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/linux/index.xml" />
-	<id>tag:text.Baldanders.info,2026-09-06:/tags</id>
-	<updated>2026-09-06T14:39:37+09:00</updated>
+	<id>tag:text.Baldanders.info,2026-10-15:/tags</id>
+	<updated>2026-10-15T21:50:07+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>Ubuntu サーバで LLM 構築へ：（3）インストール編1</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/10/ubuntu-llm-03-installation-1/" />
+		<id>tag:text.Baldanders.info,2026-10-15:/remark/2026/10/ubuntu-llm-03-installation-1/</id>
+		<published>2026-10-15T12:50:07+00:00</published>
+		<updated>2026-10-15T13:00:15+00:00</updated>
+		<summary>Ollama のインストール，モデルロード，Open WebUI のインストールまで</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja-jp" xml:base="https://text.baldanders.info/">&lt;p&gt;前々からやる気はあったのよ。
+それこそ今年の春くらいから。
+でも，何となく先延ばしにしてて，気づいたら秋。
+そろそろ本気出そう！ というわけで自宅 LAN 上で LLM サーバ構築に着手することにした。&lt;/p&gt;
+&lt;h2&gt;目次&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-01-study-notes/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（1）事前学習&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-02-glossary/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（2）用語集&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/10/ubuntu-llm-03-installation-1/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（3）インストール編1&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2&gt;要求スペック&lt;/h2&gt;
+&lt;p&gt;まず，昨今の相場では高性能なマシンは用意できなかった点を頭に入れていただきたい。
+マシンのスペックは以下の通り：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo lshw -C cpu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  *-cpu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       product: AMD Ryzen 7 5825U with Radeon Graphics
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       vendor: Advanced Micro Devices [AMD]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       physical id: 1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       bus info: cpu@0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       version: 25.80.0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       size: 1095MHz
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       capacity: 4547MHz
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       width: 64 bits
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo lshw -short -C memory
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;H/W path            Device          Class          Description
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;==============================================================
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/0                                memory         64KiB BIOS
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/13                               memory         16GiB System Memory
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/13/0                             memory         8GiB SODIMM DDR4 Synchronous Unbuffered (Unregistered) 2667 MHz (0.4 ns)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/13/1                             memory         8GiB SODIMM DDR4 Synchronous Unbuffered (Unregistered) 2667 MHz (0.4 ns)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/15                               memory         512KiB L1 cache
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/16                               memory         4MiB L2 cache
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/17                               memory         16MiB L3 cache
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo lshw -short -C disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;H/W path            Device          Class          Description
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;==============================================================
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/100/2.4/0/0      hwmon3          disk           NVMe disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/100/2.4/0/2      /dev/ng0n1      disk           NVMe disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/100/2.4/0/1      /dev/nvme0n1    disk           512GB NVMe disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cat /etc/issue
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Ubuntu 26.04.1 LTS \n \l
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;メモリが16GBしかないのが痛すぎるのだが（しかもDDR4），使えるハードがあっただけでもよしとしよう。
+メモリやプロセッサの高騰で，これ以上のスペックには手が出せなかった。&lt;/p&gt;
+&lt;p&gt;CPU-only の構成の場合，ボトルネックになるのは CPU の性能やコア数よりもメモリ容量と帯域幅らしい。
+今回 &lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; と相談しながら作業したのだが「せめて DDR5, 32GB は欲しい」と言われてしまった。
+なお，プロセッサ内蔵の GPU は非力すぎて使い物にならないとのこと。
+これも「グラボを買え！」と言われてしまった。
+色々足りなくてすみません &lt;abbr class=&#34;emoji-chars&#34; title=&#34;ペコン&#34;&gt;🙇&lt;/abbr&gt;&lt;/p&gt;
+&lt;p&gt;推論エンジンについては &lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; がいいと言われた&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;&lt;strong&gt;選定理由&lt;/strong&gt;: 個人〜小規模LAN利用ではOllamaが最適。セットアップが最も簡単で，OpenAI互換APIを標準提供し，モデル管理が容易です。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;vLLMは同時接続ユーザーが多い（5人以上）本番運用向けで，単一ユーザーには複雑さが増すだけ&lt;/li&gt;
+&lt;li&gt;llama.cppは低レベルすぎて管理が煩雑&lt;/li&gt;
+&lt;/ul&gt;&lt;/div&gt;
+&lt;p&gt;モデルについては以下がオススメらしい（&lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; で設定可能なもの）&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;CPU-only・16GBの制約では，&lt;strong&gt;「速い軽量モデル」と「高品質だが遅いモデル」の使い分け&lt;/strong&gt;が最適解です。&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;役割&lt;/th&gt;
+					&lt;th&gt;推奨モデル&lt;/th&gt;
+					&lt;th&gt;サイズ&lt;/th&gt;
+					&lt;th&gt;予想速度&lt;/th&gt;
+					&lt;th&gt;特徴&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ブログ執筆・高品質チャット&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Qwen3.5 9B&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~6.6 GB&lt;/td&gt;
+					&lt;td&gt;~2-4 tok/s&lt;/td&gt;
+					&lt;td&gt;16GB機では総合力が最も高い。コードチャット・デバッグ・技術質問に強い，長コンテキスト&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;高速Q&amp;amp;A・下書き&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Phi-4 Mini 3.8B&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~2.3 GB&lt;/td&gt;
+					&lt;td&gt;~6-9 tok/s&lt;/td&gt;
+					&lt;td&gt;CPU最速クラス。ただしコンテキスト4K制限&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;コード自動補完（FIM）&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Qwen2.5-Coder 1.5B〜3B&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~1-2.5 GB&lt;/td&gt;
+					&lt;td&gt;20 tok/s超&lt;/td&gt;
+					&lt;td&gt;2026年もFIM補完の定番&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Embedding（RAG）&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;nomic-embed-text&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~0.3 GB&lt;/td&gt;
+					&lt;td&gt;高速&lt;/td&gt;
+					&lt;td&gt;従来どおり&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+&lt;p&gt;モデル選択のポイントは以下の通りだそうだ（&lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; の主張）。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;モデルは3B〜7Bに絞る&lt;/strong&gt; — 13B以上はCPU-onlyでは実用的でない&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;RAMは16GB以上推奨&lt;/strong&gt; — 8GBでも動くがモデル選択肢が狭い&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;MoEモデル（35B-A3B）がゲームチェンジャー&lt;/strong&gt; — RAMが32GBあれば品質と速度の両立が可能&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;チャット用と補完用でモデルを分ける&lt;/strong&gt; — 補完は1.5B〜3Bの軽量モデルで高速に&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;DDR4の帯域幅制限は根本的に回避不可&lt;/strong&gt; — 将来的にGPU追加 or DDR5サーバへの移行も検討&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;p&gt;最終的な構成は以下を目指している。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph TB
+    subgraph Server[&#34;Ubuntu サーバ (Ryzen 7 5825U / 16GB)   &#34;]
+        Ollama[&#34;Ollama :11434&lt;br/&gt;(推論エンジン)&#34;]
+        Models[&#34;Qwen3.5 9B (執筆)&lt;br/&gt;Phi-4 Mini 3.8B (高速)&lt;br/&gt;Qwen2.5-Coder 1.5B (補完)&lt;br/&gt;nomic-embed-text (RAG)&#34;]
+        OpenWebUI[&#34;Open WebUI :8080&lt;br/&gt;(GUIチャット v0.12.0)&#34;]
+        Ollama --- Models
+        Ollama --- OpenWebUI
+    end
+    subgraph ClientUbuntu[&#34;Ubuntu PC&#34;]
+        ClineU[&#34;VS Code + Cline&lt;br/&gt;(コーディング)&#34;]
+        TermU[&#34;ターミナル&lt;br/&gt;ollama run (CUI)&#34;]
+        BrowserU[&#34;ブラウザ&lt;br/&gt;Open WebUI&#34;]
+    end
+    Ollama -- &#34;Ollama API :11434&#34; --&gt; ClineU
+    Ollama -- &#34;Ollama API :11434&#34; --&gt; TermU
+    OpenWebUI -- &#34;Web UI :8080&#34; --&gt; BrowserU
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;というわけで，早速 &lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; をインストールしてみる。&lt;/p&gt;
+&lt;h2&gt;Ollama をインストール・設定する&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl -fsSL https://ollama.com/install.sh | sh
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Installing ollama to /usr/local
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Downloading ollama-linux-amd64.tar.zst
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;######################################################################## 100.0%
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Creating ollama user...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Adding ollama user to render group...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Adding ollama user to video group...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Adding current user to ollama group...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Creating ollama systemd service...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Enabling and starting ollama service...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Created symlink &amp;#39;/etc/systemd/system/default.target.wants/ollama.service&amp;#39; → &amp;#39;/etc/systemd/system/ollama.service&amp;#39;.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Downloading ollama-linux-amd64-rocm.tar.zst
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;######################################################################## 100.0%
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; The Ollama API is now available at 127.0.0.1:11434.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Install complete. Run &amp;#34;ollama&amp;#34; from the command line.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; AMD GPU ready.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl status ollama
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● ollama.service - Ollama Service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; preset: enabled)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Thu 2026-10-15 00:27:00 UTC; 21min ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Invocation: bd9cb4ba25e14f4a8ccd4e07678238dd
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 7396 (ollama)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Tasks: 17 (limit: 14526)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Memory: 13.3M (peak: 44.4M)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        CPU: 395ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /system.slice/ollama.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─7396 /usr/local/bin/ollama serve
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl http://localhost:11434/api/version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;{&amp;#34;version&amp;#34;:&amp;#34;0.40.4&amp;#34;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;上述の通り，最後に REST API を叩いてバージョン情報が返ればインストール成功。
+ただし，このままでは &lt;code&gt;localhost&lt;/code&gt; しか使えないので，設定を変更する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl edit ollama.service
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これでエディタが開くので，以下の記述を追加して保存する。
+追加した設定は &lt;code&gt;/etc/systemd/system/ollama.service&lt;/code&gt; ファイルではなく &lt;code&gt;/etc/systemd/system/ollama.service.d/override.conf&lt;/code&gt; ファイルに保存される（&lt;code&gt;ollama.service&lt;/code&gt; ファイルを直接編集しないこと）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# 0.0.0.0 ではなく，サーバのLAN IPを指定&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;OLLAMA_HOST=192.168.1.10:11434&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;OLLAMA_NUM_THREADS=8&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;OLLAMA_MAX_LOADED_MODELS=1&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;OLLAMA_HOST&lt;/code&gt; にはバインドする IP アドレスとポート番号を指定する。
+&lt;code&gt;OLLAMA_NUM_THREADS&lt;/code&gt; には使用する全CPUスレッドではなく，物理コア数を設定するのがいいらしい。
+今回のプロセッサは8コア×2スレッドなので &lt;code&gt;8&lt;/code&gt; をセットする。
+&lt;code&gt;OLLAMA_MAX_LOADED_MODELS&lt;/code&gt; には同時にロードするモデルの最大数を指定するのだが，メモリに余裕がないので &lt;code&gt;1&lt;/code&gt; をセットしている。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; がバージョンアップしたらどうするの？ って AI に訊いたら &lt;code&gt;https://ollama.com/install.sh&lt;/code&gt; を再実行すればいいらしい。
+Windows や macOS は自動更新の仕組みがあるそうなのだが Linux は手動で更新する必要がある。&lt;/p&gt;
+&lt;p&gt;サービスを再起動して動作確認する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl daemon-reload &amp;amp;&amp;amp; sudo systemctl restart ollama
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl status ollama
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● ollama.service - Ollama Service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; preset: enabled)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Drop-In: /etc/systemd/system/ollama.service.d
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─override.conf
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Thu 2026-10-15 01:30:19 UTC; 1min 19s ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Invocation: 877f8637d54d4eb5b793825ff9a89c2e
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 7943 (ollama)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Tasks: 18 (limit: 14526)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Memory: 15.6M (peak: 43.6M)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        CPU: 365ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /system.slice/ollama.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─7943 /usr/local/bin/ollama serve
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl http://localhost:11434/api/version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;curl: (7) Failed to connect to localhost port 11434 after 0 ms: Could not connect to server
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl http://192.168.1.10:11434/api/version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;{&amp;#34;version&amp;#34;:&amp;#34;0.40.4&amp;#34;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;localhost&lt;/code&gt; では接続できず，バインドした LAN IP で接続できることを確認する。&lt;/p&gt;
+&lt;p&gt;続けてモデルをダウンロードしよう。
+ダウンロードには &lt;code&gt;ollama&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama --version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ollama version is 0.40.4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull qwen3.5:9b
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull phi4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull qwen2.5-coder:1.5b
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull nomic-embed-text
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama list
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;NAME                       ID              SIZE      MODIFIED
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;nomic-embed-text:latest    0a109f422b47    274 MB    10 seconds ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;qwen2.5-coder:1.5b         d7372fd82851    986 MB    2 minutes ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;phi4:latest                ac896e5b8b34    9.1 GB    4 minutes ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;qwen3.5:9b                 56671c2ab938    6.6 GB    18 minutes ago
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;環境変数 &lt;code&gt;OLLAMA_HOST&lt;/code&gt; で接続先を指定して &lt;code&gt;ollama&lt;/code&gt; コマンドを実行すること（バインドする IP アドレス毎に構成が独立しているため）。
+&lt;code&gt;ollama list&lt;/code&gt; で現在ロードされているモデルを確認できる。&lt;/p&gt;
+&lt;h2&gt;Open WebUI をインストール・設定する&lt;/h2&gt;
+&lt;p&gt;さて，動作確認用に GUI チャットを設定してみよう。
+GUI チャットとして &lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; がいいらしい。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;&lt;strong&gt;Open WebUI&lt;/strong&gt;はOllamaと最もポピュラーな組み合わせのWebチャットUIです。&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;機能&lt;/th&gt;
+					&lt;th&gt;説明&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ChatGPT風UI&lt;/td&gt;
+					&lt;td&gt;ブラウザでチャット，使い慣れたインターフェース&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;会話履歴&lt;/td&gt;
+					&lt;td&gt;すべての会話を保存・検索可能&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;モデル切替&lt;/td&gt;
+					&lt;td&gt;ドロップダウンでモデル切替&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ドキュメントRAG&lt;/td&gt;
+					&lt;td&gt;ファイルをアップロードして対話&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ユーザー管理&lt;/td&gt;
+					&lt;td&gt;複数ユーザー・アクセス制御&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;完全オフライン&lt;/td&gt;
+					&lt;td&gt;外部へのデータ送信なし&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+&lt;p&gt;&lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; は Python で実装されているのだが，困ったことに Python 3.13 以降のバージョンに対応していないらしい。&lt;/p&gt;
+&lt;p&gt;インストール方法については公式は Docker を使った方法を推奨しているが，今回は Python (pip/&lt;a href=&#34;https://docs.astral.sh/uv/&#34; target=&#34;_blank&#34; title=&#34;uv&#34;&gt;uv&lt;/a&gt;) を使う。&lt;/p&gt;
+&lt;p&gt;まずは &lt;a href=&#34;https://docs.astral.sh/uv/&#34; target=&#34;_blank&#34; title=&#34;uv&#34;&gt;uv&lt;/a&gt; のインストール。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl -LsSf https://astral.sh/uv/install.sh | sh
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;downloading uv 0.13.1 x86_64-unknown-linux-gnu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;installing to /home/username/.local/bin
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  uv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  uvx
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;everything&amp;#39;s installed!
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;To add $HOME/.local/bin to your PATH, either restart your shell or run:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    source $HOME/.local/bin/env (sh, bash, zsh)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    source $HOME/.local/bin/env.fish (fish)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;~/.local/bin&lt;/code&gt; ディレクトリにパスが通っていることを確認すること。&lt;/p&gt;
+&lt;p&gt;次に &lt;code&gt;~/.open-webui-venv&lt;/code&gt; ディレクトリ以下に Python 3.11 の仮想環境を作る。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv venv --python 3.11 ~/.open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using CPython 3.11.17
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Creating virtual environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Activate with: source .open-webui-venv/bin/activate
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ source ~/.open-webui-venv/bin/activate
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;CUDA ライブラリ混入を防ぐため，先に CPU版 PyTorch をインストールする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using Python 3.11.17 environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Resolved 10 packages in 743ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Prepared 10 packages in 18.55s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Installed 10 packages in 223ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; ...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv pip list | grep torch
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using Python 3.11.17 environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;torch             2.14.1+cpu
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;バージョン情報に &lt;code&gt;+cpu&lt;/code&gt; が付いていればOK。&lt;/p&gt;
+&lt;p&gt;これでやっと &lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; がインストールできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv pip install open-webui
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using Python 3.11.17 environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Resolved 242 packages in 3.49s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Prepared 232 packages in 58.95s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Installed 232 packages in 138ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; ...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;続けて &lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; をサービス化する。
+以下の内容で &lt;code&gt;/etc/systemd/system/open-webui.service&lt;/code&gt; を作成する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Unit]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Description&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;Open WebUI&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;After&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;network.target ollama.service&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Type&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;simple&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;User&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;username&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;WorkingDirectory&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/home/username/.open-webui&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;DATA_DIR=/home/username/.open-webui&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/home/username/.open-webui-venv/bin/open-webui serve --host 192.168.1.10 --port 8080&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Restart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;always&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Install]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;WantedBy&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;multi-user.target&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;サービスを起動するよ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl daemon-reload
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl enable --now open-webui
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl status open-webui
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● open-webui.service - Open WebUI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/etc/systemd/system/open-webui.service; enabled; preset: enabled)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Thu 2026-10-15 11:33:10 UTC; 34min ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Invocation: 54cfc423eb78415886855db79339850a
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 1664 (open-webui)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Tasks: 65 (limit: 14526)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Memory: 998.3M (peak: 1.1G)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        CPU: 31.076s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /system.slice/open-webui.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─1664 /home/username/.open-webui-venv/bin/python /home/username/.open-webui-venv/bin/open-webui serve --host 192.168.1.10  --port 8080
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これでブラウザで &lt;code&gt;http://192.168.1.10:8080&lt;/code&gt; が表示されればOK。&lt;/p&gt;
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./open-webui.png&#34;&gt;&lt;img src=&#34;./open-webui.png&#34; srcset=&#34;./open-webui.png 876w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Open WebUI&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./open-webui.png&#34;&gt;Open WebUI&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;（調べながらとはいえ）ここまでで1日かかっちゃったよ。
+ツールの選定は AI に任せたけど，実際の作業は結構試行錯誤したし。&lt;/p&gt;
+&lt;p&gt;続きはまた後日ということで。&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/ollama/ollama&#34; target=&#34;_blank&#34;&gt;ollama/ollama: Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://linuxlab.jp/2026/06/16/ollama-install-guide/&#34; target=&#34;_blank&#34;&gt;Ollamaのインストール方法完全ガイド【Ubuntu/Mac/Windows対応】&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;!-- eof --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;組織的に使うなら LiteLLM (API プロキシ) と Nginx (リバースプロキシ) を組み合わせて &lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; を隠蔽するのが安全のようだ。今回は家庭内 LAN で，使うのも私だけということで，そこまでの構成は必要ないという判断。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;
+&lt;p&gt;CPU-only なら MoE モデルもいいらしいが，メモリが32GB以上ないと辛いそうで，今回は見送った。最近の DeepSeek-Coder-V2 Lite は軽量で高速らしいので，そのうち試したい。&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>AI エージェントを VM に入れれば安全か？</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/09/vm-agent-safety/" />
 		<id>tag:text.Baldanders.info,2026-09-06:/remark/2026/09/vm-agent-safety/</id>
@@ -154,7 +528,7 @@
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/06/ubuntu-llm-02-glossary/" />
 		<id>tag:text.Baldanders.info,2026-06-10:/remark/2026/06/ubuntu-llm-02-glossary/</id>
 		<published>2026-06-10T08:15:23+00:00</published>
-		<updated>2026-07-31T07:28:07+00:00</updated>
+		<updated>2026-10-15T13:00:15+00:00</updated>
 		<summary>事前学習に当たって関連する用語を整理していく。随時更新する予定。</summary>
 		<author>
 			<name>Spiegel</name>
@@ -173,6 +547,12 @@
 &amp;hellip;という感じに指示したら，いきなり180個近く列挙して下さりやがった（笑）&lt;/p&gt;
 &lt;p&gt;まぁ，少しずつのんびりいこう。
 この記事は随時更新する予定。&lt;/p&gt;
+&lt;h2&gt;目次&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-01-study-notes/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（1）事前学習&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-02-glossary/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（2）用語集&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/10/ubuntu-llm-03-installation-1/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（3）インストール編1&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
 &lt;hr&gt;
 &lt;h2&gt;人工知能&lt;/h2&gt;
 &lt;h3&gt;別表記&lt;/h3&gt;
@@ -626,7 +1006,7 @@ AI アプリケーション側がクライアント。
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/06/ubuntu-llm-01-study-notes/" />
 		<id>tag:text.Baldanders.info,2026-06-09:/remark/2026/06/ubuntu-llm-01-study-notes/</id>
 		<published>2026-06-09T09:26:51+00:00</published>
-		<updated>2026-07-31T07:28:07+00:00</updated>
+		<updated>2026-10-15T13:00:15+00:00</updated>
 		<summary>まずは AI に構成を提案してもらい，それを起点に勉強していこうかな，と。</summary>
 		<author>
 			<name>Spiegel</name>
@@ -649,6 +1029,12 @@ AI アプリケーション側がクライアント。
 &lt;p&gt;以降に &lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; からの提案を載せるけど，まだ内容の検証をしていない。
 なので嘘や間違いが紛れている可能性があるのでご注意を。
 私としては，この提案を学習の起点（trigger）とするつもりである。&lt;/p&gt;
+&lt;h2&gt;目次&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-01-study-notes/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（1）事前学習&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-02-glossary/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（2）用語集&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/10/ubuntu-llm-03-installation-1/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（3）インストール編1&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
 &lt;h2&gt;アーキテクチャ&lt;/h2&gt;
 &lt;p&gt;&lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; が最初に推奨してきた構成：&lt;/p&gt;
 &lt;div class=&#34;by-ai smaller&#34;&gt;
@@ -2163,167 +2549,6 @@ Minix は教育・研究目的で今も健在らしい。&lt;/p&gt;
 &lt;/li&gt;
 &lt;li id=&#34;fn:2&#34;&gt;
 &lt;p&gt;個人番号カードの暗証番号・パスワードには 署名用パスワード（最大16文字の英数字），利用者証明用パスワード（4文字の数字），券面事項入力補助用パスワード（4文字の数字），個人番号カード用（住民基本台帳用）パスワード（4文字の数字）の4つがある。&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>Aptitude コマンドの導入</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/03/install-aptitude/" />
-		<id>tag:text.Baldanders.info,2026-03-31:/remark/2026/03/install-aptitude/</id>
-		<published>2026-03-31T02:56:48+00:00</published>
-		<updated>2026-07-31T07:28:07+00:00</updated>
-		<summary>aptitude コマンドは依存関係解決能力に優れていて apt コマンドの代わりとして使えるようだ。</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja-jp" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;code&gt;aptitude&lt;/code&gt; というコマンドがある&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。
-依存関係解決能力に優れていて &lt;code&gt;apt&lt;/code&gt; コマンドの代わりとして使えるようだ（同じパッケージデータベースを使う）。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://morinokabu.com/2026/01/23/linux-aptitude-package-management/&#34; target=&#34;_blank&#34;&gt;【Linux】aptitudeコマンドで依存関係を賢く解決してパッケージを管理する - 森の株&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;さっそく導入してみよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo apt install aptitude
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ aptitude help
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;aptitude 0.8.13
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;使用方法: aptitude [-S ファイル名] [-u|-i]
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;          aptitude [オプション] &amp;lt;アクション&amp;gt; ...
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;アクション (指定がない場合、aptitude はインタラクティブモードで起動します):
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; install         パッケージをインストール/更新します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; remove          パッケージを削除します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; purge           パッケージと設定ファイルを削除します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; hold            パッケージを固定します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; unhold          パッケージの固定を解除します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; markauto        自動的にインストールされたという印をパッケージにつけます。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; unmarkauto      手動でインストールされたという印をパッケージにつけます。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; forbid-version  aptitude に特定のパッケージバージョンの更新を禁止させます。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; update          新規/更新可能なパッケージの一覧をダウンロードします。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; safe-upgrade    安全な更新を行います。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; full-upgrade    パッケージのインストールや削除を伴う可能性のある更新を行います。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; build-dep       パッケージの構築依存関係をインストールします。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; forget-new      どのパッケージが &amp;#34;新規&amp;#34; かの情報を消去します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; search          名前や正規表現でパッケージを検索します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; show            Display detailed info about a package.
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; showsrc         Display detailed info about a source package (apt wrapper).
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; versions        指定したパッケージのバージョンを表示します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; clean           ダウンロード済みのパッケージファイルを消去します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; autoclean       古いダウンロード済みのパッケージファイルを消去します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; changelog       パッケージの変更履歴を表示します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; download        Download the .deb file for a package (apt wrapper).
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; source          Download source package (apt wrapper).
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; reinstall       現在インストールされているパッケージを再インストールします。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; why             特定のパッケージをインストールする必要がある理由を表示します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; why-not         特定のパッケージをインストールすることができない理由を表示します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; add-user-tag    パッケージ/パターンにユーザタグを追加します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; remove-user-tag パッケージ/パターンからユーザタグを削除します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;オプション:
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -h              このヘルプの文章です。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; --no-gui        利用可能でも GTK GUI を使いません。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -s              アクションのシミュレートのみ行い、実際には実行しません。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -d              パッケージのダウンロードのみ行い、インストールや削除は
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                 行いません。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -P              アクションの確認のため、常にプロンプトを出します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -y              すべての yes/no の質問に対して &amp;#39;yes&amp;#39; と答えたと見なします。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -F フォーマット 検索結果の表示フォーマットを指定します。マニュアルを参照し
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                 てください。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -O 順序         検索結果の並び替えを指定します。マニュアルを参照してくださ
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                 い。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -w 幅           検索結果の表示フォーマットの幅を指定します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -f              依存関係が壊れたパッケージを積極的に修復しようとします。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -V              パッケージのどのバージョンがインストールされるか表示します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -D              自動的に変更されたパッケージの依存関係を表示します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -Z              各パッケージのインストールサイズの変更を表示します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -v              付加的な情報を表示します (何倍もの情報が提供されます)。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -t [リリース]   パッケージをインストールするリリースを指定します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -q              コマンドラインモードで、進行状況の逐次表示を抑制します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -o キー=値      &amp;#39;キー&amp;#39; の名前の設定オプションを直接設定します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; --with(out)-recommends     推奨パッケージを強い依存関係として扱うかどうかを
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                            指定します。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -S ファイル名   ファイルから aptitude の拡張状態情報を読み込みます。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -u              起動時に新しいパッケージ一覧をダウンロードします。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                  (端末インタフェースのみ)
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; -i              起動時にインストールを行います。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                  (端末インタフェースのみ)
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;すべてのオプションの完全なリストと説明については、マニュアルページを参照してください。
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;この aptitude にはスーパー牛さんパワーなどはありません。
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ゴメン。
-最後の1文は分からない。
-試しに &lt;code&gt;aptitude&lt;/code&gt; パッケージ自身を &lt;code&gt;search&lt;/code&gt; してみよう。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ aptitude search aptitude
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;i   aptitude                      - 端末ベースのパッケージマネージャ
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;v   aptitude:i386                 -
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;i A aptitude-common               - architecture independent files for the aptitude package manager
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;v   aptitude-doc                  -
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-cs               - 端末ベースのパッケージマネージャ aptitude 用チェコ語マニュアル
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-en               - English manual for aptitude, a terminal-based package manager
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-es               - 端末ベースのパッケージマネージャ aptitude 用スペイン語マニュアル
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-fi               - 端末ベースのパッケージマネージャ aptitude 用フィンランド語マニュアル
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-fr               - 端末ベースのパッケージマネージャ aptitude 用フランス語マニュアル
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-it               - Italian manual for aptitude, a terminal-based package manager
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-ja               - 端末ベースのパッケージマネージャ aptitude 用日本語マニュアル
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-nl               - Dutch manual for aptitude, a terminal-based package manager
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-doc-ru               - Russian manual for aptitude, a terminal-based package manager
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;p   aptitude-robot                - Automate package choice management
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;先頭の3文字が各パッケージの状態を表している。
-先頭文字の&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;i&lt;/code&gt; はインストールされていることを表す&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;p&lt;/code&gt; はインストールされていないことを表す（purge 状態）&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;c&lt;/code&gt; はインストールされてないが設定が残ってる状態（remove 状態）&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;v&lt;/code&gt; は仮想パッケージ（インストール対象外）&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;B&lt;/code&gt; は依存関係が壊れている状態&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;2文字目は予約されているアクションで，空白は予約なしの状態を指す。
-3文字目に &lt;code&gt;A&lt;/code&gt; が付いてるものは依存関係によって自動的にインストールされていることを示す。&lt;/p&gt;
-&lt;p&gt;&lt;code&gt;update&lt;/code&gt; および &lt;code&gt;install&lt;/code&gt; アクションの使い方は &lt;code&gt;apt&lt;/code&gt; コマンドと同じかな。
-&lt;code&gt;remove&lt;/code&gt; や &lt;code&gt;purge&lt;/code&gt; アクションも同じ。
-カーネルアップグレード後によく使う &lt;code&gt;apt autoremove&lt;/code&gt; は &lt;code&gt;aptitude&lt;/code&gt; では &lt;del&gt;&lt;code&gt;autoclean&lt;/code&gt; アクションを使えばいいのかな&lt;/del&gt; カーネル更新 → リブート → &lt;code&gt;aptitude safe-upgrade&lt;/code&gt; で古いバージョンのカーネルイメージを削除してくれる。これは有り難い。
-いわゆる dry run は &lt;code&gt;-s&lt;/code&gt; オプションでできるみたい。&lt;/p&gt;
-&lt;p&gt;&lt;code&gt;apt upgrade&lt;/code&gt; については &lt;code&gt;aptitude safe-upgrade&lt;/code&gt; で行う。&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo aptitude safe-upgrade
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;ディストリビューションのバージョンを上げるときに使う &lt;code&gt;full-upgrade&lt;/code&gt; アクションは同じようだ。&lt;/p&gt;
-&lt;p&gt;&lt;code&gt;aptitude&lt;/code&gt; コマンドでは，インストール時などに依存関係の競合が発生すると複数の解決策を提示する場合があるらしい（まだ遭遇してない）。
-安直に &lt;span class=&#34;box&#34;&gt; &lt;code&gt;y&lt;/code&gt; &lt;/span&gt; キーを押さずに，提示された解決策を確認してから選択するのがよさそうだ。&lt;/p&gt;
-&lt;p&gt;引数なしで &lt;code&gt;aptitude&lt;/code&gt; コマンドを起動すると TUI モードで起動する。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39; cite=&#34;./aptitude-tui.png&#34;&gt;
-&lt;a href=&#34;./aptitude-tui.png&#34;&gt;&lt;img src=&#34;./aptitude-tui.png&#34; srcset=&#34;./aptitude-tui.png 1182w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;&lt;/figure&gt;
-&lt;p&gt;おー。
-これはよさげ。
-パッケージ毎に（依存関係の解決を含めた）細かい操作をする場合には便利かも。
-なぜか TUI モードではマインスイーパーで遊べる。&lt;/p&gt;
-&lt;h2&gt;参考&lt;/h2&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/4295013498?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51Z5QFGJTFL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/4295013498?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;スーパーユーザーなら知っておくべきLinuxシステムの仕組み&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Brian Ward (著), 柴田 芳樹 (翻訳)&lt;/dd&gt;
-    &lt;dd&gt;インプレス 2022-03-08 (Release 2022-03-08)&lt;/dd&gt;
-    &lt;dd&gt;単行本（ソフトカバー）&lt;/dd&gt;
-    &lt;dd&gt;4295013498 (ASIN), 9784295013495 (EAN), 4295013498 (ISBN)&lt;/dd&gt;
-    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;strong&gt;[Comment]&lt;/strong&gt; &lt;a href=&#34;https://book.impress.co.jp/books/1121101019&#34;&gt;版元で PDF 版が買える&lt;/a&gt;。セキュリティ・エリアにも持ち込めるよう紙の本を買ったのだが，&lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/272189/&#34;&gt;オンライン読書会&lt;/a&gt;が始まったので PDF 版も購入。Linux システムの扱い方に関するリファレンス本として優れている。最初に軽く流し読みして，必要に応じて該当項目を拾い読みしていけばいいだろう。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-02-11&#34;&gt;2023-02-11&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
-&lt;/div&gt; &lt;!-- Linuxシステムの仕組み --&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;“aptitude” (apt + tude) は才能や適性を指す言葉で，ラテン語の “aptus” (適切な，適合した) に由来するそうな。同じ由来の類義語に adapt/adaptation などがある。 &lt;code&gt;apt&lt;/code&gt; コマンドは “Advanced Package Tool” の略称だけど “apt” からのこじつけかなとか思ったり。（参考: &lt;a href=&#34;http://www.etn.co.jp/etymology/apt/&#34; target=&#34;_blank&#34; title=&#34;語根「apt」＝「fit (適当な) 」を覚えろ！ | 英語の語源 by THE ENGLISH CLUB&#34;&gt;語根「apt」＝「fit (適当な) 」を覚えろ！&lt;/a&gt;）&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;

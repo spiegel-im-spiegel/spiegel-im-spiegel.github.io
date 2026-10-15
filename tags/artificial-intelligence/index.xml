@@ -2,13 +2,387 @@
 	<title>List of Artificial-Intelligence [text.Baldanders.info]</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/tags/artificial-intelligence/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/tags/artificial-intelligence/index.xml" />
-	<id>tag:text.Baldanders.info,2026-10-07:/tags</id>
-	<updated>2026-10-07T18:31:42+09:00</updated>
+	<id>tag:text.Baldanders.info,2026-10-15:/tags</id>
+	<updated>2026-10-15T21:50:07+09:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>Ubuntu サーバで LLM 構築へ：（3）インストール編1</title>
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/10/ubuntu-llm-03-installation-1/" />
+		<id>tag:text.Baldanders.info,2026-10-15:/remark/2026/10/ubuntu-llm-03-installation-1/</id>
+		<published>2026-10-15T12:50:07+00:00</published>
+		<updated>2026-10-15T13:00:15+00:00</updated>
+		<summary>Ollama のインストール，モデルロード，Open WebUI のインストールまで</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja-jp" xml:base="https://text.baldanders.info/">&lt;p&gt;前々からやる気はあったのよ。
+それこそ今年の春くらいから。
+でも，何となく先延ばしにしてて，気づいたら秋。
+そろそろ本気出そう！ というわけで自宅 LAN 上で LLM サーバ構築に着手することにした。&lt;/p&gt;
+&lt;h2&gt;目次&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-01-study-notes/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（1）事前学習&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/06/ubuntu-llm-02-glossary/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（2）用語集&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/10/ubuntu-llm-03-installation-1/&#34; target=&#34;_blank&#34;&gt;Ubuntu サーバで LLM 構築へ：（3）インストール編1&lt;/a&gt; ← イマココ&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2&gt;要求スペック&lt;/h2&gt;
+&lt;p&gt;まず，昨今の相場では高性能なマシンは用意できなかった点を頭に入れていただきたい。
+マシンのスペックは以下の通り：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo lshw -C cpu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  *-cpu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       product: AMD Ryzen 7 5825U with Radeon Graphics
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       vendor: Advanced Micro Devices [AMD]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       physical id: 1
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       bus info: cpu@0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       version: 25.80.0
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       size: 1095MHz
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       capacity: 4547MHz
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;       width: 64 bits
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo lshw -short -C memory
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;H/W path            Device          Class          Description
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;==============================================================
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/0                                memory         64KiB BIOS
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/13                               memory         16GiB System Memory
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/13/0                             memory         8GiB SODIMM DDR4 Synchronous Unbuffered (Unregistered) 2667 MHz (0.4 ns)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/13/1                             memory         8GiB SODIMM DDR4 Synchronous Unbuffered (Unregistered) 2667 MHz (0.4 ns)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/15                               memory         512KiB L1 cache
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/16                               memory         4MiB L2 cache
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/17                               memory         16MiB L3 cache
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo lshw -short -C disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;H/W path            Device          Class          Description
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;==============================================================
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/100/2.4/0/0      hwmon3          disk           NVMe disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/100/2.4/0/2      /dev/ng0n1      disk           NVMe disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/0/100/2.4/0/1      /dev/nvme0n1    disk           512GB NVMe disk
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ cat /etc/issue
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Ubuntu 26.04.1 LTS \n \l
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;メモリが16GBしかないのが痛すぎるのだが（しかもDDR4），使えるハードがあっただけでもよしとしよう。
+メモリやプロセッサの高騰で，これ以上のスペックには手が出せなかった。&lt;/p&gt;
+&lt;p&gt;CPU-only の構成の場合，ボトルネックになるのは CPU の性能やコア数よりもメモリ容量と帯域幅らしい。
+今回 &lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; と相談しながら作業したのだが「せめて DDR5, 32GB は欲しい」と言われてしまった。
+なお，プロセッサ内蔵の GPU は非力すぎて使い物にならないとのこと。
+これも「グラボを買え！」と言われてしまった。
+色々足りなくてすみません &lt;abbr class=&#34;emoji-chars&#34; title=&#34;ペコン&#34;&gt;🙇&lt;/abbr&gt;&lt;/p&gt;
+&lt;p&gt;推論エンジンについては &lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; がいいと言われた&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;&lt;strong&gt;選定理由&lt;/strong&gt;: 個人〜小規模LAN利用ではOllamaが最適。セットアップが最も簡単で，OpenAI互換APIを標準提供し，モデル管理が容易です。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;vLLMは同時接続ユーザーが多い（5人以上）本番運用向けで，単一ユーザーには複雑さが増すだけ&lt;/li&gt;
+&lt;li&gt;llama.cppは低レベルすぎて管理が煩雑&lt;/li&gt;
+&lt;/ul&gt;&lt;/div&gt;
+&lt;p&gt;モデルについては以下がオススメらしい（&lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; で設定可能なもの）&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;CPU-only・16GBの制約では，&lt;strong&gt;「速い軽量モデル」と「高品質だが遅いモデル」の使い分け&lt;/strong&gt;が最適解です。&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;役割&lt;/th&gt;
+					&lt;th&gt;推奨モデル&lt;/th&gt;
+					&lt;th&gt;サイズ&lt;/th&gt;
+					&lt;th&gt;予想速度&lt;/th&gt;
+					&lt;th&gt;特徴&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;ブログ執筆・高品質チャット&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Qwen3.5 9B&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~6.6 GB&lt;/td&gt;
+					&lt;td&gt;~2-4 tok/s&lt;/td&gt;
+					&lt;td&gt;16GB機では総合力が最も高い。コードチャット・デバッグ・技術質問に強い，長コンテキスト&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;高速Q&amp;amp;A・下書き&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Phi-4 Mini 3.8B&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~2.3 GB&lt;/td&gt;
+					&lt;td&gt;~6-9 tok/s&lt;/td&gt;
+					&lt;td&gt;CPU最速クラス。ただしコンテキスト4K制限&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;コード自動補完（FIM）&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Qwen2.5-Coder 1.5B〜3B&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~1-2.5 GB&lt;/td&gt;
+					&lt;td&gt;20 tok/s超&lt;/td&gt;
+					&lt;td&gt;2026年もFIM補完の定番&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Embedding（RAG）&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;nomic-embed-text&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;~0.3 GB&lt;/td&gt;
+					&lt;td&gt;高速&lt;/td&gt;
+					&lt;td&gt;従来どおり&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+&lt;p&gt;モデル選択のポイントは以下の通りだそうだ（&lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; の主張）。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;モデルは3B〜7Bに絞る&lt;/strong&gt; — 13B以上はCPU-onlyでは実用的でない&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;RAMは16GB以上推奨&lt;/strong&gt; — 8GBでも動くがモデル選択肢が狭い&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;MoEモデル（35B-A3B）がゲームチェンジャー&lt;/strong&gt; — RAMが32GBあれば品質と速度の両立が可能&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;チャット用と補完用でモデルを分ける&lt;/strong&gt; — 補完は1.5B〜3Bの軽量モデルで高速に&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;DDR4の帯域幅制限は根本的に回避不可&lt;/strong&gt; — 将来的にGPU追加 or DDR5サーバへの移行も検討&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;p&gt;最終的な構成は以下を目指している。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;div class=&#34;mermaid&#34;&gt;
+graph TB
+    subgraph Server[&#34;Ubuntu サーバ (Ryzen 7 5825U / 16GB)   &#34;]
+        Ollama[&#34;Ollama :11434&lt;br/&gt;(推論エンジン)&#34;]
+        Models[&#34;Qwen3.5 9B (執筆)&lt;br/&gt;Phi-4 Mini 3.8B (高速)&lt;br/&gt;Qwen2.5-Coder 1.5B (補完)&lt;br/&gt;nomic-embed-text (RAG)&#34;]
+        OpenWebUI[&#34;Open WebUI :8080&lt;br/&gt;(GUIチャット v0.12.0)&#34;]
+        Ollama --- Models
+        Ollama --- OpenWebUI
+    end
+    subgraph ClientUbuntu[&#34;Ubuntu PC&#34;]
+        ClineU[&#34;VS Code + Cline&lt;br/&gt;(コーディング)&#34;]
+        TermU[&#34;ターミナル&lt;br/&gt;ollama run (CUI)&#34;]
+        BrowserU[&#34;ブラウザ&lt;br/&gt;Open WebUI&#34;]
+    end
+    Ollama -- &#34;Ollama API :11434&#34; --&gt; ClineU
+    Ollama -- &#34;Ollama API :11434&#34; --&gt; TermU
+    OpenWebUI -- &#34;Web UI :8080&#34; --&gt; BrowserU
+&lt;/div&gt;&lt;/figure&gt;
+&lt;/div&gt;
+&lt;p&gt;というわけで，早速 &lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; をインストールしてみる。&lt;/p&gt;
+&lt;h2&gt;Ollama をインストール・設定する&lt;/h2&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl -fsSL https://ollama.com/install.sh | sh
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Installing ollama to /usr/local
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Downloading ollama-linux-amd64.tar.zst
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;######################################################################## 100.0%
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Creating ollama user...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Adding ollama user to render group...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Adding ollama user to video group...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Adding current user to ollama group...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Creating ollama systemd service...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Enabling and starting ollama service...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Created symlink &amp;#39;/etc/systemd/system/default.target.wants/ollama.service&amp;#39; → &amp;#39;/etc/systemd/system/ollama.service&amp;#39;.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Downloading ollama-linux-amd64-rocm.tar.zst
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;######################################################################## 100.0%
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; The Ollama API is now available at 127.0.0.1:11434.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; Install complete. Run &amp;#34;ollama&amp;#34; from the command line.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&amp;gt;&amp;gt;&amp;gt; AMD GPU ready.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl status ollama
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● ollama.service - Ollama Service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; preset: enabled)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Thu 2026-10-15 00:27:00 UTC; 21min ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Invocation: bd9cb4ba25e14f4a8ccd4e07678238dd
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 7396 (ollama)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Tasks: 17 (limit: 14526)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Memory: 13.3M (peak: 44.4M)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        CPU: 395ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /system.slice/ollama.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─7396 /usr/local/bin/ollama serve
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl http://localhost:11434/api/version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;{&amp;#34;version&amp;#34;:&amp;#34;0.40.4&amp;#34;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;上述の通り，最後に REST API を叩いてバージョン情報が返ればインストール成功。
+ただし，このままでは &lt;code&gt;localhost&lt;/code&gt; しか使えないので，設定を変更する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl edit ollama.service
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これでエディタが開くので，以下の記述を追加して保存する。
+追加した設定は &lt;code&gt;/etc/systemd/system/ollama.service&lt;/code&gt; ファイルではなく &lt;code&gt;/etc/systemd/system/ollama.service.d/override.conf&lt;/code&gt; ファイルに保存される（&lt;code&gt;ollama.service&lt;/code&gt; ファイルを直接編集しないこと）。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# 0.0.0.0 ではなく，サーバのLAN IPを指定&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;OLLAMA_HOST=192.168.1.10:11434&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;OLLAMA_NUM_THREADS=8&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;OLLAMA_MAX_LOADED_MODELS=1&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;OLLAMA_HOST&lt;/code&gt; にはバインドする IP アドレスとポート番号を指定する。
+&lt;code&gt;OLLAMA_NUM_THREADS&lt;/code&gt; には使用する全CPUスレッドではなく，物理コア数を設定するのがいいらしい。
+今回のプロセッサは8コア×2スレッドなので &lt;code&gt;8&lt;/code&gt; をセットする。
+&lt;code&gt;OLLAMA_MAX_LOADED_MODELS&lt;/code&gt; には同時にロードするモデルの最大数を指定するのだが，メモリに余裕がないので &lt;code&gt;1&lt;/code&gt; をセットしている。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; がバージョンアップしたらどうするの？ って AI に訊いたら &lt;code&gt;https://ollama.com/install.sh&lt;/code&gt; を再実行すればいいらしい。
+Windows や macOS は自動更新の仕組みがあるそうなのだが Linux は手動で更新する必要がある。&lt;/p&gt;
+&lt;p&gt;サービスを再起動して動作確認する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl daemon-reload &amp;amp;&amp;amp; sudo systemctl restart ollama
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl status ollama
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● ollama.service - Ollama Service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; preset: enabled)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    Drop-In: /etc/systemd/system/ollama.service.d
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─override.conf
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Thu 2026-10-15 01:30:19 UTC; 1min 19s ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Invocation: 877f8637d54d4eb5b793825ff9a89c2e
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 7943 (ollama)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Tasks: 18 (limit: 14526)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Memory: 15.6M (peak: 43.6M)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        CPU: 365ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /system.slice/ollama.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─7943 /usr/local/bin/ollama serve
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl http://localhost:11434/api/version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;curl: (7) Failed to connect to localhost port 11434 after 0 ms: Could not connect to server
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl http://192.168.1.10:11434/api/version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;{&amp;#34;version&amp;#34;:&amp;#34;0.40.4&amp;#34;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;localhost&lt;/code&gt; では接続できず，バインドした LAN IP で接続できることを確認する。&lt;/p&gt;
+&lt;p&gt;続けてモデルをダウンロードしよう。
+ダウンロードには &lt;code&gt;ollama&lt;/code&gt; コマンドを使う。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama --version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;ollama version is 0.40.4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull qwen3.5:9b
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull phi4
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull qwen2.5-coder:1.5b
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama pull nomic-embed-text
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ OLLAMA_HOST=http://192.168.1.10:11434 ollama list
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;NAME                       ID              SIZE      MODIFIED
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;nomic-embed-text:latest    0a109f422b47    274 MB    10 seconds ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;qwen2.5-coder:1.5b         d7372fd82851    986 MB    2 minutes ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;phi4:latest                ac896e5b8b34    9.1 GB    4 minutes ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;qwen3.5:9b                 56671c2ab938    6.6 GB    18 minutes ago
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;環境変数 &lt;code&gt;OLLAMA_HOST&lt;/code&gt; で接続先を指定して &lt;code&gt;ollama&lt;/code&gt; コマンドを実行すること（バインドする IP アドレス毎に構成が独立しているため）。
+&lt;code&gt;ollama list&lt;/code&gt; で現在ロードされているモデルを確認できる。&lt;/p&gt;
+&lt;h2&gt;Open WebUI をインストール・設定する&lt;/h2&gt;
+&lt;p&gt;さて，動作確認用に GUI チャットを設定してみよう。
+GUI チャットとして &lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; がいいらしい。&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;&lt;strong&gt;Open WebUI&lt;/strong&gt;はOllamaと最もポピュラーな組み合わせのWebチャットUIです。&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;機能&lt;/th&gt;
+					&lt;th&gt;説明&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ChatGPT風UI&lt;/td&gt;
+					&lt;td&gt;ブラウザでチャット，使い慣れたインターフェース&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;会話履歴&lt;/td&gt;
+					&lt;td&gt;すべての会話を保存・検索可能&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;モデル切替&lt;/td&gt;
+					&lt;td&gt;ドロップダウンでモデル切替&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ドキュメントRAG&lt;/td&gt;
+					&lt;td&gt;ファイルをアップロードして対話&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;ユーザー管理&lt;/td&gt;
+					&lt;td&gt;複数ユーザー・アクセス制御&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;完全オフライン&lt;/td&gt;
+					&lt;td&gt;外部へのデータ送信なし&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+&lt;p&gt;&lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; は Python で実装されているのだが，困ったことに Python 3.13 以降のバージョンに対応していないらしい。&lt;/p&gt;
+&lt;p&gt;インストール方法については公式は Docker を使った方法を推奨しているが，今回は Python (pip/&lt;a href=&#34;https://docs.astral.sh/uv/&#34; target=&#34;_blank&#34; title=&#34;uv&#34;&gt;uv&lt;/a&gt;) を使う。&lt;/p&gt;
+&lt;p&gt;まずは &lt;a href=&#34;https://docs.astral.sh/uv/&#34; target=&#34;_blank&#34; title=&#34;uv&#34;&gt;uv&lt;/a&gt; のインストール。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ curl -LsSf https://astral.sh/uv/install.sh | sh
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;downloading uv 0.13.1 x86_64-unknown-linux-gnu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;installing to /home/username/.local/bin
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  uv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  uvx
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;everything&amp;#39;s installed!
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;To add $HOME/.local/bin to your PATH, either restart your shell or run:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    source $HOME/.local/bin/env (sh, bash, zsh)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    source $HOME/.local/bin/env.fish (fish)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;&lt;code&gt;~/.local/bin&lt;/code&gt; ディレクトリにパスが通っていることを確認すること。&lt;/p&gt;
+&lt;p&gt;次に &lt;code&gt;~/.open-webui-venv&lt;/code&gt; ディレクトリ以下に Python 3.11 の仮想環境を作る。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv venv --python 3.11 ~/.open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using CPython 3.11.17
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Creating virtual environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Activate with: source .open-webui-venv/bin/activate
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ source ~/.open-webui-venv/bin/activate
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;CUDA ライブラリ混入を防ぐため，先に CPU版 PyTorch をインストールする。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using Python 3.11.17 environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Resolved 10 packages in 743ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Prepared 10 packages in 18.55s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Installed 10 packages in 223ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; ...
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv pip list | grep torch
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using Python 3.11.17 environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;torch             2.14.1+cpu
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;バージョン情報に &lt;code&gt;+cpu&lt;/code&gt; が付いていればOK。&lt;/p&gt;
+&lt;p&gt;これでやっと &lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; がインストールできる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ uv pip install open-webui
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Using Python 3.11.17 environment at: .open-webui-venv
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Resolved 242 packages in 3.49s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Prepared 232 packages in 58.95s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Installed 232 packages in 138ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; ...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;続けて &lt;a href=&#34;https://openwebui.com/&#34; target=&#34;_blank&#34; title=&#34;Open WebUI: Self-Hosted AI Platform&#34;&gt;Open WebUI&lt;/a&gt; をサービス化する。
+以下の内容で &lt;code&gt;/etc/systemd/system/open-webui.service&lt;/code&gt; を作成する。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-ini&#34; data-lang=&#34;ini&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Unit]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Description&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;Open WebUI&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;After&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;network.target ollama.service&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Service]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Type&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;simple&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;User&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;username&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;WorkingDirectory&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/home/username/.open-webui&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Environment&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;DATA_DIR=/home/username/.open-webui&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;ExecStart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/home/username/.open-webui-venv/bin/open-webui serve --host 192.168.1.10 --port 8080&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;Restart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;always&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;[Install]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;WantedBy&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;multi-user.target&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;サービスを起動するよ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl daemon-reload
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl enable --now open-webui
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ sudo systemctl status open-webui
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;● open-webui.service - Open WebUI
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Loaded: loaded (/etc/systemd/system/open-webui.service; enabled; preset: enabled)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Active: active (running) since Thu 2026-10-15 11:33:10 UTC; 34min ago
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt; Invocation: 54cfc423eb78415886855db79339850a
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   Main PID: 1664 (open-webui)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      Tasks: 65 (limit: 14526)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     Memory: 998.3M (peak: 1.1G)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        CPU: 31.076s
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;     CGroup: /system.slice/open-webui.service
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;             └─1664 /home/username/.open-webui-venv/bin/python /home/username/.open-webui-venv/bin/open-webui serve --host 192.168.1.10  --port 8080
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これでブラウザで &lt;code&gt;http://192.168.1.10:8080&lt;/code&gt; が表示されればOK。&lt;/p&gt;
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;&lt;a href=&#34;./open-webui.png&#34;&gt;&lt;img src=&#34;./open-webui.png&#34; srcset=&#34;./open-webui.png 876w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;Open WebUI&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;&lt;figcaption&gt;&lt;div&gt;&lt;a href=&#34;./open-webui.png&#34;&gt;Open WebUI&lt;/a&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;（調べながらとはいえ）ここまでで1日かかっちゃったよ。
+ツールの選定は AI に任せたけど，実際の作業は結構試行錯誤したし。&lt;/p&gt;
+&lt;p&gt;続きはまた後日ということで。&lt;/p&gt;
+&lt;h2&gt;ブックマーク&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/ollama/ollama&#34; target=&#34;_blank&#34;&gt;ollama/ollama: Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://linuxlab.jp/2026/06/16/ollama-install-guide/&#34; target=&#34;_blank&#34;&gt;Ollamaのインストール方法完全ガイド【Ubuntu/Mac/Windows対応】&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;!-- eof --&gt;
+&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34;&gt;
+&lt;p&gt;組織的に使うなら LiteLLM (API プロキシ) と Nginx (リバースプロキシ) を組み合わせて &lt;a href=&#34;https://ollama.com/&#34; target=&#34;_blank&#34; title=&#34;Ollama · Run AI models locally and in the cloud&#34;&gt;Ollama&lt;/a&gt; を隠蔽するのが安全のようだ。今回は家庭内 LAN で，使うのも私だけということで，そこまでの構成は必要ないという判断。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34;&gt;
+&lt;p&gt;CPU-only なら MoE モデルもいいらしいが，メモリが32GB以上ないと辛いそうで，今回は見送った。最近の DeepSeek-Coder-V2 Lite は軽量で高速らしいので，そのうち試したい。&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+</content>
+	</entry><entry>
 		<title>「終末ファシズム」へ至る道</title>
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/10/end-times-fascism/" />
 		<id>tag:text.Baldanders.info,2026-10-07:/remark/2026/10/end-times-fascism/</id>
@@ -1188,237 +1562,6 @@ It is a form of personal autonomy which humans enjoy, at least potentially and t
 &lt;/li&gt;
 &lt;li id=&#34;fn:2&#34;&gt;
 &lt;p&gt;辞書的な意味の自律についても，突き詰めると自由意志の問題に行き着いたりするので，たとえば人間がホンマに自律的な存在かと問われれば怪しいかも知れないけど。&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-</content>
-	</entry><entry>
-		<title>「ぶっちゃけ，大体 Google のせい」。</title>
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/07/it-turns-out-that-this-is-largely-googles-fault/" />
-		<id>tag:text.Baldanders.info,2026-07-27:/remark/2026/07/it-turns-out-that-this-is-largely-googles-fault/</id>
-		<published>2026-07-27T03:37:29+00:00</published>
-		<updated>2026-07-31T07:28:07+00:00</updated>
-		<summary>「GoogleのAI要約が検索よりマシに見えるのはなぜか」 / AI は人の好奇心を削ぐか？</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja-jp" xml:base="https://text.baldanders.info/">&lt;p&gt;例によって Mastodon/Bluesky の自 TL で見かけた記事の紹介だが，似たようなテーマの記事が並んでたので「面白い！」と思いつつ紹介してみる。&lt;/p&gt;
-&lt;h2&gt;「GoogleのAI要約が検索よりマシに見えるのはなぜか」&lt;/h2&gt;
-&lt;p&gt;最初の記事は &lt;a href=&#34;https://p2ptk.org/&#34; target=&#34;_blank&#34; title=&#34;P2Pとかその辺のお話R | Sharing is Caring&#34;&gt;p2ptk.org&lt;/a&gt; の記事。
-&lt;a href=&#34;https://p2ptk.org/&#34; target=&#34;_blank&#34; title=&#34;P2Pとかその辺のお話R | Sharing is Caring&#34;&gt;p2ptk.org&lt;/a&gt; にはいつもお世話になっております。&lt;/p&gt;
-&lt;p&gt;&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://p2ptk.org/ai/5638&#34;&gt;&lt;img src=&#34;https://text.baldanders.info/images/thumbs/2497616b3120b55e1890d05a112369e5cc452b16.jpg&#34; width=&#34;150&#34; alt=&#34;thumbs&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://p2ptk.org/ai/5638&#34;&gt;GoogleのAI要約が検索よりマシに見えるのはなぜか（ただし、どちらもクソ） » p2ptk[.]org&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;質の高いコンテンツの順位を下げ、労力をかけないスパムを優遇したGoogleは、ウェブ全域でグレシャムの法則を実演した。悪しきウェブページが良きウェブページを駆逐したのである。&lt;/dd&gt;
-	&lt;dd&gt;&amp;nbsp;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;Powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/linkcard&#34;&gt;linkcard&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt; &lt;!-- https://p2ptk.org/ai/5638 GoogleのAI要約が検索よりマシに見えるのはなぜか --&gt;&lt;/p&gt;
-&lt;p&gt;タイトルに「クソ」が付いてるので想像がつくだろうが &lt;a href=&#34;https://pluralistic.net/2026/06/29/arsonist-firefighters/#im-feeling-lucky&#34; target=&#34;_blank&#34; title=&#34;Gemini is better than search because Google enshittified search&#34;&gt;Cory Doctorow 氏の記事&lt;/a&gt;の翻訳である。&lt;/p&gt;
-&lt;p&gt;邦文タイトルの「GoogleのAI要約が検索よりマシに見えるのはなぜか」の答えは明白である。
-検索結果は求める「答え」じゃないから。&lt;/p&gt;
-&lt;p&gt;人は知りたいことの答えを（Web に）求めて検索するが，検索結果というのは答えに辿り着くためのヒントでしかない。
-人はヒントを元に欲しい答えを（検索結果として挙がっている） Web ページ群から抽出していくのである。
-今どきの AI 用語風に言うなら「&lt;a href=&#34;https://text.baldanders.info/remark/2026/07/distillation-and-model-collapse/&#34; target=&#34;_blank&#34; title=&#34;知識蒸留とモデル崩壊&#34;&gt;蒸留&lt;/a&gt;」か？&lt;/p&gt;
-&lt;p&gt;一方，AI による回答は，あらかじめ Web にある有象無象の情報から「&lt;a href=&#34;https://text.baldanders.info/remark/2026/07/distillation-and-model-collapse/&#34; target=&#34;_blank&#34; title=&#34;知識蒸留とモデル崩壊&#34;&gt;蒸留&lt;/a&gt;」した知識を元にしている。
-つまり，それまで人間がやってたことを迂回して，欲しい結果のみを提供しているわけだ。
-だから（喩え Google 検索が &amp;ldquo;enshittified&amp;rdquo; してなかったとしても）AI 要約が検索結果よりマシに見えるのは必然なのである。&lt;/p&gt;
-&lt;p&gt;でも記事が面白いのはここから。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote cite=&#34;https://p2ptk.org/ai/5638&#34;&gt;&lt;p&gt;さて、Googleを弁護するならば、「オープンなインターネット」は最近どうにもひどい。オープンなインターネット上で何か有用な情報を探そうとすれば、半ダースものポップアップやポップアンダー、そして「ディックオーバー」に埋もれる羽目になる。&lt;/p&gt;
-&lt;p&gt;[&amp;hellip;]&lt;/p&gt;
-&lt;p&gt;AI検索要約の大きな利点は、こうしたナンセンスすべてから読み手を守ってくれる点にある。だが、そもそもそのナンセンスはどこから来たのか。&lt;/p&gt;
-&lt;p&gt;おおよそGoogleのせいだ。&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://p2ptk.org/ai/5638&#34;&gt;GoogleのAI要約が検索よりマシに見えるのはなぜか（ただし、どちらもクソ）&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;figure&gt;
-&lt;blockquote cite=&#34;https://p2ptk.org/ai/5638&#34;&gt;おまけにこの10年、Googleは検索の優先順位に変更を加え続け、丹念に調査された信頼できるサイトよりも価値の低い粗製濫造サイトを優遇してきた。商品レビューを検索すれば、かつては信頼できたForbesのようなメディアではなく、役に立たないどころか危険ですらあるレビューで埋め尽くされた「サイトの評判の不正使用」の結果ばかりが表示される。そんなサイトが独立して運営される厳密な競合サイトよりもはるかに上位に表示されるのだ。&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://p2ptk.org/ai/5638&#34;&gt;GoogleのAI要約が検索よりマシに見えるのはなぜか（ただし、どちらもクソ）&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;わたしはこの「おおよそ Google のせいだ（&lt;span lang=&#34;en&#34;&gt;It turns out that this is largely Google&amp;rsquo;s fault&lt;/span&gt;）」というフレーズでバカウケした&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;p&gt;いわゆるアフィリエイト・システムは Web におけるインセンティブを確実に変えた。
-Web はもう知識の宝庫などではない。
-広告手数料を（そして読み手の注目を）奪い合う戦場である。&lt;/p&gt;
-&lt;p&gt;そしてその戦場たる盤面を Google 自ら（AI によって）ひっくり返してしまったのだ！&lt;/p&gt;
-&lt;div class=&#34;center&#34;&gt;&lt;strong&gt;&lt;code&gt;(ノ｀Д´)ノ彡┻━┻&lt;/code&gt;&lt;/strong&gt;&lt;/div&gt;
-&lt;p&gt;こんな痛快な話があるだろうか（笑）&lt;/p&gt;
-&lt;h2&gt;AI は人の好奇心を削ぐか？&lt;/h2&gt;
-&lt;p&gt;次の記事を紹介しよう。&lt;/p&gt;
-&lt;p&gt;&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;&lt;img src=&#34;https://text.baldanders.info/images/thumbs/9f79d67c011a14e94509422f4d8fded2dbad1f40.jpg&#34; width=&#34;110&#34; alt=&#34;thumbs&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;Google検索のAIモードはユーザーの好奇心を殺す？ - YAMDAS現更新履歴&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;Opinion | The Problem With Google’s A.I. Overview - The New York Times 「現在、米国における Google 検索の60％以上は、ユーザーがリンクをクリックすることなく終了している」という文章から始まるが、要は Google の AI モードの問題点を論じる文章である。生成 AI が質問に即座に回答を返すことで、かつてインターネットを彷徨うような旅だったものが、目的地に即座に到着できるようになった。リンクを辿ったり、予期せぬページにたどり着いたり、参照情報を追ったりする、検索における「探索段階」が消えつつあるわけだ。これは（ワ…&lt;/dd&gt;
-	&lt;dd&gt;&amp;nbsp;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;Powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/linkcard&#34;&gt;linkcard&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt; &lt;!-- https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity Google検索のAIモードはユーザーの好奇心を殺す？ --&gt;&lt;/p&gt;
-&lt;p&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/&#34; target=&#34;_blank&#34; title=&#34;YAMDAS現更新履歴&#34;&gt;yomoyomo さんのブログ記事&lt;/a&gt;である。
-いつもお世話になっております。&lt;/p&gt;
-&lt;p&gt;前節からの流れで言えば，こちらの記事は Web という戦場で戦う方々の憂鬱という感じだろうか。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote cite=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;これは（ワタシを含む）ネット上にコンテンツを公開する人間にとって、&lt;a href=&#34;https://wirelesswire.jp/2024/06/86654/&#34; target=&#34;_blank&#34;&gt;ウェブサイトへのトラフィックが減少し&lt;/a&gt;、そこから収益を得るチャンスが減るので憂慮すべき事態である。&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;Google検索のAIモードはユーザーの好奇心を殺す？&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;そして&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote cite=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;でも、質問するユーザーからすれば、信頼できる答えをより早く得られて何が問題なの？ と考えて不思議でもない。&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;Google検索のAIモードはユーザーの好奇心を殺す？&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;と続く。
-そこから「好奇心」の問題へと話を展開させている。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote cite=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;&lt;p&gt;彼女が引き合いにするのは、興味深い質問への答えを探る「好奇心がある」状態にいる人は、その過程で遭遇した無関係な情報をもはるかに良く記憶するという研究である。答えを待つ間に、脳内の報酬回路が活性化され、海馬が記憶の形成を助ける準備が整うということらしい。&lt;/p&gt;
-&lt;p&gt;つまり、好奇心は脳全体を感受性が高まった状態に導くのだ。&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;https://yamdas.hatenablog.com/entry/20260727/ai-google-kills-curiosity&#34;&gt;Google検索のAIモードはユーザーの好奇心を殺す？&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;でも，私に言わせれば因果関係が逆だ。
-感受性が弱いあるいは押さえつけられた状況では，好奇心は縮退する。
-日常生活に追われているとか将来に不安がある状況で好奇心など発揮しようがない。
-日常生活で知らなければならないことを AI が的確に（正しいとは限らないが）答えてくれるなら，それでいいではないか。
-試行錯誤など時間の無駄である。
-たいむ・いず・まねー！&lt;/p&gt;
-&lt;p&gt;かくて人は刺激に反応するだけのオートマトンと化す。&lt;/p&gt;
-&lt;p&gt;私は子供の頃から丸暗記が不得手で苦労している。
-学校授業の数学は比較的得意だったが公式を暗記できず，公式を導くプロセスで覚えていた（なので使わないと忘れるw）。
-だから，質問への答えを「探る」ことで記憶が強化されるというのは，個人的にはまぁまぁ共感できる。&lt;/p&gt;
-&lt;p&gt;でも，世の中にはひと目見ただけで丸暗記できる羨ましい人もいるだろう。
-写真的記憶とか最たるものである。
-ホンマに羨ましい。
-そういう人にも通用する話なのだろうか。&lt;/p&gt;
-&lt;p&gt;そもそも，今の AI サービスはプロンプトを介した「対話」で構成されている。
-私は &lt;a href=&#34;https://kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Search - A Premium Search Engine&#34;&gt;Kagi Search&lt;/a&gt; と &lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; を半々くらいの割合で利用している（もちろん Google 検索は使わない）。
-たとえば「&lt;a href=&#34;https://www.shimane-art-museum.jp/&#34; target=&#34;_blank&#34; title=&#34;SHIMANE ART MUSEUM | 島根県立美術館&#34;&gt;島根県立美術館&lt;/a&gt;の公式 Web ページを知りたい」だったら，そのまま固有名詞を検索窓に入力すればいい。
-でも「&lt;a href=&#34;https://www.shimane-art-museum.jp/&#34; target=&#34;_blank&#34; title=&#34;SHIMANE ART MUSEUM | 島根県立美術館&#34;&gt;島根県立美術館&lt;/a&gt;の特徴は何？」という漠然とした疑問ならまず AI プロンプトに質問を投げる。&lt;/p&gt;
-&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;島根県立美術館は、1999年3月に開館した山陰最大規模の美術館です &lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。おもな特徴は以下の通りです。&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;「水との調和」をテーマにした建築&lt;/strong&gt;: 戦後日本を代表する建築家・&lt;strong&gt;菊竹清訓&lt;/strong&gt;（1928〜2011年）によって設計され &lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;，波打ち際に盛り上がった「洲浜（すはま）」をイメージした優美な形態が特徴です &lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;。&lt;strong&gt;チタン製の大屋根&lt;/strong&gt;が日光を柔らかく反射し，対岸から見た際の風景との一体化も見どころです。&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;宍道湖畔の絶好のロケーション&lt;/strong&gt;: 宍道湖の東南岸に位置し，&lt;strong&gt;「日本の夕陽百選」&lt;strong&gt;にも選定された宍道湖の夕日を鑑賞できる絶好のスポットです &lt;sup id=&#34;fnref1:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。2階展示室の一画には&lt;/strong&gt;展望テラス&lt;/strong&gt;が設置されており &lt;sup id=&#34;fnref1:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;，3月から9月は&lt;strong&gt;日没後30分まで開館&lt;/strong&gt;を延長して，夕日をゆっくり鑑賞できるよう配慮されています。&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;strong&gt;「水」をテーマとした多彩なコレクション&lt;/strong&gt;: 「水と調和する美術館」を館のテーマとし，水が描かれた作品を多数収蔵・展示しています &lt;sup id=&#34;fnref2:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;。コレクションは以下の5分野に重点を置いています &lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;。&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;table&gt;
-	&lt;thead&gt;
-			&lt;tr&gt;
-					&lt;th&gt;分野&lt;/th&gt;
-					&lt;th&gt;内容&lt;/th&gt;
-			&lt;/tr&gt;
-	&lt;/thead&gt;
-	&lt;tbody&gt;
-			&lt;tr&gt;
-					&lt;td&gt;水をテーマとする絵画&lt;/td&gt;
-					&lt;td&gt;クールベ，モネなど国内外の画家による水辺の作品&lt;/td&gt;
-			&lt;/tr&gt;
-			&lt;tr&gt;
-					&lt;td&gt;日本の版画（浮世絵）&lt;/td&gt;
-					&lt;td&gt;&lt;strong&gt;葛飾北斎&lt;/strong&gt;の作品を1,600点以上所蔵（質・量ともに国内屈指）。常設の「北斎展示室」あり&lt;/td&gt;
-			&lt;/tr&gt;
-			&lt;tr&gt;
-					&lt;td&gt;国内外の写真&lt;/td&gt;
-					&lt;td&gt;近現代写真作品&lt;/td&gt;
-			&lt;/tr&gt;
-			&lt;tr&gt;
-					&lt;td&gt;木を素材とした彫刻&lt;/td&gt;
-					&lt;td&gt;木彫を中心とした彫刻作品&lt;/td&gt;
-			&lt;/tr&gt;
-			&lt;tr&gt;
-					&lt;td&gt;島根の美術&lt;/td&gt;
-					&lt;td&gt;島根ゆかりの作家や題材による作品&lt;/td&gt;
-			&lt;/tr&gt;
-	&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;ol start=&#34;4&#34;&gt;
-&lt;li&gt;&lt;strong&gt;多彩なジャンルを扱う総合美術館&lt;/strong&gt;: 絵画をはじめ，版画，工芸，写真，彫刻など多岐にわたるジャンルの作品を展示しており，浮世絵のコレクションは約3,000点にのぼるとも言われています &lt;sup id=&#34;fnref2:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。&lt;/li&gt;
-&lt;/ol&gt;
-&lt;hr&gt;
-&lt;p&gt;まとめると，島根県立美術館は &lt;strong&gt;「水との調和」をコンセプトにした名建築&lt;/strong&gt;，&lt;strong&gt;宍道湖畔の夕陽百選の景観&lt;/strong&gt;，そして&lt;strong&gt;北斎をはじめとする充実したコレクション&lt;/strong&gt;が三位一体となった，山陰を代表する美術館と言えます。&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://ja.wikipedia.org/wiki/%E5%B3%B6%E6%A0%B9%E7%9C%8C%E7%AB%8B%E7%BE%8E%E8%A1%93%E9%A4%A8&#34; target=&#34;_blank&#34;&gt;島根県立美術館&lt;/a&gt; (38%)&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref1:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref2:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:2&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://shimane.itot.jp/matsueeki/129&#34; target=&#34;_blank&#34;&gt;島根県立美術館 | 松江駅前エリアガイド&lt;/a&gt; (43%)&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref1:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&amp;#160;&lt;a href=&#34;#fnref2:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:3&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://shimane-mkyo.com/archives/kodawari/%E5%B3%B6%E6%A0%B9%E7%9C%8C%E7%AB%8B%E7%BE%8E%E8%A1%93%E9%A4%A8%E3%80%80%E5%BB%BA%E7%AF%89%E3%81%A8%E3%82%B3%E3%83%AC%E3%82%AF%E3%82%B7%E3%83%A7%E3%83%B3%E5%B1%95%E7%A4%BA%E5%AE%A4&#34; target=&#34;_blank&#34;&gt;島根県立美術館 建築とコレクション展示室 | こだわりセレクション | しまねバーチャルミュージアム&lt;/a&gt; (12%)&amp;#160;&lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:4&#34;&gt;
-&lt;p&gt;&lt;a href=&#34;https://www.kankou-shimane.com/destination/20340&#34; target=&#34;_blank&#34;&gt;島根県立美術館 | しまね観光ナビ｜島根県公式観光情報サイト&lt;/a&gt; (7%)&amp;#160;&lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;p&gt;そこから参考として挙がってるページを見て AI の回答を検証してもいいし，「葛飾北斎」や「クールベ」についてもっと踏み込んだ質問をしてもいい。
-なんなら「足立美術館のほうが規模が大きくて客の入りが多いんじゃないの？」とかツッコミを入れてもいいだろう&lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;。
-でも，たとえば「&lt;a href=&#34;https://www.shimane-art-museum.jp/&#34; target=&#34;_blank&#34; title=&#34;SHIMANE ART MUSEUM | 島根県立美術館&#34;&gt;島根県立美術館&lt;/a&gt;」をテーマにアフィリエイト記事を書くのなら，上の回答だけで十分に記事が書けるだろう。
-内容が正しいかどうかは収入に関係ないのだから。&lt;/p&gt;
-&lt;p&gt;結城浩さんの&lt;a href=&#34;https://text.baldanders.info/remark/2026/05/reading-living-with-ai/&#34; target=&#34;_blank&#34; title=&#34;『AIと生きる』を読む&#34;&gt;『AIと生きる』の感想文&lt;/a&gt;でも少し書いたが，プロンプターとして AI にどのような役割を与えるのかが大事だろう。
-AI は協働相手か，人生相談のカウンセラーか，それとも居酒屋トークの飲み友達か。
-私たちはもう「生成 AI 以前」には戻れないが，AI によって人やものとのコミュニケーションは確実に変わっていくし，それに適応しなければならない。&lt;/p&gt;
-&lt;p&gt;好奇心の種はどこにでも転がっている。
-&lt;a href=&#34;https://text.baldanders.info/tags/osanpo-camera/&#34; target=&#34;_blank&#34;&gt;お散歩カメラ&lt;/a&gt;で無駄に多くシャッターを切る私が断言しよう。
-それを上手く拾って育てられるかどうかは，その人の感受性によると思う。
-感受性は忙殺される日常や不安で満ちる現在と未来では育たない。&lt;/p&gt;
-&lt;p&gt;AI が人の好奇心を削ぐのではなく，縮退してしまった好奇心を AI が暴き立てているのである。&lt;/p&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://el.jibun.atmarkit.co.jp/humancybersecurity/2025/11/day_1tiny_experiments.html&#34; target=&#34;_blank&#34;&gt;Day 15 Tiny Experiments ―目的より、探究を生きる Living Through Discovery：Human Hardeningとサイバー判断力：エンジニアライフ&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2025/05/curiosity-about-curiosity/&#34; target=&#34;_blank&#34;&gt;「好奇心に好奇心」を読む&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2&gt;参考&lt;/h2&gt;
-&lt;p&gt;&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.sbcr.jp/product/4815639921/&#34;&gt;&lt;img src=&#34;https://text.baldanders.info/images/thumbs/324c9435d0df4fd2b01b29ff8c93652f5b94cb96.jpg&#34; width=&#34;150&#34; alt=&#34;thumbs&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.sbcr.jp/product/4815639921/&#34;&gt;AIと生きる | SBクリエイティブ&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;「何でも答えてくれるAIと、私たちはどう付き合っていけばよいのだろう？」 「数学ガール」シリーズの結城浩が贈る&lt;/dd&gt;
-	&lt;dd&gt;&amp;nbsp;&lt;/dd&gt;
-	&lt;dd&gt;Release &lt;abbr class=&#34;release-date&#34; title=&#34;2026-03-05&#34;&gt;2026-03-05&lt;/abbr&gt;&lt;/dd&gt;
-	
-	&lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;strong&gt;[Comment]&lt;/strong&gt; 感想文は&lt;a href=https://text.baldanders.info/remark/2026/05/reading-living-with-ai/&gt;こちら&lt;/a&gt;。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;Powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/linkcard&#34;&gt;linkcard&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt; &lt;!-- https://www.hyuki.com/aibook/ 結城浩 AIと生きる --&gt;
-&lt;div class=&#34;hreview&#34;&gt;
-  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.nikkei-science.com/page/magazine/202506.html&#34;&gt;&lt;img src=&#34;https://text.baldanders.info/images/thumbs/681fc2c54fd9c4392741d3ea8798d0f91c468fb5.jpg&#34; width=&#34;110&#34; alt=&#34;thumbs&#34;&gt;&lt;/a&gt;&lt;/div&gt;
-  &lt;dl&gt;
-    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.nikkei-science.com/page/magazine/202506.html&#34;&gt;2025年6月号｜日経サイエンス&lt;/a&gt;&lt;/dt&gt;
-    &lt;dd&gt;特別解説 2025年アーベル賞に柏原正樹氏　代数解析学を確立 　　M. ビショフ 神経科学 特集：好奇心に好奇心 好奇心は科学の原動力だが，これまでほとんど科学の対象にされてこなかった。しかし，最新の神経科学や情報科学の … 続きを読む →&lt;/dd&gt;
-	&lt;dd&gt;&amp;nbsp;&lt;/dd&gt;
-	&lt;dd&gt;Release &lt;abbr class=&#34;release-date&#34; title=&#34;2025-04-25&#34;&gt;2025-04-25&lt;/abbr&gt;&lt;/dd&gt;
-	
-	&lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
-  &lt;/dl&gt;
-  &lt;p class=&#34;description&#34;&gt;&lt;strong&gt;[Comment]&lt;/strong&gt; 特集は「好奇心に好奇心」。他には「1秒の定義を変える 原子時計のいま」「仲間はずれを作らない教室」など。&lt;/p&gt;
-  &lt;p class=&#34;powered-by&#34;&gt;Powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/linkcard&#34;&gt;linkcard&lt;/a&gt;&lt;/p&gt;
-&lt;/div&gt; &lt;!-- https://www.nikkei-science.com/page/magazine/202506.html 日経サイエンス2025年6月号 --&gt;&lt;/p&gt;
-&lt;div class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34;&gt;
-&lt;p&gt;この記事のタイトルは &amp;ldquo;&lt;span lang=&#34;en&#34;&gt;It turns out that this is largely Google&amp;rsquo;s fault&lt;/span&gt;&amp;rdquo; を &lt;a href=&#34;https://translate.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Translate&#34;&gt;Kagi Translate&lt;/a&gt; に翻訳させたものである。なので，タイトルのほうが直訳に近い。&amp;#160;&lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li id=&#34;fn:2&#34;&gt;
-&lt;p&gt;試しに本当に「足立美術館のほうが規模が大きくて客の入りが多いんじゃないの？」とツッコんでみたら「来場者数と敷地規模の両方で足立美術館が圧倒的に上です」などとしれっと訂正してくださりやがった（笑）&amp;#160;&lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
 &lt;/div&gt;
