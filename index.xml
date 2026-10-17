@@ -2,13 +2,225 @@
 	<title>text.Baldanders.info</title>
 	<link rel="alternate" type="text/html" href="https://text.baldanders.info/" />
 	<link rel="self" type="application/atom+xml" href="https://text.baldanders.info/index.xml" />
-	<id>tag:text.Baldanders.info,2026-10-15:/</id>
-	<updated>2026-10-15T23:23:12+00:00</updated>
+	<id>tag:text.Baldanders.info,2026-10-17:/</id>
+	<updated>2026-10-17T13:25:56+00:00</updated>
 	<subtitle>帰ってきた「しっぽのさきっちょ」</subtitle>
 	<icon>https://text.baldanders.info/images/avatar.jpg</icon>
 	<logo>https://text.baldanders.info/images/avatar.jpg</logo>
 
 	<entry>
+		<title>Flickr の写真ファイルを取得できなくなった</title>
+		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
+		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/10/flickr-photo-download/" />
+		<id>tag:text.Baldanders.info,2026-10-17:/remark/2026/10/flickr-photo-download/</id>
+		<published>2026-10-17T13:24:19+00:00</published>
+		<updated>2026-10-17T13:25:56+00:00</updated>
+		<summary>自作ツールの不具合を修正していく</summary>
+		<author>
+			<name>Spiegel</name>
+			<uri>https://baldanders.info/profile/</uri>
+		</author>
+		
+	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
+
+
+		<content type="html" xml:lang="ja-jp" xml:base="https://text.baldanders.info/">&lt;h2&gt;Flickr の写真ファイルを取得できなくなった&lt;/h2&gt;
+&lt;p&gt;私は&lt;a href=&#34;https://github.com/goark/toolbox&#34; target=&#34;_blank&#34; title=&#34;goark/toolbox: A collection of miscellaneous commands&#34;&gt;自作ツール&lt;/a&gt;（公開してるけど，自分専用ツール）を使って &lt;a href=&#34;https://www.flickr.com/photos/spiegel/&#34; target=&#34;_blank&#34; title=&#34;Yasuhiro ARAKAWA | Flickr&#34;&gt;Flickr にアップしている写真&lt;/a&gt;を Mastodon と Bluesky に自動投稿してるんだけど，昨日くらいからエラーで投稿できなくなった。
+どうも Flickr サイトから写真データをダウンロードする際に &lt;a href=&#34;https://developer.mozilla.org/ja/docs/Web/HTTP/Reference/Status/429&#34; target=&#34;_blank&#34; title=&#34;429 Too Many Requests - HTTP | MDN&#34;&gt;429 (Too Many Requests)&lt;/a&gt; が返っているようだ。&lt;/p&gt;
+&lt;p&gt;とりあえず自動更新処理を止めて調べ始めたのだが &lt;code&gt;curl&lt;/code&gt; コマンドだと写真ファイルを普通に取れるのね。
+ブラウザで URL を直接叩いても問題ない。
+一度に複数処理するのがダメなのかと意図的に遅延させてみたけどダメ。
+他にも色々弄ってみたんだけど，結局よく分からなかったので，自力で調べるのは諦め &lt;a href=&#34;https://github.com/features/copilot&#34; target=&#34;_blank&#34; title=&#34;GitHub Copilot · Your AI pair programmer · GitHub&#34;&gt;GitHub Copilot&lt;/a&gt; に調べさせてみた。
+以下が調査結果：&lt;/p&gt;
+&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;可能性として一番濃いのは「Go のHTTP/2クライアント実装の指紋で弾かれている」ケースです。&lt;/p&gt;
+&lt;p&gt;今回こちらで確認した事実は以下です。&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;sample.go&lt;/code&gt; をそのまま &lt;code&gt;go run sample.go&lt;/code&gt; すると &lt;code&gt;HTTP/2.0 429&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;同じコードでも &lt;code&gt;GODEBUG=http2client=0&lt;/code&gt;（HTTP/2無効）だと成功。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;net/http&lt;/code&gt; のカスタム &lt;code&gt;Transport&lt;/code&gt;（実質HTTP/1.1）でも &lt;code&gt;200 OK&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;curl&lt;/code&gt; は HTTP/2 でも &lt;code&gt;200&lt;/code&gt;。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;この組み合わせから、単純なURL間違いや &lt;code&gt;fetch&lt;/code&gt; のバグよりも、次が考えやすいです。&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;CDN/WAFのbot判定差&lt;br&gt;
+GoのHTTP/2（TLS/ALPN, SETTINGS, HPACK, ヘッダー順序など）のシグネチャが &lt;code&gt;curl&lt;/code&gt; と異なり、レート制限・Bot制限に触れることがあります。&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;User-Agent&lt;/code&gt; 偽装との不整合&lt;br&gt;
+&lt;code&gt;sample.go&lt;/code&gt; で &lt;code&gt;User-Agent: curl/8.18.0&lt;/code&gt; を送っていますが、実際のTLS/HTTP2実装はcurlではないため、判定が厳しい環境だと不自然と見なされることがあります。&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;経路差・POP差による429&lt;br&gt;
+同じURLでも、接続先POPやタイミング次第で429/200が揺れることがあります。&lt;code&gt;go&lt;/code&gt; と &lt;code&gt;curl&lt;/code&gt; でDNS解決・接続経路が微妙に変わる場合もあります。&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;実運用での対策候補です。&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;対象ホストだけHTTP/1.1にフォールバックする（最も効く可能性が高い）&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;User-Agent&lt;/code&gt; を偽装せず、実アプリ名にする&lt;/li&gt;
+&lt;li&gt;429時に &lt;code&gt;Retry-After&lt;/code&gt; を見て指数バックオフ再試行&lt;/li&gt;
+&lt;li&gt;必要なら &lt;code&gt;Referer&lt;/code&gt; など相手側が期待するヘッダーを追加（規約順守前提）&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/div&gt;
+&lt;p&gt;ちなみに上のやり取りで使ってる &lt;code&gt;sample.go&lt;/code&gt; の中身はこんな感じ。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;package&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kn&#34;&gt;import&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;context&amp;#34;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;fmt&amp;#34;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;github.com/goark/fetch&amp;#34;&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;u&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;URL&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;https://live.staticflickr.com/65535/55582060788_9bf7829404_b.jpg&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;%+v\n&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// %+v でエラー詳細を出力&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;New&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;GetWithContext&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;context&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Background&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(),&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;u&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;WithRequestHeaderSet&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;User-Agent&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;curl/8.18.0&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;),&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;WithRequestHeaderSet&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Accept&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;*/*&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;),&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;%+v\n&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// %+v ステータスコードを含むエラー詳細を出力&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;		&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;defer&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Close&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;	&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fmt&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Println&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;HTTP Protocol:&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Proto&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;())&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;これを実行すると以下の出力になる。&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-text&#34; data-lang=&#34;text&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;$ go run sample.go | jq .
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;{
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &amp;#34;Type&amp;#34;: &amp;#34;*errs.Error&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &amp;#34;Err&amp;#34;: {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &amp;#34;Type&amp;#34;: &amp;#34;*errors.errorString&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &amp;#34;Msg&amp;#34;: &amp;#34;invalid HTTP request&amp;#34;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  },
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &amp;#34;Context&amp;#34;: {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &amp;#34;function&amp;#34;: &amp;#34;github.com/goark/fetch.(*client).GetWithContext&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &amp;#34;url&amp;#34;: &amp;#34;https://live.staticflickr.com/65535/55582060788_9bf7829404_b.jpg&amp;#34;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  },
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &amp;#34;Cause&amp;#34;: {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &amp;#34;Type&amp;#34;: &amp;#34;*errs.Error&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &amp;#34;Err&amp;#34;: {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;#34;Type&amp;#34;: &amp;#34;*fmt.wrapError&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;#34;Msg&amp;#34;: &amp;#34;bad HTTP status: status 429&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;#34;Cause&amp;#34;: {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &amp;#34;Type&amp;#34;: &amp;#34;*errors.errorString&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;        &amp;#34;Msg&amp;#34;: &amp;#34;bad HTTP status&amp;#34;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      }
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    },
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &amp;#34;Context&amp;#34;: {
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;#34;function&amp;#34;: &amp;#34;github.com/goark/fetch.(*client).fetch&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;#34;protocol&amp;#34;: &amp;#34;HTTP/2.0&amp;#34;,
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &amp;#34;status&amp;#34;: 429
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    }
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  }
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;429 が返っているのがお分かりだろうか。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/goark/fetch&#34; target=&#34;_blank&#34; title=&#34;goark/fetch: Fetch Data from URL&#34;&gt;&lt;code&gt;goark/fetch&lt;/code&gt;&lt;/a&gt; は標準の &lt;a href=&#34;https://pkg.go.dev/net/http&#34; target=&#34;_blank&#34; title=&#34;http package - net/http - Go Packages&#34;&gt;&lt;code&gt;net/http&lt;/code&gt;&lt;/a&gt; をラップした自作パッケージで，&lt;code&gt;fetch.New()&lt;/code&gt; で引数を省略するとデフォルトの &lt;code&gt;http.Client{}&lt;/code&gt; インスタンスを使うようになっている。
+ここを，たとえば&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;New&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;WithHTTPClient&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Client&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Transport&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Transport&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;            &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;ForceAttemptHTTP2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;false&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// HTTP/2 の無効化&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;            &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;TLSNextProto&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;      &lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;tls&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Conn&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;RoundTripper&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{},&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// TLSNextProto を空にする&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;},&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line hl&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)).&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;GetWithContext&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;context&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Background&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(),&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;u&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;WithRequestHeaderSet&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;User-Agent&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;curl/8.18.0&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;),&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;fetch&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;WithRequestHeaderSet&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Accept&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;*/*&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;),&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;とすれば HTTP/1.1 専用のクライアントになる。
+これを使ってリクエストを発行し，ステータス &lt;a href=&#34;https://developer.mozilla.org/ja/docs/Web/HTTP/Reference/Status/200&#34; target=&#34;_blank&#34; title=&#34;200 OK - HTTP | MDN&#34;&gt;200 (OK)&lt;/a&gt; で写真ファイルがダウンロードできることを確認できた。&lt;/p&gt;
+&lt;p&gt;強制的に HTTP/1.1 を使うのはイケてない気がするが，素の &lt;a href=&#34;https://pkg.go.dev/net/http&#34; target=&#34;_blank&#34; title=&#34;http package - net/http - Go Packages&#34;&gt;&lt;code&gt;net/http&lt;/code&gt;&lt;/a&gt; の HTTP/2 挙動を調査するのは大変だし，今回は対症療法ということで HTTP/1.1 専用クライアントを生成する方法を採用した。&lt;/p&gt;
+&lt;p&gt;毎回構造体をゴリゴリ書くのは面倒なので &lt;a href=&#34;https://github.com/goark/fetch&#34; target=&#34;_blank&#34; title=&#34;goark/fetch: Fetch Data from URL&#34;&gt;&lt;code&gt;goark/fetch&lt;/code&gt;&lt;/a&gt; に HTTP/1.1 専用のクライアントを生成するオプションを追加して対応した。
+さらにこれを&lt;a href=&#34;https://github.com/goark/toolbox&#34; target=&#34;_blank&#34; title=&#34;goark/toolbox: A collection of miscellaneous commands&#34;&gt;自作ツール&lt;/a&gt;に組み込んで修正完了。&lt;/p&gt;
+&lt;figure style=&#39;margin:0 auto;text-align:center;&#39;&gt;
+&lt;blockquote class=&#34;bluesky-embed&#34; data-bluesky-uri=&#34;at://did:plc:4kzexuq4xieuarc3q6lmkeou/app.bsky.feed.post/3my2xdddgao25&#34; data-bluesky-cid=&#34;bafyreihnrho6bxnm4zadlpenf6kt2rqh74aiwpwb3uyyxrcssybsuvoejm&#34; data-bluesky-embed-color-mode=&#34;system&#34;&gt;&lt;p lang=&#34;&#34;&gt;#flickr #photography 街路樹
+https://www.flickr.com/photos/spiegel/55594508941/
+&lt;br&gt;&lt;br&gt;&lt;a href=&#34;https://bsky.app/profile/did:plc:4kzexuq4xieuarc3q6lmkeou/post/3my2xdddgao25?ref_src=embed&#34;&gt;[image or embed]&lt;/a&gt;&lt;/p&gt;&amp;mdash; Spiegel with お散歩カメラ (&lt;a href=&#34;https://bsky.app/profile/did:plc:4kzexuq4xieuarc3q6lmkeou?ref_src=embed&#34;&gt;@photos.baldanders.info&lt;/a&gt;) &lt;a href=&#34;https://bsky.app/profile/did:plc:4kzexuq4xieuarc3q6lmkeou/post/3my2xdddgao25?ref_src=embed&#34;&gt;2026年10月17日 20:10&lt;/a&gt;&lt;/blockquote&gt;&lt;script async src=&#34;https://embed.bsky.app/static/embed.js&#34; charset=&#34;utf-8&#34;&gt;&lt;/script&gt;
+&lt;/figure&gt;
+&lt;p&gt;よしよし。
+ちゃんと動いてるな。&lt;/p&gt;
+&lt;h2&gt;Go 1.27 から http.Response.Body の中身を読み捨てなくてよくなった&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://go.dev/blog/http-connection-reuse&#34; target=&#34;_blank&#34;&gt;Better HTTP/1 connection reuse - The Go Programming Language&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;昔から &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; 特有のイディオムとして &lt;a href=&#34;https://pkg.go.dev/net/http&#34; target=&#34;_blank&#34; title=&#34;http package - net/http - Go Packages&#34;&gt;&lt;code&gt;http&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Response.Body&lt;/code&gt; を &lt;code&gt;Close()&lt;/code&gt; する前に中身を読み捨てる必要があったが，1.27 からは &lt;a href=&#34;https://pkg.go.dev/net/http&#34; target=&#34;_blank&#34; title=&#34;http package - net/http - Go Packages&#34;&gt;&lt;code&gt;http&lt;/code&gt;&lt;/a&gt;&lt;code&gt;.Transport&lt;/code&gt; がいい感じに処理してくれるため，明示的に読み捨てる必要がなくなった。&lt;/p&gt;
+&lt;figure lang=&#34;en&#34;&gt;
+&lt;blockquote cite=&#34;https://go.dev/blog/http-connection-reuse&#34;&gt;&lt;p&gt;Starting in Go 1.27, &lt;a href=&#34;https://go.dev/pkg/net/http#Transport&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;net/http.Transport&lt;/code&gt;&lt;/a&gt; automatically does everything we have implemented in the code above: it will asynchronously drain an unread HTTP/1 response body for up to 50 ms or 256 KB. It also implements additional optimizations; for example, when a response contains the &lt;code&gt;Connection: close&lt;/code&gt; header, draining the body is guaranteed to be wasted work, and it therefore skips doing so. Note that this behavior might evolve in future versions of Go, as other possible enhancements become apparent.&lt;/p&gt;
+&lt;p&gt;As a general best practice, we now recommend that users simply close their HTTP bodies once they no longer need them, like in our original example:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-go&#34; data-lang=&#34;go&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kd&#34;&gt;func&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;getStatus&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;url&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;string&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;error&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;http&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Get&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;url&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;        &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;defer&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;Body&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;Close&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;    &lt;/span&gt;&lt;span class=&#34;k&#34;&gt;return&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;resp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;nx&#34;&gt;StatusCode&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kc&#34;&gt;nil&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Go is all about simplicity. Let your code stay clean and simple, and let &lt;a href=&#34;https://go.dev/pkg/net/http&#34; target=&#34;_blank&#34;&gt;net/http&lt;/a&gt; deal with the complexities on your behalf.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://go.dev/blog/http-connection-reuse&#34;&gt;Better HTTP/1 connection reuse&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;p&gt;これを &lt;a href=&#34;https://github.com/goark/fetch&#34; target=&#34;_blank&#34; title=&#34;goark/fetch: Fetch Data from URL&#34;&gt;&lt;code&gt;goark/fetch&lt;/code&gt;&lt;/a&gt; に対応しようか悩んだのだが，このパッケージはまだ 1.26 対応のままなので，今回は諦めた。
+1.28 が出て 1.26 がサポートから外れたら，改めて対応することにしよう。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; はシンプルが正義！&lt;/p&gt;
+&lt;h2&gt;ATProto ライブラリ indigo の古い API が Deprecated になってた&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/goark/toolbox&#34; target=&#34;_blank&#34; title=&#34;goark/toolbox: A collection of miscellaneous commands&#34;&gt;自作ツール&lt;/a&gt;で Bluesky に投稿するために &lt;a href=&#34;https://go.dev/&#34; target=&#34;_blank&#34;&gt;Go&lt;/a&gt; 用の &lt;a href=&#34;https://atproto.com/&#34; target=&#34;_blank&#34; title=&#34;The AT Protocol&#34;&gt;ATProto&lt;/a&gt; ライブラリ &lt;a href=&#34;https://github.com/bluesky-social/indigo&#34; target=&#34;_blank&#34; title=&#34;bluesky-social/indigo: Go source code for Bluesky&amp;#39;s atproto services.&#34;&gt;&lt;code&gt;bluesky-social/indigo&lt;/code&gt;&lt;/a&gt; パッケージを使っているのだが，今の最新版（頼むからバージョンタグを付けてくれ！）をインポートしたら初期から使ってる API が deprecated になっていた。&lt;/p&gt;
+&lt;p&gt;今のところは見なかったことにしてバージョンを戻している（笑）&lt;/p&gt;
+&lt;p&gt;でも，近いうちに時間を取って対応しないと。
+他にやりたいことが山積みなんだがな。&lt;/p&gt;
+&lt;h2&gt;参考図書&lt;/h2&gt;
+&lt;p&gt;&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.maruzen-publishing.co.jp/book/b10112161.html&#34;&gt;&lt;img src=&#34;https://text.baldanders.info/images/thumbs/9e8d8f717b1d1d85b0da7f07cb10a83b78d4227f.jpg&#34; width=&#34;110&#34; alt=&#34;thumbs&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.maruzen-publishing.co.jp/book/b10112161.html&#34;&gt;プログラミング言語Go - 丸善出版 理工・医学・人文社会科学の専門書出版社&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;明解で効率的なプログラムを描くための書。 柴田　芳樹 訳&lt;/dd&gt;
+	&lt;dd&gt;&amp;nbsp;&lt;/dd&gt;
+	&lt;dd&gt;Release &lt;abbr class=&#34;release-date&#34; title=&#34;2016-06-15&#34;&gt;2016-06-15&lt;/abbr&gt;&lt;/dd&gt;
+	
+	&lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;strong&gt;[Comment]&lt;/strong&gt; 著者のひとりは，あの “K&amp;R” の K のほうである。この本は Go 言語の教科書と言ってもいいだろう。と思ったら絶版状態らしい（2025-01 現在）。復刊を望む！&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;Powered by &lt;a href=&#34;https://github.com/spiegel-im-spiegel/linkcard&#34;&gt;linkcard&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt; &lt;!-- プログラミング言語Go --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51BmDUG6D0L._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0CFL1DK8Q?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語 100Tips ありがちなミスを把握し、実装を最適化する impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;Teiva Harsanyi (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2023-08-18 (Release 2023-08-18)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0CFL1DK8Q (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;4&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;far fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;strong&gt;[Comment]&lt;/strong&gt; &lt;a href=&#34;https://book.impress.co.jp/books/1122101133&#34;&gt;版元&lt;/a&gt;で PDF 版を購入可能。事実上の Effective Go とも言える充実の内容。オリジナルは敢えてタイトルに “tips” という単語を入れるのを避けたのに邦題が「100 Tips」とかなっていて，原作者がお怒りとの噂（あくまで噂）&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2023-08-18&#34;&gt;2023-08-18&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語 100Tips --&gt;
+&lt;div class=&#34;hreview&#34;&gt;
+  &lt;div class=&#34;photo&#34;&gt;&lt;a href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;&lt;img src=&#34;https://m.media-amazon.com/images/I/51wZEHUKZiL._SL160_.jpg&#34; width=&#34;125&#34; alt=&#34;photo&#34;&gt;&lt;/a&gt;&lt;/div&gt;
+  &lt;dl&gt;
+    &lt;dt class=&#34;item&#34;&gt;&lt;a class=&#34;fn url&#34; href=&#34;https://www.amazon.co.jp/dp/B0DNYMMBBQ?tag=baldandersinf-22&amp;amp;linkCode=ogi&amp;amp;th=1&amp;amp;psc=1&#34;&gt;Go言語で学ぶ並行プログラミング　他言語にも適用できる原則とベストプラクティス impress top gearシリーズ&lt;/a&gt;&lt;/dt&gt;
+    &lt;dd&gt;James Cutajar (著), 柴田 芳樹 (著)&lt;/dd&gt;
+    &lt;dd&gt;インプレス 2024-12-04 (Release 2024-12-04)&lt;/dd&gt;
+    &lt;dd&gt;Kindle版&lt;/dd&gt;
+    &lt;dd&gt;B0DNYMMBBQ (ASIN)&lt;/dd&gt;
+    &lt;dd&gt;評価&lt;abbr class=&#34;rating fa-sm&#34; title=&#34;5&#34;&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&amp;nbsp;&lt;i class=&#34;fas fa-star&#34;&gt;&lt;/i&gt;&lt;/abbr&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p class=&#34;description&#34;&gt;&lt;strong&gt;[Comment]&lt;/strong&gt; &lt;a href=&#34;https://technical-book-reading-2.connpass.com/event/337562/&#34;&gt;読書会&lt;/a&gt;のために購入。インプレス社の本は Kindle 版より版元で &lt;a href=&#34;https://book.impress.co.jp/books/1123101144&#34;&gt;PDF 版&lt;/a&gt;を買うのがオススメ。「並行処理」について原理的な解説から丁寧に書かれている。 Go で解説されているが Go 以外の言語でも応用できる。
+&lt;/p&gt;
+  &lt;p class=&#34;powered-by&#34;&gt;reviewed by &lt;a href=&#39;#maker&#39; class=&#39;reviewer&#39;&gt;Spiegel&lt;/a&gt; on &lt;abbr class=&#34;dtreviewed&#34; title=&#34;2025-01-25&#34;&gt;2025-01-25&lt;/abbr&gt; (powered by &lt;a href=&#34;https://affiliate.amazon.co.jp/assoc_credentials/home&#34;&gt;PA-APIv5&lt;/a&gt;)&lt;/p&gt;
+&lt;/div&gt; &lt;!-- Go言語で学ぶ並行プログラミング --&gt;&lt;/p&gt;
+</content>
+	</entry><entry>
 		<title>Ubuntu サーバで LLM 構築へ：（3）インストール編1</title>
 		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
 		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/10/ubuntu-llm-03-installation-1/" />
@@ -1308,116 +1520,6 @@ FGO じゃないよ（笑）&lt;/p&gt;
 &lt;/figure&gt;
 &lt;p&gt;上の例なら &lt;a href=&#34;https://baldanders.info/&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;baldanders.info&lt;/code&gt;&lt;/a&gt; および &lt;a href=&#34;https://text.baldanders.info/&#34; target=&#34;_blank&#34;&gt;&lt;code&gt;text.baldanders.info&lt;/code&gt;&lt;/a&gt; ドメインの Web ページに対してのみ著者情報が有効になる。&lt;/p&gt;
 &lt;p&gt;ブログ等を運営している方で自力で &lt;code&gt;&amp;lt;meta&amp;gt;&lt;/code&gt; 要素を設置可能であれば，検討してみてもいいんじゃないだろうか。&lt;/p&gt;
-</content>
-	</entry><entry>
-		<title>購読スパムとかフォローだけスパムとか</title>
-		<category term="remark" label="remark" scheme="https://text.baldanders.info/remark/" />
-		<link rel="alternate" type="text/html" href="https://text.baldanders.info/remark/2026/09/subscription-follow-spam/" />
-		<id>tag:text.Baldanders.info,2026-09-24:/remark/2026/09/subscription-follow-spam/</id>
-		<published>2026-09-24T09:54:09+00:00</published>
-		<updated>2026-09-26T00:59:13+00:00</updated>
-		<summary>購読スパム / フォローだけスパム / Mastodon における詐欺の手口</summary>
-		<author>
-			<name>Spiegel</name>
-			<uri>https://baldanders.info/profile/</uri>
-		</author>
-		
-	<link rel="cc:license" type="application/rdf+xml" href="https://creativecommons.org/licenses/by-sa/4.0/rdf" />
-
-
-		<content type="html" xml:lang="ja-jp" xml:base="https://text.baldanders.info/">&lt;p&gt;&lt;a href=&#34;https://text.baldanders.info/remark/2026/09/defense-advantage/&#34; target=&#34;_blank&#34; title=&#34;セキュリティは防御側が有利になったのか？&#34;&gt;というわけで&lt;/a&gt;（どういうわけだ）今回はスパム（spam）の話。&lt;/p&gt;
-&lt;h2&gt;購読スパム&lt;/h2&gt;
-&lt;p&gt;まずは &lt;a href=&#34;https://mastodon.social/@MastodonEngineering&#34; target=&#34;_blank&#34; title=&#34;Mastodon Engineering (@MastodonEngineering@mastodon.social) - Mastodon&#34;&gt;Mastodon Engineering&lt;/a&gt; からのお知らせ。&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://mastodon.social/@MastodonEngineering/117320341908084817&#34;&gt;&lt;p&gt;We are aware of an ongoing wave of subscription spam throughout the fediverse.&lt;/p&gt;
-&lt;p&gt;We are investigating avenues to mitigate this, but they will likely involve deep changes in the sign-up flow that may break sign-up from existing applications.&lt;/p&gt;
-&lt;p&gt;In the meantime, you can find helpful resources at &lt;a href=&#34;https://about.iftas.org/2026/09/11/boom-protocol-spam/&#34; target=&#34;_blank&#34;&gt;https://about.iftas.org/2026/09/11/boom-protocol-spam/&lt;/a&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://mastodon.social/@MastodonEngineering/117320341908084817&#34;&gt;We are aware of an ongoing wav…&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;「購読スパム（subscription spam）」とは，主に自動化されたボットによる大量のユーザー登録申請のことを指す。&lt;/p&gt;
-&lt;p&gt;Mastodon では2024年頃からスパムアカウントが急増していて，その暫定対策として新規登録の際は「登録には承認が必要」とすることが推奨されている。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39; cite=&#34;./settings-for-signup.png&#34;&gt;
-&lt;a href=&#34;./settings-for-signup.png&#34;&gt;&lt;img src=&#34;./settings-for-signup.png&#34; srcset=&#34;./settings-for-signup.png 829w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;アカウント作成&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;./settings-for-signup.png&#34;&gt;アカウント作成&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;すると今度は承認待ちのスパムアカウントが滞留して，マトモな申請が埋もれてしまう問題が発生するらしい。
-サインアップに関して可用性問題が発生しているわけやね。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://qiita.com/taks/items/6c020a4006f90c019e1c&#34; target=&#34;_blank&#34;&gt;Mastodonの許可制登録に来る bp+hex スパムを cron で自動却下する - Qiita&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Mastodon 開発側もこの点は認識しているようで，最初のポストに繋がるわけだが，&lt;a href=&#34;https://about.iftas.org/2026/09/11/boom-protocol-spam/&#34; target=&#34;_blank&#34; title=&#34;“Boom Protocol” Spam – IFTAS&#34;&gt;議論&lt;/a&gt;中の対策案では「既存のアプリケーションからの登録ができなくなるような登録フローの大幅な変更が必要となる可能性」があるらしい。
-この辺の議論は注視しておいたほうがいいかもしれない。&lt;/p&gt;
-&lt;p&gt;ちなみに私は新規登録を許可しない設定にしている。
-個人サーバだし，不特定ユーザは要らない。
-不特定の新規登録を許可しない設定にして，招待によるサインアップのみ受け付けるサーバは時々見かける。
-日本語圏の &lt;a href=&#34;https://fedibird.com/&#34; target=&#34;_blank&#34; title=&#34;fedibird.com - Fedibird&#34;&gt;fedibird.com&lt;/a&gt; もそうかな？&lt;/p&gt;
-&lt;h2&gt;フォローだけスパム&lt;/h2&gt;
-&lt;p&gt;ここまではサーバ運営側の話だったけど，ここからは個々のユーザの話。&lt;/p&gt;
-&lt;p&gt;スパムっぽいアカウントがフォローだけして殆ど何もポストしてないってのがあって，「これって実害なさそうだけどブロックしたほうがいいの？」と思い &lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; に訊いてみた。&lt;/p&gt;
-&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;結論から言うと，&lt;strong&gt;無害そうに見えても放置よりはブロック／フォロワー解除しておいた方が安全&lt;/strong&gt;です。&lt;/p&gt;
-&lt;p&gt;スパム業者は、アカウント作成後しばらくフォローを集めて「普通のユーザー」のように見せかけ、数日後に一斉にスパム投稿を始める手口を使います。この「信憑性のシミュレーション」を拒否するため、フォローを許可しないこと自体が意味を持ちます。（&lt;a href=&#34;https://mastodon.social/@mcc/113874476904026256&#34; target=&#34;_blank&#34;&gt;1&lt;/a&gt;）&lt;/p&gt;
-&lt;p&gt;さらに、あなたのアカウントが「鍵垢」で、かつフォローリクエストを承認している場合、フォロワー限定投稿も見られてしまいます。鍵垢でも承認前なら見られませんが、うっかり承認してしまうとフォロワー限定投稿も漏れます。（&lt;a href=&#34;https://github.com/joyeusenoelle/GuideToMastodon/&#34; target=&#34;_blank&#34;&gt;2&lt;/a&gt;）（&lt;a href=&#34;https://fedi.tips/who-can-see-my-posts-in-mastodon-how-do-i-send-dms-in-mastodon/&#34; target=&#34;_blank&#34;&gt;3&lt;/a&gt;）&lt;/p&gt;
-&lt;/div&gt;
-&lt;p&gt;ん？ フォロワー解除って何だ？&lt;/p&gt;
-&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;&lt;strong&gt;「フォロワー解除」機能を使う（Mastodon 4.4 以降）&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;ブロックほど強くなく，相手をミュートもせず，ただフォロワーから外すだけの方法です。
-相手に通知は行かず，あなたの公開投稿は依然として見られますが，フォロワー限定投稿は見られなくなります。&lt;/p&gt;
-&lt;/div&gt;
-&lt;p&gt;おー。
-ホンマにある。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39; cite=&#34;./remove-follower.png&#34;&gt;
-&lt;a href=&#34;./remove-follower.png&#34;&gt;&lt;img src=&#34;./remove-follower.png&#34; srcset=&#34;./remove-follower.png 500w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;フォロワーを削除する&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;./remove-follower.png&#34;&gt;フォロワーを削除する&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;この辺の話かな？&lt;/p&gt;
-&lt;figure lang=&#34;en&#34;&gt;
-&lt;blockquote cite=&#34;https://blog.joinmastodon.org/2025/07/mastodon-4.4/&#34;&gt;To make it easier to see at a glance if the profile belongs to someone you might know, we’ve added a little widget showing how many of the people you follow are following that person to the top of their profile. This also shows up in the profile preview that appears when you hover over their name somewhere else. Don’t want someone to follow you anymore? You don’t have to block them, simply tap “Remove follower” in the dropdown menu on their profile.&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;via &lt;q&gt;&lt;a href=&#34;https://blog.joinmastodon.org/2025/07/mastodon-4.4/&#34;&gt;Mastodon 4.4 - Mastodon Blog&lt;/a&gt;&lt;/q&gt;&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;つまりフォローしてくるユーザに対して拒絶のアクションが3種類用意されているということかな。&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;&lt;strong&gt;ブロック&lt;/strong&gt;: 相手を完全に拒絶し，相手からのフォローやメッセージを遮断する&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;フォロワー解除&lt;/strong&gt;: 相手を自分のフォロワーから外すだけで，相手には通知されず，公開投稿は引き続き見れる&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;ミュート&lt;/strong&gt;: 相手の投稿を自分のタイムラインに表示させないが，相手は引き続きフォロー状態のまま&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;これとは別に「サーバ単位でブロックする」「アカウントを報告する」機能がある。
-状況に応じて使い分けたい。&lt;/p&gt;
-&lt;h2&gt;Mastodon ユーザに対する詐欺の手口&lt;/h2&gt;
-&lt;p&gt;ついでと言ってはナニだが Mastodon ユーザに対する詐欺の手口を &lt;a href=&#34;https://assistant.kagi.com/&#34; target=&#34;_blank&#34; title=&#34;Kagi Assistant&#34;&gt;Kagi Assistant&lt;/a&gt; にまとめてもらった。&lt;/p&gt;
-&lt;div class=&#34;by-ai smaller&#34;&gt;&lt;p&gt;&lt;strong&gt;1. 「Mastodonアカウントを確認する必要がある」という偽の通知&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;Mastodon.social のスタッフが公式に注意喚起している手口です。（&lt;a href=&#34;https://mastodon.social/@staff/114922270018549808&#34; target=&#34;_blank&#34;&gt;1&lt;/a&gt;）（&lt;a href=&#34;https://mastodon.social/@Gargron/114842986093658657&#34; target=&#34;_blank&#34;&gt;2&lt;/a&gt;）&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;見知らぬアカウントから DM や返信で「アカウントを確認しないと利用できなくなる」「確認期限が迫っている」などと連絡が来る&lt;/li&gt;
-&lt;li&gt;リンクをクリックすると，Mastodon に似せた偽サイトに誘導される&lt;/li&gt;
-&lt;li&gt;ID・パスワードを入力させ，乗っ取るか，個人情報を盗む&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Mastodon には「利用継続のために身分証明を提出する」ような仕組みはありません。正規の確認は，あくまで自分のウェブサイトとプロフィールを相互リンクする &lt;code&gt;rel=&amp;quot;me&amp;quot;&lt;/code&gt; 方式だけです。（&lt;a href=&#34;https://joinmastodon.org/verification&#34; target=&#34;_blank&#34;&gt;3&lt;/a&gt;）&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;2. 「人気投稿で報酬がもらえるパートナーシップ」&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;「あなたの投稿が人気なので報酬を払う」「特別に選ばれた」などと持ちかけ，銀行口座情報などをだまし取る詐欺です。（&lt;a href=&#34;https://fedi.tips/how-to-avoid-scammers-on-mastodon-and-the-fediverse/&#34; target=&#34;_blank&#34;&gt;4&lt;/a&gt;）&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;3. 「一時的にメールアドレスを変更してほしい」&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;Mastodon の管理者を装い，「データベースエラーがあったので一時的に指定のメールアドレスに変更してほしい」と頼んでくる手口です。これをされると，パスワードリセットのメールが攻撃者側に届き，アカウントを奪われます。（&lt;a href=&#34;https://fedi.tips/how-to-avoid-scammers-on-mastodon-and-the-fediverse/&#34; target=&#34;_blank&#34;&gt;4&lt;/a&gt;）&lt;/p&gt;
-&lt;/div&gt;
-&lt;p&gt;手口としては目新しいものではないが，いまだに被害に遭うユーザが多いということなのだろう。&lt;/p&gt;
-&lt;p&gt;ちなみに Mastodon サーバのスタッフはプロファイルに特殊なロールバッヂが付いている。
-私のサーバの場合はこんな感じ。&lt;/p&gt;
-&lt;figure&gt;
-&lt;blockquote class=&#34;nobox&#34; style=&#39;margin:0 auto;text-align:center;&#39; cite=&#34;./profile.png&#34;&gt;
-&lt;a href=&#34;./profile.png&#34;&gt;&lt;img src=&#34;./profile.png&#34; srcset=&#34;./profile.png 756w&#34; sizes=&#34;(min-width:600px) 500px, 80vw&#34; alt=&#34;プロファイル&#34; loading=&#34;lazy&#34;&gt;&lt;/a&gt;
-&lt;/blockquote&gt;
-&lt;figcaption&gt;&lt;div&gt;&lt;q&gt;&lt;a href=&#34;./profile.png&#34;&gt;プロファイル&lt;/a&gt;&lt;/q&gt;より&lt;/div&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;
-&lt;p&gt;こうした印がないのであれば詐欺を疑ったほうがいい。
-印があるのに上で挙げたような詐欺行為があるのなら，相手サーバ自体がヤバいかもしれないけど（笑）&lt;/p&gt;
-&lt;p&gt;お互い気をつけませう。&lt;/p&gt;
-&lt;h2&gt;ブックマーク&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://www.privacyguides.org/articles/2025/07/22/mastodon-tutorial-privacy-and-security/&#34; target=&#34;_blank&#34;&gt;How To Improve Your Privacy and Security on Mastodon&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
 </content>
 	</entry>
 </feed>
